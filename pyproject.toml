@@ -13,7 +13,9 @@ authors = [
   { name = "Guido van Rossum" },
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python",
+]
 
 [tool.setuptools]
 # Needed so setuptools doesn't complain about testdata.

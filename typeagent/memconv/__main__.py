@@ -6,6 +6,8 @@ import argparse
 from datetime import datetime as Datetime
 import sys
 
+import typechat
+
 v = 12
 assert sys.version_info >= (3, v), f"Requires Python 3.{v} or later"
 del v

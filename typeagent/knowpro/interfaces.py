@@ -31,7 +31,7 @@ class DeletionInfo:
     reason: str | None = None
 
 
-type MessageIndex = int
+type MessageOrdinal = int
 
 
 @runtime_checkable
@@ -43,18 +43,18 @@ class IMessage(IKnowledgeSource, Protocol):
     deletion_info: DeletionInfo | None = None
 
 
-type SemanticRefIndex = int
+type SemanticRefOrdinal = int
 
 
 @dataclass
-class ScoredSemanticRef:
-    semantic_ref_index: SemanticRefIndex
+class ScoredSemanticRefOrdinal:
+    semantic_ref_ordinal: SemanticRefOrdinal
     score: float
 
 
 @dataclass
-class ScoredMessageIndex:
-    message_index: MessageIndex
+class ScoredMessageOrdinal:
+    message_ordinal: MessageOrdinal
     score: float
 
 
@@ -66,14 +66,14 @@ class ITermToSemanticRefIndex(Protocol):
     def add_term(
         self,
         term: str,
-        semantic_ref_index: SemanticRefIndex | ScoredSemanticRef,
+        semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> None:
         raise NotImplementedError
 
-    def remove_term(self, term: str, semantic_ref_index: SemanticRefIndex) -> None:
+    def remove_term(self, term: str, semantic_ref_ordinal: SemanticRefOrdinal) -> None:
         raise NotImplementedError
 
-    def lookup_term(self, term: str) -> Sequence[ScoredSemanticRef] | None:
+    def lookup_term(self, term: str) -> Sequence[ScoredSemanticRefOrdinal] | None:
         raise NotImplementedError
 
 
@@ -96,11 +96,11 @@ type Knowledge = kplib.ConcreteEntity | kplib.Action | Topic | Tag
 @dataclass
 class TextLocation:
     # The index of the message.
-    message_index: MessageIndex
+    message_ordinal: MessageOrdinal
     # The index of the chunk.
-    chunk_index: int = 0
+    chunk_ordinal: int = 0
     # The index of the character within the chunk.
-    char_index: int = 0
+    char_ordinal: int = 0
 
 
 # A text range within a session.
@@ -114,7 +114,7 @@ class TextRange:
 
 @dataclass
 class SemanticRef:
-    semantic_ref_index: SemanticRefIndex
+    semantic_ref_ordinal: SemanticRefOrdinal
     range: TextRange
     knowledge_type: KnowledgeType
     knowledge: Knowledge
@@ -151,13 +151,13 @@ class IPropertyToSemanticRefIndex(Protocol):
         self,
         property_name: str,
         value: str,
-        semantic_ref_index: SemanticRefIndex | ScoredSemanticRef,
+        semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> None:
         raise NotImplementedError
 
     def lookup_property(
         self, property_name: str, value: str
-    ) -> Sequence[ScoredSemanticRef] | None:
+    ) -> Sequence[ScoredSemanticRefOrdinal] | None:
         raise NotImplementedError
 
 
@@ -170,11 +170,11 @@ class TimestampedTextRange:
 # Return text ranges in the given date range.
 @runtime_checkable
 class ITimestampToTextRangeIndex(Protocol):
-    def add_timestamp(self, message_index: MessageIndex, timestamp: str) -> bool:
+    def add_timestamp(self, message_ordinal: MessageOrdinal, timestamp: str) -> bool:
         raise NotImplementedError
 
     def add_timestamps(
-        self, message_imestamps: Sequence[tuple[MessageIndex, str]]
+        self, message_imestamps: Sequence[tuple[MessageOrdinal, str]]
     ) -> None:
         raise NotImplementedError
 
@@ -230,12 +230,12 @@ class Thread:
     ranges: Sequence[TextRange]
 
 
-type ThreadIndex = int
+type ThreadOrdinal = int
 
 
 @dataclass
 class ScoredThreadIndex:
-    thread_index: ThreadIndex
+    thread_ordinal: ThreadOrdinal
     score: float
 
 
@@ -291,16 +291,16 @@ class IMessageTextIndex(Protocol):
         message_text: str,
         max_matches: int | None = None,
         threshold_score: float | None = None,
-    ) -> list[ScoredMessageIndex]:
+    ) -> list[ScoredMessageOrdinal]:
         raise NotImplementedError
 
     async def lookup_messages_in_subset(
         self,
         message_text: str,
-        indices_to_search: list[MessageIndex],
+        indices_to_search: list[MessageOrdinal],
         max_matches: int | None = None,
         threshold_score: float | None = None,
-    ) -> list[ScoredMessageIndex]:
+    ) -> list[ScoredMessageOrdinal]:
         raise NotImplementedError
 
 
@@ -312,7 +312,7 @@ class IMessageTextIndex(Protocol):
 @runtime_checkable
 class ITermToSemanticRefIndexItem(Protocol):
     term: str
-    semantic_ref_indices: Sequence[ScoredSemanticRef]
+    semantic_ref_indices: Sequence[ScoredSemanticRefOrdinal]
 
 
 # Persistent form of a term index.

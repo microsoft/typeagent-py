@@ -15,8 +15,8 @@ from .interfaces import (
     IndexingResults,
     Knowledge,
     KnowledgeType,
-    MessageIndex,
-    ScoredSemanticRef,
+    MessageOrdinal,
+    ScoredSemanticRefOrdinal,
     SemanticRef,
     TextLocation,
     TextRange,
@@ -24,11 +24,11 @@ from .interfaces import (
 
 
 def text_range_from_location(
-    message_index: MessageIndex,
-    chunk_index: int = 0,
+    message_ordinal: MessageOrdinal,
+    chunk_ordinal: int = 0,
 ) -> TextRange:
     return TextRange(
-        start=TextLocation(message_index, chunk_index),
+        start=TextLocation(message_ordinal, chunk_ordinal),
         end=None,
     )
 
@@ -53,7 +53,7 @@ def add_metadata_to_index[TMessage: IMessage](
 
 @dataclass
 class ConversationIndex(ITermToSemanticRefIndex):
-    _map: dict[str, list[ScoredSemanticRef]]
+    _map: dict[str, list[ScoredSemanticRefOrdinal]]
 
     def __init__(self, data: ITermToSemanticRefIndexData | None = None):
         self._map = {}

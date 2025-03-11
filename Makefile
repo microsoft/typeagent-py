@@ -19,8 +19,8 @@ all: test demo build
 
 .PHONY: test
 # To install pyright, use `npm install -g pyright` .
-test:
-	pyright typeagent
+test: venv
+	pyright --pythonpath venv/bin/python typeagent
 
 .PHONY: build
 build: venv
@@ -33,7 +33,7 @@ demo: venv
 # Not phony -- the venv directory is the product of this rule.
 venv:
 	python -m venv venv || (rm -rf venv && exit 1)
-	venv/bin/pip install build
+	venv/bin/pip -q install -r requirements.txt
 
 .PHONY: clean
 clean:

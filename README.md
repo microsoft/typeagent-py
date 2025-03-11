@@ -17,6 +17,18 @@ This is an in-progress project aiming at a Pythonic translation of
 - Union types remain union types.
 - Unions of string literals become Literal types.
 
+### How to build
+
+Tested only on Ubuntu 22 under WSL. Presumably works on most UNIXoids.
+
+- Install Python 3.12 or higher (get it from (python.org)[python.org]
+  or run `sudo apt install python3.12`)
+- Install pyright: `npm install -g pyright` (to get npm, search the web)
+- Run `make all`
+- You now have a wheel file under `dist/`
+- TODO: Upload that wheel to PyPI
+- To clean up, run `make clean`
+
 ## Trademarks
 
 This project may contain trademarks or logos for projects, products, or services.

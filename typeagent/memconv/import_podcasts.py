@@ -61,9 +61,9 @@ class PodcastMessageBase(interfaces.IKnowledgeSource):
 
 @dataclass
 class PodcastMessage(interfaces.IMessage, PodcastMessageBase):
-    timestamp: str | None = field(init=False, default=None)
     text_chunks: list[str]
     tags: list[str] = field(default_factory=list)
+    timestamp: str | None = None
 
     def add_timestamp(self, timestamp: str) -> None:
         self.timestamp = timestamp
@@ -119,47 +119,13 @@ class Podcast(interfaces.IConversation[PodcastMessage]):
         result = await convindex.build_conversation_index(self, event_handler)
         # TODO
         # if not result.error:
-        #     build_conversation_index already built all aliases.
+        #     # build_conversation_index now automatically builds standard secondary indexes
+        #     # Pass false to build podcast specific secondary indexes only
         #     await self.build_secondary_indexes(False)
         #     await self.secondary_indexes.threads.build_index()
         return result
 
-    # TODO
-    # Work in progress. This will get merged into "build_index" soon.
-    # async def build_message_index...
-
-    # TODO: Wait unti PodcastData is implemented
-    # async def serialize(self) -> PodcastData:
-    #     return PodcastData(
-    #         name_tag=self.name_tag,
-    #         messages=self.messages,
-    #         tags=self.tags,
-    #         selantic_refs=self.semantic_refs,
-    #         semantic_index_data=self.semantic_ref_index or self.semantic_ref_index.serialize(),
-    #         related_terms_index_data=
-    #             self.secondary_indexes.term_to_related_terms_index.serialize(),
-    #         thread_data=self.secondary_indexes.threads.serialize(),
-    #     )
-
-    # TODO
-
-    # async def deserialoze...
-
-    # async def write_to_file...
-
-    # async def read_from_file...
-
-    # async def build_secondary_indexes...
-
-    # def _build_participant_aliases...
-
-    # def _collect_participant_aliases...
-
-
-# TODO: Wait until secondary_indexes.py is implemented
-# @dataclass
-# class PodcastData(secondary_indexes.IConversationDataWithIndexes[PodcastMessage]):
-#     pass
+    # TODO: Methods about serialization, file I/O, and indexing
 
 
 def assign_message_listeners(
@@ -182,7 +148,7 @@ def import_podcast(
     with open(transcript_file_path, "r") as f:
         transcript_lines = f.readlines()
     if not podcast_name:
-        podcast_name = os.path.basename(transcript_file_path)
+        podcast_name = os.path.splitext(os.path.basename(transcript_file_path))[0]
     transcript_lines = [line.rstrip() for line in transcript_lines if line.strip()]
     turn_parse_regex = re.compile(r"^(?P<speaker>[A-Z0-9 ]+:)?(?P<speech>.*)$")
     participants: set[str] = set()
@@ -234,11 +200,8 @@ def timestamp_messages(
     ticks_length = end_time.timestamp() - start_ticks
     if ticks_length <= 0:
         raise RuntimeError(f"{start_time} is not < {end_time}")
-
-    def message_length(message: interfaces.IMessage) -> int:
-        return sum(len(chunk) for chunk in message.text_chunks)
-
-    message_lengths = [message_length(m) for m in messages]
+    message_lengths = [sum(len(chunk) for chunk in m.text_chunks)
+                       for m in messages]
     text_length = sum(message_lengths)
     ticks_per_char = ticks_length / text_length
     for message, length in zip(messages, message_lengths):
