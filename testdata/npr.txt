@@ -2,7 +2,9 @@ GUIDO: Welcome to my podcast, Steve and Umesh.
 UMESH: What are we going to talk about?
 STEVE: Mostly about multi-agent frameworks,
 but also about answering questions about podcast transcripts.
+
 Do you have additional topics you'd like to propose?
+
 GUIDO: Can we also talk about code searching?
 
 UMESH:

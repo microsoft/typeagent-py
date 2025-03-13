@@ -13,7 +13,15 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime as Datetime
-from typing import Any, Callable, Literal, Protocol, runtime_checkable
+from typing import (
+    Callable,
+    Literal,
+    NotRequired,
+    Protocol,
+    runtime_checkable,
+    Self,
+    TypedDict,
+)
 
 from . import kplib
 
@@ -50,6 +58,18 @@ type SemanticRefOrdinal = int
 class ScoredSemanticRefOrdinal:
     semantic_ref_ordinal: SemanticRefOrdinal
     score: float
+
+    def serialize(self) -> "ScoredSemanticRefOrdinalData":
+        return ScoredSemanticRefOrdinalData(
+            semanticRefOrdinal=self.semantic_ref_ordinal, score=self.score
+        )
+
+    @staticmethod
+    def deserialize(data: "ScoredSemanticRefOrdinalData") -> "ScoredSemanticRefOrdinal":
+        return ScoredSemanticRefOrdinal(
+            semantic_ref_ordinal=data["semanticRefOrdinal"],
+            score=data["score"],
+        )
 
 
 @dataclass
@@ -93,7 +113,7 @@ class Tag:
 type Knowledge = kplib.ConcreteEntity | kplib.Action | Topic | Tag
 
 
-@dataclass
+@dataclass(order=True)
 class TextLocation:
     # The index of the message.
     message_ordinal: MessageOrdinal
@@ -104,12 +124,17 @@ class TextLocation:
 
 
 # A text range within a session.
-@dataclass
+@dataclass(order=True)
 class TextRange:
     # The start of the range.
     start: TextLocation
-    # The end of the range (exclusive).
+    # The end of the range (exclusive). If None, the range is a single point.
     end: TextLocation | None = None
+
+    def __contains__(self, other: Self) -> bool:
+        otherend = other.end or other.start
+        selfend = self.end or self.start
+        return self.start <= other.start and otherend <= selfend
 
 
 @dataclass
@@ -123,8 +148,13 @@ class SemanticRef:
 @dataclass
 class DateRange:
     start: Datetime
-    # Inclusive.  # TODO: Really? Shouldn't this be exclusive?
+    # Inclusive. If None, the range is unbounded.
     end: Datetime | None = None
+
+    def __contains__(self, datetime: Datetime) -> bool:
+        if self.end is None:
+            return self.start <= datetime
+        return self.start <= datetime <= self.end
 
 
 @dataclass
@@ -258,25 +288,6 @@ class IConversationThreads(Protocol):
 
 
 @runtime_checkable
-class IConversationSecondaryIndexes(Protocol):
-    property_to_semantic_ref_index: IPropertyToSemanticRefIndex | None
-    timestamp_index: ITimestampToTextRangeIndex | None
-    term_to_related_terms_index: ITermToRelatedTermsIndex | None
-    threads: IConversationThreads | None
-    message_index: "IMessageTextIndex | None" = None
-
-
-@runtime_checkable
-class IConversation[TMessage: IMessage](Protocol):
-    name_tag: str
-    tags: list[str]
-    messages: list[TMessage]
-    semantic_refs: list[SemanticRef] | None
-    semantic_ref_index: ITermToSemanticRefIndex | None
-    secondary_indexes: IConversationSecondaryIndexes | None
-
-
-@runtime_checkable
 class IMessageTextIndex(Protocol):
 
     async def add_messages(
@@ -297,37 +308,62 @@ class IMessageTextIndex(Protocol):
     async def lookup_messages_in_subset(
         self,
         message_text: str,
-        indices_to_search: list[MessageOrdinal],
+        ordinals_to_search: list[MessageOrdinal],
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[ScoredMessageOrdinal]:
         raise NotImplementedError
 
 
-# ------------------------
-# Serialization formats
-# ------------------------
+@runtime_checkable
+class IConversationSecondaryIndexes(Protocol):
+    property_to_semantic_ref_index: IPropertyToSemanticRefIndex | None
+    timestamp_index: ITimestampToTextRangeIndex | None
+    term_to_related_terms_index: ITermToRelatedTermsIndex | None
+    threads: IConversationThreads | None
+    message_index: IMessageTextIndex | None = None
 
 
 @runtime_checkable
-class ITermToSemanticRefIndexItem(Protocol):
+class IConversation[
+    TMessage: IMessage,
+    TTermToSemanticRefIndex: ITermToSemanticRefIndex,
+    TConversationSecondaryIndexes: IConversationSecondaryIndexes,
+](Protocol):
+    name_tag: str
+    tags: list[str]
+    messages: list[TMessage]
+    semantic_refs: list[SemanticRef] | None
+    semantic_ref_index: TTermToSemanticRefIndex | None
+    secondary_indexes: TConversationSecondaryIndexes | None
+
+
+# --------------------------------------------------
+# Serialization formats use TypedDict and camelCase
+# --------------------------------------------------
+
+
+class ScoredSemanticRefOrdinalData(TypedDict):
+    semanticRefOrdinal: SemanticRefOrdinal
+    score: float
+
+
+class TermToSemanticRefIndexItemData(TypedDict):
     term: str
-    semantic_ref_indices: Sequence[ScoredSemanticRefOrdinal]
+    scoredSemanticRefOrdinals: list[ScoredSemanticRefOrdinalData]
 
 
 # Persistent form of a term index.
-@runtime_checkable
-class ITermToSemanticRefIndexData(Protocol):
-    items: Sequence[ITermToSemanticRefIndexItem]
+class TermToSemanticRefIndexData(TypedDict):
+    items: list[TermToSemanticRefIndexItemData]
 
 
-@runtime_checkable
-class IConversationData[TMessage](Protocol):
+class IConversationData[TMessage](TypedDict):
     name_tag: str
-    messages: Sequence[TMessage]
-    tags: Sequence[str]
-    semantic_refs: Sequence[SemanticRef]
-    semantic_index_data: ITermToSemanticRefIndexData | None = None
+    messages: list[TMessage]
+    tags: list[str]
+    semanticRefs: list[SemanticRef]
+    semanticIndexData: NotRequired[TermToSemanticRefIndexData | None]
 
 
 # ------------------------
@@ -335,6 +371,7 @@ class IConversationData[TMessage](Protocol):
 # ------------------------
 
 
+# TODO: Should the callables become methods with a default implementation?
 @dataclass
 class IndexingEventHandlers:
     on_knowledge_extracted: (
@@ -358,11 +395,22 @@ class IndexingEventHandlers:
         ]
         | None
     ) = None
+    on_text_indexed: (
+        Callable[
+            [
+                list[tuple[str, TextLocation]],  # text_and_locations
+                list[tuple[str, TextLocation]],  # batch
+                int,  # batch_start_at
+            ],
+            bool,
+        ]
+        | None
+    ) = None
 
 
 @dataclass
-class IndexingResults:
-    chunks_indexed_upto: TextLocation | None = None
+class TextIndexingResult:
+    completedUpto: TextLocation | None = None
     error: str | None = None
 
 
@@ -370,3 +418,17 @@ class IndexingResults:
 class ListIndexingResult:
     number_completed: int
     error: str | None = None
+
+
+@dataclass
+class SecondaryIndexingResults:
+    propertie: ListIndexingResult | None = None
+    timestamp: ListIndexingResult | None = None
+    related_terms: ListIndexingResult | None = None
+    message: TextIndexingResult | None = None
+
+
+@dataclass
+class IndexingResults:
+    semantic_refs: TextIndexingResult | None = None
+    secondary_index_results: SecondaryIndexingResults | None = None

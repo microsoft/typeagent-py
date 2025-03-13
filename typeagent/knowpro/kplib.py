@@ -26,6 +26,13 @@ class Facet:
     # Very concise values.
     value: Value
 
+    def __str__(self) -> str:
+        value = self.value
+        if isinstance(value, Quantity):
+            return f"{value.amount} {value.units}"
+        else:
+            return str(value)
+
 
 # Specific, tangible people, places, institutions or things only
 @dataclass

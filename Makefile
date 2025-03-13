@@ -3,32 +3,24 @@
 
 # This is Guido's Makefile. Please don't make it complicated.
 
-.PHONY: help
-help:
-	@echo "Usage: make [target]"
-	@echo "make help   # Help"
-	@echo "make all    # test, demo, build"
-	@echo "make test   # Run pyright"
-	@echo "make demo   # Run import_podcast demo"
-	@echo "make build  # Build the wheel (under dist/)"
-	@echo "make venv   # Create venv/"
-	@echo "make clean  # Remove build/, dist/, venv/"
-
 .PHONY: all
-all: test demo build
+all: venv format check test build
+
+.PHONY: format
+format: venv
+	venv/bin/black typeagent
+
+.PHONY: check
+check: venv
+	venv/bin/pyright --pythonpath venv/bin/python typeagent
 
 .PHONY: test
-# To install pyright, use `npm install -g pyright` .
 test: venv
-	pyright --pythonpath venv/bin/python typeagent
+	venv/bin/python -m typeagent.memconv testdata/npr.txt
 
 .PHONY: build
 build: venv
 	venv/bin/python -m build --wheel
-
-.PHONY: demo
-demo: venv
-	venv/bin/python -m typeagent.memconv testdata/npr.txt
 
 # Not phony -- the venv directory is the product of this rule.
 venv:
@@ -38,3 +30,15 @@ venv:
 .PHONY: clean
 clean:
 	rm -rf build dist venv *.egg-info
+
+.PHONY: help
+help:
+	@echo "Usage: make [target]"
+	@echo "make help   # Help"
+	@echo "make all    # venv, format, check, test, build"
+	@echo "make format # Run black"
+	@echo "make check  # Run pyright"
+	@echo "make test   # Run import_podcast test"
+	@echo "make build  # Build the wheel (under dist/)"
+	@echo "make venv   # Create venv/"
+	@echo "make clean  # Remove build/, dist/, venv/, *.egg-info/"

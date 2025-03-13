@@ -1,2 +1,6 @@
+# runtime deps
 typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python
+# build deps
 build
+black
+pyright
