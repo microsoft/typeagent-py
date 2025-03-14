@@ -1,13 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-# TODO:
-# - What does the comment "Very concise values" in class Facet mean?
-# - Should the field names be camelCase to match the JSON schema?
-# - For things of type float, should we add `| int` to emphasize that int is okay?
-#   (Some users think float means float only.)
+# TODO: Convert docs that TypeChat should see to Annotated[T, Doc("blah")]
 
-from dataclasses import dataclass
+from pydantic.dataclasses import dataclass
 from typing import Literal
 
 
@@ -25,6 +21,9 @@ class Facet:
     name: str
     # Very concise values.
     value: Value
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.name!r}, {self.value!r})"
 
     def __str__(self) -> str:
         value = self.value
@@ -49,6 +48,9 @@ class ConcreteEntity:
     # Trivial actions or state changes are not facets.
     # Facets are concise "properties".
     facets: list[Facet] | None = None
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.name!r}, {self.type}, {self.facets})"
 
 
 @dataclass

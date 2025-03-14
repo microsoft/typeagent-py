@@ -34,7 +34,8 @@ clean:
 .PHONY: help
 help:
 	@echo "Usage: make [target]"
-	@echo "make help   # Help"
+	@echo "make help   # Help (this message)"
+	@echo "make        # Same as 'make all'"
 	@echo "make all    # venv, format, check, test, build"
 	@echo "make format # Run black"
 	@echo "make check  # Run pyright"

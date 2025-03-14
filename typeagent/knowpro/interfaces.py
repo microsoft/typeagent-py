@@ -59,6 +59,9 @@ class ScoredSemanticRefOrdinal:
     semantic_ref_ordinal: SemanticRefOrdinal
     score: float
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.score})"
+
     def serialize(self) -> "ScoredSemanticRefOrdinalData":
         return ScoredSemanticRefOrdinalData(
             semanticRefOrdinal=self.semantic_ref_ordinal, score=self.score
@@ -115,12 +118,15 @@ type Knowledge = kplib.ConcreteEntity | kplib.Action | Topic | Tag
 
 @dataclass(order=True)
 class TextLocation:
-    # The index of the message.
+    # The ordinal of the message.
     message_ordinal: MessageOrdinal
-    # The index of the chunk.
+    # The ordinal of the chunk.
     chunk_ordinal: int = 0
-    # The index of the character within the chunk.
+    # The ordinal of the character within the chunk.
     char_ordinal: int = 0
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.message_ordinal}, {self.chunk_ordinal}, {self.char_ordinal})"
 
 
 # A text range within a session.
@@ -130,6 +136,12 @@ class TextRange:
     start: TextLocation
     # The end of the range (exclusive). If None, the range is a single point.
     end: TextLocation | None = None
+
+    def __repr__(self) -> str:
+        if self.end is None:
+            return f"{self.__class__.__name__}({self.start})"
+        else:
+            return f"{self.__class__.__name__}({self.start}, {self.end})"
 
     def __contains__(self, other: Self) -> bool:
         otherend = other.end or other.start
@@ -144,12 +156,21 @@ class SemanticRef:
     knowledge_type: KnowledgeType
     knowledge: Knowledge
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.range}, {self.knowledge_type!r}, {self.knowledge})"
+
 
 @dataclass
 class DateRange:
     start: Datetime
     # Inclusive. If None, the range is unbounded.
     end: Datetime | None = None
+
+    def __repr__(self) -> str:
+        if self.end is None:
+            return f"{self.__class__.__name__}({self.start})"
+        else:
+            return f"{self.__class__.__name__}({self.start}, {self.end})"
 
     def __contains__(self, datetime: Datetime) -> bool:
         if self.end is None:
@@ -410,7 +431,7 @@ class IndexingEventHandlers:
 
 @dataclass
 class TextIndexingResult:
-    completedUpto: TextLocation | None = None
+    completed_upto: TextLocation | None = None
     error: str | None = None
 
 

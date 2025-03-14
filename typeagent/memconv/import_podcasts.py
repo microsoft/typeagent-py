@@ -121,7 +121,9 @@ class Podcast(
         event_handler: interfaces.IndexingEventHandlers | None = None,
     ) -> interfaces.IndexingResults:
         self.add_metadata_to_index()
-        result = await convindex.build_conversation_index(self, event_handler)
+        result = await convindex.build_conversation_index(
+            self, self.settings, event_handler
+        )
         # TODO: implement secondary indexes
         # # build_conversation_index now automatically builds standard secondary indexes.
         # # Pass false to build podcast specific secondary indexes only.
@@ -195,16 +197,6 @@ class Podcast(
     # TODO: Stuff about secondary indexes
 
 
-def assign_message_listeners(
-    msgs: Sequence[PodcastMessage],
-    participants: set[str],
-) -> None:
-    for msg in msgs:
-        if msg.speaker:
-            listeners = [p for p in participants if p != msg.speaker]
-            msg.listeners = listeners
-
-
 # NOTE: Doesn't need to be async (Python file I/O is synchronous)
 def import_podcast(
     transcript_file_path: str,
@@ -216,6 +208,7 @@ def import_podcast(
         transcript_lines = f.readlines()
     if not podcast_name:
         podcast_name = os.path.splitext(os.path.basename(transcript_file_path))[0]
+    # TODO: Don't use a regex, just basic string stuff
     regex = r"""(?x)                  # Enable verbose regex syntax
         ^
         (?:                           # Optional speaker part
@@ -265,6 +258,16 @@ def import_podcast(
     return pod
 
 
+def assign_message_listeners(
+    msgs: Sequence[PodcastMessage],
+    participants: set[str],
+) -> None:
+    for msg in msgs:
+        if msg.speaker:
+            listeners = [p for p in participants if p != msg.speaker]
+            msg.listeners = listeners
+
+
 # Text (such as a transcript) can be collected over a time range.
 # This text can be partitioned into blocks.
 # However, timestamps for individual blocks are not available.
@@ -277,14 +280,13 @@ def timestamp_messages(
     start_time: Datetime,
     end_time: Datetime,
 ) -> None:
-    # ticks ~~ posix timestamp
-    start_ticks = start_time.timestamp()
-    ticks_length = end_time.timestamp() - start_ticks
-    if ticks_length <= 0:
+    start = start_time.timestamp()
+    duration = end_time.timestamp() - start
+    if duration <= 0:
         raise RuntimeError(f"{start_time} is not < {end_time}")
     message_lengths = [sum(len(chunk) for chunk in m.text_chunks) for m in messages]
     text_length = sum(message_lengths)
-    ticks_per_char = ticks_length / text_length
+    seconds_per_char = duration / text_length
     for message, length in zip(messages, message_lengths):
-        message.timestamp = Datetime.fromtimestamp(start_ticks).isoformat()
-        start_ticks += ticks_per_char * length
+        message.timestamp = Datetime.fromtimestamp(start).isoformat()
+        start += seconds_per_char * length
