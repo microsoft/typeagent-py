@@ -16,14 +16,15 @@ from typing import cast
 
 import dotenv
 
-from typeagent.knowpro.convindex import ConversationIndex
-
-from typeagent.knowpro.interfaces import IndexingEventHandlers, TextLocation
-from typeagent.memconv.import_podcasts import import_podcast
+from ..knowpro.convindex import ConversationIndex
+from ..knowpro.interfaces import IndexingEventHandlers, TextLocation
+from .import_podcasts import import_podcast
 
 
 async def main():
-    dotenv.load_dotenv(os.path.expanduser("~/TypeAgent/ts/.env"))  # TODO: Only works in dev tree
+    dotenv.load_dotenv(
+        os.path.expanduser("~/TypeAgent/ts/.env")
+    )  # TODO: Only works in dev tree
     parser = argparse.ArgumentParser(description="Import a podcast")
     parser.add_argument("filename", nargs="?", help="The filename to import")
     # TODO: Add more arguments for the import_podcast function.
@@ -58,8 +59,11 @@ async def main():
         on_embeddings_created,
         on_text_indexed,
     )
-    await pod.build_index(handler)
-    print()
+    indexing_result = await pod.build_index(handler)
+    print(indexing_result)
+    if indexing_result.semantic_refs is not None:
+        if error := indexing_result.semantic_refs.error:
+            raise SystemExit(error)
     if pod.semantic_ref_index is not None:
         data = pod.semantic_ref_index.serialize()
         new = ConversationIndex(data)

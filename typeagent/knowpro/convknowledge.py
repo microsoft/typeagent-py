@@ -1,16 +1,52 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import asyncio
 from dataclasses import dataclass, field
 import os
 
 import typechat
 
 from . import kplib
+from ..aitools import auth
+
+
+class ModelWrapper(typechat.TypeChatLanguageModel):
+    def __init__(
+        self,
+        base_model: typechat.TypeChatLanguageModel,
+        token_provider: auth.AzureTokenProvider,
+    ):
+        self.base_model = base_model
+        self.token_provider = token_provider
+
+    async def complete(
+        self, prompt: str | list[typechat.PromptSection]
+    ) -> typechat.Result[str]:
+        if self.token_provider.needs_refresh():
+            loop = asyncio.get_running_loop()
+            api_key = await loop.run_in_executor(
+                None, self.token_provider.refresh_token
+            )
+            env: dict[str, str | None] = dict(os.environ)
+            key_name = "AZURE_OPENAI_API_KEY"
+            env[key_name] = api_key
+            self.base_model = typechat.create_language_model(env)
+        return await self.base_model.complete(prompt)
 
 
 def create_typechat_model() -> typechat.TypeChatLanguageModel:
-    return typechat.create_language_model(dict(os.environ))
+    env: dict[str, str | None] = dict(os.environ)
+    key_name = "AZURE_OPENAI_API_KEY"
+    key = env.get(key_name)
+    shared_token_provider: auth.AzureTokenProvider | None = None
+    if key is not None and key.lower() == "identity":
+        shared_token_provider = auth.get_shared_token_provider()
+        env[key_name] = shared_token_provider.get_token()
+    model = typechat.create_language_model(env)
+    if shared_token_provider is not None:
+        model = ModelWrapper(model, shared_token_provider)
+    return model
 
 
 @dataclass
@@ -23,18 +59,7 @@ class KnowledgeExtractor:
         self.model = model
         self.translator = self.create_translator(self.model)
 
-    async def extract(self, message: str) -> kplib.KnowledgeResponse | None:
-        result: typechat.Result[kplib.KnowledgeResponse] = await self.extract_knowledge(
-            message
-        )
-        if isinstance(result, typechat.Success):
-            return result.value
-        else:
-            return None
-
-    async def extract_knowledge(
-        self, message: str
-    ) -> typechat.Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
         result = await self.translator.translate(message)
         # TODO
         # if isinstance(result, typechat.Success):

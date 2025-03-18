@@ -4,6 +4,8 @@ typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python
 python-dotenv
 pydantic
 azure-identity
+openai
+numpy
 
 # Build deps
 

@@ -22,5 +22,5 @@ dependencies = [
 packages = [
     "typeagent",
     "typeagent.knowpro",
-    "typeagent.memconv",
+    "typeagent.podcasts",
 ]

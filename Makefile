@@ -16,7 +16,7 @@ check: venv
 
 .PHONY: test
 test: venv
-	venv/bin/python -m typeagent.memconv testdata/npr.txt
+	venv/bin/python -m typeagent.podcasts testdata/npr.txt
 
 .PHONY: build
 build: venv

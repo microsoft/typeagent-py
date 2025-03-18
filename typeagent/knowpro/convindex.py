@@ -150,17 +150,19 @@ def add_action_to_index(
 
 
 def add_knowledge_to_index(
-        semantic_refs: list[SemanticRef],
-        semantic_ref_index: ITermToSemanticRefIndex,
-        message_ordinal: MessageOrdinal,
-        knowledge: kplib.KnowledgeResponse,
+    semantic_refs: list[SemanticRef],
+    semantic_ref_index: ITermToSemanticRefIndex,
+    message_ordinal: MessageOrdinal,
+    knowledge: kplib.KnowledgeResponse,
 ) -> None:
     for entity in knowledge.entities:
         add_entity_to_index(entity, semantic_refs, semantic_ref_index, message_ordinal)
     for action in knowledge.actions:
         add_action_to_index(action, semantic_refs, semantic_ref_index, message_ordinal)
     for inverse_action in knowledge.inverse_actions:
-        add_action_to_index(inverse_action, semantic_refs, semantic_ref_index, message_ordinal)
+        add_action_to_index(
+            inverse_action, semantic_refs, semantic_ref_index, message_ordinal
+        )
     for topic in knowledge.topics:
         add_topic_to_index(topic, semantic_refs, semantic_ref_index, message_ordinal)
 
@@ -311,12 +313,18 @@ async def build_semantic_ref_index[TM: IMessage, TC: IConversationSecondaryIndex
         # Only one chunk per message for now.
         text = message.text_chunks[chunk_ordinal]
         # TODO: retries
-        knowledge = await extractor.extract(text)
-        if knowledge is None:
-            indexing_result.error = f"Failed to extract knowledge from message {message_ordinal}: {text}"
-            print(indexing_result.error)
-            break
-        if knowledge.entities or knowledge.actions or knowledge.inverse_actions or knowledge.topics:
+        match await extractor.extract(text):
+            case typechat.Failure(error):
+                indexing_result.error = f"Failed to extract knowledge from message {message_ordinal}: {error}"
+                break
+            case typechat.Success(knowledge):
+                pass
+        if (
+            knowledge.entities
+            or knowledge.actions
+            or knowledge.inverse_actions
+            or knowledge.topics
+        ):
             add_knowledge_to_index(
                 semantic_refs,
                 semantic_ref_index,
@@ -327,7 +335,6 @@ async def build_semantic_ref_index[TM: IMessage, TC: IConversationSecondaryIndex
         indexing_result.completed_upto = completed_chunk
         if event_handler and event_handler.on_knowledge_extracted:
             if not event_handler.on_knowledge_extracted(completed_chunk, knowledge):
-                print("BREAK")
                 break
 
     # dump(semantic_ref_index, semantic_refs)
@@ -335,7 +342,9 @@ async def build_semantic_ref_index[TM: IMessage, TC: IConversationSecondaryIndex
     return indexing_result
 
 
-def dump(semantic_ref_index: ConversationIndex, semantic_refs: list[SemanticRef]) -> None:
+def dump(
+    semantic_ref_index: ConversationIndex, semantic_refs: list[SemanticRef]
+) -> None:
     print("semantic_ref_index = {")
     for k, v in semantic_ref_index._map.items():
         print(f"    {k!r}: {v},")
