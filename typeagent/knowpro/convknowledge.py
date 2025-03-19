@@ -75,15 +75,22 @@ class KnowledgeExtractor:
         translator = typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse](
             model, validator, kplib.KnowledgeResponse
         )
-        schema_text = translator._schema_str
+        schema_text = translator._schema_str.rstrip()
 
         def create_request_prompt(intent: str) -> str:
             return (
-                f'You are a service that translates user messages in a conversation into JSON objects of type "{type_name}" according to the following TypeScript definitions:\n'
-                + f"```\n{schema_text}```\n"
+                f"You are a service that translates user messages in a conversation "
+                + f'into JSON objects of type "{type_name}" '
+                + f"according to the following TypeScript definitions:\n"
+                + f"```\n"
+                + f"{schema_text}\n"
+                + f"```\n"
                 + f"The following are messages in a conversation:\n"
-                + f'"""\n{intent}\n"""\n'
-                + f"The following is the user request translated into a JSON object with 2 spaces of indentation and no properties with the value undefined:\n"
+                + f'"""\n'
+                + f"{intent}\n"
+                + f'"""\n'
+                + f"The following is the user request translated into a JSON object "
+                + f"with 2 spaces of indentation and no properties with the value undefined:\n"
             )
 
         translator._create_request_prompt = create_request_prompt

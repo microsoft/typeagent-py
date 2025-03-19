@@ -285,7 +285,7 @@ type ThreadOrdinal = int
 
 
 @dataclass
-class ScoredThreadIndex:
+class ScoredThreadOrdinal:
     thread_ordinal: ThreadOrdinal
     score: float
 
@@ -304,7 +304,7 @@ class IConversationThreads(Protocol):
         thread_description: str,
         max_matches: int | None = None,
         threshold_score: float | None = None,
-    ) -> Sequence[ScoredThreadIndex] | None:
+    ) -> Sequence[ScoredThreadOrdinal] | None:
         raise NotImplementedError
 
 
