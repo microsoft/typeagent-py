@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import os
 
 import typechat
@@ -61,7 +61,7 @@ class KnowledgeExtractor:
 
     async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
         result = await self.translator.translate(message)
-        # TODO
+        # TODO: Implement merge_action_knowledge
         # if isinstance(result, typechat.Success):
         #     self.merge_action_knowledge(result.data)
         return result

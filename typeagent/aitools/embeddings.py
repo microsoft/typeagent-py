@@ -12,8 +12,8 @@ from openai import AsyncOpenAI, AsyncAzureOpenAI
 
 from .auth import get_shared_token_provider, AzureTokenProvider
 
-NormalizedEmbedding = NDArray[np.float32]  # A single embedding
-NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
+type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
+type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
 
 
 class AsyncEmbeddingModel:
@@ -22,10 +22,10 @@ class AsyncEmbeddingModel:
         openai_key_name = "OPENAI_API_KEY"
         azure_key_name = "AZURE_OPENAI_API_KEY"
         if os.getenv(openai_key_name):
-            print(f"Using OpenAI")
+            print(f"\nUsing OpenAI")
             self.async_client = AsyncOpenAI()
         elif azure_api_key := os.getenv(azure_key_name):
-            print("Using Azure OpenAI")
+            print("\nUsing Azure OpenAI")
             # TODO: support different endpoint names
             endpoint_name = "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"
             self.azure_endpoint = os.environ.get(endpoint_name)

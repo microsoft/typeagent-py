@@ -24,12 +24,16 @@ build: venv
 
 # Not phony -- the venv directory is the product of this rule.
 venv:
-	python -m venv venv || (rm -rf venv && exit 1)
+	python3 -m venv venv || (rm -rf venv && exit 1)
 	venv/bin/pip -q install -r requirements.txt
+	@venv/bin/python --version
+	@venv/bin/pyright --version
+	@venv/bin/black --version
 
 .PHONY: clean
 clean:
 	rm -rf build dist venv *.egg-info
+	find . -type d -name __pycache__ | xargs rm -rf
 
 .PHONY: help
 help:

@@ -1,33 +1,24 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-# TODO:
-# - See TODOs in kplib.py.
-# - Do the Protocol classes need to be @runtime_checkable?
-#
-# NOTE:
-# - I took some liberty with index types and made them int.
-# - I rearranged the order in some cases to ensure def-before-ref.
-# - I translated readonly to @property.
-
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime as Datetime
+from datetime import datetime as Datetime, timedelta as Timedelta  # For export!
 from typing import (
+    Any,
     Callable,
     Literal,
     NotRequired,
     Protocol,
-    runtime_checkable,
     Self,
     TypedDict,
 )
+from typing_extensions import ReadOnly
 
 from . import kplib
 
 
 # An object that can provide a KnowledgeResponse structure.
-@runtime_checkable
 class IKnowledgeSource(Protocol):
     def get_knowledge(self) -> kplib.KnowledgeResponse:
         raise NotImplementedError
@@ -42,7 +33,6 @@ class DeletionInfo:
 type MessageOrdinal = int
 
 
-@runtime_checkable
 class IMessage(IKnowledgeSource, Protocol):
     # The text of the message, split into chunks.
     text_chunks: list[str]
@@ -81,7 +71,6 @@ class ScoredMessageOrdinal:
     score: float
 
 
-@runtime_checkable
 class ITermToSemanticRefIndex(Protocol):
     def get_terms(self) -> Sequence[str]:
         raise NotImplementedError
@@ -178,7 +167,8 @@ class DateRange:
         return self.start <= datetime <= self.end
 
 
-@dataclass
+# Term must be hashable to allow using it as a dict key or set member.
+@dataclass(unsafe_hash=True)
 class Term:
     text: str
     # Optional weighting for these matches.
@@ -193,9 +183,8 @@ class ScoredKnowledge:
 
 
 # Allows for faster retrieval of name, value properties
-@runtime_checkable
 class IPropertyToSemanticRefIndex(Protocol):
-    def get_values(self) -> Sequence[str]:
+    def get_values(self) -> list[str]:
         raise NotImplementedError
 
     def add_property(
@@ -219,27 +208,24 @@ class TimestampedTextRange:
 
 
 # Return text ranges in the given date range.
-@runtime_checkable
 class ITimestampToTextRangeIndex(Protocol):
     def add_timestamp(self, message_ordinal: MessageOrdinal, timestamp: str) -> bool:
         raise NotImplementedError
 
     def add_timestamps(
-        self, message_imestamps: Sequence[tuple[MessageOrdinal, str]]
-    ) -> None:
+        self, message_timestamps: list[tuple[MessageOrdinal, str]]
+    ) -> "ListIndexingResult":
         raise NotImplementedError
 
-    def lookup_range(self, date_range: DateRange) -> Sequence[TimestampedTextRange]:
+    def lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]:
         raise NotImplementedError
 
 
-@runtime_checkable
 class ITermToRelatedTerms(Protocol):
     def lookup_term(self, text: str) -> Sequence[Term] | None:
         raise NotImplementedError
 
 
-@runtime_checkable
 class ITermToRelatedTermsFuzzy(Protocol):
     async def add_terms(
         self, terms: Sequence[str], event_handler: "IndexingEventHandlers | None" = None
@@ -263,14 +249,13 @@ class ITermToRelatedTermsFuzzy(Protocol):
         raise NotImplementedError
 
 
-@runtime_checkable
 class ITermToRelatedTermsIndex(Protocol):
     @property
     def aliases(self) -> ITermToRelatedTerms | None:
         raise NotImplementedError
 
     @property
-    def fuzzy_index(self) -> ITermToRelatedTermsFuzzy | None:
+    def fuzzy_index(self) -> Any | None:  # TODO: ITermToRelatedTermsFuzzy | None; Or ectorBase | None?
         raise NotImplementedError
 
 
@@ -290,11 +275,8 @@ class ScoredThreadOrdinal:
     score: float
 
 
-@runtime_checkable
 class IConversationThreads(Protocol):
-    @property
-    def threads(self) -> Sequence[Thread]:
-        raise NotImplementedError
+    threads: list[Thread]
 
     async def add_thread(self, thread: Thread) -> None:
         raise NotImplementedError
@@ -308,7 +290,6 @@ class IConversationThreads(Protocol):
         raise NotImplementedError
 
 
-@runtime_checkable
 class IMessageTextIndex(Protocol):
 
     async def add_messages(
@@ -336,16 +317,14 @@ class IMessageTextIndex(Protocol):
         raise NotImplementedError
 
 
-@runtime_checkable
 class IConversationSecondaryIndexes(Protocol):
     property_to_semantic_ref_index: IPropertyToSemanticRefIndex | None
     timestamp_index: ITimestampToTextRangeIndex | None
     term_to_related_terms_index: ITermToRelatedTermsIndex | None
-    threads: IConversationThreads | None
+    threads: IConversationThreads | None = None
     message_index: IMessageTextIndex | None = None
 
 
-@runtime_checkable
 class IConversation[
     TMessage: IMessage,
     TTermToSemanticRefIndex: ITermToSemanticRefIndex,
@@ -427,11 +406,12 @@ class IndexingEventHandlers:
         ]
         | None
     ) = None
+    on_message_started: Callable[[MessageOrdinal], bool] | None = None
 
 
 @dataclass
 class TextIndexingResult:
-    completed_upto: TextLocation | None = None
+    completed_upto: TextLocation | None = None  # Last message and chunk indexed
     error: str | None = None
 
 
@@ -443,8 +423,8 @@ class ListIndexingResult:
 
 @dataclass
 class SecondaryIndexingResults:
-    propertie: ListIndexingResult | None = None
-    timestamp: ListIndexingResult | None = None
+    properties: ListIndexingResult | None = None
+    timestamps: ListIndexingResult | None = None
     related_terms: ListIndexingResult | None = None
     message: TextIndexingResult | None = None
 
