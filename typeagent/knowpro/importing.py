@@ -3,21 +3,32 @@
 
 from dataclasses import dataclass, field
 
+from ..aitools.embeddings import AsyncEmbeddingModel
+
 
 # TODO: TextEmbeddingIndexSettings belongs in vectorbase.py.
 @dataclass
 class TextEmbeddingIndexSettings:
-    # TODO: Add these (currently hardcoded in VectorBase):
-    # embedding_model
-    # embedding_size
-    min_score: float
+    embedding_model: AsyncEmbeddingModel | None = None
+    embedding_size: int | None = None
+    min_score: float = 0.0
     max_matches: int | None = None
     retry_max_attempts: int = 2
     retry_delay: float = 2.0  # Seconds
     batch_size: int = 8
 
     # TODO: Add embedding_model, embedding_size arguments (one supported).
-    def __init__(self, min_score: float | None = None, max_matches: int | None = None):
+    def __init__(
+        self,
+        embedding_model: AsyncEmbeddingModel | None = None,
+        embedding_size: int | None = None,
+        min_score: float | None = None,
+        max_matches: int | None = None,
+    ):
+        if embedding_model is None:
+            embedding_model = AsyncEmbeddingModel()
+        self.embedding_model = embedding_model
+        self.embedding_size = embedding_size
         if min_score is None:
             min_score = 0.85
         self.min_score = min_score
@@ -57,11 +68,13 @@ class ConversationSettings:
     message_text_index_settings: MessageTextIndexSettings
 
     def __init__(self):
+        # All settings share the same model, so they share the embedding cache.
+        model = AsyncEmbeddingModel()
         min_score = 0.85
         self.related_term_index_settings = RelatedTermIndexSettings(
-            TextEmbeddingIndexSettings(min_score, max_matches=50)
+            TextEmbeddingIndexSettings(model, min_score=min_score, max_matches=50)
         )
-        self.thread_settings = TextEmbeddingIndexSettings(min_score)
+        self.thread_settings = TextEmbeddingIndexSettings(model, min_score=min_score)
         self.message_text_index_settings = MessageTextIndexSettings(
-            TextEmbeddingIndexSettings(min_score)
+            TextEmbeddingIndexSettings(model, min_score=min_score)
         )

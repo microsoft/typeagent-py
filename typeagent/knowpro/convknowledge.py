@@ -60,11 +60,7 @@ class KnowledgeExtractor:
         self.translator = self.create_translator(self.model)
 
     async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
-        result = await self.translator.translate(message)
-        # TODO: Implement merge_action_knowledge
-        # if isinstance(result, typechat.Success):
-        #     self.merge_action_knowledge(result.data)
-        return result
+        return await self.translator.translate(message)
 
     def create_translator(
         self, model: typechat.TypeChatLanguageModel

@@ -22,6 +22,7 @@ from ..knowpro.interfaces import (
     MessageOrdinal,
     TextLocation,
 )
+from ..knowpro.importing import ConversationSettings
 from .import_podcasts import import_podcast
 
 
@@ -69,7 +70,9 @@ async def main():
         on_text_indexed,
         on_message_started,
     )
+
     indexing_result = await pod.build_index(handler)
+    print()
     print(indexing_result)
     if indexing_result.semantic_refs is not None:
         if error := indexing_result.semantic_refs.error:

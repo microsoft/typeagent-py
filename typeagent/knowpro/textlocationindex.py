@@ -52,7 +52,7 @@ class ITextToTextLocationIndex(Protocol):
 class TextToTextLocationIndex(ITextToTextLocationIndex):
     def __init__(self, settings: TextEmbeddingIndexSettings):
         self._text_locations: list[TextLocation] = []
-        self._vector_base: VectorBase = VectorBase()
+        self._vector_base: VectorBase = VectorBase(settings)
 
     def __len__(self) -> int:
         return len(self._vector_base)
@@ -82,7 +82,10 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
     ) -> ListIndexingResult:
         # TODO: Honor batch size
         # TODO: Catch errors
-        await self._vector_base.add_keys([text for text, _ in text_and_locations])
+        # Assuming we're indexing whole text chunks, bypass the embedding cache.
+        await self._vector_base.add_keys(
+            [text for text, _ in text_and_locations], cache=False
+        )
         self._text_locations.extend([location for _, location in text_and_locations])
         return ListIndexingResult(len(text_and_locations))
 

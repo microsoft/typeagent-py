@@ -81,22 +81,18 @@ class Podcast(
         secindex.ConversationSecondaryIndexes,
     ]
 ):
-    # Instance variables not passed to `__init__()`.
-    settings: ConversationSettings = field(
-        init=False, default_factory=ConversationSettings
-    )
-    semantic_ref_index: convindex.ConversationIndex | None = field(
-        init=False, default_factory=convindex.ConversationIndex
-    )
-    secondary_indexes: interfaces.IConversationSecondaryIndexes = field(  # type: ignore  # TODO
-        init=False, default_factory=secindex.ConversationSecondaryIndexes
-    )
-
-    # __init__() parameters, in that order (via `@dataclass`).
-    name_tag: str = field(default="")
+    name_tag: str = ""
     messages: list[PodcastMessage] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     semantic_refs: list[interfaces.SemanticRef] = field(default_factory=list)  # type: ignore  # TODO
+    settings: ConversationSettings = field(default_factory=ConversationSettings)
+    semantic_ref_index: convindex.ConversationIndex = field(default_factory=convindex.ConversationIndex)  # type: ignore  # TODO
+
+    secondary_indexes: interfaces.IConversationSecondaryIndexes = field(init=False)
+
+    def __post_init__(self) -> None:
+        # This needs self.settings, so can't use field(default_factor=...)
+        self.secondary_indexes = secindex.ConversationSecondaryIndexes(self.settings.related_term_index_settings)  # type: ignore  # TODO
 
     def add_metadata_to_index(self) -> None:
         if self.semantic_ref_index is not None:
@@ -296,7 +292,9 @@ def import_podcast(
                 cur_msg = PodcastMessage(speaker, [], [speech])
     if cur_msg:
         msgs.append(cur_msg)
+
     assign_message_listeners(msgs, participants)
+
     pod = Podcast(podcast_name, msgs, [podcast_name])
     if start_date:
         pod.generate_timestamps(start_date, length_minutes)

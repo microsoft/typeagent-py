@@ -255,7 +255,9 @@ class ITermToRelatedTermsIndex(Protocol):
         raise NotImplementedError
 
     @property
-    def fuzzy_index(self) -> Any | None:  # TODO: ITermToRelatedTermsFuzzy | None; Or ectorBase | None?
+    def fuzzy_index(
+        self,
+    ) -> Any | None:  # TODO: ITermToRelatedTermsFuzzy | None; or VectorBase | None?
         raise NotImplementedError
 
 

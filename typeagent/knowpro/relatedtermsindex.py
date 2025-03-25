@@ -65,7 +65,7 @@ class RelatedTermsIndex(ITermToRelatedTermsIndex):
     def __init__(self, settings: RelatedTermIndexSettings):
         self.settings = settings
         self._alias_map = TermToRelatedTermsMap()
-        self._vector_base = VectorBase()
+        self._vector_base = VectorBase(settings.embedding_index_settings)
 
     @property
     def aliases(self) -> TermToRelatedTermsMap:

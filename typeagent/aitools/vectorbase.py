@@ -6,7 +6,8 @@ from typing import NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
-from ..aitools.embeddings import AsyncEmbeddingModel
+from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
+from ..knowpro.importing import TextEmbeddingIndexSettings
 
 
 class ScoredOrdinal(NamedTuple):
@@ -15,13 +16,28 @@ class ScoredOrdinal(NamedTuple):
 
 
 class VectorBase:
-    # TODO: pass TextEmbeddingIndexSettings to give the model and the embedding size.
-    def __init__(self):  # TODO: settings: TextEmbeddingIndexSettings | None = None
-        self._model = AsyncEmbeddingModel()
-        self._vectors: NDArray[np.float32] = np.array([], dtype=np.float32).reshape(
+    def __init__(self, settings: TextEmbeddingIndexSettings | None = None):
+        model = settings.embedding_model if settings is not None else None
+        if model is None:
+            model = AsyncEmbeddingModel()
+        self._model = model
+        self._vectors: NormalizedEmbeddings = np.array([], dtype=np.float32).reshape(
             (0, 0)
         )
-        self._embedding_cache: dict[str, NDArray[np.float32]] = {}
+
+    async def get_embedding(self, key: str, cache: bool = True) -> NormalizedEmbedding:
+        if cache:
+            return await self._model.get_embedding(key)
+        else:
+            return await self._model.get_embedding_nocache(key)
+
+    async def get_embeddings(
+        self, keys: list[str], cache: bool = True
+    ) -> NormalizedEmbeddings:
+        if cache:
+            return await self._model.get_embeddings(keys)
+        else:
+            return await self._model.get_embeddings_nocache(keys)
 
     def __len__(self) -> int:
         return len(self._vectors)
@@ -30,51 +46,15 @@ class VectorBase:
     def __bool__(self) -> bool:
         return True
 
-    async def get_embedding(self, key: str) -> NDArray[np.float32]:
-        """Retrieve an embedding, using the cache."""
-        if key in self._embedding_cache:
-            return self._embedding_cache[key]
-        embedding = await self._model.get_embedding(key)
-        self._embedding_cache[key] = embedding
-        return embedding
-
-    async def get_embeddings(self, keys: list[str]) -> NDArray[np.float32]:
-        """Retrieve embeddings for multiple keys, using the cache."""
-        embeddings = []
-        missing_keys = []
-
-        # Collect cached embeddings and identify missing keys
-        for key in keys:
-            if key in self._embedding_cache:
-                embeddings.append(self._embedding_cache[key])
-            else:
-                embeddings.append(None)  # Placeholder for missing keys
-                missing_keys.append(key)
-
-        # Retrieve embeddings for missing keys
-        if missing_keys:
-            new_embeddings = await self._model.get_embeddings(missing_keys)
-            for key, embedding in zip(missing_keys, new_embeddings):
-                self._embedding_cache[key] = embedding
-
-            # Replace placeholders with retrieved embeddings
-            for i, key in enumerate(keys):
-                if embeddings[i] is None:
-                    embeddings[i] = self._embedding_cache[key]
-        if len(keys):
-            return np.array(embeddings, dtype=np.float32).reshape((len(keys), -1))
-        else:
-            return np.array([], dtype=np.float32).reshape((0, 0))
-
-    async def add_key(self, key: str) -> None:
+    async def add_key(self, key: str, cache: bool = True) -> None:
         embedding = (await self.get_embedding(key)).reshape((1, -1))
         if not len(self._vectors):
             self._vectors = embedding
         else:
             self._vectors = np.append(self._vectors, embedding, axis=0)
 
-    async def add_keys(self, keys: list[str]) -> None:
-        embeddings = await self.get_embeddings(keys)
+    async def add_keys(self, keys: list[str], cache: bool = True) -> None:
+        embeddings = await self.get_embeddings(keys, cache=cache)
         if not len(self._vectors):
             self._vectors = embeddings
         else:
@@ -100,7 +80,6 @@ class VectorBase:
         return scored_ordinals[:max_hits]
 
     def clear(self) -> None:
-        size = len(self._vectors)
         self._vectors = np.array([], dtype=np.float32).reshape((0, 0))
 
 

@@ -2,19 +2,28 @@
 
 ## Big functionality
 
-- Serialization and deserialization (do this before queries since fully re-indexing takes too long)
-- Queries and searches (so we can finally test everyhing)
-- Retries for embeddings (for robustness -- TypeChat already retries)
+    ### Serialization and deserialization
+
+    Do this before queries, since fully re-indexing takes too long.
+
+    ### Queries and searches
+
+    So we can finally do some end-to-end testing.
+
+    ### Retries for embeddings
+
+    For robustness -- TypeChat already retries, but embeddings don't.
+
+---
 
 ## Small functionality
 
-- Implement merge_action_knowledge() in convknowledge.py
-- Implement sharing an embedding model between vectorbases (requires model and emb.size in TextEmbeddingSettings)
-- Move the embeddings cache into the model so it can be shared between different vector bases
-- Implement Podcast._build_caches(), by implementing create_term_embedding_cache()
+- Implement Podcast._build_caches(), by implementing TermEmbeddingCache?
+  - Umesh wants to redo this
 
 ## Refactoring implementations
 
+- Move various create_blah() functions into  Blah.__init__()
 - Change some inconsistent module names
 - Rewrite podcast parsing without regexes
 
@@ -29,4 +38,8 @@
 
 ## Low priority
 
-- Various remove...() or delete...() methods (so far unused in TS knowPro)
+- Tombstones for deletions.
+
+## Maybe...
+
+- Add docstrings etc.
