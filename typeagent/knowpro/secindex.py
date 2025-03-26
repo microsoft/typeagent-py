@@ -1,25 +1,34 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Any
+from typing import Any, NotRequired, Protocol, TypedDict
 
-from .messageindex import MessageTextIndex, build_message_index
-from .relatedtermsindex import RelatedTermsIndex, build_related_terms_index
-
-from . import convthreads
+from .convthreads import IConversationThreadData
 from .importing import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
+    IConversationData,
     IConversationSecondaryIndexes,
     IMessage,
     ITermToSemanticRefIndex,
+    ITermsToRelatedTermsIndexData,
     IndexingEventHandlers,
     SecondaryIndexingResults,
+    TermData,
     TextIndexingResult,
     TextLocation,
 )
-from .timestampindex import TimestampToTextRangeIndex, build_timestamp_index
+from .messageindex import MessageTextIndex, build_message_index
+from .relatedtermsindex import RelatedTermsIndex, build_related_terms_index
 from .propindex import PropertyIndex, build_property_index
+from .relatedtermsindex import ITermToRelatedTermsData
+from .textlocationindex import ITextToTextLocationIndexData
+from .timestampindex import TimestampToTextRangeIndex, build_timestamp_index
+from ..aitools.vectorbase import ITextEmbeddingIndexData
+
+
+class IMessageTextIndexData(TypedDict):
+    indexData: NotRequired[ITextToTextLocationIndexData | None]
 
 
 class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
@@ -69,3 +78,11 @@ def build_transient_secondary_indexes[
     result.properties = build_property_index(conversation)
     result.timestamps = build_timestamp_index(conversation)
     return result
+
+
+# TODO: Why is this here and not in indexes.py?
+class IConversationDataWithIndexes[TMessageData](IConversationData[TMessageData]):
+
+    relatedTermsIndexData: NotRequired[ITermsToRelatedTermsIndexData | None]
+    threadData: NotRequired[IConversationThreadData | None]
+    messageIndexData: NotRequired[IMessageTextIndexData | None]

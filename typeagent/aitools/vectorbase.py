@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import NamedTuple
+from typing import Any, NamedTuple, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,15 +15,19 @@ class ScoredOrdinal(NamedTuple):
     score: float
 
 
+class ITextEmbeddingIndexData(TypedDict):
+    textItems: list[str]
+    embeddings: list[Any]  # TODO: list[NormalizedEmbeddingData]
+
+
 class VectorBase:
     def __init__(self, settings: TextEmbeddingIndexSettings | None = None):
         model = settings.embedding_model if settings is not None else None
         if model is None:
             model = AsyncEmbeddingModel()
         self._model = model
-        self._vectors: NormalizedEmbeddings = np.array([], dtype=np.float32).reshape(
-            (0, 0)
-        )
+        # TODO: Using Any b/c pyright doesn't appear to understand NDArray.
+        self._vectors = np.array([], dtype=np.float32).reshape((0, 0))
 
     async def get_embedding(self, key: str, cache: bool = True) -> NormalizedEmbedding:
         if cache:
@@ -81,6 +85,17 @@ class VectorBase:
 
     def clear(self) -> None:
         self._vectors = np.array([], dtype=np.float32).reshape((0, 0))
+
+    def serialize_embedding_at(self, ordinal: int) -> list[list[float]]:
+        return [self._vectors[ordinal].tolist()]
+
+    def serialize(self) -> ITextEmbeddingIndexData:
+        return ITextEmbeddingIndexData(
+            textItems=[],  # TODO: Where do I get a list[str] here?
+            # TODO: Serialize the full embedding, not just the first 3 elements. 
+            # TODO: Serialize as binary data.
+            embeddings=[embedding[:3].tolist() for embedding in self._vectors],
+        )
 
 
 async def main():

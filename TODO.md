@@ -6,6 +6,8 @@
 
     Do this before queries, since fully re-indexing takes too long.
 
+    Q: Should we serialize settings? Or are they intentionally not serialized?
+
     ### Queries and searches
 
     So we can finally do some end-to-end testing.

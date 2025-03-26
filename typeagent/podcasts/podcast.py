@@ -2,13 +2,11 @@
 # Licensed under the MIT License.
 
 from dataclasses import dataclass, field
-import os
-import re
-from typing import cast, Sequence
+from typing import Sequence, TypedDict
 
 from ..knowpro.importing import ConversationSettings
 from ..knowpro import convindex, interfaces, kplib, secindex
-from ..knowpro.interfaces import Datetime, Term, Timedelta
+from ..knowpro.interfaces import Datetime, Timedelta
 
 
 @dataclass
@@ -60,6 +58,12 @@ class PodcastMessageBase(interfaces.IKnowledgeSource):
             )
 
 
+class PodcastMessageData(TypedDict):
+    textChunks: list[str]
+    tags: list[str]
+    timestamp: str | None
+
+
 @dataclass
 class PodcastMessage(interfaces.IMessage, PodcastMessageBase):
     text_chunks: list[str]
@@ -71,6 +75,17 @@ class PodcastMessage(interfaces.IMessage, PodcastMessageBase):
 
     def add_content(self, content: str) -> None:
         self.text_chunks[0] += content
+
+    def serialize(self) -> PodcastMessageData:
+        return PodcastMessageData(
+            textChunks=self.text_chunks,
+            tags=self.tags,
+            timestamp=self.timestamp,
+        )
+
+
+class PodcastData(secindex.IConversationDataWithIndexes[PodcastMessageData]):
+    pass
 
 
 @dataclass
@@ -84,7 +99,7 @@ class Podcast(
     name_tag: str = ""
     messages: list[PodcastMessage] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
-    semantic_refs: list[interfaces.SemanticRef] = field(default_factory=list)  # type: ignore  # TODO
+    semantic_refs: list[interfaces.SemanticRef] | None = field(default_factory=list)
     settings: ConversationSettings = field(default_factory=ConversationSettings)
     semantic_ref_index: convindex.ConversationIndex = field(default_factory=convindex.ConversationIndex)  # type: ignore  # TODO
 
@@ -126,23 +141,31 @@ class Podcast(
                 await self.secondary_indexes.threads.build_index()  # type: ignore  # TODO
         return result
 
-    # TODO: serialize, deserialize
-    # async def serialize(self) -> dict:
-    #     data = {
-    #         "name_tag": self.name_tag,
-    #         "messages": self.messages,
-    #         "tags": self.tags,
-    #         "semantic_refs": self.semantic_refs,
-    #         "semantic_index_data": (
-    #             self.semantic_ref_index.serialize() if self.semantic_ref_index else None
-    #         ),
-    #         # TODO: set these only if things aren't None
-    #         # "related_terms_index_data": self.secondary_indexes.term_to_related_terms_index.serialize(),
-    #         # "thread_data": self.secondary_indexes.threads.serialize(),
-    #         # "message_index_data": self.secondary_indexes.message_index.serialize(),
-    #     }
-    #     return data
+    async def serialize(self) -> PodcastData:
+        data = PodcastData(
+            nameTag=self.name_tag,
+            messages=[m.serialize() for m in self.messages],
+            tags=self.tags,
+            semanticRefs=(
+                [r.serialize() for r in self.semantic_refs]
+                if self.semantic_refs is not None
+                else None
+            ),
+        )
+        # Set the rest only if they aren't None.
+        if self.semantic_ref_index:
+            data["semanticIndexData"] = self.semantic_ref_index.serialize()
+        if self.secondary_indexes.term_to_related_terms_index:
+            data["relatedTermsIndexData"] = (
+                self.secondary_indexes.term_to_related_terms_index.serialize()
+            )
+        if self.secondary_indexes.threads:
+            data["threadData"] = self.secondary_indexes.threads.serialize()
+        # if self.secondary_indexes.message_index:
+        #     data["messageIndexData"] = self.secondary_indexes.message_index.serialize()
+        return data
 
+    # TODO: deserialize
     # async def deserialize(self, podcast_data: dict) -> None:
     #     self.name_tag = podcast_data["name_tag"]
     #     self.messages = []
@@ -159,33 +182,46 @@ class Podcast(
     #     self.tags = podcast_data["tags"]
 
     #     if podcast_data.get("semantic_index_data"):
-    #         self.semantic_ref_index = convindex.ConversationIndex(
+    #         self.semantic_ref_index = convindex.ConversationIndex(  # type: ignore  # TODO
     #             podcast_data["semantic_index_data"]
     #         )
     #     if podcast_data.get("related_terms_index_data"):
-    #         self.secondary_indexes.term_to_related_terms_index.deserialize(podcast_data["related_terms_index_data"])
+    #         self.secondary_indexes.term_to_related_terms_index.deserialize(
+    #             podcast_data["related_terms_index_data"]
+    #         )
     #     if podcast_data.get("thread_data"):
-    #         self.secondary_indexes.threads```` = ConversationThreads(self.settings.thread_settings)
+    #         self.secondary_indexes.threads = ConversationThreads(
+    #             self.settings.thread_settings
+    #         )
     #         self.secondary_indexes.threads.deserialize(podcast_data["thread_data"])
     #     if podcast_data.get("message_index_data"):
-    #         self.secondary_indexes.message_index = MessageTextIndex(self.settings.message_text_index_settings)
-    #         self.secondary_indexes.message_index.deserialize(podcast_data["message_index_data"])
+    #         self.secondary_indexes.message_index = MessageTextIndex(
+    #             self.settings.message_text_index_settings
+    #         )
+    #         self.secondary_indexes.message_index.deserialize(
+    #             podcast_data["message_index_data"]
+    #         )
     #     await self._build_transient_secondary_indexes(True)
 
     # TODO: Implement write_conversation_data_to_file, read_conversation_data_from_file
-    # async def write_to_file(self, dir_path: str, base_file_name: str) -> None:
-    #     data = await self.serialize()
-    #     await write_conversation_data_to_file(data, dir_path, base_file_name)
+    async def write_to_file(self, dir_path: str, base_file_name: str) -> None:
+        data = await self.serialize()
+        # await write_conversation_data_to_file(data, dir_path, base_file_name)  # TODO
 
+    # TODO: read_from_file
     # @staticmethod
-    # async def read_from_file(dir_path: str, base_file_name: str) -> Optional["Podcast"]:
+    # async def read_from_file(
+    #     dir_path: str, base_file_name: str
+    # ) -> Optional["Podcast"]:  # Optional OK here
     #     podcast = Podcast()
     #     embedding_size = (
     #         podcast.settings.related_term_index_settings.embedding_index_settings.embedding_size
     #         if podcast.settings.related_term_index_settings.embedding_index_settings
     #         else None
     #     )
-    #     data = await read_conversation_data_from_file(dir_path, base_file_name, embedding_size)
+    #     data = await read_conversation_data_from_file(
+    #         dir_path, base_file_name, embedding_size
+    #     )
     #     if data:
     #         await podcast.deserialize(data)
     #     return podcast
@@ -201,8 +237,8 @@ class Podcast(
         aliases.clear()
         name_to_alias_map = self._collect_participant_aliases()
         for name in name_to_alias_map.keys():
-            related_terms: list[Term] = [
-                Term(text=alias) for alias in name_to_alias_map[name]
+            related_terms: list[interfaces.Term] = [
+                interfaces.Term(text=alias) for alias in name_to_alias_map[name]
             ]
             aliases.add_related_term(name, related_terms)
 
@@ -237,79 +273,6 @@ class Podcast(
     #         self.secondary_indexes.term_to_related_terms_index.fuzzy_index,
     #         64,
     #     )
-
-
-# NOTE: Doesn't need to be async (Python file I/O is synchronous)
-def import_podcast(
-    transcript_file_path: str,
-    podcast_name: str | None = None,
-    start_date: Datetime | None = None,
-    length_minutes: float = 60.0,
-) -> Podcast:
-    with open(transcript_file_path, "r") as f:
-        transcript_lines = f.readlines()
-    if not podcast_name:
-        podcast_name = os.path.splitext(os.path.basename(transcript_file_path))[0]
-    # TODO: Don't use a regex, just basic string stuff
-    regex = r"""(?x)                  # Enable verbose regex syntax
-        ^
-        (?:                           # Optional speaker part
-            \s*                       # Optional leading whitespace
-            (?P<speaker>              # Capture group for speaker
-                [A-Z0-9]+             # One or more uppercase letters/digits
-                (?:\s+[A-Z0-9]+)*     # Optional additional words
-            )
-            \s*                       # Optional whitespace after speaker
-            :                         # Colon separator
-            \s*                       # Optional whitespace after colon
-        )?
-        (?P<speech>(?:.*\S)?)         # Capture the rest as speech (ending in non-whitespace)
-        \s*                           # Optional trailing whitespace
-        $
-    """
-    turn_parse_regex = re.compile(regex)
-    participants: set[str] = set()
-    msgs: list[PodcastMessage] = []
-    cur_msg: PodcastMessage | None = None
-    for line in transcript_lines:
-        match = turn_parse_regex.match(line)
-        if match:
-            speaker = match.group("speaker")
-            if speaker:
-                speaker = speaker.lower()
-            speech = match.group("speech")
-            if not (speaker or speech):
-                continue
-            if cur_msg:
-                if not speaker:
-                    cur_msg.add_content("\n" + speech)
-                else:
-                    msgs.append(cur_msg)
-                    cur_msg = None
-            if not cur_msg:
-                if speaker:
-                    participants.add(speaker)
-                cur_msg = PodcastMessage(speaker, [], [speech])
-    if cur_msg:
-        msgs.append(cur_msg)
-
-    assign_message_listeners(msgs, participants)
-
-    pod = Podcast(podcast_name, msgs, [podcast_name])
-    if start_date:
-        pod.generate_timestamps(start_date, length_minutes)
-    # TODO: Add more tags.
-    return pod
-
-
-def assign_message_listeners(
-    msgs: Sequence[PodcastMessage],
-    participants: set[str],
-) -> None:
-    for msg in msgs:
-        if msg.speaker:
-            listeners = [p for p in participants if p != msg.speaker]
-            msg.listeners = listeners
 
 
 # Text (such as a transcript) can be collected over a time range.

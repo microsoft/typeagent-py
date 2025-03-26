@@ -18,7 +18,7 @@ class Quantity:
     units: str
 
 
-type Value = str | float | bool | Quantity
+Value = str | float | bool | Quantity
 
 
 @dataclass
@@ -79,7 +79,7 @@ class ActionParam:
     value: Value
 
 
-type VerbTense = Literal["past", "present", "future"]
+VerbTense = Literal["past", "present", "future"]
 
 
 @dataclass

@@ -205,7 +205,8 @@ class ConversationIndex(ITermToSemanticRefIndex):
     def __init__(self, data: TermToSemanticRefIndexData | None = None):
         self._map = {}
         if data:
-            self.deserialize(data)
+            raise NotImplementedError("Deserialization not implemented yet.")
+            # self.deserialize(data)  # TODO
 
     def __len__(self) -> int:
         return len(self._map)
@@ -246,7 +247,6 @@ class ConversationIndex(ITermToSemanticRefIndex):
             self._map.pop(term)
 
     def serialize(self) -> TermToSemanticRefIndexData:
-        # TODO: Produce propery JSON-able dicts instead of Python objects?
         items: list[TermToSemanticRefIndexItemData] = []
         for term, scored_semantic_ref_ordinals in self._map.items():
             items.append(
@@ -259,13 +259,14 @@ class ConversationIndex(ITermToSemanticRefIndex):
             )
         return TermToSemanticRefIndexData(items=items)
 
-    def deserialize(self, data: TermToSemanticRefIndexData) -> None:
-        for term_data in data["items"]:
-            if term_data is not None and term_data["term"]:
-                self._map[self._prepare_term(term_data["term"])] = [
-                    ScoredSemanticRefOrdinal.deserialize(s)
-                    for s in term_data["scoredSemanticRefOrdinals"]
-                ]
+    # TODO: deserialize
+    # def deserialize(self, data: TermToSemanticRefIndexData) -> None:
+    #     for term_data in data["items"]:
+    #         if term_data is not None and term_data["term"]:
+    #             self._map[self._prepare_term(term_data["term"])] = [
+    #                 ScoredSemanticRefOrdinal.deserialize(s)
+    #                 for s in term_data["scoredSemanticRefOrdinals"]
+    #             ]
 
     def _prepare_term(self, term: str) -> str:
         return term.lower()

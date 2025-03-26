@@ -21,6 +21,7 @@ dependencies = [
 # Needed so setuptools doesn't complain about testdata.
 packages = [
     "typeagent",
+    "typeagent.aitools",
     "typeagent.knowpro",
     "typeagent.podcasts",
 ]
