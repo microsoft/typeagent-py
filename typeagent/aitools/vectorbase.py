@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Any, NamedTuple, TypedDict
+from typing import Any, NamedTuple, TypedDict, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,8 +16,7 @@ class ScoredOrdinal(NamedTuple):
 
 
 class ITextEmbeddingIndexData(TypedDict):
-    textItems: list[str]
-    embeddings: list[Any]  # TODO: list[NormalizedEmbeddingData]
+    embeddings: NormalizedEmbeddings | None
 
 
 class VectorBase:
@@ -27,7 +26,7 @@ class VectorBase:
             model = AsyncEmbeddingModel()
         self._model = model
         # TODO: Using Any b/c pyright doesn't appear to understand NDArray.
-        self._vectors = np.array([], dtype=np.float32).reshape((0, 0))
+        self._vectors: NormalizedEmbeddings | None = None
 
     async def get_embedding(self, key: str, cache: bool = True) -> NormalizedEmbedding:
         if cache:
@@ -44,7 +43,7 @@ class VectorBase:
             return await self._model.get_embeddings_nocache(keys)
 
     def __len__(self) -> int:
-        return len(self._vectors)
+        return len(self._vectors) if self._vectors is not None else 0
 
     # Needed because otherwise an empty index would be falsy.
     def __bool__(self) -> bool:
@@ -52,14 +51,14 @@ class VectorBase:
 
     async def add_key(self, key: str, cache: bool = True) -> None:
         embedding = (await self.get_embedding(key)).reshape((1, -1))
-        if not len(self._vectors):
+        if self._vectors is None:
             self._vectors = embedding
         else:
             self._vectors = np.append(self._vectors, embedding, axis=0)
 
     async def add_keys(self, keys: list[str], cache: bool = True) -> None:
         embeddings = await self.get_embeddings(keys, cache=cache)
-        if not len(self._vectors):
+        if self._vectors is None:
             self._vectors = embeddings
         else:
             self._vectors = np.append(self._vectors, embeddings, axis=0)
@@ -67,7 +66,7 @@ class VectorBase:
     async def fuzzy_lookup(
         self, key: str, max_hits: int | None = None, min_score: float | None = None
     ) -> list[ScoredOrdinal]:
-        if not len(self._vectors):
+        if self._vectors is None:
             return []
         if max_hits is None:
             max_hits = 10
@@ -86,16 +85,11 @@ class VectorBase:
     def clear(self) -> None:
         self._vectors = np.array([], dtype=np.float32).reshape((0, 0))
 
-    def serialize_embedding_at(self, ordinal: int) -> list[list[float]]:
-        return [self._vectors[ordinal].tolist()]
+    def serialize_embedding_at(self, ordinal: int) -> NormalizedEmbedding | None:
+        return self._vectors[ordinal] if self._vectors is not None else None
 
-    def serialize(self) -> ITextEmbeddingIndexData:
-        return ITextEmbeddingIndexData(
-            textItems=[],  # TODO: Where do I get a list[str] here?
-            # TODO: Serialize the full embedding, not just the first 3 elements. 
-            # TODO: Serialize as binary data.
-            embeddings=[embedding[:3].tolist() for embedding in self._vectors],
-        )
+    def serialize(self) -> NormalizedEmbeddings | None:
+        return self._vectors if self._vectors is not None else None
 
 
 async def main():

@@ -14,7 +14,11 @@ from typing import (
     TypedDict,
 )
 
-from ..aitools.vectorbase import ITextEmbeddingIndexData, VectorBase
+from ..aitools.embeddings import NormalizedEmbedding
+from ..aitools.vectorbase import (
+    ITextEmbeddingIndexData,
+    VectorBase,
+)
 from . import kplib
 
 
@@ -361,11 +365,11 @@ class IConversationThreads(Protocol):
         raise NotImplementedError
 
 
-class IMessageTextIndex(Protocol):
+class IMessageTextIndex[TMessage: IMessage](Protocol):
 
     async def add_messages(
         self,
-        messages: list[IMessage],
+        messages: list[TMessage],
         event_handler: "IndexingEventHandlers | None" = None,
     ) -> "ListIndexingResult":
         raise NotImplementedError
@@ -387,26 +391,30 @@ class IMessageTextIndex(Protocol):
     ) -> list[ScoredMessageOrdinal]:
         raise NotImplementedError
 
+    # TODO: Others?
 
-class IConversationSecondaryIndexes(Protocol):
+    def serialize(self) -> "IMessageTextIndexData":
+        raise NotImplementedError
+
+
+class IConversationSecondaryIndexes[TMessage: IMessage](Protocol):
     property_to_semantic_ref_index: IPropertyToSemanticRefIndex | None
     timestamp_index: ITimestampToTextRangeIndex | None
     term_to_related_terms_index: ITermToRelatedTermsIndex | None
     threads: IConversationThreads | None = None
-    message_index: IMessageTextIndex | None = None
+    message_index: IMessageTextIndex[TMessage] | None = None
 
 
 class IConversation[
     TMessage: IMessage,
     TTermToSemanticRefIndex: ITermToSemanticRefIndex,
-    TConversationSecondaryIndexes: IConversationSecondaryIndexes,
 ](Protocol):
     name_tag: str
     tags: list[str]
     messages: list[TMessage]
     semantic_refs: list[SemanticRef] | None
     semantic_ref_index: TTermToSemanticRefIndex | None
-    secondary_indexes: TConversationSecondaryIndexes | None
+    secondary_indexes: IConversationSecondaryIndexes[TMessage] | None
 
 
 # --------------------------------------------------
@@ -416,9 +424,7 @@ class IConversation[
 
 class IThreadDataItem(TypedDict):
     thread: ThreadData
-    embedding: list[
-        list[float]
-    ]  # TODO: What's the compatible serialization type for NormalizedEmbedding?
+    embedding: NormalizedEmbedding | None
 
 
 class IConversationThreadData[TThreadDataItem: IThreadDataItem](TypedDict):
@@ -467,9 +473,24 @@ class IConversationData[TMessageData](TypedDict):
     semanticIndexData: NotRequired[TermToSemanticRefIndexData | None]
 
 
-# ------------------------
-# Indexing
-# ------------------------
+class ITextToTextLocationIndexData(TypedDict):
+    textLocations: list[TextLocationData]
+    embeddings: ITextEmbeddingIndexData
+
+
+class IMessageTextIndexData(TypedDict):
+    indexData: NotRequired[ITextToTextLocationIndexData | None]
+
+
+class IConversationDataWithIndexes[TMessageData](IConversationData[TMessageData]):
+    relatedTermsIndexData: NotRequired[ITermsToRelatedTermsIndexData | None]
+    threadData: NotRequired[IConversationThreadData | None]
+    messageIndexData: NotRequired[IMessageTextIndexData | None]
+
+
+# --------------------------------
+# Indexing helper data structures
+# --------------------------------
 
 
 # TODO: Should the callables become methods with a default implementation?

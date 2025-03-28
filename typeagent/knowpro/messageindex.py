@@ -8,8 +8,12 @@ from ..aitools.embeddings import NormalizedEmbedding
 from .importing import ConversationSettings, MessageTextIndexSettings
 from .interfaces import (
     IConversation,
+    IConversationSecondaryIndexes,
     IMessage,
     IMessageTextIndex,
+    IMessageTextIndexData,
+    ITermToSemanticRefIndex,
+    ITextToTextLocationIndexData,
     IndexingEventHandlers,
     ListIndexingResult,
     MessageOrdinal,
@@ -19,18 +23,21 @@ from .interfaces import (
 from .textlocationindex import ScoredTextLocation, TextToTextLocationIndex
 
 
-async def build_message_index(
-    conversation: IConversation,
+async def build_message_index[
+    TMessage: IMessage,
+    TTermToSemanticRefIndex: ITermToSemanticRefIndex,
+](
+    conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     settings: MessageTextIndexSettings | None = None,
     event_handler: IndexingEventHandlers | None = None,
 ) -> ListIndexingResult:
-    if conversation.secondary_indexes is None:
+    csi = conversation.secondary_indexes
+    if csi is None:
         return ListIndexingResult(0)
-    if conversation.secondary_indexes.message_index is None:
-        conversation.secondary_indexes.message_index = MessageTextIndex(settings)
-    message_index = conversation.secondary_indexes.message_index
+    if csi.message_index is None:
+        csi.message_index = MessageTextIndex(settings)
     messages = conversation.messages
-    return await message_index.add_messages(messages, event_handler)
+    return await csi.message_index.add_messages(messages, event_handler)
 
 
 class IMessageTextEmbeddingIndex(IMessageTextIndex):
@@ -62,9 +69,9 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
     def __bool__(self) -> bool:
         return True
 
-    async def add_messages(
+    async def add_messages[TMessage: IMessage](
         self,
-        messages: list[IMessage],
+        messages: list[TMessage],
         event_handler: IndexingEventHandlers | None = None,
     ) -> ListIndexingResult:
         base_message_ordinal: MessageOrdinal = len(self.text_location_index)
@@ -145,3 +152,8 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
                 matches.values(), key=lambda match: match.score, reverse=True
             )
         ]
+
+    def serialize(self) -> IMessageTextIndexData:
+        return IMessageTextIndexData(
+            indexData=self.text_location_index.serialize(),
+        )

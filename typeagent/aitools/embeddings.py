@@ -46,9 +46,9 @@ class AsyncEmbeddingModel:
             )
         self.azure_api_version = m.group(1)
         if azure_api_key.lower() == "identity":
-            print("Using shared TokenProvider")
             self.azure_token_provider = get_shared_token_provider()
             azure_api_key = self.azure_token_provider.get_token()
+            print("Using shared TokenProvider")
         self.async_client = AsyncAzureOpenAI(
             api_version=self.azure_api_version,
             azure_endpoint=self.azure_endpoint,

@@ -1,34 +1,23 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Any, NotRequired, Protocol, TypedDict
+from .messageindex import build_message_index
 
-from .convthreads import IConversationThreadData
 from .importing import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
-    IConversationData,
+    IConversationDataWithIndexes,
     IConversationSecondaryIndexes,
     IMessage,
     ITermToSemanticRefIndex,
-    ITermsToRelatedTermsIndexData,
     IndexingEventHandlers,
     SecondaryIndexingResults,
-    TermData,
     TextIndexingResult,
     TextLocation,
 )
-from .messageindex import MessageTextIndex, build_message_index
 from .relatedtermsindex import RelatedTermsIndex, build_related_terms_index
 from .propindex import PropertyIndex, build_property_index
-from .relatedtermsindex import ITermToRelatedTermsData
-from .textlocationindex import ITextToTextLocationIndexData
 from .timestampindex import TimestampToTextRangeIndex, build_timestamp_index
-from ..aitools.vectorbase import ITextEmbeddingIndexData
-
-
-class IMessageTextIndexData(TypedDict):
-    indexData: NotRequired[ITextToTextLocationIndexData | None]
 
 
 class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
@@ -41,10 +30,10 @@ class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
 
 
 async def build_secondary_indexes[
-    TM: IMessage,
-    TT: ITermToSemanticRefIndex,
+    TMessage: IMessage,
+    TTermToSemanticRefIndex: ITermToSemanticRefIndex,
 ](
-    conversation: IConversation[TM, TT, ConversationSecondaryIndexes],
+    conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     conversation_settings: ConversationSettings,
     event_handler: IndexingEventHandlers | None,
 ) -> SecondaryIndexingResults:
@@ -68,9 +57,9 @@ async def build_secondary_indexes[
 
 
 def build_transient_secondary_indexes[
-    TM: IMessage, TT: ITermToSemanticRefIndex, TC: IConversationSecondaryIndexes
+    TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
 ](
-    conversation: IConversation[TM, TT, TC],
+    conversation: IConversation[TMessage, TTermToSemanticRefIndex],
 ) -> SecondaryIndexingResults:
     if conversation.secondary_indexes is None:
         conversation.secondary_indexes = ConversationSecondaryIndexes()  # type: ignore  # TODO
@@ -78,11 +67,3 @@ def build_transient_secondary_indexes[
     result.properties = build_property_index(conversation)
     result.timestamps = build_timestamp_index(conversation)
     return result
-
-
-# TODO: Why is this here and not in indexes.py?
-class IConversationDataWithIndexes[TMessageData](IConversationData[TMessageData]):
-
-    relatedTermsIndexData: NotRequired[ITermsToRelatedTermsIndexData | None]
-    threadData: NotRequired[IConversationThreadData | None]
-    messageIndexData: NotRequired[IMessageTextIndexData | None]

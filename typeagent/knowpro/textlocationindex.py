@@ -5,20 +5,20 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from ..aitools.vectorbase import VectorBase
+from ..aitools.vectorbase import ITextEmbeddingIndexData, VectorBase
 from .importing import TextEmbeddingIndexSettings
-from .interfaces import IndexingEventHandlers, ListIndexingResult, TextLocation
+from .interfaces import (
+    ITextToTextLocationIndexData,
+    IndexingEventHandlers,
+    ListIndexingResult,
+    TextLocation,
+)
 
 
 @dataclass
 class ScoredTextLocation:
     text_location: TextLocation
     score: float
-
-
-class ITextToTextLocationIndexData(Protocol):
-    textLocations: list[TextLocation]
-    embeddings: NormalizedEmbeddings
 
 
 class ITextToTextLocationIndex(Protocol):
@@ -62,7 +62,7 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
 
     def get(self, pos: int, default: TextLocation | None = None) -> TextLocation | None:
         size = len(self._text_locations)
-        if -size <= pos < size:
+        if 0 <= pos < size:
             return self._text_locations[pos]
         return default
 
@@ -110,8 +110,13 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
     ) -> Any:
         raise NotImplementedError
 
-    def serialize(self) -> Any:
-        raise NotImplementedError  # TODO implement TextToTextLocationIndex serialization
+    def serialize(self) -> ITextToTextLocationIndexData:
+        return ITextToTextLocationIndexData(
+            textLocations=[loc.serialize() for loc in self._text_locations],
+            embeddings=ITextEmbeddingIndexData(
+                embeddings=self._vector_base.serialize()
+            ),
+        )
 
     def deserialize(self, data: Any) -> None:
         raise NotImplementedError  # TODO: implement TextToTextLocationIndex deserialization

@@ -275,14 +275,8 @@ class ConversationIndex(ITermToSemanticRefIndex):
 # ...
 
 
-def create_knowledge_extractor(
-    model: typechat.TypeChatLanguageModel | None = None,
-) -> convknowledge.KnowledgeExtractor:
-    return convknowledge.KnowledgeExtractor(model)
-
-
-async def build_conversation_index[TM: IMessage, TC: IConversationSecondaryIndexes](
-    conversation: IConversation[TM, ConversationIndex, TC],
+async def build_conversation_index[TMessage: IMessage](
+    conversation: IConversation[TMessage, ConversationIndex],
     conversation_settings: importing.ConversationSettings,
     event_handler: IndexingEventHandlers | None = None,
 ) -> IndexingResults:
@@ -303,8 +297,8 @@ async def build_conversation_index[TM: IMessage, TC: IConversationSecondaryIndex
     return result
 
 
-async def build_semantic_ref_index[TM: IMessage, TC: IConversationSecondaryIndexes](
-    conversation: IConversation[TM, ConversationIndex, TC],
+async def build_semantic_ref_index[TM: IMessage](
+    conversation: IConversation[TM, ConversationIndex],
     extractor: convknowledge.KnowledgeExtractor | None = None,
     event_handler: IndexingEventHandlers | None = None,
 ) -> TextIndexingResult:
@@ -317,7 +311,7 @@ async def build_semantic_ref_index[TM: IMessage, TC: IConversationSecondaryIndex
         conversation.semantic_refs = semantic_refs = []
 
     if extractor is None:
-        extractor = create_knowledge_extractor()
+        extractor = convknowledge.KnowledgeExtractor()
 
     indexing_result = TextIndexingResult()
 
