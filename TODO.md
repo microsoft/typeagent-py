@@ -2,9 +2,11 @@
 
 ## Big functionality
 
-    ### Serialization (done) and deserialization (TODO)
-
+    ### Serialization and deserialization
     Do this before queries, since fully re-indexing takes too long.
+
+    - Serialization nearly done (gotta check TODO comments)
+    - All of deserialization is still TODO
 
     ### Queries and searches
 

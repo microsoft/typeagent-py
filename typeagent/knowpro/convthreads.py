@@ -1,9 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Protocol, TypedDict
-
-from .importing import TextEmbeddingIndexSettings
 from .interfaces import (
     IConversationThreadData,
     IConversationThreads,
@@ -12,7 +9,7 @@ from .interfaces import (
     Thread,
     ThreadData,
 )
-from ..aitools.vectorbase import VectorBase
+from ..aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
 
 class ConversationThreads(IConversationThreads):

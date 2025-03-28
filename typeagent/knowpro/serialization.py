@@ -1,14 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import functools
 import json
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, NotRequired, overload, TypedDict
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from .interfaces import IConversationDataWithIndexes
+from .interfaces import (
+    IConversationDataWithIndexes,
+    Knowledge,
+    KnowledgeData,
+    KnowledgeType,
+)
 
 import numpy as np
-from numpy.typing import NDArray
 
 DATA_FILE_SUFFIX = "_data.json"
 EMBEDDING_FILE_SUFFIX = "_embeddings.bin"
@@ -73,10 +78,6 @@ def to_conversation_file_data[IMessageData](
     file_header = create_file_header()
     embedding_file_header = EmbeddingFileHeader()
 
-    json_data = cast(ConversationJsonData, conversation_data.copy())
-    json_data["fileHeader"] = file_header
-    json_data["embeddingFileHeader"] = embedding_file_header
-
     buffer = bytearray()
 
     related_terms_index_data = conversation_data.get("relatedTermsIndexData")
@@ -102,10 +103,57 @@ def to_conversation_file_data[IMessageData](
                     embedding_file_header["messageCount"] = len(embeddings)
 
     binary_data = ConversationBinaryData(embeddings=buffer)
-
+    json_data = ConversationJsonData(
+        **conversation_data,
+        fileHeader=file_header,
+        embeddingFileHeader=embedding_file_header,
+    )
     file_data = ConversationFileData(
         jsonData=json_data,
         binaryData=binary_data,
     )
 
     return file_data
+
+
+@overload
+def serialize_object(arg: None) -> None: ...
+@overload
+def serialize_object(arg: object) -> Any:
+    # NOTE: Actually this only takes objects with a __dict__.
+    ...
+
+
+def serialize_object(arg: Any) -> Any | None:
+    if arg is None:
+        return None
+    assert hasattr(arg, "__dict__"), f"Cannot serialize knowledge of type {type(arg)}"
+    result = to_json(arg)
+    assert isinstance(result, dict), f"Serialized knowledge is not a dict: {result}"
+    return result
+
+
+def to_json(obj: Any) -> Any:
+    if obj is None:
+        return None
+    d = getattr(obj, "__dict__", None)
+    if d is not None:
+        obj = d
+    tp = type(obj)
+    if tp is dict:
+        return {to_camel(key): to_json(value) for key, value in obj.items()}
+    if tp is list:
+        return [to_json(value) for value in obj]
+    if tp in (str, int, float, bool, None):
+        return obj
+    raise TypeError(f"Cannot jsonify {tp}: {obj!r}")
+
+
+@functools.cache
+def to_camel(name: str):
+    assert isinstance(name, str), f"Cannot convert {name!r} to camel case"
+    # Name must be of the form lowercase_words_separated_by_underscores.
+    # Response will be lowercaseWordsSeparatedByUnderscores.
+    # Don't pass edge cases.
+    parts = name.split("_")
+    return parts[0] + "".join(part.capitalize() for part in parts[1:])

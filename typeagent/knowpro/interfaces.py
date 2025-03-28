@@ -3,7 +3,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime as Datetime, timedelta as Timedelta
+from datetime import datetime as Datetime, timedelta as Timedelta  # For export
 from typing import (
     Any,
     Callable,
@@ -170,9 +170,7 @@ class TextRange:
             )
 
 
-# TODO: Implement serializing KnowledgeData (or import from kplib).
-class KnowledgeData(TypedDict):
-    pass
+type KnowledgeData = dict[str, Any]  # Any valid JSON, really
 
 
 class SemanticRefData(TypedDict):
@@ -193,11 +191,13 @@ class SemanticRef:
         return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.range}, {self.knowledge_type!r}, {self.knowledge})"
 
     def serialize(self) -> SemanticRefData:
+        from . import serialization
+
         return SemanticRefData(
             semanticRefOrdinal=self.semantic_ref_ordinal,
             range=self.range.serialize(),
             knowledgeType=self.knowledge_type,
-            knowledge=KnowledgeData(),  # TODO: self.knowledge.serialize()
+            knowledge=serialization.serialize_object(self.knowledge),
         )
 
 

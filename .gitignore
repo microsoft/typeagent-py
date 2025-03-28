@@ -1,2 +1,4 @@
 *.egg-info
 venv
+*_data.json
+*_embeddings.bin
