@@ -17,7 +17,10 @@ type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
 
 
 class AsyncEmbeddingModel:
-    def __init__(self):
+    def __init__(self, embedding_size: int | None = None):
+        if embedding_size is None or embedding_size <= 0:
+            embedding_size = 1536
+        self.embedding_size = embedding_size
         self.azure_token_provider: AzureTokenProvider | None = None
         openai_key_name = "OPENAI_API_KEY"
         azure_key_name = "AZURE_OPENAI_API_KEY"
@@ -70,20 +73,30 @@ class AsyncEmbeddingModel:
             api_key=azure_api_key,
         )
 
+    def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
+        existing = self._embedding_cache.get(key)
+        if existing is not None:
+            assert existing == embedding
+        else:
+            self._embedding_cache[key] = embedding
+
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
         embeddings = await self.get_embeddings_nocache([input])
         return embeddings[0]
 
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
         if not input:
-            # Save round trip and avoid error from reshape((0, N)) for N != 0.
-            return np.array([], dtype=np.float32).reshape((0, 0))
+            empty = np.array([], dtype=np.float32)
+            empty.shape = (0, self.embedding_size)
+            return empty
         if self.azure_token_provider and self.azure_token_provider.needs_refresh():
             await self.refresh_auth()
         data = (
             await self.async_client.embeddings.create(
                 input=input,
                 model="text-embedding-3-small",
+                encoding_format="float",
+                dimensions=self.embedding_size,
             )
         ).data
         assert len(data) == len(input), (len(data), "!=", len(input))
@@ -123,7 +136,7 @@ class AsyncEmbeddingModel:
         if len(keys):
             return np.array(embeddings, dtype=np.float32).reshape((len(keys), -1))
         else:
-            return np.array([], dtype=np.float32).reshape((0, 0))
+            return np.array([], dtype=np.float32).reshape((0,))
 
 
 async def main():

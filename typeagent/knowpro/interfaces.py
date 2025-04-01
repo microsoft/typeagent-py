@@ -3,7 +3,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime as Datetime, timedelta as Timedelta  # For export
+from datetime import datetime as Datetime, timedelta as Timedelta
 from typing import (
     Any,
     Callable,
@@ -14,11 +14,8 @@ from typing import (
     TypedDict,
 )
 
-from ..aitools.embeddings import NormalizedEmbedding
-from ..aitools.vectorbase import (
-    ITextEmbeddingIndexData,
-    VectorBase,
-)
+from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
+from ..aitools.vectorbase import VectorBase
 from . import kplib
 
 
@@ -61,13 +58,12 @@ class ScoredSemanticRefOrdinal:
             semanticRefOrdinal=self.semantic_ref_ordinal, score=self.score
         )
 
-    # TODO: deserialize
-    # @staticmethod
-    # def deserialize(data: "ScoredSemanticRefOrdinalData") -> "ScoredSemanticRefOrdinal":
-    #     return ScoredSemanticRefOrdinal(
-    #         semantic_ref_ordinal=data["semanticRefOrdinal"],
-    #         score=data["score"],
-    #     )
+    @staticmethod
+    def deserialize(data: "ScoredSemanticRefOrdinalData") -> "ScoredSemanticRefOrdinal":
+        return ScoredSemanticRefOrdinal(
+            semantic_ref_ordinal=data["semanticRefOrdinal"],
+            score=data["score"],
+        )
 
 
 @dataclass
@@ -135,6 +131,14 @@ class TextLocation:
             charOrdinal=self.char_ordinal,
         )
 
+    @staticmethod
+    def deserialize(data: TextLocationData) -> "TextLocation":
+        return TextLocation(
+            message_ordinal=data["messageOrdinal"],
+            chunk_ordinal=data["chunkOrdinal"],
+            char_ordinal=data["charOrdinal"],
+        )
+
 
 class TextRangeData(TypedDict):
     start: TextLocationData
@@ -169,8 +173,20 @@ class TextRange:
                 end=self.end.serialize(),
             )
 
+    @staticmethod
+    def deserialize(data: TextRangeData) -> "TextRange":
+        start = TextLocation.deserialize(data["start"])
+        end_data = data.get("end")
+        if end_data is None:
+            return TextRange(start)
+        else:
+            end = TextLocation.deserialize(end_data)
+            return TextRange(start, end)
 
-type KnowledgeData = dict[str, Any]  # Any valid JSON, really
+
+# TODO: Implement serializing KnowledgeData (or import from kplib).
+class KnowledgeData(TypedDict):
+    pass
 
 
 class SemanticRefData(TypedDict):
@@ -198,6 +214,19 @@ class SemanticRef:
             range=self.range.serialize(),
             knowledgeType=self.knowledge_type,
             knowledge=serialization.serialize_object(self.knowledge),
+        )
+
+    @staticmethod
+    def deserialize(data: SemanticRefData) -> "SemanticRef":
+        from . import serialization
+
+        return SemanticRef(
+            semantic_ref_ordinal=data["semanticRefOrdinal"],
+            range=TextRange.deserialize(data["range"]),
+            knowledge_type=data["knowledgeType"],
+            knowledge=serialization.deserialize_knowledge(
+                data["knowledgeType"], data["knowledge"]
+            ),
         )
 
 
@@ -319,6 +348,9 @@ class ITermToRelatedTermsIndex(Protocol):
     def serialize(self) -> "ITermsToRelatedTermsIndexData":
         raise NotImplementedError
 
+    def deserialize(self, data: "ITermsToRelatedTermsIndexData") -> None:
+        raise NotImplementedError
+
 
 class ThreadData(TypedDict):
     description: str
@@ -336,6 +368,12 @@ class Thread:
             description=self.description,
             ranges=[range.serialize() for range in self.ranges],
         )
+
+    @staticmethod
+    def deserialize(data: ThreadData) -> "Thread":
+        description = data["description"]
+        ranges = [TextRange.deserialize(range_data) for range_data in data["ranges"]]
+        return Thread(description, ranges)
 
 
 type ThreadOrdinal = int
@@ -362,6 +400,9 @@ class IConversationThreads(Protocol):
         raise NotImplementedError
 
     def serialize(self) -> "IConversationThreadData":
+        raise NotImplementedError
+
+    def deserialize(self, data: "IConversationThreadData") -> None:
         raise NotImplementedError
 
 
@@ -394,6 +435,9 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
     # TODO: Others?
 
     def serialize(self) -> "IMessageTextIndexData":
+        raise NotImplementedError
+
+    def deserialize(self, data: "IMessageTextIndexData") -> None:
         raise NotImplementedError
 
 
@@ -443,6 +487,11 @@ class ITermsToRelatedTermsDataItem(TypedDict):
 
 class ITermToRelatedTermsData(TypedDict):
     relatedTerms: NotRequired[list[ITermsToRelatedTermsDataItem] | None]
+
+
+class ITextEmbeddingIndexData(TypedDict):
+    textItems: list[str]
+    embeddings: NormalizedEmbeddings | None
 
 
 class ITermsToRelatedTermsIndexData(TypedDict):

@@ -2,7 +2,8 @@
 # Licensed under the MIT License.
 
 from typing import NotRequired, TypedDict
-from ..aitools.vectorbase import ITextEmbeddingIndexData, VectorBase
+
+from ..aitools.vectorbase import NormalizedEmbeddings, VectorBase
 from .importing import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
@@ -11,6 +12,7 @@ from .interfaces import (
     ITermToRelatedTermsIndex,
     ITermsToRelatedTermsDataItem,
     ITermsToRelatedTermsIndexData,
+    ITextEmbeddingIndexData,
     IndexingEventHandlers,
     ListIndexingResult,
     Term,
@@ -53,6 +55,22 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
             )
         return ITermToRelatedTermsData(relatedTerms=related_terms)
 
+    def deserialize(self, data: ITermToRelatedTermsData | None) -> None:
+        self.clear()
+        if data is None:
+            return
+        related_terms_data = data.get("relatedTerms")
+        if related_terms_data is None:
+            return
+        for item in related_terms_data:
+            term_text = item["termText"]
+            related_terms_data = item["relatedTerms"]
+            related_terms: list[Term] = [
+                Term(term_data["text"], weight=term_data.get("weight"))
+                for term_data in related_terms_data
+            ]
+            self.add_related_term(term_text, related_terms)
+
 
 async def build_related_terms_index(
     conversation: IConversation,
@@ -93,6 +111,17 @@ class RelatedTermsIndex(ITermToRelatedTermsIndex):
         return ITermsToRelatedTermsIndexData(
             aliasData=self._alias_map.serialize(),
             textEmbeddingData=ITextEmbeddingIndexData(
-                embeddings=self._vector_base.serialize()
+                textItems=[],  # TODO: Put values here!
+                embeddings=self._vector_base.serialize(),
             ),
+        )
+
+    def deserialize(self, data: ITermsToRelatedTermsIndexData) -> None:
+        self._vector_base = VectorBase(self.settings.embedding_index_settings)
+        self._alias_map.deserialize(data.get("aliasData"))
+        text_embedding_data = data.get("textEmbeddingData")
+        self._vector_base.deserialize(
+            text_embedding_data.get("embeddings")
+            if text_embedding_data is not None
+            else None
         )

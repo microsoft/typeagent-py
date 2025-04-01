@@ -6,7 +6,7 @@
     Do this before queries, since fully re-indexing takes too long.
 
     - Serialization nearly done (gotta check TODO comments)
-    - All of deserialization is still TODO
+    - Deserialization is nearly done (ditto)
 
     ### Queries and searches
 

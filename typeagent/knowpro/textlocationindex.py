@@ -4,8 +4,7 @@
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from ..aitools.embeddings import NormalizedEmbeddings
-from ..aitools.vectorbase import ITextEmbeddingIndexData, VectorBase
+from ..aitools.vectorbase import VectorBase
 from .importing import TextEmbeddingIndexSettings
 from .interfaces import (
     ITextToTextLocationIndexData,
@@ -13,6 +12,7 @@ from .interfaces import (
     ListIndexingResult,
     TextLocation,
 )
+from .relatedtermsindex import ITextEmbeddingIndexData
 
 
 @dataclass
@@ -114,9 +114,16 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         return ITextToTextLocationIndexData(
             textLocations=[loc.serialize() for loc in self._text_locations],
             embeddings=ITextEmbeddingIndexData(
-                embeddings=self._vector_base.serialize()
+                textItems=[],  # TODO: Put values here?!
+                embeddings=self._vector_base.serialize(),
             ),
         )
 
-    def deserialize(self, data: Any) -> None:
-        raise NotImplementedError  # TODO: implement TextToTextLocationIndex deserialization
+    def deserialize(self, data: ITextToTextLocationIndexData) -> None:
+        text_locations = data["textLocations"]
+        embeddings = data["embeddings"]["embeddings"]
+        if embeddings is None:
+            raise ValueError("embeddings is None ?!")
+        assert len(text_locations) == len(embeddings), ((text_locations), (embeddings))
+        self._text_locations = [TextLocation.deserialize(loc) for loc in text_locations]
+        self._vector_base.deserialize(embeddings)

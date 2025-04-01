@@ -26,7 +26,7 @@ class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
             settings = RelatedTermIndexSettings()
         self.property_to_semantic_ref_index = PropertyIndex()
         self.timestamp_index = TimestampToTextRangeIndex()
-        self.term_to_related_terms_index: RelatedTermsIndex = RelatedTermsIndex(settings)  # type: ignore  # TODO
+        self.term_to_related_terms_index = RelatedTermsIndex(settings)
 
 
 async def build_secondary_indexes[

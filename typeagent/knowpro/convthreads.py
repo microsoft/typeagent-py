@@ -55,9 +55,9 @@ class ConversationThreads(IConversationThreads):
         )
 
     def serialize(self) -> IConversationThreadData[IThreadDataItem]:
-        thread_data: list[IThreadDataItem] = []
         embedding_index = self.vector_base
 
+        thread_data: list[IThreadDataItem] = []
         for i, thread in enumerate(self.threads):
             thread_data.append(
                 IThreadDataItem(
@@ -67,3 +67,16 @@ class ConversationThreads(IConversationThreads):
             )
 
         return IConversationThreadData(threads=thread_data)
+
+    def deserialize(self, data: IConversationThreadData[IThreadDataItem]) -> None:
+        self.clear()
+        thread_data = data.get("threads")
+        if thread_data is None:
+            return
+        for item in thread_data:
+            thread_data = item["thread"]
+            embedding = item["embedding"]
+            thread = Thread.deserialize(thread_data)
+            self.threads.append(thread)
+            if embedding:
+                self.vector_base.add_embedding(thread_data["description"], embedding)

@@ -13,18 +13,17 @@ if sys.version_info < minver:
 del minver
 
 import argparse
-import json
 import os
 
 import dotenv
 
-from ..knowpro.convindex import ConversationIndex
 from ..knowpro.interfaces import (
     Datetime,
     IndexingEventHandlers,
     MessageOrdinal,
     TextLocation,
 )
+from .podcast import Podcast
 from .podcast_import import import_podcast
 
 
@@ -88,13 +87,15 @@ async def main():
     )
     pod.write_to_file(filename)
     print(f"Dump complete.")
-    # if pod.semantic_ref_index is not None:
-    #     data = pod.semantic_ref_index.serialize()
-    #     # new = ConversationIndex(data)
-    #     # assert new.serialize() == data
-    #     # print(json.dumps(data, indent=2))
 
-    # print(pod.serialize())
+    ser1 = pod.serialize()
+    pod2 = Podcast()
+    pod2.deserialize(ser1)
+    ser2 = pod2.serialize()
+    if ser1 == ser2:
+        print("Serialized data matches original")
+    else:
+        print("Serialized data does not match original")
 
 
 if __name__ == "__main__":

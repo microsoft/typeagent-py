@@ -28,7 +28,7 @@ class TextEmbeddingIndexSettings:
         max_matches: int | None = None,
     ):
         if embedding_model is None:
-            embedding_model = AsyncEmbeddingModel()
+            embedding_model = AsyncEmbeddingModel(embedding_size)
         self.embedding_model = embedding_model
         self.embedding_size = embedding_size
         if min_score is None:
@@ -42,18 +42,17 @@ class ScoredOrdinal(NamedTuple):
     score: float
 
 
-class ITextEmbeddingIndexData(TypedDict):
-    embeddings: NormalizedEmbeddings | None
-
-
 class VectorBase:
+    _vectors: NormalizedEmbeddings
+
     def __init__(self, settings: TextEmbeddingIndexSettings | None = None):
-        model = settings.embedding_model if settings is not None else None
+        model = settings.embedding_model if settings else None
+        embedding_size = settings.embedding_size if settings else None
         if model is None:
-            model = AsyncEmbeddingModel()
+            model = AsyncEmbeddingModel(embedding_size)
         self._model = model
-        # TODO: Using Any b/c pyright doesn't appear to understand NDArray.
-        self._vectors: NormalizedEmbeddings | None = None
+        self._embedding_size = model.embedding_size
+        self.clear()
 
     async def get_embedding(self, key: str, cache: bool = True) -> NormalizedEmbedding:
         if cache:
@@ -70,31 +69,28 @@ class VectorBase:
             return await self._model.get_embeddings_nocache(keys)
 
     def __len__(self) -> int:
-        return len(self._vectors) if self._vectors is not None else 0
+        return len(self._vectors)
 
     # Needed because otherwise an empty index would be falsy.
     def __bool__(self) -> bool:
         return True
 
+    def add_embedding(self, key: str | None, embedding: NormalizedEmbedding) -> None:
+        self._vectors = np.append(self._vectors, embedding, axis=0)
+        if key is not None:
+            self._model.add_embedding(key, embedding)
+
     async def add_key(self, key: str, cache: bool = True) -> None:
-        embedding = (await self.get_embedding(key)).reshape((1, -1))
-        if self._vectors is None:
-            self._vectors = embedding
-        else:
-            self._vectors = np.append(self._vectors, embedding, axis=0)
+        embedding = (await self.get_embedding(key)).reshape((self._embedding_size,))
+        self._vectors = np.append(self._vectors, embedding, axis=0)
 
     async def add_keys(self, keys: list[str], cache: bool = True) -> None:
         embeddings = await self.get_embeddings(keys, cache=cache)
-        if self._vectors is None:
-            self._vectors = embeddings
-        else:
-            self._vectors = np.append(self._vectors, embeddings, axis=0)
+        self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
 
     async def fuzzy_lookup(
         self, key: str, max_hits: int | None = None, min_score: float | None = None
     ) -> list[ScoredOrdinal]:
-        if self._vectors is None:
-            return []
         if max_hits is None:
             max_hits = 10
         if min_score is None:
@@ -110,13 +106,22 @@ class VectorBase:
         return scored_ordinals[:max_hits]
 
     def clear(self) -> None:
-        self._vectors = np.array([], dtype=np.float32).reshape((0, 0))
+        self._vectors = np.array([], dtype=np.float32)
+        self._vectors.shape = (0, self._embedding_size)
 
     def serialize_embedding_at(self, ordinal: int) -> NormalizedEmbedding | None:
-        return self._vectors[ordinal] if self._vectors is not None else None
+        return self._vectors[ordinal] if 0 <= ordinal < len(self._vectors) else None
 
-    def serialize(self) -> NormalizedEmbeddings | None:
-        return self._vectors if self._vectors is not None else None
+    def serialize(self) -> NormalizedEmbeddings:
+        assert self._vectors.shape == (len(self._vectors), self._embedding_size)
+        return self._vectors  # TODO: Should we make a copy?
+
+    def deserialize(self, data: NormalizedEmbeddings | None) -> None:
+        if data is None:
+            self.clear()
+            return
+        assert data.shape == (len(data), self._embedding_size)
+        self._vectors = data  # TODO: Should we make a copy?
 
 
 async def main():
