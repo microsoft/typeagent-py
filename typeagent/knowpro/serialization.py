@@ -88,7 +88,7 @@ def write_conversation_data_to_file(
             with open(filename + EMBEDDING_FILE_SUFFIX, "wb") as f:
                 for embeddings in embeddings_list:
                     embeddings.tofile(f)
-    with open(filename + DATA_FILE_SUFFIX, "w") as f:
+    with open(filename + DATA_FILE_SUFFIX, "w", encoding="utf-8") as f:
         # f.write(repr(file_data["jsonData"]))
         json.dump(file_data["jsonData"], f)
 
@@ -193,7 +193,7 @@ def to_camel(name: str) -> str:
 def read_conversation_data_from_file(
     filename: str, embedding_size: int
 ) -> ConversationDataWithIndexes | None:
-    with open(filename + DATA_FILE_SUFFIX) as f:
+    with open(filename + DATA_FILE_SUFFIX, "r", encoding="utf-8") as f:
         json_data: ConversationJsonData = json.load(f)
     if json_data is None:
         # A serialized None -- file contained exactly "null".
