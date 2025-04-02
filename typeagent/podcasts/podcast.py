@@ -9,7 +9,7 @@ from ..knowpro.convthreads import ConversationThreads
 from ..knowpro.importing import ConversationSettings
 from ..knowpro.interfaces import (
     Datetime,
-    IConversationDataWithIndexes,
+    ConversationDataWithIndexes,
     SemanticRef,
     Timedelta,
 )
@@ -69,9 +69,13 @@ class PodcastMessageBase(interfaces.IKnowledgeSource):
             )
 
 
-class PodcastMessageData(TypedDict):
+class PodcastMessageBaseData(TypedDict):
     speaker: str
     listeners: list[str]
+
+
+class PodcastMessageData(TypedDict):
+    metadata: PodcastMessageBaseData
     textChunks: list[str]
     tags: list[str]
     timestamp: str | None
@@ -91,8 +95,10 @@ class PodcastMessage(interfaces.IMessage, PodcastMessageBase):
 
     def serialize(self) -> PodcastMessageData:
         return PodcastMessageData(
-            speaker=self.speaker,
-            listeners=self.listeners,
+            metadata=PodcastMessageBaseData(
+                speaker=self.speaker,
+                listeners=self.listeners,
+            ),
             textChunks=self.text_chunks,
             tags=self.tags,
             timestamp=self.timestamp,
@@ -101,7 +107,7 @@ class PodcastMessage(interfaces.IMessage, PodcastMessageBase):
     # TODO deserialize (static method?)
 
 
-class PodcastData(interfaces.IConversationDataWithIndexes[PodcastMessageData]):
+class PodcastData(interfaces.ConversationDataWithIndexes[PodcastMessageData]):
     pass
 
 
@@ -115,16 +121,17 @@ class Podcast(
     name_tag: str = ""
     messages: list[PodcastMessage] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
-    semantic_refs: list[interfaces.SemanticRef] | None = field(default_factory=list)
+    semantic_refs: list[interfaces.SemanticRef] = field(default_factory=list)  # type: ignore  # TODO
     settings: ConversationSettings = field(default_factory=ConversationSettings)
-    semantic_ref_index: convindex.ConversationIndex = field(default_factory=convindex.ConversationIndex)  # type: ignore  # TODO
+    semantic_ref_index: convindex.ConversationIndex = field(
+        default_factory=convindex.ConversationIndex
+    )
 
     secondary_indexes: interfaces.IConversationSecondaryIndexes[PodcastMessage] = field(
         init=False
     )
 
     def __post_init__(self) -> None:
-        # This needs self.settings, so can't use field(default_factor=...)
         self.secondary_indexes = secindex.ConversationSecondaryIndexes(self.settings.related_term_index_settings)  # type: ignore  # TODO
 
     def add_metadata_to_index(self) -> None:
@@ -188,15 +195,16 @@ class Podcast(
         write_conversation_data_to_file(data, filename)
 
     def deserialize(
-        self, podcast_data: IConversationDataWithIndexes[PodcastMessageData]
+        self, podcast_data: ConversationDataWithIndexes[PodcastMessageData]
     ) -> None:
         self.name_tag = podcast_data["nameTag"]
 
         self.messages = []
         for m in podcast_data["messages"]:
+            metadata = m.get("metadata") or {}
             msg = PodcastMessage(
-                speaker=m["speaker"],
-                listeners=m["listeners"],
+                speaker=metadata.get("speaker", ""),
+                listeners=metadata.get("listeners", []),
                 text_chunks=m["textChunks"],
                 tags=m["tags"],
                 timestamp=m["timestamp"],
@@ -205,9 +213,9 @@ class Podcast(
 
         semantic_refs_data = podcast_data.get("semanticRefs")
         if semantic_refs_data is not None:
-            self.semantic_refs = [
+            self.semantic_refs[:] = [  # type: ignore  # TODO
                 SemanticRef.deserialize(r) for r in semantic_refs_data
-            ]  # ztype: ignore  # TODO
+            ]
 
         self.tags = podcast_data["tags"]
 
@@ -244,12 +252,11 @@ class Podcast(
     @staticmethod
     async def read_from_file(
         filename: str,
-    ) -> Optional[
-        "Podcast"
-    ]:  # Must use Optional because Podcast must be stringified and "..." | None is a runtime error.
-        podcast = Podcast()
+        settings: ConversationSettings | None = None,
+    ) -> Optional["Podcast"]:  # Not "Podcast" | None
+        podcast = Podcast(settings=settings or ConversationSettings())
         embedding_size = (
-            podcast.settings.related_term_index_settings.embedding_index_settings.embedding_size
+            podcast.settings.related_term_index_settings.embedding_index_settings.embedding_model.embedding_size
         )
         data = await read_conversation_data_from_file(filename, embedding_size)
         if data:

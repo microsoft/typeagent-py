@@ -7,12 +7,12 @@ from typing import Any, Protocol
 from ..aitools.vectorbase import VectorBase
 from .importing import TextEmbeddingIndexSettings
 from .interfaces import (
-    ITextToTextLocationIndexData,
+    TextToTextLocationIndexData,
     IndexingEventHandlers,
     ListIndexingResult,
     TextLocation,
 )
-from .relatedtermsindex import ITextEmbeddingIndexData
+from .relatedtermsindex import TextEmbeddingIndexData
 
 
 @dataclass
@@ -42,10 +42,10 @@ class ITextToTextLocationIndex(Protocol):
     ) -> list[ScoredTextLocation]:
         raise NotImplementedError
 
-    def serialize(self) -> ITextToTextLocationIndexData:
+    def serialize(self) -> TextToTextLocationIndexData:
         raise NotImplementedError
 
-    def deserialize(self, data: ITextToTextLocationIndexData) -> None:
+    def deserialize(self, data: TextToTextLocationIndexData) -> None:
         raise NotImplementedError
 
 
@@ -110,20 +110,18 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
     ) -> Any:
         raise NotImplementedError
 
-    def serialize(self) -> ITextToTextLocationIndexData:
-        return ITextToTextLocationIndexData(
+    def serialize(self) -> TextToTextLocationIndexData:
+        return TextToTextLocationIndexData(
             textLocations=[loc.serialize() for loc in self._text_locations],
-            embeddings=ITextEmbeddingIndexData(
-                textItems=[],  # TODO: Put values here?!
-                embeddings=self._vector_base.serialize(),
-            ),
+            embeddings=self._vector_base.serialize(),
         )
 
-    def deserialize(self, data: ITextToTextLocationIndexData) -> None:
+    def deserialize(self, data: TextToTextLocationIndexData) -> None:
+        self._text_locations.clear()
+        self._vector_base.clear()
         text_locations = data["textLocations"]
-        embeddings = data["embeddings"]["embeddings"]
-        if embeddings is None:
-            raise ValueError("embeddings is None ?!")
+        embeddings = data["embeddings"]
+        assert embeddings is not None, "No embeddings found"
         assert len(text_locations) == len(embeddings), ((text_locations), (embeddings))
         self._text_locations = [TextLocation.deserialize(loc) for loc in text_locations]
         self._vector_base.deserialize(embeddings)

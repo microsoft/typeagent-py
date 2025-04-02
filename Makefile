@@ -8,7 +8,7 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	venv/bin/black typeagent
+	venv/bin/black typeagent *.py
 
 .PHONY: check
 check: venv
@@ -17,6 +17,10 @@ check: venv
 .PHONY: test
 test: venv
 	venv/bin/python -m typeagent.podcasts testdata/npr.txt
+
+.PHONY: demo
+demo: venv
+	venv/bin/python -m demo testdata/Episode_53_AdrianTchaikovsky_index
 
 .PHONY: build
 build: venv
@@ -44,6 +48,7 @@ help:
 	@echo "make format # Run black"
 	@echo "make check  # Run pyright"
 	@echo "make test   # Run import_podcast test"
+	@echo "make test   # Run the demo of the week"
 	@echo "make build  # Build the wheel (under dist/)"
 	@echo "make venv   # Create venv/"
 	@echo "make clean  # Remove build/, dist/, venv/, *.egg-info/"

@@ -8,11 +8,11 @@ from .importing import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
     ITermToRelatedTerms,
-    ITermToRelatedTermsData,
+    TermToRelatedTermsData,
     ITermToRelatedTermsIndex,
-    ITermsToRelatedTermsDataItem,
-    ITermsToRelatedTermsIndexData,
-    ITextEmbeddingIndexData,
+    TermsToRelatedTermsDataItem,
+    TermsToRelatedTermsIndexData,
+    TextEmbeddingIndexData,
     IndexingEventHandlers,
     ListIndexingResult,
     Term,
@@ -44,18 +44,18 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
     def clear(self) -> None:
         self.map.clear()
 
-    def serialize(self) -> ITermToRelatedTermsData:
-        related_terms: list[ITermsToRelatedTermsDataItem] = []
+    def serialize(self) -> TermToRelatedTermsData:
+        related_terms: list[TermsToRelatedTermsDataItem] = []
         for key, value in self.map.items():
             related_terms.append(
-                ITermsToRelatedTermsDataItem(
+                TermsToRelatedTermsDataItem(
                     termText=key,
                     relatedTerms=[term.serialize() for term in value],
                 )
             )
-        return ITermToRelatedTermsData(relatedTerms=related_terms)
+        return TermToRelatedTermsData(relatedTerms=related_terms)
 
-    def deserialize(self, data: ITermToRelatedTermsData | None) -> None:
+    def deserialize(self, data: TermToRelatedTermsData | None) -> None:
         self.clear()
         if data is None:
             return
@@ -107,21 +107,21 @@ class RelatedTermsIndex(ITermToRelatedTermsIndex):
     def fuzzy_index(self) -> VectorBase:
         return self._vector_base
 
-    def serialize(self) -> ITermsToRelatedTermsIndexData:
-        return ITermsToRelatedTermsIndexData(
+    def serialize(self) -> TermsToRelatedTermsIndexData:
+        return TermsToRelatedTermsIndexData(
             aliasData=self._alias_map.serialize(),
-            textEmbeddingData=ITextEmbeddingIndexData(
+            textEmbeddingData=TextEmbeddingIndexData(
                 textItems=[],  # TODO: Put values here!
                 embeddings=self._vector_base.serialize(),
             ),
         )
 
-    def deserialize(self, data: ITermsToRelatedTermsIndexData) -> None:
-        self._vector_base = VectorBase(self.settings.embedding_index_settings)
+    def deserialize(self, data: TermsToRelatedTermsIndexData) -> None:
+        self._alias_map.clear()
+        self._vector_base.clear()
         self._alias_map.deserialize(data.get("aliasData"))
         text_embedding_data = data.get("textEmbeddingData")
-        self._vector_base.deserialize(
-            text_embedding_data.get("embeddings")
-            if text_embedding_data is not None
-            else None
-        )
+        if text_embedding_data is not None:
+            embeddings = text_embedding_data.get("embeddings")
+            if embeddings is not None:
+                self._vector_base.deserialize(embeddings)

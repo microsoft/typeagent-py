@@ -21,7 +21,7 @@ import numpy as np
 
 from ..aitools.embeddings import NormalizedEmbeddings
 from .interfaces import (
-    IConversationDataWithIndexes,
+    ConversationDataWithIndexes,
     Tag,
     Topic,
 )
@@ -55,13 +55,13 @@ class EmbeddingData(TypedDict):
     embeddings: NormalizedEmbeddings | None
 
 
-class ConversationJsonData(IConversationDataWithIndexes):
+class ConversationJsonData(ConversationDataWithIndexes):
     fileHeader: NotRequired[FileHeader | None]
     embeddingFileHeader: NotRequired[EmbeddingFileHeader | None]
 
 
 class ConversationBinaryData(TypedDict):
-    embeddings: NotRequired[bytearray | None]
+    embeddingsList: NotRequired[list[NormalizedEmbeddings] | None]
 
 
 class ConversationFileData(TypedDict):
@@ -77,16 +77,17 @@ class ConversationFileData(TypedDict):
 
 
 def write_conversation_data_to_file(
-    conversation_data: IConversationDataWithIndexes,
+    conversation_data: ConversationDataWithIndexes,
     filename: str,
 ) -> None:
     file_data = to_conversation_file_data(conversation_data)
     binary_data = file_data["binaryData"]
     if binary_data:
-        embeddings = binary_data.get("embeddings")
-        if embeddings:
+        embeddings_list = binary_data.get("embeddingsList")
+        if embeddings_list:
             with open(filename + EMBEDDING_FILE_SUFFIX, "wb") as f:
-                f.write(embeddings)
+                for embeddings in embeddings_list:
+                    embeddings.tofile(f)
     with open(filename + DATA_FILE_SUFFIX, "w") as f:
         # f.write(repr(file_data["jsonData"]))
         json.dump(file_data["jsonData"], f)
@@ -96,13 +97,13 @@ def serialize_embeddings(embeddings: NormalizedEmbeddings) -> NormalizedEmbeddin
     return np.concatenate(embeddings)
 
 
-def to_conversation_file_data[IMessageData](
-    conversation_data: IConversationDataWithIndexes[IMessageData],
+def to_conversation_file_data(
+    conversation_data: ConversationDataWithIndexes,
 ) -> ConversationFileData:
     file_header = create_file_header()
     embedding_file_header = EmbeddingFileHeader()
 
-    buffer = bytearray()
+    embeddings_list: list[NormalizedEmbeddings] = []
 
     related_terms_index_data = conversation_data.get("relatedTermsIndexData")
     if related_terms_index_data is not None:
@@ -110,7 +111,7 @@ def to_conversation_file_data[IMessageData](
         if text_embedding_data is not None:
             embeddings = text_embedding_data.get("embeddings")
             if embeddings is not None:
-                buffer.extend(embeddings)
+                embeddings_list.append(embeddings)
                 text_embedding_data["embeddings"] = None
                 embedding_file_header["relatedCount"] = len(embeddings)
 
@@ -118,15 +119,13 @@ def to_conversation_file_data[IMessageData](
     if message_index_data is not None:
         text_embedding_data = message_index_data.get("indexData")
         if text_embedding_data is not None:
-            index_embeddings = text_embedding_data.get("embeddings")
-            if index_embeddings is not None:
-                embeddings = index_embeddings.get("embeddings")
-                if embeddings is not None:
-                    buffer.extend(embeddings)
-                    index_embeddings["embeddings"] = None
-                    embedding_file_header["messageCount"] = len(embeddings)
+            embeddings = text_embedding_data.get("embeddings")
+            if embeddings is not None:
+                embeddings_list.append(embeddings)
+                text_embedding_data["embeddings"] = None
+                embedding_file_header["messageCount"] = len(embeddings)
 
-    binary_data = ConversationBinaryData(embeddings=buffer)
+    binary_data = ConversationBinaryData(embeddingsList=embeddings_list)
     json_data = ConversationJsonData(
         **conversation_data,
         fileHeader=file_header,
@@ -192,25 +191,25 @@ def to_camel(name: str) -> str:
 
 # No exceptions are caught; they just bubble out.
 async def read_conversation_data_from_file(
-    filename: str, embedding_size: int | None = None
-) -> IConversationDataWithIndexes | None:
+    filename: str, embedding_size: int
+) -> ConversationDataWithIndexes | None:
     with open(filename + DATA_FILE_SUFFIX) as f:
         json_data: ConversationJsonData = json.load(f)
     if json_data is None:
         # A serialized None -- file contained exactly "null".
         return None
-    # TODO: validate json_data.
-    embeddings: NormalizedEmbeddings | None = None
+    # TODO: validate json_data. (Isn't this done by deserialize()?)
+    embeddings_list: list[NormalizedEmbeddings] | None = None
     if embedding_size:
         with open(filename + EMBEDDING_FILE_SUFFIX, "rb") as f:
             embeddings = np.fromfile(f, dtype=np.float32).reshape((-1, embedding_size))
+            embeddings_list = [embeddings]
     else:
-        embeddings = None
+        print("Warning: not reading embeddings file because size is {embedding_size}")
+        embeddings_list = None
     file_data = ConversationFileData(
         jsonData=json_data,
-        binaryData=ConversationBinaryData(
-            embeddings=None if embeddings is None else bytearray(embeddings.tobytes())
-        ),
+        binaryData=ConversationBinaryData(embeddingsList=embeddings_list),
     )
     if json_data.get("fileHeader") is None:
         json_data["fileHeader"] = create_file_header()
@@ -219,16 +218,68 @@ async def read_conversation_data_from_file(
 
 def from_conversation_file_data(
     file_data: ConversationFileData,
-) -> IConversationDataWithIndexes | None:
+) -> ConversationDataWithIndexes:
     json_data = file_data["jsonData"]
+    file_header = json_data.get("fileHeader")
+    if file_header is None:
+        raise DeserializationError("Missing file header")
+    if file_header["version"] != "0.1":
+        raise DeserializationError(f"Unsupported file version {file_header['version']}")
+    embedding_file_header = json_data.get("embeddingFileHeader")
+    if embedding_file_header is None:
+        raise DeserializationError("Missing embedding file header")
+
     binary_data = file_data["binaryData"]
     if binary_data:
-        embeddings = binary_data.get("embeddings")
-        if embeddings:
-            embeddings = np.frombuffer(embeddings, dtype=np.float32)
-    else:
-        embeddings = None
-    # TODO: proper return value, and remove '| None' from return type.
+        embeddings_list = binary_data.get("embeddingsList")
+        if embeddings_list is None:
+            raise DeserializationError("Missing embeddings list")
+        if len(embeddings_list) != 1:
+            raise ValueError(
+                f"Expected embeddings list of lengt 1, got {len(embeddings_list)}"
+            )
+        embeddings = embeddings_list[0]
+        pos = 0
+        pos += get_embeddings_from_binary_data(
+            embeddings,
+            json_data,
+            ("relatedTermsIndexData", "textEmbeddingData"),
+            pos,
+            embedding_file_header.get("relatedCount"),
+        )
+        pos += get_embeddings_from_binary_data(
+            embeddings,
+            json_data,
+            ("messageIndexData", "indexData"),
+            pos,
+            embedding_file_header.get("messageCount"),
+        )
+    return json_data
+
+
+def get_embeddings_from_binary_data(
+    embeddings: NormalizedEmbeddings,
+    json_data: ConversationJsonData,
+    keys: tuple[str, ...],
+    offset: int,
+    count: int | None,
+) -> int:
+    if count is None or count <= 0:
+        return 0
+    embeddings = embeddings[offset : offset + count]
+    if len(embeddings) != count:
+        raise DeserializationError(
+            f"Expected {count} embeddings, got {len(embeddings)}"
+        )
+    data = json_data
+    for key in keys:
+        new_data = data.get(key)
+        if new_data is None or type(new_data) is not dict:
+            return 0
+        data = new_data
+    if "embeddings" in data:
+        data["embeddings"] = embeddings
+    return count
 
 
 TYPE_MAP = {
@@ -245,13 +296,17 @@ def deserialize_knowledge(knowledge_type: str, obj: Any) -> Any:
     return deserialize_object(typ, obj)
 
 
-# The rest of this file was written by o3-mini=high, with few errors.
+class DeserializationError(Exception):
+    pass
 
 
+@functools.cache
 def is_primitive(typ: type) -> bool:
     return typ in (int, float, bool, str, type(None))
 
 
+# TODO: Use type(obj) is X instead of isinstance(obj, X). It's faster.
+# TODO: Design a consistent reporting format.
 def deserialize_object(typ: Any, obj: Any) -> Any:
     origin = get_origin(typ)
 
@@ -263,44 +318,50 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
     # Non-generic: primitives and dataclasses.
     if origin is None:
         if is_primitive(typ):
-            if typ is not type(None) and not isinstance(obj, typ):
-                raise ValueError(f"Expected {typ} but got {type(obj)}")
+            if typ is int and type(obj) is float:
+                return int(obj)
+            if typ is float and type(obj) is int:
+                return float(obj)
+            if not isinstance(obj, typ):
+                raise DeserializationError(f"Expected {typ} but got {type(obj)}")
             return obj
         elif isinstance(typ, type) and is_dataclass(typ):
             if not isinstance(obj, dict):
-                raise ValueError(f"Expected dict for {typ}, got {type(obj)}")
+                raise DeserializationError(f"Expected dict for {typ}, got {type(obj)}")
             kwargs = {}
             for field, field_type in typ.__annotations__.items():
                 json_key = to_camel(field)
                 if json_key in obj:
                     kwargs[field] = deserialize_object(field_type, obj[json_key])
-            return typ(**kwargs)
+            return typ(
+                **kwargs
+            )  # TODO: This may raise if a mandatory field is missing. Unify with union handling?
         else:
-            breakpoint()  # What would this be?
-            return obj
+            # Could be a class that's not a dataclass -- we don't know the signature.
+            raise TypeError(f"Unsupported origin-less type {typ}")
 
-    # Handle Lieral.
+    # Handle Literal.
     if origin is Literal:
         if type(obj) is str and obj in get_args(typ):
             return obj
-        raise ValueError(
+        raise DeserializationError(
             f"Expected one of {get_args(typ)} for Literal, but got {obj!r} of type {type(obj)}"
         )
 
     # Handle list[T] / List[T].
     if origin is list:
         if not isinstance(obj, list):
-            raise ValueError(f"Expected list for list, got {type(obj)}")
+            raise DeserializationError(f"Expected list for list, got {type(obj)}")
         (elem_type,) = get_args(typ)
         return [deserialize_object(elem_type, item) for item in obj]
 
     # Handle tuple[T1, T2, etc.] / Tuple[T1, T2, etc.].
     if origin is tuple:
         if not isinstance(obj, list):
-            raise ValueError(f"Expected list for tuple, got {type(obj)}")
+            raise DeserializationError(f"Expected list for tuple, got {type(obj)}")
         args = get_args(typ)
         if len(args) != len(obj):
-            raise ValueError(
+            raise DeserializationError(
                 f"Tuple length mismatch: expected {len(args)}, got {len(obj)}"
             )
         return tuple(deserialize_object(t, item) for t, item in zip(args, obj))
@@ -325,20 +386,19 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
             if len(matching) == 1:
                 return deserialize_object(matching[0], obj)
             elif len(matching) > 1:
-                raise ValueError(
-                    "Ambiguous union: multiple dataclass candidates match: "
+                raise TypeError(
+                    f"Ambiguous union {typ}: multiple dataclass candidates match: "
                     + str([c.__name__ for c in matching])
                 )
         # Try each candidate until one succeeds.
-        last_exc = None
+        all_excs = []
         for candidate in candidates:
             try:
                 return deserialize_object(candidate, obj)
-            except (
-                Exception
-            ) as e:  # TODO: Something better than catching all exceptions.
-                last_exc = e
-        raise ValueError(f"No union candidate succeeded. Last error: {last_exc}")
+            except DeserializationError as e:
+                all_excs.append(e)
+        raise DeserializationError(
+            f"No candidate from union {typ} succeeded -- errors: {all_excs}"
+        )
 
-    breakpoint()
     raise TypeError(f"Unsupported type {typ}, object {obj!r} of type {type(obj)}")

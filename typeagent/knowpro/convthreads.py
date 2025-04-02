@@ -2,9 +2,9 @@
 # Licensed under the MIT License.
 
 from .interfaces import (
-    IConversationThreadData,
+    ConversationThreadData,
     IConversationThreads,
-    IThreadDataItem,
+    ThreadDataItem,
     ScoredThreadOrdinal,
     Thread,
     ThreadData,
@@ -54,21 +54,21 @@ class ConversationThreads(IConversationThreads):
             [t.description for t in self.threads], cache=False
         )
 
-    def serialize(self) -> IConversationThreadData[IThreadDataItem]:
+    def serialize(self) -> ConversationThreadData[ThreadDataItem]:
         embedding_index = self.vector_base
 
-        thread_data: list[IThreadDataItem] = []
+        thread_data: list[ThreadDataItem] = []
         for i, thread in enumerate(self.threads):
             thread_data.append(
-                IThreadDataItem(
+                ThreadDataItem(
                     thread=thread.serialize(),
                     embedding=embedding_index.serialize_embedding_at(i),
                 )
             )
 
-        return IConversationThreadData(threads=thread_data)
+        return ConversationThreadData(threads=thread_data)
 
-    def deserialize(self, data: IConversationThreadData[IThreadDataItem]) -> None:
+    def deserialize(self, data: ConversationThreadData[ThreadDataItem]) -> None:
         self.clear()
         thread_data = data.get("threads")
         if thread_data is None:

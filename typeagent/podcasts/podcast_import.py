@@ -17,6 +17,7 @@ def import_podcast(
     podcast_name: str | None = None,
     start_date: Datetime | None = None,
     length_minutes: float = 60.0,
+    settings: ConversationSettings | None = None,
 ) -> Podcast:
     with open(transcript_file_path, "r") as f:
         transcript_lines = f.readlines()
@@ -67,7 +68,9 @@ def import_podcast(
 
     assign_message_listeners(msgs, participants)
 
-    pod = Podcast(podcast_name, msgs, [podcast_name])
+    pod = Podcast(
+        podcast_name, msgs, [podcast_name], settings=settings or ConversationSettings()
+    )
     if start_date:
         pod.generate_timestamps(start_date, length_minutes)
     # TODO: Add more tags.

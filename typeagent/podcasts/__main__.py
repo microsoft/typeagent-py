@@ -5,12 +5,14 @@
 # Check Python version before importing anything else.
 import sys
 
-from ..knowpro import serialization
+from typeagent.knowpro import importing, serialization
 
 minver = (3, 12)
 if sys.version_info < minver:
-    sys.exit(f"Error: Python {minver[0]}.{minver[1]}+ required")
-del minver
+    sys.exit(
+        f"Error: Python {minver[0]}.{minver[1]}+ required, "
+        + f"got {sys.version_info[0]}.{sys.version_info[1]}"
+    )
 
 import argparse
 import os
@@ -37,7 +39,8 @@ async def main():
     args = parser.parse_args()
     if not args.filename:
         args.filename = os.path.expanduser("~/TypeAgent/python/ta/testdata/npr.txt")
-    pod = import_podcast(args.filename, None, Datetime.now(), 3.0)
+    settings = importing.ConversationSettings()
+    pod = import_podcast(args.filename, None, Datetime.now(), 3.0, settings=settings)
     print()
     print("Name-Tag:", pod.name_tag)
     print("Tags:", ", ".join(pod.tags))
@@ -89,7 +92,7 @@ async def main():
     print(f"Dump complete.")
 
     ser1 = pod.serialize()
-    pod2 = Podcast()
+    pod2 = Podcast(settings=pod.settings)
     pod2.deserialize(ser1)
     ser2 = pod2.serialize()
     if ser1 == ser2:

@@ -86,9 +86,9 @@ VerbTense = Literal["past", "present", "future"]
 class Action:
     verbs: Annotated[list[str], Doc("Each verb is typically a word.")]
     verb_tense: VerbTense
-    subject_entity_name: str | Literal["none"]
-    object_entity_name: str | Literal["none"]
-    indirect_object_entity_name: str | Literal["none"]
+    subject_entity_name: str | Literal["none"] = "none"
+    object_entity_name: str | Literal["none"] = "none"
+    indirect_object_entity_name: str | Literal["none"] = "none"
     params: list[str | ActionParam] | None = None
     subject_entity_facet: (
         Annotated[

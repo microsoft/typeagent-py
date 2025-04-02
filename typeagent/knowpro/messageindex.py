@@ -10,7 +10,7 @@ from .interfaces import (
     IConversation,
     IMessage,
     IMessageTextIndex,
-    IMessageTextIndexData,
+    MessageTextIndexData,
     ITermToSemanticRefIndex,
     IndexingEventHandlers,
     ListIndexingResult,
@@ -153,12 +153,12 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
             )
         ]
 
-    def serialize(self) -> IMessageTextIndexData:
-        return IMessageTextIndexData(
+    def serialize(self) -> MessageTextIndexData:
+        return MessageTextIndexData(
             indexData=self.text_location_index.serialize(),
         )
 
-    def deserialize(self, data: IMessageTextIndexData) -> None:
+    def deserialize(self, data: MessageTextIndexData) -> None:
         index_data = data.get("indexData")
         if index_data is None:
             return
