@@ -76,7 +76,7 @@ class VectorBase:
             self._model.add_embedding(key, embedding)
 
     async def add_key(self, key: str, cache: bool = True) -> None:
-        embedding = (await self.get_embedding(key)).reshape((self._embedding_size,))
+        embedding = (await self.get_embedding(key)).reshape(1, -1)  # Make it 2D
         self._vectors = np.append(self._vectors, embedding, axis=0)
 
     async def add_keys(self, keys: list[str], cache: bool = True) -> None:
@@ -93,7 +93,7 @@ class VectorBase:
         embedding = await self.get_embedding(key)
         scores = np.dot(self._vectors, embedding)  # This does most of the work
         scored_ordinals = [
-            ScoredOrdinal(i, score)
+            ScoredOrdinal(i, float(score))
             for i, score in enumerate(scores)
             if score >= min_score
         ]
@@ -120,7 +120,8 @@ class VectorBase:
 
 
 async def main():
-    import dotenv, os, time
+    import time
+    from . import auth
 
     epoch = time.time()
 
@@ -135,7 +136,7 @@ async def main():
     def debugv(heading):
         log(f"{heading}: bool={bool(v)}, len={len(v)}")
 
-    dotenv.load_dotenv(os.path.expanduser("~/TypeAgent/ts/.env"))
+    auth.load_dotenv()
     v = VectorBase()
     debugv("\nEmpty vector base")
 

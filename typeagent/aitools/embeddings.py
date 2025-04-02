@@ -140,9 +140,9 @@ class AsyncEmbeddingModel:
 
 
 async def main():
-    import dotenv
+    from . import auth
 
-    dotenv.load_dotenv(os.path.expanduser("~/TypeAgent/ts/.env"))
+    auth.load_dotenv()
 
     async_model = AsyncEmbeddingModel()
     e = await async_model.get_embeddings([])

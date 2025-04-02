@@ -190,7 +190,7 @@ def to_camel(name: str) -> str:
 
 
 # No exceptions are caught; they just bubble out.
-async def read_conversation_data_from_file(
+def read_conversation_data_from_file(
     filename: str, embedding_size: int
 ) -> ConversationDataWithIndexes | None:
     with open(filename + DATA_FILE_SUFFIX) as f:

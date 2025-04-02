@@ -5,8 +5,6 @@
 # Check Python version before importing anything else.
 import sys
 
-from typeagent.knowpro import importing, serialization
-
 minver = (3, 12)
 if sys.version_info < minver:
     sys.exit(
@@ -17,22 +15,21 @@ if sys.version_info < minver:
 import argparse
 import os
 
-import dotenv
-
-from ..knowpro.interfaces import (
+# Use absolute imports so you can run this as a script file.
+from typeagent.aitools import auth
+from typeagent.knowpro import importing, serialization
+from typeagent.knowpro.interfaces import (
     Datetime,
     IndexingEventHandlers,
     MessageOrdinal,
     TextLocation,
 )
-from .podcast import Podcast
-from .podcast_import import import_podcast
+from typeagent.podcasts.podcast import Podcast
+from typeagent.podcasts.podcast_import import import_podcast
 
 
 async def main():
-    dotenv.load_dotenv(
-        os.path.expanduser("~/TypeAgent/ts/.env")
-    )  # TODO: Only works in dev tree
+    auth.load_dotenv()
     parser = argparse.ArgumentParser(description="Import a podcast")
     parser.add_argument("filename", nargs="?", help="The filename to import")
     # TODO: Add more arguments for the import_podcast function.

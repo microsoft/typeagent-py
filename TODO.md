@@ -31,19 +31,10 @@ STARTING THIS NOW.
 
 For robustness -- TypeChat already retries, but my embeddings don't.
 
-## Small functionality
-
-- Implement Podcast._build_caches(), by implementing TermEmbeddingCache?
-  - Umesh wants to redo this anyway, so low priority
-
 ## Refactoring implementations
 
 - Change some inconsistent module names
 - Rewrite podcast parsing without regexes
-
-## Main/demo/test program support
-
-- Unify various dotenv calls and make them search harder (relative to repo)
 
 ## Type checking stuff
 
@@ -61,6 +52,6 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 ## Questions
 
 - Do the serialization data formats (which are TypedDicts, not Protocols):
-  - Really belong in interfaces.py?
-  - Need to have names starting with 'I'?
+  - Really belong in interfaces.py? [UMES: No] [me: TODO]
+  - Need to have names starting with 'I'? [UMESH: No] [me: DONE]
   My answers for both are no, unless Steve explains why.
