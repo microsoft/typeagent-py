@@ -45,7 +45,7 @@ class AsyncEmbeddingModel:
         m = re.search(r"[?,]api-version=([^,]+)$", self.azure_endpoint)
         if not m:
             raise ValueError(
-                "{endpoint_name}={endpoint} doesn't end in api-version=<version>"
+                f"{endpoint_name}={self.azure_endpoint} doesn't end in api-version=<version>"
             )
         self.azure_api_version = m.group(1)
         if azure_api_key.lower() == "identity":

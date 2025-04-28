@@ -35,7 +35,9 @@ async def main():
     # TODO: Add more arguments for the import_podcast function.
     args = parser.parse_args()
     if not args.filename:
-        args.filename = os.path.expanduser("~/TypeAgent/python/ta/testdata/npr.txt")
+        args.filename = os.path.expanduser(
+            "~/TypeAgent/python/ta/testdata/FakePodcast.txt"
+        )
     settings = importing.ConversationSettings()
     pod = import_podcast(args.filename, None, Datetime.now(), 3.0, settings=settings)
     print()

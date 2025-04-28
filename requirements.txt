@@ -1,14 +1,15 @@
 # Runtime deps
 
-typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python
-python-dotenv
-pydantic
 azure-identity
-openai
 numpy
+openai
+pydantic
+pytest
+python-dotenv
+typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python
 
 # Build deps
 
-build
 black
+build
 pyright

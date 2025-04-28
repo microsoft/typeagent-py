@@ -1,17 +1,22 @@
 :: Copyright (c) Microsoft Corporation.
 :: Licensed under the MIT License.
 
+:: This is a batch file to run common actions.
+:: It can format the code, check the code, run the tests,
+:: build the package, create a virtual environment, and clean up.
+:: To avoid having to type `./make` all the time,
+:: use `set-alias make ".\make.bat"` in PowerShell.
+
 @echo off
 if "%~1"=="" goto help
 
-if /I "%~1"=="help" goto help
-if /I "%~1"=="venv" goto venv
+if /I "%~1"=="format" goto format
 if /I "%~1"=="check" goto check
 if /I "%~1"=="test" goto test
-if /I "%~1"=="demo" goto demo
-if /I "%~1"=="clean" goto clean
-if /I "%~1"=="format" goto format
 if /I "%~1"=="build" goto build
+if /I "%~1"=="venv" goto venv
+if /I "%~1"=="clean" goto clean
+if /I "%~1"=="help" goto help
 
 echo Unknown command: %~1
 goto help
@@ -19,7 +24,7 @@ goto help
 :format
 if not exist "venv\" call make.bat venv
 echo Formatting code...
-venv\Scripts\black typeagent *.py
+venv\Scripts\black typeagent
 goto end
 
 :check
@@ -31,13 +36,7 @@ goto end
 :test
 if not exist "venv\" call make.bat venv
 echo Running tests...
-venv\Scripts\python -m typeagent.podcasts testdata\npr.txt
-goto end
-
-:demo
-if not exist "venv\" call make.bat venv
-echo Running demo...
-venv\Scripts\python demo.py
+venv\Scripts\python -m pytest
 goto end
 
 :build
@@ -51,8 +50,9 @@ echo Creating virtual environment...
 python3.12 -m venv venv
 venv\Scripts\pip -q install -r requirements.txt
 venv\Scripts\python --version
-venv\Scripts\pyright --version
 venv\Scripts\black --version
+venv\Scripts\pyright --version
+venv\Scripts\python -m pytest --version
 
 goto end
 
@@ -64,7 +64,7 @@ echo The others are products of the build step.
 goto end
 
 :help
-echo Usage: make.bat [format^|check^|test^|demo^|build^|venv^|clean^|help]
+echo Usage: .\make [format^|check^|test^|build^|venv^|clean^|help]
 goto end
 
 :end
