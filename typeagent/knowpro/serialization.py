@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import is_dataclass, MISSING
+from dataclasses import is_dataclass, Field, MISSING
 import functools
 import json
 import types
@@ -15,6 +15,7 @@ from typing import (
     NotRequired,
     overload,
     TypedDict,
+    Union,
 )
 
 import numpy as np
@@ -329,10 +330,14 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
             if not isinstance(obj, dict):
                 raise DeserializationError(f"Expected dict for {typ}, got {type(obj)}")
             kwargs = {}
-            for field, field_type in typ.__annotations__.items():
-                json_key = to_camel(field)
+            for field_name, field_obj in typ.__dataclass_fields__.items():
+                json_key = to_camel(field_name)
                 if json_key in obj:
-                    kwargs[field] = deserialize_object(field_type, obj[json_key])
+                    kwargs[field_name] = deserialize_object(field_obj.type, obj[json_key])
+                elif not may_be_none(field_obj):
+                    raise DeserializationError(
+                        f"Missing required field '{json_key}' for {typ.__name__}"
+                    )
             return typ(
                 **kwargs
             )  # TODO: This may raise if a mandatory field is missing. Unify with union handling?
@@ -402,3 +407,14 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
         )
 
     raise TypeError(f"Unsupported type {typ}, object {obj!r} of type {type(obj)}")
+
+
+def may_be_none(field_obj: Field) -> bool:
+    """Check if a field may be None."""
+    if field_obj.default is not MISSING or field_obj.default_factory is not MISSING:
+        return True
+    if get_origin(field_obj.type) in (Union, types.UnionType):
+        return type(None) in get_args(field_obj.type)
+    if get_origin(field_obj.type) is Annotated:
+        return type(None) in get_args(get_args(field_obj.type)[0])
+    return False
