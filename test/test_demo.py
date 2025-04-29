@@ -27,7 +27,7 @@ parser.add_argument(
 )
 
 
-def test_main(needs_auth: None):
+def test_main(needs_auth):
     # auth is needed because we use embeddings.
     # TODO: Only use the embeddings loaded from the file and cached.
     asyncio.run(main(DEFAULT_FILE))
@@ -39,8 +39,14 @@ async def main(filename: str):
     model = settings.thread_settings.embedding_model
     assert model is not None
     assert isinstance(model, AsyncEmbeddingModel), f"model is {model!r}"
-    assert settings.message_text_index_settings.embedding_index_settings.embedding_model is model
-    assert settings.related_term_index_settings.embedding_index_settings.embedding_model is model
+    assert (
+        settings.message_text_index_settings.embedding_index_settings.embedding_model
+        is model
+    )
+    assert (
+        settings.related_term_index_settings.embedding_index_settings.embedding_model
+        is model
+    )
 
     print(f"Loading {filename} ...")
     t0 = time.time()
@@ -56,7 +62,9 @@ async def main(filename: str):
     assert results is not None
     assert isinstance(results, list), f"results is {results!r}"
     assert len(results) > 0, f"results is {results!r}"
-    assert isinstance(results[0], ScoredSemanticRefOrdinal), f"results[0] is {results[0]!r}"
+    assert isinstance(
+        results[0], ScoredSemanticRefOrdinal
+    ), f"results[0] is {results[0]!r}"
 
     for scored_ord in results:
         ord = scored_ord.semantic_ref_ordinal
@@ -68,7 +76,9 @@ async def main(filename: str):
         print(" ", sref.knowledge)
         # Now dig up the messages
         start_msg_ord = sref.range.start.message_ordinal
-        end_msg_ord = sref.range.end.message_ordinal if sref.range.end else start_msg_ord + 1
+        end_msg_ord = (
+            sref.range.end.message_ordinal if sref.range.end else start_msg_ord + 1
+        )
         messages = pod.messages[start_msg_ord:end_msg_ord]
         assert len(messages) > 0, f"messages is {messages!r}"
         for i, message in enumerate(messages, start_msg_ord):
@@ -97,7 +107,9 @@ async def main(filename: str):
     assert isinstance(pod2, podcast.Podcast), f"pod2 is not Podcast but {type(pod2)!r}"
 
     pod2.deserialize(ser1)
-    assert pod2.name_tag == pod.name_tag, f"pod2.name_tag is {pod2.name_tag!r} but expected {pod.name_tag!r}"
+    assert (
+        pod2.name_tag == pod.name_tag
+    ), f"pod2.name_tag is {pod2.name_tag!r} but expected {pod.name_tag!r}"
 
     ser2 = pod2.serialize()
     assert ser2 is not None, "Failed to serialize podcast"

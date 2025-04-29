@@ -22,12 +22,16 @@ class TextEmbeddingIndexSettings:
 
     def __init__(
         self,
-        model: AsyncEmbeddingModel | None = None,
+        embedding_model: AsyncEmbeddingModel | None = None,
+        embedding_size: int | None = None,
         min_score: float | None = None,
         max_matches: int | None = None,
     ):
-        self.embedding_model = model or AsyncEmbeddingModel()
+        self.embedding_model = embedding_model or AsyncEmbeddingModel(embedding_size)
         self.embedding_size = self.embedding_model.embedding_size
+        assert (
+            embedding_size is None or self.embedding_size == embedding_size
+        ), f"Given embedding size {embedding_size} doesn't match model's embedding size {self.embedding_size}"
         self.min_score = min_score if min_score is not None else 0.85
         self.max_matches = max_matches
 
@@ -71,13 +75,16 @@ class VectorBase:
         return True
 
     def add_embedding(self, key: str | None, embedding: NormalizedEmbedding) -> None:
-        self._vectors = np.append(self._vectors, embedding, axis=0)
+        embeddings = embedding.reshape(1, -1)  # Make it 2D
+        self._vectors = np.append(self._vectors, embeddings, axis=0)
         if key is not None:
             self._model.add_embedding(key, embedding)
 
     async def add_key(self, key: str, cache: bool = True) -> None:
-        embedding = (await self.get_embedding(key)).reshape(1, -1)  # Make it 2D
-        self._vectors = np.append(self._vectors, embedding, axis=0)
+        embeddings = (await self.get_embedding(key, cache=cache)).reshape(
+            1, -1
+        )  # Make it 2D
+        self._vectors = np.append(self._vectors, embeddings, axis=0)
 
     async def add_keys(self, keys: list[str], cache: bool = True) -> None:
         embeddings = await self.get_embeddings(keys, cache=cache)
@@ -115,7 +122,10 @@ class VectorBase:
         if data is None:
             self.clear()
             return
-        assert data.shape == (len(data), self._embedding_size)
+        assert data.shape == (len(data), self._embedding_size), [
+            data.shape,
+            self._embedding_size,
+        ]
         self._vectors = data  # TODO: Should we make a copy?
 
 

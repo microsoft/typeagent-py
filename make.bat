@@ -24,7 +24,7 @@ goto help
 :format
 if not exist "venv\" call make.bat venv
 echo Formatting code...
-venv\Scripts\black typeagent
+venv\Scripts\black typeagent test
 goto end
 
 :check

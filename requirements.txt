@@ -5,6 +5,7 @@ numpy
 openai
 pydantic
 pytest
+pytest_asyncio
 python-dotenv
 typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python
 

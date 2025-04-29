@@ -12,6 +12,7 @@ from typeagent.aitools import auth
 def needs_auth():
     auth.load_dotenv()
 
+
 @pytest.fixture
 def temp_dir():
     with tempfile.TemporaryDirectory() as dir:
