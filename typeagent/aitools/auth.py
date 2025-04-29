@@ -5,8 +5,10 @@
 from dataclasses import dataclass
 import time
 from typing import Any, Protocol
+import os
 
 from azure.identity import DefaultAzureCredential
+import dotenv
 
 
 class IAccessToken(Protocol):
@@ -42,7 +44,7 @@ class AzureTokenProvider:
     def needs_refresh(self) -> bool:
         return (
             self.access_token is None
-            or self.access_token.expires_on >= time.time() + 300
+            or self.access_token.expires_on - time.time() <= 300
         )
 
 
@@ -57,9 +59,6 @@ def get_shared_token_provider() -> AzureTokenProvider:
 
 
 def load_dotenv() -> None:
-    import os
-    import dotenv
-
     dirname = os.path.dirname
     here = dirname(__file__)
     typeagent = dirname(here)

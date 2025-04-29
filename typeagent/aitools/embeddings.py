@@ -133,10 +133,9 @@ class AsyncEmbeddingModel:
             for i, key in enumerate(keys):
                 if embeddings[i] is None:
                     embeddings[i] = self._embedding_cache[key]
-        if len(keys):
-            return np.array(embeddings, dtype=np.float32).reshape((len(keys), -1))
-        else:
-            return np.array([], dtype=np.float32).reshape((0,))
+        return np.array(embeddings, dtype=np.float32).reshape(
+            (len(keys), self.embedding_size)
+        )
 
 
 async def main():

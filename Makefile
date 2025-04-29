@@ -12,7 +12,7 @@ format: venv
 
 .PHONY: check
 check: venv
-	venv/bin/pyright --pythonpath venv/bin/python typeagent
+	venv/bin/pyright --pythonpath venv/bin/python typeagent test
 
 .PHONY: test
 test: venv

@@ -30,7 +30,7 @@ goto end
 :check
 if not exist "venv\" call make.bat venv
 echo Running checks...
-venv\Scripts\pyright --pythonpath venv\Scripts\python typeagent *.py
+venv\Scripts\pyright --pythonpath venv\Scripts\python typeagent test
 goto end
 
 :test
