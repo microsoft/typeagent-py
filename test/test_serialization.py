@@ -48,7 +48,11 @@ def test_serialize_object():
     """Test the serialize_object function."""
     entity = ConcreteEntity(name="ExampleEntity", type=["ExampleType"])
     serialized = serialize_object(entity)
-    assert serialized == {"name": "ExampleEntity", "type": ["ExampleType"], "facets": None}
+    assert serialized == {
+        "name": "ExampleEntity",
+        "type": ["ExampleType"],
+        "facets": None,
+    }
 
 
 def test_to_json():
@@ -83,7 +87,9 @@ def test_to_conversation_file_data(sample_conversation_data):
 def test_from_conversation_file_data(sample_conversation_data):
     """Test the from_conversation_file_data function."""
     # Remove messageIndexData to ensure a single embeddings array
-    sample_conversation_data = {"relatedTermsIndexData": sample_conversation_data["relatedTermsIndexData"]}
+    sample_conversation_data = {
+        "relatedTermsIndexData": sample_conversation_data["relatedTermsIndexData"]
+    }
 
     file_data = to_conversation_file_data(sample_conversation_data)
     conversation_data = from_conversation_file_data(file_data)

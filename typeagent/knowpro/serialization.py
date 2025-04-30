@@ -333,7 +333,9 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
             for field_name, field_obj in typ.__dataclass_fields__.items():
                 json_key = to_camel(field_name)
                 if json_key in obj:
-                    kwargs[field_name] = deserialize_object(field_obj.type, obj[json_key])
+                    kwargs[field_name] = deserialize_object(
+                        field_obj.type, obj[json_key]
+                    )
                 elif not may_be_none(field_obj):
                     raise DeserializationError(
                         f"Missing required field '{json_key}' for {typ.__name__}"

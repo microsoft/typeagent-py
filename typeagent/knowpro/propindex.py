@@ -220,7 +220,7 @@ def is_known_property(
 ) -> bool:
     if property_index is not None:
         semantic_refs_with_name = property_index.lookup_property(
-            str(property_name),
+            property_name.value,
             property_value,
         )
         return semantic_refs_with_name is not None and len(semantic_refs_with_name) > 0
