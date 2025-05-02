@@ -7,7 +7,7 @@ from ..aitools.embeddings import AsyncEmbeddingModel
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 
 
-# TODO: RelatedTermIndexSettings belongs in relatedtermsindex.py.
+# TODO: RelatedTermIndexSettings belongs in reltermsindex.py.
 @dataclass
 class RelatedTermIndexSettings:
     embedding_index_settings: TextEmbeddingIndexSettings

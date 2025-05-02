@@ -3,6 +3,7 @@
 
 import pytest
 import numpy as np
+
 from typeagent.knowpro.serialization import (
     serialize_object,
     deserialize_object,
@@ -16,7 +17,12 @@ from typeagent.knowpro.serialization import (
     DeserializationError,
     serialize_embeddings,
 )
-from typeagent.knowpro.interfaces import ConversationDataWithIndexes
+from typeagent.knowpro.interfaces import (
+    ConversationDataWithIndexes,
+    MessageTextIndexData,
+    TermsToRelatedTermsIndexData,
+    TextToTextLocationIndexData,
+)
 from typeagent.knowpro.kplib import Quantity, ConcreteEntity
 
 
@@ -80,20 +86,32 @@ def test_to_conversation_file_data(sample_conversation_data):
     file_data = to_conversation_file_data(sample_conversation_data)
     assert "jsonData" in file_data
     assert "binaryData" in file_data
-    assert file_data["binaryData"]["embeddingsList"] is not None
-    assert len(file_data["binaryData"]["embeddingsList"]) == 2
+    embeddings_list = file_data["binaryData"].get("embeddingsList")
+    assert embeddings_list is not None
+    assert len(embeddings_list) == 2
 
 
 def test_from_conversation_file_data(sample_conversation_data):
     """Test the from_conversation_file_data function."""
     # Remove messageIndexData to ensure a single embeddings array
-    sample_conversation_data = {
-        "relatedTermsIndexData": sample_conversation_data["relatedTermsIndexData"]
-    }
+    sample_conversation_data = ConversationDataWithIndexes(
+        nameTag="mock name",
+        messages=[],
+        tags=[],
+        semanticRefs=[],
+        messageIndexData=MessageTextIndexData(
+            indexData=TextToTextLocationIndexData(
+                textLocations=[],
+                embeddings=np.array([[0.5, 0.6], [0.7, 0.8]], dtype=np.float32),
+            )
+        ),
+        relatedTermsIndexData=TermsToRelatedTermsIndexData(),
+    )
 
     file_data = to_conversation_file_data(sample_conversation_data)
     conversation_data = from_conversation_file_data(file_data)
-    assert conversation_data["relatedTermsIndexData"] is not None
+    assert conversation_data is not None
+    assert conversation_data.get("relatedTermsIndexData") is not None
 
 
 def test_write_and_read_conversation_data(tmp_path, sample_conversation_data):
@@ -103,8 +121,9 @@ def test_write_and_read_conversation_data(tmp_path, sample_conversation_data):
 
     # Read back the data
     read_data = read_conversation_data_from_file(str(filename), embedding_size=2)
-    assert read_data["relatedTermsIndexData"] is not None
-    assert read_data["messageIndexData"] is not None
+    assert read_data is not None
+    assert read_data.get("relatedTermsIndexData") is not None
+    assert read_data.get("messageIndexData") is not None
 
 
 def test_deserialize_object():

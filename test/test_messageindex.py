@@ -22,8 +22,9 @@ from typeagent.knowpro.interfaces import (
     ListIndexingResult,
     IndexingEventHandlers,
     MessageTextIndexData,
+    TextToTextLocationIndexData,
 )
-from typeagent.knowpro.textlocationindex import TextToTextLocationIndex
+from typeagent.knowpro.textlocindex import TextToTextLocationIndex
 
 from fixtures import needs_auth
 
@@ -130,12 +131,14 @@ def test_serialize(message_text_index):
     message_text_index.text_location_index.serialize.assert_called_once()
 
 
-def test_deserialize(message_text_index):
+def test_deserialize(message_text_index, needs_auth: None):
     """Test deserialization of the MessageTextIndex."""
-    data = MessageTextIndexData(indexData={"mock": "data"})
+    data = MessageTextIndexData(
+        indexData=TextToTextLocationIndexData(textLocations=[], embeddings=None)
+    )
     message_text_index.deserialize(data)
     message_text_index.text_location_index.deserialize.assert_called_once_with(
-        {"mock": "data"}
+        dict(textLocations=[], embeddings=None)
     )
 
 

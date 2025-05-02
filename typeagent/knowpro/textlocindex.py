@@ -12,7 +12,7 @@ from .interfaces import (
     ListIndexingResult,
     TextLocation,
 )
-from .relatedtermsindex import TextEmbeddingIndexData
+from .reltermsindex import TextEmbeddingIndexData
 
 
 @dataclass

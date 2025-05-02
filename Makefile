@@ -24,7 +24,7 @@ build: venv
 
 # Not phony -- the venv directory is the product of this rule.
 venv:
-	python3 -m venv venv || (rm -rf venv && exit 1)
+	python3.12 -m venv venv || (rm -rf venv && exit 1)
 	venv/bin/pip -q install -r requirements.txt
 	@venv/bin/python --version
 	@venv/bin/black --version | head -1

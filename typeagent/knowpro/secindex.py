@@ -15,7 +15,7 @@ from .interfaces import (
     TextIndexingResult,
     TextLocation,
 )
-from .relatedtermsindex import RelatedTermsIndex, build_related_terms_index
+from .reltermsindex import RelatedTermsIndex, build_related_terms_index
 from .propindex import PropertyIndex, build_property_index
 from .timestampindex import TimestampToTextRangeIndex, build_timestamp_index
 

@@ -18,7 +18,7 @@ from .interfaces import (
     ScoredMessageOrdinal,
     TextLocation,
 )
-from .textlocationindex import ScoredTextLocation, TextToTextLocationIndex
+from .textlocindex import ScoredTextLocation, TextToTextLocationIndex
 
 
 async def build_message_index[

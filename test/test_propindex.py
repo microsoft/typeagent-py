@@ -19,6 +19,8 @@ from typeagent.knowpro.kplib import Facet, ConcreteEntity, Action
 from typeagent.knowpro.interfaces import (
     SemanticRef,
     ListIndexingResult,
+    TextLocation,
+    TextRange,
 )
 
 
@@ -119,7 +121,7 @@ def test_build_property_index(mocker):
     mock_conversation.semantic_refs = [
         SemanticRef(
             semantic_ref_ordinal=0,
-            range=None,
+            range=TextRange(start=TextLocation(0), end=None),
             knowledge_type="entity",
             knowledge=ConcreteEntity(
                 name="ExampleEntity",
@@ -139,7 +141,7 @@ def test_add_to_property_index(property_index):
     semantic_refs = [
         SemanticRef(
             semantic_ref_ordinal=0,
-            range=None,
+            range=TextRange(start=TextLocation(0), end=None),
             knowledge_type="entity",
             knowledge=ConcreteEntity(
                 name="ExampleEntity",

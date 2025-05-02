@@ -138,6 +138,8 @@ async def test_refresh_auth(
 
     embedding_model.azure_token_provider.needs_refresh.return_value = True  # type: ignore
     embedding_model.azure_token_provider.refresh_token.return_value = "new_token"  # type: ignore
+    embedding_model.azure_api_version = "2023-05-15"
+    embedding_model.azure_endpoint = "https://example.azure.com"
 
     await embedding_model.refresh_auth()
 
