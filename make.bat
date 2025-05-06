@@ -36,7 +36,7 @@ goto end
 :test
 if not exist "venv\" call make.bat venv
 echo Running tests...
-venv\Scripts\python -m pytest
+venv\Scripts\python -m pytest test
 goto end
 
 :build

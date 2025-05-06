@@ -47,6 +47,63 @@ def test_text_range_serialization():
     }
 
 
+def test_text_range_equality():
+    """Test equality of TextRange objects."""
+    start1 = TextLocation(message_ordinal=1, chunk_ordinal=2, char_ordinal=3)
+    end1 = TextLocation(message_ordinal=4, chunk_ordinal=5, char_ordinal=6)
+    range1 = TextRange(start=start1, end=end1)
+    range2 = TextRange(start=start1, end=end1)
+    end3 = TextLocation(message_ordinal=4, chunk_ordinal=5, char_ordinal=7)
+
+    assert range1 == range2
+    assert range1 != TextRange(start=start1, end=end3)
+    assert range1 != "not a TextRange"
+
+
+def test_text_range_equality_end_none():
+    """Test equality of TextRange objects with None end."""
+    start1 = TextLocation(message_ordinal=1, chunk_ordinal=2, char_ordinal=3)
+    range1 = TextRange(start=start1, end=None)
+
+    start2 = TextLocation(message_ordinal=1, chunk_ordinal=2, char_ordinal=3)
+    range2 = TextRange(start=start2, end=None)
+
+    assert range1 == range2
+    assert range1 != TextRange(start=start1, end=TextLocation(message_ordinal=4))
+    assert range1 != "not a TextRange"
+
+
+def test_text_range_ordering():
+    """Test ordering of TextRange objects."""
+    start1 = TextLocation(message_ordinal=1, chunk_ordinal=2, char_ordinal=3)
+    end1 = TextLocation(message_ordinal=4, chunk_ordinal=5, char_ordinal=6)
+    range1 = TextRange(start=start1, end=end1)
+
+    start2 = TextLocation(message_ordinal=2, chunk_ordinal=3, char_ordinal=4)
+    end2 = TextLocation(message_ordinal=5, chunk_ordinal=6, char_ordinal=7)
+    range2 = TextRange(start=start2, end=end2)
+
+    assert range1 < range2
+    assert range2 > range1
+    assert range1 <= range1
+    assert range2 >= range2
+
+
+def test_text_range_ordering_end_none():
+    """Test ordering of TextRange objects with None end."""
+    start1 = TextLocation(message_ordinal=1, chunk_ordinal=2, char_ordinal=3)
+    start2 = TextLocation(message_ordinal=1, chunk_ordinal=2, char_ordinal=3)
+    end1 = TextLocation(message_ordinal=4, chunk_ordinal=5, char_ordinal=6)
+
+    range1 = TextRange(start=start1, end=None)
+    range2 = TextRange(start=start2, end=end1)
+
+    assert range1 < range2
+    assert range2 > range1
+    assert range1 <= range1
+    assert range2 >= range2
+
+
 def test_text_range_contains():
     """Test the __contains__ method of TextRange."""
     start = TextLocation(message_ordinal=1, chunk_ordinal=0, char_ordinal=0)

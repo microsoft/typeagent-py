@@ -19,11 +19,11 @@ So we can finally do some end-to-end testing.
 
 STARTING THIS NOW.
 
-> UMESH:
+UMESH:
 > - query.ts
 >   - MatchSearchTermExpr
 >   - MatchPropertySearchTermExpr
-> - SemanticRefAccumulator is in collection.ts
+> - SemanticRefAccumulator is in collections.ts
 > 
 > Ignore code path "without indexes"
 
@@ -40,6 +40,16 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 
 - fuzzy_index type mismatch (could VectorBase be made to match the type?)
 - Fix need for `# type: ignore` comments (usually need to make some I-interface generic in actual message/index/etc.)
+
+## Projct layout
+
+- Move typeagent into src and associated changes everywhere
+- Move test to tests
+- Configure testpaths in pyproject.toml
+
+## Testing
+
+- Review Copilot-generated tests for sanity and minimal mocking
 
 ## Low priority
 

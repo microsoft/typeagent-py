@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime as Datetime, timedelta as Timedelta
 from typing import (
@@ -147,7 +147,7 @@ class TextRangeData(TypedDict):
 
 
 # A text range within a session.
-@dataclass(order=True)
+@dataclass
 class TextRange:
     # The start of the range.
     start: TextLocation
@@ -160,9 +160,26 @@ class TextRange:
         else:
             return f"{self.__class__.__name__}({self.start}, {self.end})"
 
+    def __lt__(self, other: Self) -> bool:
+        if self.start != other.start:
+            return self.start < other.start
+        self_end = self.end or self.start
+        other_end = other.end or other.start
+        return self_end < other_end
+
+    def __gt__(self, other: Self) -> bool:
+        return other.__lt__(self)
+
+    def __ge__(self, other: Self) -> bool:
+        return not self.__lt__(other)
+
+    def __le__(self, other: Self) -> bool:
+        return not other.__lt__(self)
+
     def __contains__(self, other: Self) -> bool:
         otherend = other.end or other.start
         selfend = self.end or self.start
+        # TODO: In TS, isInTextRange requires other.end < self.end
         return self.start <= other.start and otherend <= selfend
 
     def serialize(self) -> TextRangeData:
@@ -605,3 +622,46 @@ class SecondaryIndexingResults:
 class IndexingResults:
     semantic_refs: TextIndexingResult | None = None
     secondary_index_results: SecondaryIndexingResults | None = None
+
+
+# --------
+# Storage
+# --------
+
+
+class IReadonlyCollection[T, TOrdinal](Iterable, Protocol):
+    def __len__(self) -> int:
+        raise NotImplementedError
+
+    def __bool__(self) -> bool:
+        return True
+
+    def get(self, ordinal: TOrdinal) -> T:
+        raise NotImplementedError
+
+    def get_multiple(self, ordinals: list[TOrdinal]) -> list[T]:
+        raise NotImplementedError
+
+    def get_slice(self, start: TOrdinal, end: TOrdinal) -> list[T]:
+        raise NotImplementedError
+
+
+class ICollection[T, TOrdinal](IReadonlyCollection[T, TOrdinal], Protocol):
+    """An append-only collection."""
+
+    @property
+    def is_persistent(self) -> bool:
+        raise NotImplementedError
+
+    def append(self, *items: T) -> None:
+        raise NotImplementedError
+
+
+class IMessageCollection[TMessage: IMessage](
+    ICollection[TMessage, MessageOrdinal], Protocol
+):
+    """A collection of Messages."""
+
+
+class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Protocol):
+    """A collection of SemanticRefs."""
