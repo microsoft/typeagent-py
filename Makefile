@@ -8,32 +8,36 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	venv/bin/black typeagent test
+	.venv/bin/black typeagent test
 
 .PHONY: check
 check: venv
-	venv/bin/pyright --pythonpath venv/bin/python typeagent test
+	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test
 
 .PHONY: test
 test: venv
-	venv/bin/python -m pytest test
+	.venv/bin/python -m pytest test
 
 .PHONY: build
 build: venv
-	venv/bin/python -m build --wheel
+	.venv/bin/python -m build --wheel
 
-# Not phony -- the venv directory is the product of this rule.
-venv:
-	python3.12 -m venv venv || (rm -rf venv && exit 1)
-	venv/bin/pip -q install -r requirements.txt
-	@venv/bin/python --version
-	@venv/bin/black --version | head -1
-	@venv/bin/pyright --version
-	@venv/bin/python -m pytest --version
+.PHONY: venv
+venv: .venv
+
+.venv:
+	uv sync -q
+	@.venv/bin/python --version
+	@.venv/bin/black --version | head -1
+	@.venv/bin/pyright --version
+	@.venv/bin/python -m pytest --version
+
+install-uv:
+	curl -Ls https://astral.sh/uv/install.sh | sh
 
 .PHONY: clean
 clean:
-	rm -rf build dist venv *.egg-info
+	rm -rf build dist venv .venv *.egg-info
 	find . -type d -name __pycache__ | xargs rm -rf
 
 .PHONY: help
@@ -46,5 +50,6 @@ help:
 	@echo "make check  # Run pyright"
 	@echo "make test   # Run pytest (tests are in test/)"
 	@echo "make build  # Build the wheel (under dist/)"
-	@echo "make venv   # Create venv/"
-	@echo "make clean  # Remove build/, dist/, venv/, *.egg-info/"
+	@echo "make venv   # Create .venv/"
+	@echo "make clean  # Remove build/, dist/, .venv/, *.egg-info/"
+	@echo "make install-uv  # Install uv (if not already installed)"

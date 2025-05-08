@@ -12,9 +12,20 @@ authors = [
   { name = "Umesh Madan" },
   { name = "Guido van Rossum" },
 ]
-requires-python = ">=3.12"
+requires-python = "==3.12.7"
 dependencies = [
-  "typechat @ git+https://github.com/microsoft/TypeChat#subdirectory=python",
+  "azure-identity>=1.22.0",
+  "black>=25.1.0",
+  "build>=1.2.2.post1",
+  "numpy>=2.2.5",
+  "openai>=1.77.0",
+  "pydantic>=2.11.4",
+  "pyright>=1.1.400",
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.26.0",
+  "pytest-mock>=3.14.0",
+  "python-dotenv>=1.1.0",
+  "typechat",
 ]
 
 [tool.setuptools]
@@ -28,3 +39,6 @@ packages = [
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.uv.sources]
+typechat = { git = "https://github.com/microsoft/TypeChat", subdirectory = "python" }
