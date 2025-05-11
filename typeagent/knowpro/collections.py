@@ -3,7 +3,7 @@
 
 import bisect
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator, cast
 
 from .interfaces import (
@@ -171,21 +171,13 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         """Add term matches if they are new"""
         raise NotImplementedError("TODO: add_term_matches_if_new")
 
-    # TODO: Do we need this? And why the `| None` in the return type?
-    # def get_sorted_by_score(
-    #         self, min_hit_count: int | None
-    # ) -> list[Match[SemanticRefOrdinal]] | None:
-    #     return super().get_sorted_by_score(min_hit_count)
-
-    # TODO: Do we need get_top_n_scoring if it just passes on to super?
-
     def get_semantic_refs(
         self,
         semantic_refs: ISemanticRefCollection,
         predicate: Callable[[SemanticRef], bool],
     ) -> Iterable[SemanticRef]:
         for match in self.get_matches():
-            semantic_ref = semantic_refs.get(match.value)
+            semantic_ref = semantic_refs[match.value]
             if predicate is None or predicate(semantic_ref):
                 yield semantic_ref
 
@@ -206,7 +198,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
     ) -> dict[KnowledgeType, "SemanticRefAccumulator"]:
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
         for match in self.get_matches():
-            semantic_ref = semantic_refs.get(match.value)
+            semantic_ref = semantic_refs[match.value]
             group = groups.get(semantic_ref.knowledge_type)
             if group is None:
                 group = SemanticRefAccumulator()
@@ -222,7 +214,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
     ) -> "SemanticRefAccumulator":
         accumulator = SemanticRefAccumulator(self.search_term_matches)
         for match in self.get_matches():
-            if ranges_in_scope.is_range_in_scope(semantic_refs.get(match.value).range):
+            if ranges_in_scope.is_range_in_scope(semantic_refs[match.value].range):
                 accumulator.set_match(match)
         return accumulator
 
@@ -307,11 +299,96 @@ class TextRangesInScope:
 
 
 @dataclass
-class TermSet: ...  # TODO
+class TermSet:
+    """A collection of terms with support for adding, updating, and retrieving terms."""
+
+    terms: dict[str, Term]
+
+    def __init__(self, terms: list[Term] | None = None):
+        self.terms = {}
+        self.add_or_union(terms)
+
+    def __len__(self) -> int:
+        """Return the number of terms in the set."""
+        return len(self.terms)
+
+    def add(self, term: Term) -> bool:
+        """Add a term to the set if it doesn't already exist."""
+        if term.text in self.terms:
+            return False
+        self.terms[term.text] = term
+        return True
+
+    def add_or_union(self, terms: Term | list[Term] | None) -> None:
+        """Add a term or merge a list of terms into the set."""
+        if terms is None:
+            return
+        if isinstance(terms, list):
+            for term in terms:
+                self.add_or_union(term)
+        else:
+            existing_term = self.terms.get(terms.text)
+            if existing_term:
+                existing_score = existing_term.weight or 0
+                new_score = terms.weight or 0
+                if new_score > existing_score:
+                    existing_term.weight = new_score
+            else:
+                self.terms[terms.text] = terms
+
+    def get(self, term: str | Term) -> Term | None:
+        """Retrieve a term by its text."""
+        return self.terms.get(term if isinstance(term, str) else term.text)
+
+    def get_weight(self, term: Term) -> float | None:
+        """Retrieve the weight of a term."""
+        t = self.terms.get(term.text)
+        return t.weight if t is not None else None
+
+    def __contains__(self, term: Term) -> bool:
+        """Check if a term exists in the set."""
+        return term.text in self.terms
+
+    def remove(self, term: Term):
+        """Remove a term from the set, if present."""
+        self.terms.pop(term.text, None)
+
+    def clear(self):
+        """Clear all terms from the set."""
+        self.terms.clear()
+
+    def values(self) -> list[Term]:
+        """Retrieve all terms in the set."""
+        return list(self.terms.values())
 
 
 @dataclass
-class PropertyTermSet: ...  # TODO
+class PropertyTermSet:
+    """A collection of property terms with support for adding, checking, and clearing."""
+
+    terms: dict[str, Term] = field(default_factory=dict)
+
+    def add(self, property_name: str, property_value: Term) -> None:
+        """Add a property term to the set."""
+        key = self._make_key(property_name, property_value)
+        if key not in self.terms:
+            self.terms[key] = property_value
+
+    def has(self, property_name: str, property_value: Term | str) -> bool:
+        """Check if a property term exists in the set."""
+        key = self._make_key(property_name, property_value)
+        return key in self.terms
+
+    def clear(self) -> None:
+        """Clear all property terms from the set."""
+        self.terms.clear()
+
+    def _make_key(self, property_name: str, property_value: Term | str) -> str:
+        """Create a unique key for a property term."""
+        value = (
+            property_value if isinstance(property_value, str) else property_value.text
+        )
+        return f"{property_name}:{value}"
 
 
 # TODO: unionArrays, union, addToSet, setUnion, setIntersect, getBatches,

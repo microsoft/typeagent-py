@@ -146,7 +146,7 @@ def test_deserialize(message_text_index, needs_auth: None):
 async def test_build_message_index(needs_auth: None):
     """Test building a message index without using mocks."""
 
-    class TestMessage(IMessage):
+    class FakeMessage(IMessage):
         """Concrete implementation of IMessage for testing."""
 
         def __init__(self, text_chunks: list[str]):
@@ -161,23 +161,23 @@ async def test_build_message_index(needs_auth: None):
                 topics=[],
             )
 
-    class TestConversation(IConversation):
+    class FakeConversation(IConversation):
         """Concrete implementation of IConversation for testing."""
 
         def __init__(self, messages):
             self.name_tag = "test_conversation"
             self.tags = []
-            self.semantic_refs = []
+            self.semantic_refs = None
             self.semantic_ref_index = None
             self.messages = messages
             self.secondary_indexes = ConversationSecondaryIndexes()
 
     # Create test messages and conversation
     messages = [
-        TestMessage(["chunk1", "chunk2"]),
-        TestMessage(["chunk3"]),
+        FakeMessage(["chunk1", "chunk2"]),
+        FakeMessage(["chunk3"]),
     ]
-    conversation = TestConversation(messages)
+    conversation = FakeConversation(messages)
 
     # Build the message index
     settings = MessageTextIndexSettings()

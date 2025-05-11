@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -69,7 +70,7 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
 
     async def add_messages[TMessage: IMessage](
         self,
-        messages: list[TMessage],
+        messages: Iterable[TMessage],
         event_handler: IndexingEventHandlers | None = None,
     ) -> ListIndexingResult:
         base_message_ordinal: MessageOrdinal = len(self.text_location_index)

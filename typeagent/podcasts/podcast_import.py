@@ -7,8 +7,8 @@ import re
 from typing import cast, Sequence
 
 from ..knowpro.importing import ConversationSettings
-from ..knowpro import convindex, interfaces, kplib, secindex
-from ..knowpro.interfaces import Datetime, Term, Timedelta
+from ..knowpro.interfaces import Datetime, IMessageCollection, MessageOrdinal
+from ..knowpro.storage import MessageCollection
 from .podcast import Podcast, PodcastMessage
 
 
@@ -42,7 +42,7 @@ def import_podcast(
     """
     turn_parse_regex = re.compile(regex)
     participants: set[str] = set()
-    msgs: list[PodcastMessage] = []
+    msgs = MessageCollection[PodcastMessage]()
     cur_msg: PodcastMessage | None = None
     for line in transcript_lines:
         match = turn_parse_regex.match(line)
@@ -78,7 +78,7 @@ def import_podcast(
 
 
 def assign_message_listeners(
-    msgs: Sequence[PodcastMessage],
+    msgs: IMessageCollection[PodcastMessage],
     participants: set[str],
 ) -> None:
     for msg in msgs:

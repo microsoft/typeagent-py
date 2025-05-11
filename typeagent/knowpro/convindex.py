@@ -1,15 +1,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Callable
-
-import typechat
 
 from .interfaces import (
     # Interfaces.
     IConversation,
     IMessage,
+    ISemanticRefCollection,
     ITermToSemanticRefIndex,
     # Other imports.
     IndexingEventHandlers,
@@ -27,9 +27,10 @@ from .interfaces import (
     TextRange,
     Topic,
 )
-from . import convknowledge, importing, kplib, secindex
+from . import convknowledge, importing, kplib, secindex, storage
 
 
+# TODO: Doesn't exist any more? But used in timestampindex.py currently
 def text_range_from_message_chunk(
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int = 0,
@@ -59,6 +60,7 @@ type KnowledgeValidator = Callable[
 ]
 
 
+# TODO: Get ruid of this?
 def default_knowledge_validator(
     knowledg_Type: KnowledgeType,
     knowledge: Knowledge,
@@ -66,9 +68,48 @@ def default_knowledge_validator(
     return True
 
 
+async def add_batch_to_semantic_ref_index[
+    TMessage: IMessage,
+    TTermToSemanticRefIndex: ITermToSemanticRefIndex,
+](
+    conversation: IConversation[
+        TMessage,
+        TTermToSemanticRefIndex,
+    ],
+    batch: list[TextLocation],
+    knowledge_extractor: convknowledge.KnowledgeExtractor,
+    event_handler: IndexingEventHandlers | None = None,
+    terms_added: list[str] | None = None,
+) -> TextIndexingResult:
+    begin_indexing(conversation)
+
+    messages = conversation.messages
+    indexing_result = TextIndexingResult()
+
+    text_batch = [
+        messages[tl.message_ordinal].text_chunks[tl.chunk_ordinal or 0].strip()
+        for tl in batch
+    ]
+
+    # TODO: extract_knowledge_from_text_batch
+    # knowledge_results = await extract_knowledge_from_text_batch(
+    #     knowledge_extractor,
+    #     text_batch,
+    #     len(text_batch),
+    # )
+    # for i, knowledge_result in enumerate(knowledge_results):
+    #     if not knowledge_result.success:
+    #         indexing_result.error = knowledge_result.error
+    #         return indexing_result
+    #     text_location = batch[i]
+    #     knowledge = knowledge_result.data
+
+    return indexing_result
+
+
 def add_entity_to_index(
     entity: kplib.ConcreteEntity,
-    semantic_refs: list[SemanticRef],
+    semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int = 0,
@@ -104,7 +145,7 @@ def add_facet(
 
 def add_topic_to_index(
     topic: Topic | str,
-    semantic_refs: list[SemanticRef],
+    semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int = 0,
@@ -125,7 +166,7 @@ def add_topic_to_index(
 
 def add_action_to_index(
     action: kplib.Action,
-    semantic_refs: list[SemanticRef],
+    semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: int,
     chunk_ordinal: int = 0,
@@ -158,7 +199,7 @@ def add_action_to_index(
 
 
 def add_knowledge_to_index(
-    semantic_refs: list[SemanticRef],
+    semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
     knowledge: kplib.KnowledgeResponse,
@@ -176,8 +217,8 @@ def add_knowledge_to_index(
 
 
 def add_metadata_to_index[TMessage: IMessage](
-    messages: list[TMessage],
-    semantic_refs: list[SemanticRef],
+    messages: Iterable[TMessage],
+    semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     knowledge_validator: KnowledgeValidator | None = None,
 ) -> None:
@@ -285,7 +326,9 @@ async def build_conversation_index[TMessage: IMessage](
 ) -> IndexingResults:
     result = IndexingResults()
     result.semantic_refs = await build_semantic_ref_index(
-        conversation, None, event_handler
+        conversation,
+        conversation_settings.semantic_ref_index_settings,
+        event_handler,
     )
     if (
         result.semantic_refs
@@ -302,67 +345,60 @@ async def build_conversation_index[TMessage: IMessage](
 
 async def build_semantic_ref_index[TM: IMessage](
     conversation: IConversation[TM, ConversationIndex],
-    extractor: convknowledge.KnowledgeExtractor | None = None,
+    settings: importing.SemanticRefIndexSettings,
     event_handler: IndexingEventHandlers | None = None,
 ) -> TextIndexingResult:
-    semantic_ref_index = conversation.semantic_ref_index
-    if semantic_ref_index is None:
-        conversation.semantic_ref_index = semantic_ref_index = ConversationIndex()
+    return await add_to_semantic_ref_index(conversation, settings, 0, event_handler)
 
-    semantic_refs = conversation.semantic_refs
-    if semantic_refs is None:
-        conversation.semantic_refs = semantic_refs = []
 
-    if extractor is None:
-        extractor = convknowledge.KnowledgeExtractor()
+async def add_to_semantic_ref_index(
+    conversation: IConversation,
+    settings: importing.SemanticRefIndexSettings,
+    message_ordinal_start_at: MessageOrdinal,
+    event_handler: IndexingEventHandlers | None = None,
+    terms_added: list[str] | None = None,
+) -> TextIndexingResult:
+    """Add semantic references to the conversation's semantic reference index."""
+    begin_indexing(conversation)
 
-    indexing_result = TextIndexingResult()
+    knowledge_extractor = (
+        settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+    )
+    indexing_result: TextIndexingResult | None = None
 
-    for message_ordinal, message in enumerate(conversation.messages):
-        if event_handler and event_handler.on_message_started:
-            if not event_handler.on_message_started(message_ordinal):
-                break
-        chunk_ordinal = 0
-        # Only one chunk per message for now.
-        text = message.text_chunks[chunk_ordinal]
-        # TODO: retries (but beware that TypeChat already retries).
-        match await extractor.extract(text):
-            case typechat.Failure(error):
-                indexing_result.error = f"Failed to extract knowledge from message {message_ordinal} ({text!r}): {error}"
-                break
-            case typechat.Success(knowledge):
-                pass
-        if (
-            knowledge.entities
-            or knowledge.actions
-            or knowledge.inverse_actions
-            or knowledge.topics
-        ):
-            add_knowledge_to_index(
-                semantic_refs,
-                semantic_ref_index,
-                message_ordinal,
-                knowledge,
-            )
-        completed_chunk = TextLocation(message_ordinal, chunk_ordinal)
-        indexing_result.completed_upto = completed_chunk
-        if event_handler and event_handler.on_knowledge_extracted:
-            if not event_handler.on_knowledge_extracted(completed_chunk, knowledge):
-                break
+    # TODO: get_message_chunk_batch
+    # for text_location_batch in get_message_chunk_batch(
+    #     conversation.messages,
+    #     message_ordinal_start_at,
+    #     settings.batch_size,
+    # ):
+    #     indexing_result = await add_batch_to_semantic_ref_index(
+    #         conversation,
+    #         text_location_batch,
+    #         knowledge_extractor,
+    #         event_handler,
+    #         terms_added,
+    #     )
 
-    # dump(semantic_ref_index, semantic_refs)
+    return indexing_result or TextIndexingResult()
 
-    return indexing_result
+
+def begin_indexing(conversation: IConversation) -> None:
+    if conversation.semantic_ref_index is None:
+        conversation.semantic_ref_index = ConversationIndex()
+    # TODO: implement .storage.SemanticRefCollection
+    # if conversation.semantic_refs is None:
+    #     conversation.semantic_refs = SemanticRefCollection()
 
 
 def dump(
-    semantic_ref_index: ConversationIndex, semantic_refs: list[SemanticRef]
+    semantic_ref_index: ConversationIndex, semantic_refs: ISemanticRefCollection
 ) -> None:
     print("semantic_ref_index = {")
     for k, v in semantic_ref_index._map.items():
         print(f"    {k!r}: {v},")
     print("}\n")
-    print("semantic_refs = {")
+    print("semantic_refs = []")
     for semantic_ref in semantic_refs:
         print(f"    {semantic_ref},")
-    print("}\n")
+    print("]\n")

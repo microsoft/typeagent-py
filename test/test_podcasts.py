@@ -2,10 +2,10 @@
 # Licensed under the MIT License.
 
 import asyncio
-import json
 import os
 
 from fixtures import needs_auth, temp_dir
+
 from typeagent.podcasts.podcast import Podcast
 from typeagent.knowpro import importing
 from typeagent.knowpro.interfaces import Datetime, IndexingEventHandlers

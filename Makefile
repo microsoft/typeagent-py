@@ -38,6 +38,7 @@ install-uv:
 .PHONY: clean
 clean:
 	rm -rf build dist venv .venv *.egg-info
+	rm -f *_data.json *_embedding.bin
 	find . -type d -name __pycache__ | xargs rm -rf
 
 .PHONY: help

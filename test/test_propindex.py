@@ -1,8 +1,28 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Iterator
+from typing import Any, overload
+
 import pytest
 
+from typeagent.knowpro.interfaces import (
+    ICollection,
+    IConversation,
+    IMessage,
+    IMessageCollection,
+    ISemanticRefCollection,
+    ITermToSemanticRefIndex,
+    MessageOrdinal,
+    ScoredSemanticRefOrdinal,
+    SemanticRef,
+    ListIndexingResult,
+    SemanticRefOrdinal,
+    Tag,
+    TextLocation,
+    TextRange,
+)
+from typeagent.knowpro.kplib import Facet, ConcreteEntity, Action, KnowledgeResponse
 from typeagent.knowpro.propindex import (
     PropertyIndex,
     PropertyNames,
@@ -15,13 +35,9 @@ from typeagent.knowpro.propindex import (
     split_property_term_text,
     is_known_property,
 )
-from typeagent.knowpro.kplib import Facet, ConcreteEntity, Action
-from typeagent.knowpro.interfaces import (
-    SemanticRef,
-    ListIndexingResult,
-    TextLocation,
-    TextRange,
-)
+from typeagent.knowpro.secindex import ConversationSecondaryIndexes
+
+from fixtures import needs_auth
 
 
 @pytest.fixture
@@ -114,29 +130,151 @@ def test_is_known_property(property_index):
     )
 
 
-def test_build_property_index(mocker):
-    """Test building a property index from a conversation."""
-    mock_conversation = mocker.MagicMock()
-    mock_conversation.secondary_indexes = mocker.MagicMock()
-    mock_conversation.semantic_refs = [
+def test_build_property_index(needs_auth):
+    """Test the build_property_index function with a concrete conversation."""
+    # Create a sample conversation with semantic references
+    semantic_refs = [
         SemanticRef(
             semantic_ref_ordinal=0,
-            range=TextRange(start=TextLocation(0), end=None),
             knowledge_type="entity",
             knowledge=ConcreteEntity(
-                name="ExampleEntity",
-                type=["object"],
-                facets=[Facet(name="color", value="blue")],
+                name="Entity1",
+                type=["Type1", "Type2"],
+                facets=None,
             ),
-        )
+            range=TextRange(start=TextLocation(0), end=TextLocation(10)),
+        ),
+        SemanticRef(
+            semantic_ref_ordinal=1,
+            knowledge_type="action",
+            knowledge=Action(
+                verbs=["run", "jump"],
+                verb_tense="present",
+                subject_entity_name="Subject1",
+                object_entity_name="Object1",
+                indirect_object_entity_name="IndirectObject1",
+            ),
+            range=TextRange(start=TextLocation(10), end=TextLocation(20)),
+        ),
+        SemanticRef(
+            semantic_ref_ordinal=2,
+            knowledge_type="tag",
+            knowledge=Tag(text="Tag1"),
+            range=TextRange(start=TextLocation(20), end=TextLocation(30)),
+        ),
     ]
 
-    result = build_property_index(mock_conversation)
-    assert isinstance(result, ListIndexingResult)
-    assert result.number_completed == 1
+    conversation = FakeConversation(semantic_refs)
+
+    # Call the function
+    result = build_property_index(conversation)
+
+    # Assertions
+    assert result.number_completed == 3  # All semantic references should be processed
+    assert conversation.secondary_indexes is not None
+    assert isinstance(
+        conversation.secondary_indexes.property_to_semantic_ref_index, PropertyIndex
+    )
+
+    # Verify the property index contents
+    property_index = conversation.secondary_indexes.property_to_semantic_ref_index
+    assert len(property_index) > 0
+    assert property_index.lookup_property("name", "Entity1") is not None
+    assert property_index.lookup_property("type", "Type1") is not None
+    assert property_index.lookup_property("verb", "run jump") is not None
+    assert property_index.lookup_property("tag", "Tag1") is not None
 
 
-def test_add_to_property_index(property_index):
+class FakeMessage(IMessage):
+    """Concrete implementation of IMessage for testing."""
+
+    def __init__(self, text_chunks):
+        self.text_chunks = text_chunks
+        self.text_location = TextLocation(0, 0)
+        self.tags = []
+
+    def get_text(self):
+        return " ".join(self.text_chunks)
+
+    def get_text_location(self):
+        return self.text_location
+
+    def get_knowledge(self):
+        return KnowledgeResponse(
+            entities=[],
+            actions=[],
+            inverse_actions=[],
+            topics=[],
+        )
+
+
+class FakeBaseCollection[T, TOrdinal: int](ICollection[T, int]):
+    """Concrete implementation of IMessageCollection for testing."""
+
+    def __init__(self, items: list[T] | None = None):
+        self.items = items or []
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self.items)
+
+    def __getitem__(self, arg: Any) -> Any:
+        if isinstance(arg, int):
+            return self._get(arg)
+        if isinstance(arg, slice):
+            assert arg.step in (None, 1)
+            return self._get_slice(arg.start, arg.stop)
+        if isinstance(arg, list):
+            return self._get_multiple(arg)
+        raise TypeError(f"Invalid argument type for __getitem__: {type(arg)}")
+
+    def _get(self, ordinal: int) -> T:
+        return self.items[ordinal]
+
+    def _get_multiple(self, ordinals: list[int]) -> list[T]:
+        return [self.items[i] for i in ordinals]
+
+    @property
+    def is_persistent(self) -> bool:
+        return False
+
+    def _get_slice(self, start: int, end: int) -> list[T]:
+        return self.items[start:end]
+
+    def append(self, *items: T) -> None:
+        for item in items:
+            self.items.append(item)
+
+
+class FakeMessageCollection(
+    FakeBaseCollection[FakeMessage, MessageOrdinal], IMessageCollection
+):
+    pass
+
+
+class FakeSemanticRefCollection(
+    FakeBaseCollection[SemanticRef, SemanticRefOrdinal], ISemanticRefCollection
+):
+    pass
+
+
+class FakeConversation[
+    TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
+](IConversation[TMessage, TTermToSemanticRefIndex]):
+    """Concrete implementation of IConversation for testing."""
+
+    def __init__(self, semantic_refs: list[SemanticRef] | None = None):
+        self.name_tag = "test_conversation"
+        self.tags = []
+        self.semantic_refs = FakeSemanticRefCollection(semantic_refs or [])
+        self.semantic_ref_index = None
+        self.messages = FakeMessageCollection([FakeMessage(["Hello"])])
+        self.secondary_indexes = ConversationSecondaryIndexes()
+
+
+def test_add_to_property_index(property_index, needs_auth):
     """Test adding semantic references to the property index."""
     semantic_refs = [
         SemanticRef(
@@ -150,12 +288,18 @@ def test_add_to_property_index(property_index):
             ),
         )
     ]
-    result = add_to_property_index(property_index, semantic_refs, 0)
+    conversation = FakeConversation(semantic_refs)
+    result = add_to_property_index(conversation, 0)
     assert isinstance(result, ListIndexingResult)
     assert result.number_completed == 1
 
-    lookup_result = property_index.lookup_property(
-        PropertyNames.EntityName.value, "ExampleEntity"
+    assert conversation.secondary_indexes is not None
+    assert conversation.secondary_indexes.property_to_semantic_ref_index is not None
+    lookup_result = (
+        conversation.secondary_indexes.property_to_semantic_ref_index.lookup_property(
+            "name", "ExampleEntity"
+        )
     )
+    assert lookup_result is not None
     assert len(lookup_result) == 1
     assert lookup_result[0].semantic_ref_ordinal == 0

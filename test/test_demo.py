@@ -68,6 +68,7 @@ async def main(filename: str):
 
     for scored_ord in results:
         ord = scored_ord.semantic_ref_ordinal
+        assert pod.semantic_refs is not None
         assert 0 <= ord < len(pod.semantic_refs)
         sref = pod.semantic_refs[ord]
         assert sref.semantic_ref_ordinal == ord

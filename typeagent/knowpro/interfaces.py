@@ -12,6 +12,7 @@ from typing import (
     Protocol,
     Self,
     TypedDict,
+    overload,
 )
 
 from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
@@ -86,7 +87,7 @@ class ITermToSemanticRefIndex(Protocol):
     def remove_term(self, term: str, semantic_ref_ordinal: SemanticRefOrdinal) -> None:
         raise NotImplementedError
 
-    def lookup_term(self, term: str) -> Sequence[ScoredSemanticRefOrdinal] | None:
+    def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
         raise NotImplementedError
 
 
@@ -428,7 +429,7 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
 
     async def add_messages(
         self,
-        messages: list[TMessage],
+        messages: Iterable[TMessage],
         event_handler: "IndexingEventHandlers | None" = None,
     ) -> "ListIndexingResult":
         raise NotImplementedError
@@ -473,10 +474,119 @@ class IConversation[
 ](Protocol):
     name_tag: str
     tags: list[str]
-    messages: list[TMessage]
-    semantic_refs: list[SemanticRef] | None
+    messages: "IMessageCollection[TMessage]"
+    semantic_refs: "ISemanticRefCollection | None"
     semantic_ref_index: TTermToSemanticRefIndex | None
     secondary_indexes: IConversationSecondaryIndexes[TMessage] | None
+
+
+# -------------
+# Search Types
+# -------------
+
+
+@dataclass
+class SearchTerm:
+    """Represents a term being searched for.
+
+    Attributes:
+        term: The term being searched for.
+        related_terms: Additional terms related to the term. These can be supplied
+            from synonym tables and so on.
+            - An empty list indicates no related matches for this term.
+            - `None` indicates that the search processor may try to resolve related
+              terms from any available secondary indexes (e.g., ITermToRelatedTermsIndex).
+    """
+
+    term: Term
+    related_terms: list[Term] | None = None
+
+
+# Well-known knowledge properties.
+KnowledgePropertyName = Literal[
+    "name",  # the name of an entity
+    "type",  # the type of an entity
+    "verb",  # the verb of an action
+    "subject",  # the subject of an action
+    "object",  # the object of an action
+    "indirectObject",  # the indirect object of an action
+    "tag",  # tag
+    "topic",  # topic
+]
+
+
+@dataclass
+class PropertySearchTerm:
+    """PropertySearch terms let you match named property values.
+
+    - You can match a well-known property name (e.g., name("Bach"), type("book")).
+    - Or you can provide a SearchTerm as a propertyName.
+      For example, to match hue(red):
+        - propertyName as SearchTerm, set to 'hue'
+        - propertyValue as SearchTerm, set to 'red'
+      We also want hue(red) to match any facets called color(red).
+
+    SearchTerms can include related terms:
+    - For example, you could include "color" as a related term for the
+      propertyName "hue", or 'crimson' for red.
+
+    The query processor can also resolve related terms using a
+    related terms secondary index, if one is available.
+    """
+
+    property_name: KnowledgePropertyName | SearchTerm
+    property_value: SearchTerm
+
+
+@dataclass
+class SearchTermGroup:
+    """A group of search terms."""
+
+    boolean_op: Literal["and", "or", "or_max"]
+    terms: list["SearchTermGroupTypes"]
+
+
+SearchTermGroupTypes = SearchTerm | PropertySearchTerm | SearchTermGroup
+
+
+@dataclass
+class WhenFilter:
+    """Additional constraints on when a SemanticRef is considered a match.
+
+    A SemanticRef matching a term is actually considered a match
+    when the following optional conditions are met (if present, must match):
+      knowledgeType matches, e.g. knowledgeType == 'entity'
+      dateRange matches, e.g. (Jan 3rd to Jan 10th)
+      Semantic Refs are within supplied SCOPE,
+        i.e. only Semantic Refs from a 'scoping' set of text ranges will match
+    """
+
+    knowledge_type: KnowledgeType | None = None
+    date_range: DateRange | None = None
+    thread_description: str | None = None
+
+    # SCOPE DEFINITION
+
+    # Search terms whose matching text ranges supply the scope for this query
+    scope_defining_terms: SearchTermGroup | None = None
+    # Additional scoping ranges separately computed by caller
+    text_ranges_in_scope: list[TextRange] | None = None
+
+
+@dataclass
+class SearchSelectExpr:
+    """An expression used to select structured contents of a conversation."""
+
+    search_term_group: SearchTermGroup  # Term group that matches information
+    when: WhenFilter | None = None  # Filter that scopes what information to match
+
+
+@dataclass
+class SemanticRefSearchResult:
+    """Result of a semantic reference search."""
+
+    term_matches: set[str]
+    semantic_ref_matches: list[ScoredSemanticRefOrdinal]
 
 
 # --------------------------------------------------
@@ -629,20 +739,17 @@ class IndexingResults:
 # --------
 
 
-class IReadonlyCollection[T, TOrdinal](Iterable, Protocol):
+class IReadonlyCollection[T, TOrdinal](Iterable[T], Protocol):
     def __len__(self) -> int:
         raise NotImplementedError
 
-    def __bool__(self) -> bool:
-        return True
-
-    def get(self, ordinal: TOrdinal) -> T:
-        raise NotImplementedError
-
-    def get_multiple(self, ordinals: list[TOrdinal]) -> list[T]:
-        raise NotImplementedError
-
-    def get_slice(self, start: TOrdinal, end: TOrdinal) -> list[T]:
+    @overload
+    def __getitem__(self, arg: TOrdinal) -> T: ...
+    @overload
+    def __getitem__(self, arg: slice) -> list[T]: ...
+    @overload
+    def __getitem__(self, arg: list[TOrdinal]) -> list[T]: ...
+    def __getitem__(self, arg: Any) -> Any:
         raise NotImplementedError
 
 

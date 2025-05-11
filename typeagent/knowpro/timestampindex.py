@@ -3,6 +3,7 @@
 
 
 import bisect
+from collections.abc import Iterable
 from typing import Any, Callable
 
 from . import convindex
@@ -105,7 +106,7 @@ def build_timestamp_index(conversation: IConversation) -> ListIndexingResult:
 
 def add_to_timestamp_index(
     timestamp_index: ITimestampToTextRangeIndex,
-    messages: list[IMessage],
+    messages: Iterable[IMessage],
     base_message_ordinal: int,
 ) -> ListIndexingResult:
     message_timestamps: list[tuple[int, str]] = []

@@ -102,48 +102,56 @@ def add_action_properties_to_index(
 
 def build_property_index(conversation: IConversation) -> ListIndexingResult:
     csi = conversation.secondary_indexes
-    if csi is not None and conversation.semantic_refs is not None:
-        if csi.property_to_semantic_ref_index is None:
-            csi.property_to_semantic_ref_index = PropertyIndex()
-        return add_to_property_index(
-            csi.property_to_semantic_ref_index,
-            conversation.semantic_refs,
-            0,
-        )
-    else:
-        return ListIndexingResult(0)
+    return add_to_property_index(
+        conversation,
+        0,
+    )
 
 
 def add_to_property_index(
-    property_index: IPropertyToSemanticRefIndex,
-    semantic_refs: list[SemanticRef],
-    base_semantic_ref_ordinal: SemanticRefOrdinal,
+    conversation: IConversation,
+    start_at_ordinal: SemanticRefOrdinal,
 ) -> ListIndexingResult:
-    for i, semantic_ref in enumerate(semantic_refs):
-        semantic_ref_ordinal: SemanticRefOrdinal = base_semantic_ref_ordinal + i
-        match semantic_ref.knowledge_type:
-            case "action":
-                add_action_properties_to_index(
-                    cast(kplib.Action, semantic_ref.knowledge),
-                    property_index,
-                    semantic_ref_ordinal,
-                )
-            case "entity":
-                add_entity_properties_to_index(
-                    cast(kplib.ConcreteEntity, semantic_ref.knowledge),
-                    property_index,
-                    semantic_ref_ordinal,
-                )
-            case "tag":
-                tag = cast(Tag, semantic_ref.knowledge)
-                property_index.add_property(
-                    PropertyNames.Tag.value,
-                    tag.text,
-                    semantic_ref_ordinal,
-                )
-            case _:
-                pass
-    return ListIndexingResult(len(semantic_refs))
+    """Add semantic references from a conversation to the property index starting at a specific ordinal."""
+    if conversation.secondary_indexes and conversation.semantic_refs:
+        if conversation.secondary_indexes.property_to_semantic_ref_index is None:
+            conversation.secondary_indexes.property_to_semantic_ref_index = (
+                PropertyIndex()
+            )
+
+        property_index = conversation.secondary_indexes.property_to_semantic_ref_index
+        semantic_refs = conversation.semantic_refs
+
+        for semantic_ref_ordinal, semantic_ref in enumerate(
+            semantic_refs[start_at_ordinal : len(semantic_refs)],
+            start_at_ordinal,
+        ):
+            assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
+            match semantic_ref.knowledge_type:
+                case "action":
+                    assert isinstance(semantic_ref.knowledge, kplib.Action)
+                    add_action_properties_to_index(
+                        semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                    )
+                case "entity":
+                    assert isinstance(semantic_ref.knowledge, kplib.ConcreteEntity)
+                    add_entity_properties_to_index(
+                        semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                    )
+                case "tag":
+                    tag = semantic_ref.knowledge
+                    assert isinstance(tag, Tag)
+                    property_index.add_property(
+                        PropertyNames.Tag.value, tag.text, semantic_ref_ordinal
+                    )
+                case _:
+                    pass
+
+        return ListIndexingResult(
+            number_completed=len(semantic_refs) - start_at_ordinal
+        )
+
+    return ListIndexingResult(number_completed=0)
 
 
 class PropertyIndex(IPropertyToSemanticRefIndex):
@@ -193,7 +201,7 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
         term_text = make_property_term_text(property_name, value)
         result = self._map.get(self._prepare_term_text(term_text))
         if result is None:
-            return []
+            return None
         else:
             return list(result)  # TODO: Do we need to make a copy?
 

@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 from dataclasses import dataclass, field
-from typing import Optional, Sequence, TypedDict
+from typing import Optional, TypedDict
 
 from ..knowpro import convindex, interfaces, kplib, secindex
 from ..knowpro.convthreads import ConversationThreads
@@ -10,6 +10,10 @@ from ..knowpro.importing import ConversationSettings
 from ..knowpro.interfaces import (
     Datetime,
     ConversationDataWithIndexes,
+    ICollection,
+    IMessageCollection,
+    ISemanticRefCollection,
+    MessageOrdinal,
     SemanticRef,
     Timedelta,
 )
@@ -18,6 +22,7 @@ from ..knowpro.serialization import (
     write_conversation_data_to_file,
     read_conversation_data_from_file,
 )
+from ..knowpro.storage import MessageCollection, SemanticRefCollection
 
 
 @dataclass
@@ -128,9 +133,13 @@ class Podcast(
     ]
 ):
     name_tag: str = ""
-    messages: list[PodcastMessage] = field(default_factory=list)
+    messages: IMessageCollection[PodcastMessage] = field(
+        default_factory=MessageCollection[PodcastMessage]
+    )
     tags: list[str] = field(default_factory=list)
-    semantic_refs: list[interfaces.SemanticRef] = field(default_factory=list)  # type: ignore  # TODO
+    semantic_refs: ISemanticRefCollection | None = field(
+        default_factory=SemanticRefCollection
+    )
     settings: ConversationSettings = field(default_factory=ConversationSettings)
     semantic_ref_index: convindex.ConversationIndex = field(
         default_factory=convindex.ConversationIndex
@@ -208,16 +217,16 @@ class Podcast(
     ) -> None:
         self.name_tag = podcast_data["nameTag"]
 
-        self.messages = []
+        self.messages = MessageCollection[PodcastMessage]()
         for message_data in podcast_data["messages"]:
             msg = PodcastMessage.deserialize(message_data)
             self.messages.append(msg)
 
         semantic_refs_data = podcast_data.get("semanticRefs")
         if semantic_refs_data is not None:
-            self.semantic_refs[:] = [  # type: ignore  # TODO
-                SemanticRef.deserialize(r) for r in semantic_refs_data
-            ]
+            self.semantic_refs = SemanticRefCollection()
+            for r in semantic_refs_data:
+                self.semantic_refs.append(SemanticRef.deserialize(r))
 
         self.tags = podcast_data["tags"]
 
@@ -310,7 +319,7 @@ class Podcast(
 # However, timestamps for individual blocks are not available.
 # Assigns individual timestamps to blocks proportional to their lengths.
 def timestamp_messages(
-    messages: Sequence[interfaces.IMessage],
+    messages: ICollection[PodcastMessage, MessageOrdinal],
     start_time: Datetime,
     end_time: Datetime,
 ) -> None:

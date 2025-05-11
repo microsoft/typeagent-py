@@ -1,23 +1,26 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typeagent.knowpro.kplib import Action, ConcreteEntity
+from collections.abc import Iterable
+from typing import Any
+
 from typeagent.knowpro.collections import (
     MatchAccumulator,
+    PropertyTermSet,
     SemanticRefAccumulator,
+    TermSet,
     TextRangeCollection,
     TextRangesInScope,
 )
 from typeagent.knowpro.interfaces import (
-    Knowledge,
     TextRange,
     ScoredSemanticRefOrdinal,
     SemanticRef,
-    KnowledgeType,
     TextLocation,
     Term,
-    ISemanticRefCollection,
 )
+from typeagent.knowpro.kplib import Action, ConcreteEntity
+from typeagent.knowpro.storage import SemanticRefCollection
 
 
 def test_match_accumulator_add_and_get():
@@ -126,57 +129,193 @@ def test_text_ranges_in_scope():
     assert not ranges_in_scope.is_range_in_scope(range4)
 
 
-class MockSemanticRefCollection(ISemanticRefCollection):
-    """Mock implementation of ISemanticRefCollection."""
-
-    def __init__(self):
-        self.refs = {
-            1: SemanticRef(
-                1,
-                range=TextRange(TextLocation(0)),
-                knowledge_type="entity",
-                knowledge=ConcreteEntity("ref1", ["ref"]),
-            ),
-            2: SemanticRef(
-                1,
-                range=TextRange(TextLocation(2)),
-                knowledge_type="action",
-                knowledge=Action(["go"], "past"),
-            ),
-        }
-
-    def get(self, ordinal: int) -> SemanticRef:
-        return self.refs[ordinal]
-
-    def get_multiple(self, ordinals: list[int]) -> list[SemanticRef]:
-        return [self.refs[o] for o in ordinals if o in self.refs]
-
-    def get_slice(self, start: int, end: int) -> list[SemanticRef]:
-        return [v for k, v in self.refs.items() if start <= k < end]
-
-    def __len__(self):
-        return len(self.refs)
-
-    def __iter__(self):
-        return iter(self.refs.values())
-
-    @property
-    def is_persistent(self) -> bool:
-        return False
-
-    def append(self, *items: SemanticRef) -> None:
-        raise NotImplementedError
-
-
 def test_semantic_ref_accumulator_group_matches_by_type():
     """Test grouping matches by knowledge type in SemanticRefAccumulator."""
     accumulator = SemanticRefAccumulator()
-    accumulator.add(1, score=0.8)
-    accumulator.add(2, score=0.6)
+    accumulator.add(0, score=0.8)
+    accumulator.add(1, score=0.6)
 
-    groups = accumulator.group_matches_by_type(MockSemanticRefCollection())
+    refs = [
+        SemanticRef(
+            0,
+            range=TextRange(TextLocation(0)),
+            knowledge_type="entity",
+            knowledge=ConcreteEntity("ref1", ["ref"]),
+        ),
+        SemanticRef(
+            1,
+            range=TextRange(TextLocation(2)),
+            knowledge_type="action",
+            knowledge=Action(["go"], "past"),
+        ),
+    ]
+
+    groups = accumulator.group_matches_by_type(SemanticRefCollection(refs))
     assert len(groups) == 2
     assert "entity" in groups
     assert "action" in groups
-    assert groups["entity"].get_match(1) is not None
-    assert groups["action"].get_match(2) is not None
+    assert groups["entity"].get_match(0) is not None
+    assert groups["action"].get_match(1) is not None
+
+
+def test_termset_add():
+    """Test adding terms to the TermSet."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=0.5)
+
+    term_set = TermSet()
+    assert term_set.add(term1) is True  # Term should be added
+    assert term_set.add(term1) is False  # Duplicate term should not be added
+    assert term_set.add(term2) is True  # Another term should be added
+
+    assert len(term_set) == 2
+    assert term1 in term_set
+    assert term2 in term_set
+
+
+def test_termset_add_or_union_single_term():
+    """Test adding a single term using add_or_union."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example1", weight=2.0)  # Higher weight for the same term
+
+    term_set = TermSet()
+    term_set.add_or_union(term1)
+    assert len(term_set) == 1
+    term = term_set.get(term1)
+    assert term is not None
+    assert term.weight == 1.0
+
+    term_set.add_or_union(term2)  # Should update the weight
+    assert len(term_set) == 1
+    term = term_set.get(term1)
+    assert term is not None
+    assert term.weight == 2.0
+
+
+def test_termset_add_or_union_multiple_terms():
+    """Test adding multiple terms using add_or_union."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=0.5)
+    term3 = Term(text="example3", weight=1.5)
+
+    term_set = TermSet()
+    term_set.add_or_union([term1, term2, term3])
+
+    assert len(term_set) == 3
+    assert term1 in term_set
+    assert term2 in term_set
+    assert term3 in term_set
+
+
+def test_termset_get():
+    """Test retrieving terms from the TermSet."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=0.5)
+
+    term_set = TermSet([term1, term2])
+    assert term_set.get("example1") == term1
+    assert term_set.get("example2") == term2
+    assert term_set.get("nonexistent") is None
+
+
+def test_termset_get_weight():
+    """Test retrieving the weight of a term."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=None)
+
+    term_set = TermSet([term1, term2])
+    assert term_set.get_weight(term1) == 1.0
+    assert term_set.get_weight(term2) is None
+    assert term_set.get_weight(Term(text="nonexistent")) is None
+
+
+def test_termset_remove():
+    """Test removing terms from the TermSet."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=0.5)
+
+    term_set = TermSet([term1, term2])
+    assert term1 in term_set
+    term_set.remove(term1)
+    assert term1 not in term_set
+    assert len(term_set) == 1
+
+
+def test_termset_clear():
+    """Test clearing all terms from the TermSet."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=0.5)
+
+    term_set = TermSet([term1, term2])
+    assert len(term_set) == 2
+    term_set.clear()
+    assert len(term_set) == 0
+
+
+def test_termset_values():
+    """Test retrieving all terms as a list."""
+    term1 = Term(text="example1", weight=1.0)
+    term2 = Term(text="example2", weight=0.5)
+
+    term_set = TermSet([term1, term2])
+    values = term_set.values()
+
+    assert len(values) == 2
+    assert term1 in values
+    assert term2 in values
+
+
+def test_property_term_set_add():
+    """Test adding property terms to the PropertyTermSet."""
+    term1 = Term(text="value1", weight=1.0)
+    term2 = Term(text="value2", weight=0.5)
+
+    property_term_set = PropertyTermSet()
+    property_term_set.add("property1", term1)
+    property_term_set.add("property2", term2)
+
+    assert len(property_term_set.terms) == 2
+    assert property_term_set.has("property1", "value1") is True
+    assert property_term_set.has("property2", term2) is True
+
+
+def test_property_term_set_add_duplicate():
+    """Test adding duplicate property terms."""
+    term1 = Term(text="value1", weight=1.0)
+
+    property_term_set = PropertyTermSet()
+    property_term_set.add("property1", term1)
+    property_term_set.add("property1", term1)  # Duplicate
+
+    assert len(property_term_set.terms) == 1  # Should not add duplicate
+    assert property_term_set.has("property1", "value1") is True
+
+
+def test_property_term_set_has():
+    """Test checking for the existence of property terms."""
+    term1 = Term(text="value1", weight=1.0)
+    term2 = Term(text="value2", weight=0.5)
+
+    property_term_set = PropertyTermSet()
+    property_term_set.add("property1", term1)
+
+    assert property_term_set.has("property1", "value1") is True
+    assert property_term_set.has("property1", term1) is True
+    assert property_term_set.has("property2", term2) is False
+    assert property_term_set.has("property3", "value3") is False
+
+
+def test_property_term_set_clear():
+    """Test clearing all property terms from the PropertyTermSet."""
+    term1 = Term(text="value1", weight=1.0)
+    term2 = Term(text="value2", weight=0.5)
+
+    property_term_set = PropertyTermSet()
+    property_term_set.add("property1", term1)
+    property_term_set.add("property2", term2)
+
+    assert len(property_term_set.terms) == 2
+    property_term_set.clear()
+    assert len(property_term_set.terms) == 0
+    assert property_term_set.has("property1", "value1") is False
+    assert property_term_set.has("property2", "value2") is False
