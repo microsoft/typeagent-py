@@ -2,13 +2,13 @@
 # Licensed under the MIT License.
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 
 import typechat
 
-from . import kplib
 from ..aitools import auth
+from . import kplib
 
 
 class ModelWrapper(typechat.TypeChatLanguageModel):
@@ -51,16 +51,25 @@ def create_typechat_model() -> typechat.TypeChatLanguageModel:
 
 @dataclass
 class KnowledgeExtractor:
+    model: typechat.TypeChatLanguageModel = field(default_factory=create_typechat_model)
+    max_chars_per_chunk: int = 2048
+    merge_action_knowledge: int = True
+    # Not in the signature:
+    translator: typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse] = field(
+        init=False
+    )
 
-    def __init__(self, model: typechat.TypeChatLanguageModel | None = None):
-        if model is None:
-            model = create_typechat_model()
-        assert model is not None
-        self.model = model
+    def __post_init__(self):
         self.translator = self.create_translator(self.model)
 
+    # TODO: Use max_chars_per_chunk and merge_action_knowledge.
+
     async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
-        return await self.translator.translate(message)
+        result = await self.translator.translate(message)
+        if isinstance(result, typechat.Success):
+            if self.merge_action_knowledge:
+                self.merge_action_knowledge_into_response(result.value)
+        return result
 
     def create_translator(
         self, model: typechat.TypeChatLanguageModel
@@ -91,3 +100,9 @@ class KnowledgeExtractor:
 
         translator._create_request_prompt = create_request_prompt
         return translator
+
+    def merge_action_knowledge_into_response(
+        self, knowledge: kplib.KnowledgeResponse
+    ) -> None:
+        """Merge action knowledge into a single knowledge object."""
+        raise NotImplementedError  # TODO: Implement this method.

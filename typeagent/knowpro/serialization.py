@@ -8,10 +8,9 @@ import types
 from typing import (
     Annotated,
     Any,
-    Literal,
-    get_origin,
     get_args,
-    Union,
+    get_origin,
+    Literal,
     NotRequired,
     overload,
     TypedDict,
@@ -56,7 +55,7 @@ class EmbeddingData(TypedDict):
     embeddings: NormalizedEmbeddings | None
 
 
-class ConversationJsonData(ConversationDataWithIndexes):
+class ConversationJsonData[TMessageData](ConversationDataWithIndexes[TMessageData]):
     fileHeader: NotRequired[FileHeader | None]
     embeddingFileHeader: NotRequired[EmbeddingFileHeader | None]
 
@@ -65,9 +64,9 @@ class ConversationBinaryData(TypedDict):
     embeddingsList: NotRequired[list[NormalizedEmbeddings] | None]
 
 
-class ConversationFileData(TypedDict):
+class ConversationFileData[TMessageData](TypedDict):
     # This data goes into a JSON text file
-    jsonData: ConversationJsonData
+    jsonData: ConversationJsonData[TMessageData]
     # This goes into a single binary file
     binaryData: ConversationBinaryData
 
@@ -77,8 +76,8 @@ class ConversationFileData(TypedDict):
 # ---------------
 
 
-def write_conversation_data_to_file(
-    conversation_data: ConversationDataWithIndexes,
+def write_conversation_data_to_file[TMessageData](
+    conversation_data: ConversationDataWithIndexes[TMessageData],
     filename: str,
 ) -> None:
     file_data = to_conversation_file_data(conversation_data)
@@ -98,9 +97,9 @@ def serialize_embeddings(embeddings: NormalizedEmbeddings) -> NormalizedEmbeddin
     return np.concatenate(embeddings)
 
 
-def to_conversation_file_data(
-    conversation_data: ConversationDataWithIndexes,
-) -> ConversationFileData:
+def to_conversation_file_data[TMessageData](
+    conversation_data: ConversationDataWithIndexes[TMessageData],
+) -> ConversationFileData[TMessageData]:
     file_header = create_file_header()
     embedding_file_header = EmbeddingFileHeader()
 

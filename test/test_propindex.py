@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 from collections.abc import Iterator
-from typing import Any, overload
+from typing import Any
 
 import pytest
 
@@ -10,14 +10,9 @@ from typeagent.knowpro.interfaces import (
     ICollection,
     IConversation,
     IMessage,
-    IMessageCollection,
-    ISemanticRefCollection,
     ITermToSemanticRefIndex,
-    MessageOrdinal,
-    ScoredSemanticRefOrdinal,
     SemanticRef,
     ListIndexingResult,
-    SemanticRefOrdinal,
     Tag,
     TextLocation,
     TextRange,
@@ -36,6 +31,7 @@ from typeagent.knowpro.propindex import (
     is_known_property,
 )
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
+from typeagent.knowpro.storage import MessageCollection, SemanticRefCollection
 
 from fixtures import needs_auth
 
@@ -188,7 +184,7 @@ def test_build_property_index(needs_auth):
 class FakeMessage(IMessage):
     """Concrete implementation of IMessage for testing."""
 
-    def __init__(self, text_chunks):
+    def __init__(self, text_chunks: list[str]):
         self.text_chunks = text_chunks
         self.text_location = TextLocation(0, 0)
         self.tags = []
@@ -243,21 +239,8 @@ class FakeBaseCollection[T, TOrdinal: int](ICollection[T, int]):
     def _get_slice(self, start: int, end: int) -> list[T]:
         return self.items[start:end]
 
-    def append(self, *items: T) -> None:
-        for item in items:
-            self.items.append(item)
-
-
-class FakeMessageCollection(
-    FakeBaseCollection[FakeMessage, MessageOrdinal], IMessageCollection
-):
-    pass
-
-
-class FakeSemanticRefCollection(
-    FakeBaseCollection[SemanticRef, SemanticRefOrdinal], ISemanticRefCollection
-):
-    pass
+    def append(self, item: T) -> None:
+        self.items.append(item)
 
 
 class FakeConversation[
@@ -268,9 +251,9 @@ class FakeConversation[
     def __init__(self, semantic_refs: list[SemanticRef] | None = None):
         self.name_tag = "test_conversation"
         self.tags = []
-        self.semantic_refs = FakeSemanticRefCollection(semantic_refs or [])
+        self.semantic_refs = SemanticRefCollection(semantic_refs or [])
         self.semantic_ref_index = None
-        self.messages = FakeMessageCollection([FakeMessage(["Hello"])])
+        self.messages = MessageCollection([FakeMessage(["Hello"])])
         self.secondary_indexes = ConversationSecondaryIndexes()
 
 

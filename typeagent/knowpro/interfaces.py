@@ -418,10 +418,10 @@ class IConversationThreads(Protocol):
     ) -> Sequence[ScoredThreadOrdinal] | None:
         raise NotImplementedError
 
-    def serialize(self) -> "ConversationThreadData":
+    def serialize(self) -> "ConversationThreadData[ThreadDataItem]":
         raise NotImplementedError
 
-    def deserialize(self, data: "ConversationThreadData") -> None:
+    def deserialize(self, data: "ConversationThreadData[ThreadDataItem]") -> None:
         raise NotImplementedError
 
 
@@ -661,7 +661,7 @@ class MessageTextIndexData(TypedDict):
 
 class ConversationDataWithIndexes[TMessageData](ConversationData[TMessageData]):
     relatedTermsIndexData: NotRequired[TermsToRelatedTermsIndexData | None]
-    threadData: NotRequired[ConversationThreadData | None]
+    threadData: NotRequired[ConversationThreadData[ThreadDataItem] | None]
     messageIndexData: NotRequired[MessageTextIndexData | None]
 
 
@@ -760,8 +760,14 @@ class ICollection[T, TOrdinal](IReadonlyCollection[T, TOrdinal], Protocol):
     def is_persistent(self) -> bool:
         raise NotImplementedError
 
-    def append(self, *items: T) -> None:
+    def append(self, item: T) -> None:
         raise NotImplementedError
+
+    def extend(self, items: Iterable[T]) -> None:
+        """Append multiple items to the collection."""
+        # The default implementation just calls append for each item.
+        for item in items:
+            self.append(item)
 
 
 class IMessageCollection[TMessage: IMessage](

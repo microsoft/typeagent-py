@@ -26,6 +26,7 @@ build: venv
 venv: .venv
 
 .venv:
+	@echo "(If 'uv -q' fails with 'No such file or directory', try 'make install-uv')"
 	uv sync -q
 	@.venv/bin/python --version
 	@.venv/bin/black --version | head -1

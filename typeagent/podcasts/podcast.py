@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 from dataclasses import dataclass, field
-from typing import Optional, TypedDict
+from typing import TypedDict
 
 from ..knowpro import convindex, interfaces, kplib, secindex
 from ..knowpro.convthreads import ConversationThreads
@@ -264,7 +264,7 @@ class Podcast(
     def read_from_file(
         filename: str,
         settings: ConversationSettings | None = None,
-    ) -> Optional["Podcast"]:  # Not "Podcast" | None
+    ) -> "Podcast | None":
         podcast = Podcast(settings=settings or ConversationSettings())
         embedding_size = (
             podcast.settings.related_term_index_settings.embedding_index_settings.embedding_model.embedding_size

@@ -74,5 +74,5 @@ def load_dotenv() -> None:
 
 
 if __name__ == "__main__":
-    # Usage: eval `./typeagent/aitools/aith.py`
+    # Usage: eval `./typeagent/aitools/auth.py`
     print(f"export AZURE_OPENAI_API_KEY={AzureTokenProvider().get_token()}")

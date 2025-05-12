@@ -1,18 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from dataclasses import dataclass
 from typing import (
     Any,
-    Generic,
-    TypeVar,
     Iterable,
     Iterator,
     Callable,
-    Optional,
-    Dict,
-    overload,
 )
-from dataclasses import dataclass
 
 from .interfaces import (
     ICollection,
@@ -22,14 +17,11 @@ from .interfaces import (
     SemanticRefOrdinal,
 )
 
-T = TypeVar("T")
-TOrdinal = TypeVar("TOrdinal", bound=int)
-
 
 class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
     """A generic collection class."""
 
-    def __init__(self, items: Optional[list[T]] = None):
+    def __init__(self, items: list[T] | None = None):
         self.items: list[T] = items or []
 
     def __len__(self) -> int:
@@ -69,8 +61,12 @@ class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
     def is_persistent(self) -> bool:
         return False
 
-    def append(self, *items: T) -> None:
+    def append(self, item: T) -> None:
         """Append items to the collection."""
+        self.items.append(item)
+
+    def extend(self, items: Iterable[T]) -> None:
+        """Extend the collection with multiple items."""
         self.items.extend(items)
 
 
@@ -80,22 +76,13 @@ class SemanticRefCollection(
 ):
     """A collection of semantic references."""
 
-    def __init__(self, semantic_refs: list[SemanticRef] | None = None):
-        super().__init__(semantic_refs)
-
 
 class MessageCollection[TMessage: IMessage](Collection[TMessage, MessageOrdinal]):
     """A collection of messages."""
 
-    def __init__(self, messages: list[TMessage] | None = None):
-        super().__init__(messages)
-
 
 class MemoryStorageProvider[TMessage: IMessage]:
     """A storage provider that operates in memory."""
-
-    def __init__(self):
-        pass
 
     def create_message_collection(self) -> MessageCollection[TMessage]:
         """Create a new message collection."""
@@ -111,14 +98,14 @@ class MemoryStorageProvider[TMessage: IMessage]:
 
 
 @dataclass
-class Batch(Generic[T]):
+class Batch[T]:
     """A batch of items from a collection."""
 
     start_at: int
     value: list[T]
 
 
-def get_batches_from_collection(
+def get_batches_from_collection[T](
     collection: Collection[T, int],
     start_at_ordinal: int,
     batch_size: int,
@@ -133,7 +120,7 @@ def get_batches_from_collection(
         start_at += batch_size
 
 
-def map_collection(
+def map_collection[T](
     collection: Collection[T, int],
     callback: Callable[[T, int], T],
 ) -> list[T]:
@@ -144,7 +131,7 @@ def map_collection(
     return results
 
 
-def filter_collection(
+def filter_collection[T](
     collection: Collection[T, int],
     predicate: Callable[[T, int], bool],
 ) -> list[T]:

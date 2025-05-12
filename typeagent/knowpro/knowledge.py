@@ -13,8 +13,8 @@ def create_knowledge_extractor(
     """Create a knowledge extractor using the given Chat Model."""
     chat_model = chat_model or convknowledge.create_typechat_model()
     extractor = convknowledge.KnowledgeExtractor(
-        chat_model
-    )  # TODO: Pass settings 4096, False
+        chat_model, max_chars_per_chunk=4096, merge_action_knowledge=False
+    )
     return extractor
 
 
@@ -60,6 +60,7 @@ def merge_concrete_entities(
 
 def merge_topics(topics: list[str]) -> list[str]:
     """Merge a list of topics into a unique list of topics."""
+    # TODO: Preserve order of first occurrence?
     merged_topics = set(topics)
     return list(merged_topics)
 

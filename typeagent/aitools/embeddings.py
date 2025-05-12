@@ -4,7 +4,6 @@
 import asyncio
 import os
 import re
-import time
 
 import numpy as np
 from numpy.typing import NDArray
