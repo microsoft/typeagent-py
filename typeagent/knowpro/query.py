@@ -1,14 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
 from .collections import (
+    MatchAccumulator,
     PropertyTermSet,
     SemanticRefAccumulator,
     TermSet,
+    TextRangeCollection,
     TextRangesInScope,
 )
 from .interfaces import (
@@ -40,7 +43,7 @@ def is_conversation_searchable(conversation: IConversation) -> bool:
     )
 
 
-# TODO: Lots of other functions, from getTextRangeForDateRange to matchPropertySearchTermToTag
+# TODO: getTextRangeForDateRange ... matchPropertySearchTermToSemanticRef
 
 
 def lookup_term_filtered(
@@ -77,6 +80,9 @@ def lookup_term(
             lambda sr, _: ranges_in_scope.is_range_in_scope(sr.range),
         )
     return semantic_ref_index.lookup_term(term.text)
+
+
+# TODO: lookupProperty, lookupTermFiltered, lookupKnowledgeType
 
 
 @dataclass
@@ -135,8 +141,8 @@ class QueryEvalContext:
 
     def get_message_for_ref(self, semantic_ref: SemanticRef) -> IMessage:
         """Retrieve the message associated with a semantic reference."""
-        message_index = semantic_ref.range.start.message_ordinal
-        return self.conversation.messages[message_index]
+        message_ordinal = semantic_ref.range.start.message_ordinal
+        return self.conversation.messages[message_ordinal]
 
     def get_message(self, message_ordinal: MessageOrdinal) -> IMessage:
         """Retrieve a message by its ordinal."""
@@ -162,7 +168,56 @@ class QueryOpExpr[T](IQueryOpExpr[T]):
         raise NotImplementedError
 
 
-class MatchTermExpr(QueryOpExpr[SemanticRefAccumulator | None]):
+@dataclass
+class SelectTopNExpr[T: MatchAccumulator](QueryOpExpr[T]):
+    """Expression for selecting the top N matches from a query."""
+
+    source_expr: IQueryOpExpr[T]
+    max_matches: int | None = None
+    min_hit_count: int | None = None
+
+    def eval(self, context: QueryEvalContext) -> T:
+        """Evaluate the expression and return the top N matches."""
+        matches = self.source_expr.eval(context)
+        matches.select_top_n_scoring(self.max_matches, self.min_hit_count)
+        return matches
+
+
+@dataclass
+class MatchTermsBooleanExpr(QueryOpExpr[SemanticRefAccumulator]):
+    """Expression for matching terms in a boolean query."""
+
+    get_scope_expr: "GetScopeExpr | None" = None
+
+    def begin_match(self, context: QueryEvalContext) -> None:
+        """Prepare for matching terms in the context by resetting some things."""
+        if self.get_scope_expr is not None:
+            context.text_ranges_in_scope = self.get_scope_expr.eval(context)
+        context.clear_matched_terms()
+
+
+@dataclass
+class MatchTermsOrExpr(MatchTermsBooleanExpr):
+    """Expression for matching terms with an OR condition."""
+
+    term_expressions: list[IQueryOpExpr[SemanticRefAccumulator | None]] = []
+
+    def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
+        self.begin_match(context)
+        all_matches: SemanticRefAccumulator | None = None
+        for match_expr in self.term_expressions:
+            term_matches = match_expr.eval(context)
+            if term_matches:
+                if all_matches is None:
+                    all_matches = term_matches
+                else:
+                    all_matches.add_union(term_matches)
+        if all_matches is not None:
+            all_matches.calculate_total_score()
+        return all_matches or SemanticRefAccumulator()
+
+
+class MatchTermExpr(QueryOpExpr[SemanticRefAccumulator | None], ABC):
     """Expression for matching terms in a query.
 
     This class evaluates a query expression to accumulate matches
@@ -172,29 +227,29 @@ class MatchTermExpr(QueryOpExpr[SemanticRefAccumulator | None]):
 
     def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator | None:
         matches = SemanticRefAccumulator()
-        self._accumulate_matches(context, matches)
+        self.accumulate_matches(context, matches)
         if len(matches) > 0:
             return matches
         return None
 
-    # Subclass can override.
-    def _accumulate_matches(
+    @abstractmethod
+    def accumulate_matches(
         self, context: QueryEvalContext, matches: SemanticRefAccumulator
     ) -> None:
-        return
+        raise NotImplementedError("Subclass must implement accumulate_matches")
+
+
+type ScoreBoosterType = Callable[
+    [SearchTerm, SemanticRef, ScoredSemanticRefOrdinal],
+    ScoredSemanticRefOrdinal,
+]
 
 
 class MatchSearchTermExpr(MatchTermExpr):
     def __init__(
         self,
         search_term: SearchTerm,
-        score_booster: (
-            Callable[
-                [SearchTerm, SemanticRef, ScoredSemanticRefOrdinal],
-                ScoredSemanticRefOrdinal,
-            ]
-            | None
-        ) = None,
+        score_booster: ScoreBoosterType | None = None,
     ) -> None:
         super().__init__()
         self.search_term = search_term
@@ -258,3 +313,31 @@ class MatchSearchTermExpr(MatchTermExpr):
                     term, semantic_refs, False, related_term.weight
                 )
                 context.matched_terms.add(related_term)
+
+
+class IQueryTextRangeSelector(Protocol):
+    """Protocol for a selector that can evaluate to a text range."""
+
+    def eval(
+        self,
+        context: QueryEvalContext,
+        semantic_refs: SemanticRefAccumulator | None = None,
+    ) -> TextRangeCollection | None:
+        """Evaluate the selector and return the text range."""
+        raise NotImplementedError
+
+
+@dataclass
+class GetScopeExpr(QueryOpExpr[TextRangesInScope]):
+    """Expression for getting the scope of a query."""
+
+    range_selectors: list[IQueryTextRangeSelector]
+
+    def eval(self, context: QueryEvalContext) -> TextRangesInScope:
+        """Evaluate the expression and return the text ranges in scope."""
+        ranges_in_scope = TextRangesInScope()
+        for selector in self.range_selectors:
+            range_collection = selector.eval(context)
+            if range_collection is not None:
+                ranges_in_scope.add_text_ranges(range_collection)
+        return ranges_in_scope
