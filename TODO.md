@@ -21,9 +21,10 @@ STARTING THIS NOW.
 
 UMESH:
 > - query.ts
->   - MatchSearchTermExpr
+>   - MatchSearchTermExpr  [DONE]
 >   - MatchPropertySearchTermExpr
-> - SemanticRefAccumulator is in collections.ts
+> - collections.ts
+>   - SemanticRefAccumulator is in collections.ts  [DONE]
 > 
 > Ignore code path "without indexes"
 

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 import heapq
 import math
 import sys
-from typing import cast
+from typing import Set, cast
 
 from .interfaces import (
     ISemanticRefCollection,
@@ -53,7 +53,7 @@ class MatchAccumulator[T]:
         self._matches[match.value] = match
 
     # TODO: Maybe make the callers call clear_matches()?
-    def set_matches(self, matches: Iterable[Match[T]], clear=False) -> None:
+    def set_matches(self, matches: Iterable[Match[T]], *, clear=False) -> None:
         if clear:
             self.clear_matches()
         for match in matches:
@@ -93,9 +93,15 @@ class MatchAccumulator[T]:
                 self.combine_matches(existing_match, other_match)
 
     def intersect(
-        self, other: "MatchAccumulator", intersection: "MatchAccumulator | None"
-    ) -> None:
-        raise NotImplementedError  # TODO
+        self, other: "MatchAccumulator", intersection: "MatchAccumulator"
+    ) -> "MatchAccumulator":
+        """Intersect with another collection of matches."""
+        for self_match in self:
+            other_match = other.get_match(self_match.value)
+            if other_match is not None:
+                self.combine_matches(self_match, other_match)
+                intersection.set_match(self_match)
+        return intersection
 
     def combine_matches(self, match: Match, other: Match) -> None:
         """Combine the other match into the first."""
@@ -137,7 +143,9 @@ class MatchAccumulator[T]:
         else:
             return self.get_sorted_by_score(min_hit_count)
 
-    # def get_with_hit_count...
+    def get_with_hit_count(self, min_hit_count: int) -> list[Match[T]]:
+        """Get matches with a minimum hit count."""
+        return list(self.matches_with_min_hit_count(min_hit_count))
 
     def get_matches(
         self, predicate: Callable[[Match[T]], bool] | None = None
@@ -165,7 +173,11 @@ class MatchAccumulator[T]:
         self.set_matches(top_n, clear=True)
         return len(top_n)
 
-    # def select_with_hit_count...
+    def select_with_hit_count(self, min_hit_count: int) -> int:
+        """Retain only matches with a minimum hit count."""
+        matches = self.get_with_hit_count(min_hit_count)
+        self.set_matches(matches, clear=True)
+        return len(matches)
 
     def _matches_with_min_hit_count(
         self, min_hit_count: int | None
@@ -173,6 +185,14 @@ class MatchAccumulator[T]:
         """Get matches with a minimum hit count"""
         if min_hit_count is not None and min_hit_count > 0:
             return self.get_matches(lambda m: m.hit_count >= min_hit_count)
+        else:
+            return self._matches.values()
+
+    def matches_with_min_hit_count(
+        self, min_hit_count: int | None
+    ) -> Iterable[Match[T]]:
+        if min_hit_count is not None and min_hit_count > 0:
+            return filter(lambda m: m.hit_count >= min_hit_count, self.get_matches())
         else:
             return self._matches.values()
 
@@ -285,14 +305,24 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         return accumulator
 
     def add_union(self, other: "SemanticRefAccumulator") -> None:  # type: ignore
-        """Add matches from another SemanticRefAccumulator"""
+        """Add matches from another SemanticRefAccumulator."""
         assert isinstance(
             other, SemanticRefAccumulator
         )  # Runtime check b/c other's type mismatch
         super().add_union(other)
         self.search_term_matches.update(other.search_term_matches)
 
-    # def intersect ...
+    def intersect(self, other: "SemanticRefAccumulator") -> "SemanticRefAccumulator":  # type: ignore
+        """Intersect with another SemanticRefAccumulator."""
+        assert isinstance(
+            other, SemanticRefAccumulator
+        )  # Runtime check b/c other's type mismatch
+        intersection = SemanticRefAccumulator()
+        super().intersect(other, intersection)
+        if len(intersection) > 0:
+            intersection.search_term_matches.update(self.search_term_matches.values())
+            intersection.search_term_matches.update(other.search_term_matches.values())
+        return intersection
 
     # def to_scored_semantic_refs ...
 
@@ -544,3 +574,11 @@ def get_top_k[T](
     for scored_item in scored_items:
         top_n_list.push(scored_item.item, scored_item.score)
     return top_n_list.by_rank()
+
+
+def add_to_set[T](
+    set: Set[T],
+    values: Iterable[T],
+) -> None:
+    """Add values to a set."""
+    set.update(values)
