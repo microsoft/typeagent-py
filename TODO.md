@@ -22,11 +22,11 @@ STARTING THIS NOW.
 UMESH:
 > - query.ts
 >   - MatchSearchTermExpr  [DONE]
->   - MatchPropertySearchTermExpr
+>   - MatchPropertySearchTermExpr  [DONE]
 > - collections.ts
 >   - SemanticRefAccumulator is in collections.ts  [DONE]
 > 
-> Ignore code path "without indexes"
+> Ignore code path "without indexes"  [OK]
 
 ## Retries for embeddings
 
@@ -34,8 +34,9 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 
 ## Refactoring implementations
 
-- Change some inconsistent module names
-- Rewrite podcast parsing without regexes
+- Change some inconsistent module names  [DONE -- if we are okay deviating from the TS module names]
+- Rewrite podcast parsing without regexes (low priority)
+- Switch from Protocol to ABC
 
 ## Type checking stuff
 
@@ -58,13 +59,13 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 
 ## Maybe...
 
-- Add docstrings etc.
+- Add docstrings etc. (See how good AI-generated docstrings are.)
 
 ## Questions
 
 - Do the serialization data formats (which are TypedDicts, not Protocols):
   - Really belong in interfaces.py? [UMES: No] [me: TODO]
-  - Need to have names starting with 'I'? [UMESH: No] [me: DONE]
+  - Need to have names starting with 'I'? [UMESH: No] [me: DONE] [TS hasn't changed yet]
   My answers for both are no, unless Steve explains why.
 
 

@@ -497,6 +497,20 @@ class IQueryTextRangeSelector(Protocol):
         raise NotImplementedError("Subclass must implement eval")
 
 
+class TextRangeSelector(IQueryTextRangeSelector):
+    """A selector that evaluates to a pre-computed TextRangeCollection."""
+
+    def __init__(self, ranges_in_scope: TextRangeCollection) -> None:
+        self.text_ranges_in_scope = ranges_in_scope
+
+    def eval(
+        self,
+        context: QueryEvalContext,
+        semantic_refs: SemanticRefAccumulator | None = None,
+    ) -> TextRangeCollection | None:
+        return self.text_ranges_in_scope
+
+
 @dataclass
 class GetScopeExpr(QueryOpExpr[TextRangesInScope]):
     """Expression for getting the scope of a query."""

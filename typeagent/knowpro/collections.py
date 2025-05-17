@@ -227,7 +227,7 @@ type KnowledgePredicate[T: Knowledge] = Callable[[T], bool]
 
 
 class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
-    def __init__(self, search_term_matches=set[str]()):
+    def __init__(self, search_term_matches: set[str] = set()):
         super().__init__()
         self.search_term_matches = search_term_matches
 
@@ -253,9 +253,27 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
                 )
             self.search_term_matches.add(search_term.text)
 
-    def add_term_matches_if_new(self, *_, **__) -> None:
-        """Add term matches if they are new"""
-        raise NotImplementedError("TODO: add_term_matches_if_new")
+    def add_term_matches_if_new(
+        self,
+        search_term: Term,
+        scored_refs: Iterable[ScoredSemanticRefOrdinal] | None,
+        is_exact_match: bool,
+        weight: float | None = None,
+    ) -> None:
+        """Add term matches if they are new."""
+        if scored_refs is not None:
+            if weight is None:
+                weight = search_term.weight
+                if weight is None:
+                    weight = 1.0
+            for scored_ref in scored_refs:
+                if scored_ref.semantic_ref_ordinal not in self:
+                    self.add(
+                        scored_ref.semantic_ref_ordinal,
+                        scored_ref.score * weight,
+                        is_exact_match,
+                    )
+            self.search_term_matches.add(search_term.text)
 
     def get_semantic_refs(
         self,
@@ -320,8 +338,8 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         intersection = SemanticRefAccumulator()
         super().intersect(other, intersection)
         if len(intersection) > 0:
-            intersection.search_term_matches.update(self.search_term_matches.values())
-            intersection.search_term_matches.update(other.search_term_matches.values())
+            intersection.search_term_matches.update(self.search_term_matches)
+            intersection.search_term_matches.update(other.search_term_matches)
         return intersection
 
     # def to_scored_semantic_refs ...
