@@ -9,7 +9,6 @@ from typeagent.knowpro.convindex import (
     add_action_to_index,
     add_knowledge_to_index,
 )
-from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
 from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
 from typeagent.knowpro.storage import SemanticRefCollection
 

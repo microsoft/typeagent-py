@@ -273,9 +273,7 @@ def test_property_search_term():
     """Test the PropertySearchTerm class."""
     property_name = "name"
     property_value = SearchTerm(term=Term(text="Bach"))
-    property_search_term = PropertySearchTerm(
-        property_name=property_name, property_value=property_value
-    )
+    property_search_term = PropertySearchTerm(property_name, property_value)
 
     assert property_search_term.property_name == "name"
     assert property_search_term.property_value.term.text == "Bach"
@@ -284,8 +282,8 @@ def test_property_search_term():
     property_name_as_search_term = SearchTerm(term=Term(text="hue"))
     property_value_as_search_term = SearchTerm(term=Term(text="red"))
     property_search_term = PropertySearchTerm(
-        property_name=property_name_as_search_term,
-        property_value=property_value_as_search_term,
+        property_name_as_search_term,
+        property_value_as_search_term,
     )
 
     assert isinstance(property_search_term.property_name, SearchTerm)
@@ -299,11 +297,14 @@ def test_search_term_group():
     term1 = SearchTerm(term=Term(text="example1"))
     term2 = SearchTerm(term=Term(text="example2"))
     group = SearchTermGroup(boolean_op="and", terms=[term1, term2])
+    empty_group = SearchTermGroup("or")
 
     assert group.boolean_op == "and"
     assert len(group.terms) == 2
     assert group.terms[0] == SearchTerm(Term("example1"))
     assert group.terms[1] == SearchTerm(Term("example2"))
+    assert empty_group.boolean_op == "or"
+    assert empty_group.terms == []
 
 
 def test_when_filter():

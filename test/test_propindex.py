@@ -35,7 +35,7 @@ from typeagent.knowpro.propindex import (
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
 from typeagent.knowpro.storage import MessageCollection, SemanticRefCollection
 
-from fixtures import needs_auth
+from fixtures import needs_auth  # type: ignore  # Yes we use it!
 
 
 @pytest.fixture

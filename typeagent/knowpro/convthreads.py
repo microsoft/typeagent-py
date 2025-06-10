@@ -7,7 +7,6 @@ from .interfaces import (
     ThreadDataItem,
     ScoredThreadOrdinal,
     Thread,
-    ThreadData,
 )
 from ..aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 

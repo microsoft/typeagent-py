@@ -1,12 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from .messageindex import build_message_index
-
 from .importing import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
-    ConversationDataWithIndexes,
     IConversationSecondaryIndexes,
     IMessage,
     ITermToSemanticRefIndex,
@@ -15,8 +12,9 @@ from .interfaces import (
     TextIndexingResult,
     TextLocation,
 )
-from .reltermsindex import RelatedTermsIndex, build_related_terms_index
+from .messageindex import build_message_index
 from .propindex import PropertyIndex, build_property_index
+from .reltermsindex import RelatedTermsIndex, build_related_terms_index
 from .timestampindex import TimestampToTextRangeIndex, build_timestamp_index
 
 

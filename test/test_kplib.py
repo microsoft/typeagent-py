@@ -1,8 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
-
 from typeagent.knowpro.kplib import (
     Quantity,
     Facet,
@@ -24,11 +22,11 @@ def test_facet_repr_and_str():
     """Test the Facet class's __repr__ and __str__ methods."""
     facet = Facet(name="color", value="blue")
     assert repr(facet) == "Facet('color', 'blue')"
-    assert str(facet) == "blue"
+    assert str(facet) == "Facet('color', 'blue')"
 
     quantity_facet = Facet(name="weight", value=Quantity(amount=5.0, units="kg"))
     assert repr(quantity_facet) == "Facet('weight', Quantity(amount=5.0, units='kg'))"
-    assert str(quantity_facet) == "5.0 kg"
+    assert str(quantity_facet) == "Facet('weight', Quantity(amount=5.0, units='kg'))"
 
 
 def test_concrete_entity():

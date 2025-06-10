@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typechat import Failure, Result, TypeChatLanguageModel
+from typechat import Result, TypeChatLanguageModel
 
 from . import convknowledge
 from . import kplib
@@ -49,7 +49,7 @@ def merge_concrete_entities(
     entities: list[kplib.ConcreteEntity],
 ) -> list[kplib.ConcreteEntity]:
     """Merge a list of concrete entities into a single list of merged entities."""
-    raise NotImplementedError
+    raise NotImplementedError("TODO")
     # merged_entities = concrete_to_merged_entities(entities)
 
     # merged_concrete_entities = []
@@ -72,7 +72,7 @@ async def extract_knowledge_for_text_batch_q(
     max_retries: int = 3,
 ) -> list[Result[kplib.KnowledgeResponse]]:
     """Extract knowledge for a batch of text inputs using a task queue."""
-    raise NotImplementedError
+    raise NotImplementedError("TODO")
     # TODO: BatchTask etc.
     # task_batch = [BatchTask(task=text) for text in text_batch]
 

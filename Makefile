@@ -28,10 +28,9 @@ venv: .venv
 .venv:
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
 	uv sync -q
-	@.venv/bin/python --version
-	@.venv/bin/black --version | head -1
+	@.venv/bin/black --version | sed 's/, / /'
 	@.venv/bin/pyright --version
-	@.venv/bin/python -m pytest --version
+	@.venv/bin/pytest --version
 
 install-uv:
 	curl -Ls https://astral.sh/uv/install.sh | sh

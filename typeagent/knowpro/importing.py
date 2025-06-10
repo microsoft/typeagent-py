@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ..aitools.embeddings import AsyncEmbeddingModel
 from ..aitools.vectorbase import TextEmbeddingIndexSettings

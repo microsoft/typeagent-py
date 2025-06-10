@@ -17,7 +17,11 @@ class Quantity:
     amount: float
     units: str
 
+    def __str__(self) -> str:
+        return f"{self.amount} {self.units}"
 
+
+# NOTE: Don't use `type`, pydantic doesn't like it.
 Value = str | float | bool | Quantity
 
 
@@ -28,13 +32,6 @@ class Facet:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.name!r}, {self.value!r})"
-
-    def __str__(self) -> str:
-        value = self.value
-        if isinstance(value, Quantity):
-            return f"{value.amount} {value.units}"
-        else:
-            return str(value)
 
 
 @dataclass
@@ -79,6 +76,7 @@ class ActionParam:
     value: Value
 
 
+# NOTE: Don't use `type`, pydantic doesn't like it.
 VerbTense = Literal["past", "present", "future"]
 
 

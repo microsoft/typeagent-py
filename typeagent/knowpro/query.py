@@ -2,12 +2,17 @@
 # Licensed under the MIT License.
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Callable, Protocol
+from re import search
+from typing import Callable, Literal, Protocol
+
+from ..aitools.embeddings import NormalizedEmbedding
 
 from .collections import (
+    Match,
     MatchAccumulator,
+    MessageAccumulator,
     PropertyTermSet,
     SemanticRefAccumulator,
     TermSet,
@@ -23,15 +28,33 @@ from .interfaces import (
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
     ITimestampToTextRangeIndex,
+    KnowledgeType,
     MessageOrdinal,
     PropertySearchTerm,
+    ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SearchTerm,
     SemanticRef,
     SemanticRefOrdinal,
+    SemanticRefSearchResult,
     Term,
+    TextLocation,
+    TextRange,
 )
+from .kplib import ConcreteEntity
+from .messageindex import IMessageTextEmbeddingIndex
 from .propindex import PropertyNames, lookup_property_in_property_index
+
+
+# TODO: Move to compilelib.py
+type BooleanOp = Literal["and", "or", "or_max"]
+
+
+# TODO: Move to compilelib.py
+@dataclass
+class CompiledTermGroup:
+    boolean_op: BooleanOp
+    terms: list[SearchTerm]
 
 
 def is_conversation_searchable(conversation: IConversation) -> bool:
@@ -40,13 +63,62 @@ def is_conversation_searchable(conversation: IConversation) -> bool:
     A conversation is searchable if it has a semantic reference index
     and semantic references initialized.
     """
+    # TODO: also require secondary indices, once we have removed non-index based retrieval to test.
     return (
         conversation.semantic_ref_index is not None
         and conversation.semantic_refs is not None
     )
 
 
-# TODO: getTextRangeForDateRange ... matchPropertySearchTermToSemanticRef
+# TODO: get_text_range_for_date_range
+
+
+def get_matching_term_for_text(search_term: SearchTerm, text: str) -> Term | None:
+    # Do case-INSENSITIVE comparisons, since stored entities may have different case.
+    if text.lower() == search_term.term.text.lower():
+        return search_term.term
+    if search_term.related_terms:
+        for related_term in search_term.related_terms:
+            if text.lower() == related_term.text.lower():
+                return related_term
+    return None
+
+
+def match_search_term_to_text(search_term: SearchTerm, text: str | None) -> bool:
+    if text:
+        return get_matching_term_for_text(search_term, text) is not None
+    return False
+
+
+def match_search_term_to_one_of_text(
+    search_term: SearchTerm, texts: list[str] | None
+) -> bool:
+    if texts:
+        for text in texts:
+            if match_search_term_to_text(search_term, text):
+                return True
+    return False
+
+
+# TODO: match_search_term_to_entity
+# TODO: match_property_search_term_to_entity
+# TODO: match_concrete_entity
+
+
+def match_entity_name_or_type(
+    property_value: SearchTerm,
+    entity: ConcreteEntity,
+) -> bool:
+    return match_search_term_to_text(
+        property_value, entity.name
+    ) or match_search_term_to_one_of_text(property_value, entity.type)
+
+
+# TODO: match_property_name_to_facet_name
+# TODO: match_property_name_to_facet_value
+# TODO: match_property_search_term_to_action
+# TODO: match_property_search_term_to_tag
+# TODO: match_property_search_term_to_semantic_ref
 
 
 def lookup_term_filtered(
@@ -72,20 +144,23 @@ def lookup_term(
     term: Term,
     semantic_refs: ISemanticRefCollection,
     ranges_in_scope: TextRangesInScope | None = None,
+    ktype: KnowledgeType | None = None,
 ) -> list[ScoredSemanticRefOrdinal] | None:
     """Look up a term in the semantic reference index, optionally filtering by ranges in scope."""
     if ranges_in_scope is not None:
-        # If ranges_in_scope has no actual text ranges, lookups can't possibly match
+        # If ranges_in_scope has no actual text ranges, lookups can't possibly match.
         return lookup_term_filtered(
             semantic_ref_index,
             term,
             semantic_refs,
-            lambda sr, _: ranges_in_scope.is_range_in_scope(sr.range),
+            lambda sr, _: (not ktype or sr.knowledge_type == ktype)
+            and ranges_in_scope.is_range_in_scope(sr.range),
         )
     return semantic_ref_index.lookup_term(term.text)
 
 
-# TODO: lookupProperty, lookupTermFiltered, lookupKnowledgeType
+# TODO: lookup_property
+# TODO: lookup_knowledge_type
 
 
 @dataclass
@@ -154,6 +229,16 @@ class QueryEvalContext:
         self.matched_property_terms.clear()
 
 
+def lookup_knowledge_type(
+    semantic_refs: ISemanticRefCollection, ktype: KnowledgeType
+) -> list[ScoredSemanticRefOrdinal]:
+    return [
+        ScoredSemanticRefOrdinal(sr.semantic_ref_ordinal, 1.0)
+        for sr in semantic_refs
+        if sr.knowledge_type == ktype
+    ]
+
+
 class IQueryOpExpr[T](Protocol):
     """Protocol for query operation expressions that can be evaluated in a context."""
 
@@ -180,7 +265,7 @@ class SelectTopNExpr[T: MatchAccumulator](QueryOpExpr[T]):
         return matches
 
 
-@dataclass
+# Abstract base class.
 class MatchTermsBooleanExpr(QueryOpExpr[SemanticRefAccumulator]):
     """Expression for matching terms in a boolean query.
 
@@ -203,6 +288,7 @@ class MatchTermsOrExpr(MatchTermsBooleanExpr):
     term_expressions: list[IQueryOpExpr[SemanticRefAccumulator | None]] = field(
         default_factory=list
     )
+    get_scope_expr: "GetScopeExpr | None" = None
 
     def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
         self.begin_match(context)
@@ -221,7 +307,7 @@ class MatchTermsOrExpr(MatchTermsBooleanExpr):
 
 @dataclass
 class MatchTermsOrMaxExpr(MatchTermsOrExpr):
-    """Expression for matching terms with an OR condition and a maximum score."""
+    """OR-MAX returns the union if there are no common matches, else the maximum scoring match."""
 
     term_expressions: list[IQueryOpExpr[SemanticRefAccumulator | None]] = field(
         default_factory=list
@@ -267,9 +353,8 @@ class MatchTermsAndExpr(MatchTermsBooleanExpr):
 class MatchTermExpr(QueryOpExpr[SemanticRefAccumulator | None], ABC):
     """Expression for matching terms in a query.
 
-    This class evaluates a query expression to accumulate matches
-    in the form of a SemanticRefAccumulator. If no matches are found,
-    it returns None.
+    Subclasses need to define accumulate_matches(), which must add
+    matches to its SemanticRefAccumulator argument.
     """
 
     def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator | None:
@@ -292,15 +377,10 @@ type ScoreBoosterType = Callable[
 ]
 
 
+@dataclass
 class MatchSearchTermExpr(MatchTermExpr):
-    def __init__(
-        self,
-        search_term: SearchTerm,
-        score_booster: ScoreBoosterType | None = None,
-    ) -> None:
-        super().__init__()
-        self.search_term = search_term
-        self.score_booster = score_booster
+    search_term: SearchTerm
+    score_booster: ScoreBoosterType | None = None
 
     def accumulate_matches(
         self, context: QueryEvalContext, matches: SemanticRefAccumulator
@@ -368,8 +448,8 @@ class MatchPropertySearchTermExpr(MatchTermExpr):
         self,
         property_search_term: PropertySearchTerm,
     ):
-        super().__init__()
         self.property_search_term = property_search_term
+        super().__init__()
 
     def accumulate_matches(
         self, context: QueryEvalContext, matches: SemanticRefAccumulator
@@ -448,8 +528,9 @@ class MatchPropertySearchTermExpr(MatchTermExpr):
                     property_name,
                     property_value.text,
                 )
-                matches.add_term_matches(property_value, semantic_refs, True)
-                context.matched_property_terms.add(property_name, property_value)
+                if semantic_refs:
+                    matches.add_term_matches(property_value, semantic_refs, True)
+                    context.matched_property_terms.add(property_name, property_value)
         else:
             # To prevent over-counting, ensure this related_prop_val was not already used to match terms earlier
             if not context.matched_property_terms.has(property_name, related_prop_val):
@@ -458,16 +539,17 @@ class MatchPropertySearchTermExpr(MatchTermExpr):
                     property_name,
                     related_prop_val.text,
                 )
-                # This will only consider semantic refs that were not already matched by this expression.
-                # In other words, if a semantic ref already matched due to the term 'novel',
-                # don't also match it because it matched the related term 'book'
-                matches.add_term_matches_if_new(
-                    property_value,
-                    semantic_refs,
-                    False,
-                    related_prop_val.weight,
-                )
-                context.matched_property_terms.add(property_name, related_prop_val)
+                if semantic_refs:
+                    # This will only consider semantic refs that were not already matched by this expression.
+                    # In other words, if a semantic ref already matched due to the term 'novel',
+                    # don't also match it because it matched the related term 'book'
+                    matches.add_term_matches_if_new(
+                        property_value,
+                        semantic_refs,
+                        False,
+                        related_prop_val.weight,
+                    )
+                    context.matched_property_terms.add(property_name, related_prop_val)
 
     def lookup_property(
         self,
@@ -485,6 +567,128 @@ class MatchPropertySearchTermExpr(MatchTermExpr):
             )
 
 
+class MatchTagExpr(MatchSearchTermExpr):
+    def __init__(self, tag_term: SearchTerm):
+        self.tag_term = tag_term
+        super().__init__(tag_term)
+
+    def lookup_term(
+        self, context: QueryEvalContext, term: Term
+    ) -> list[ScoredSemanticRefOrdinal] | None:
+        if self.tag_term.term.text == "*":
+            return lookup_knowledge_type(context.semantic_refs, "tag")
+        else:
+            return lookup_term(
+                context.semantic_ref_index,
+                term,
+                context.semantic_refs,
+                context.text_ranges_in_scope,
+                "tag",
+            )
+
+
+class MatchTopicExpr(MatchSearchTermExpr):
+    def __init__(self, topic: SearchTerm):
+        self.topic = topic
+        super().__init__(topic)
+
+    def lookup_term(
+        self, context: QueryEvalContext, term: Term
+    ) -> list[ScoredSemanticRefOrdinal] | None:
+        if self.topic.term.text == "*":
+            return lookup_knowledge_type(context.semantic_refs, "topic")
+        else:
+            return lookup_term(
+                context.semantic_ref_index,
+                term,
+                context.semantic_refs,
+                context.text_ranges_in_scope,
+                "topic",
+            )
+
+
+@dataclass
+class GroupByKnowledgeTypeExpr(
+    QueryOpExpr[dict[KnowledgeType, SemanticRefAccumulator]]
+):
+    matches: IQueryOpExpr[SemanticRefAccumulator]
+
+    def eval(
+        self, context: QueryEvalContext
+    ) -> dict[KnowledgeType, SemanticRefAccumulator]:
+        semantic_ref_matches = self.matches.eval(context)
+        return semantic_ref_matches.group_matches_by_type(context.semantic_refs)
+
+
+@dataclass
+class SelectTopNKnowledgeGroupExpr(
+    QueryOpExpr[dict[KnowledgeType, SemanticRefAccumulator]]
+):
+    source_expr: IQueryOpExpr[dict[KnowledgeType, SemanticRefAccumulator]]
+    max_matches: int | None = None
+    min_hit_count: int | None = None
+
+    def eval(
+        self, context: QueryEvalContext
+    ) -> dict[KnowledgeType, SemanticRefAccumulator]:
+        groups_accumulators = self.source_expr.eval(context)
+        for accumulator in groups_accumulators.values():
+            accumulator.select_top_n_scoring(self.max_matches, self.min_hit_count)
+        return groups_accumulators
+
+
+@dataclass
+class GroupSearchResultsExpr(QueryOpExpr[dict[KnowledgeType, SemanticRefSearchResult]]):
+    src_expr: IQueryOpExpr[dict[KnowledgeType, SemanticRefAccumulator]]
+
+    def eval(
+        self, context: QueryEvalContext
+    ) -> dict[KnowledgeType, SemanticRefSearchResult]:
+        return to_grouped_search_results(self.src_expr.eval(context))
+
+
+@dataclass
+class WhereSemanticRefExpr(QueryOpExpr[SemanticRefAccumulator]):
+    source_expr: IQueryOpExpr[SemanticRefAccumulator]
+    predicates: list["IQuerySemanticRefPredicate"]
+
+    def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
+        accumulator = self.source_expr.eval(context)
+        filtered = SemanticRefAccumulator(accumulator.search_term_matches)
+        filtered.set_matches(
+            accumulator.get_matches(
+                lambda match: self._eval_predicates(context, self.predicates, match)
+            )
+        )
+        return filtered
+
+    def _eval_predicates(
+        self,
+        context: QueryEvalContext,
+        predicates: list["IQuerySemanticRefPredicate"],
+        match: Match[SemanticRefOrdinal],
+    ) -> bool:
+        for predicate in predicates:
+            semantic_ref = context.get_semantic_ref(match.value)
+            if not predicate.eval(context, semantic_ref):
+                return False
+
+        return True
+
+
+class IQuerySemanticRefPredicate(Protocol):
+    def eval(self, context: QueryEvalContext, semantic_ref: SemanticRef) -> bool:
+        raise NotImplementedError
+
+
+# TODO: match_predicates
+# TODO: knowledge_type_predicate
+# TODO: property_match_predicate
+
+
+# NOTE: GetScopeExpr is moved after TextRangeSelector to avoid circular references.
+
+
 class IQueryTextRangeSelector(Protocol):
     """Protocol for a selector that can evaluate to a text range."""
 
@@ -500,8 +704,10 @@ class IQueryTextRangeSelector(Protocol):
 class TextRangeSelector(IQueryTextRangeSelector):
     """A selector that evaluates to a pre-computed TextRangeCollection."""
 
-    def __init__(self, ranges_in_scope: TextRangeCollection) -> None:
-        self.text_ranges_in_scope = ranges_in_scope
+    text_ranges_in_scope: TextRangeCollection
+
+    def __init__(self, ranges_in_scope: list[TextRange]) -> None:
+        self.text_ranges_in_scope = TextRangeCollection(ranges_in_scope, True)
 
     def eval(
         self,
@@ -525,3 +731,173 @@ class GetScopeExpr(QueryOpExpr[TextRangesInScope]):
             if range_collection is not None:
                 ranges_in_scope.add_text_ranges(range_collection)
         return ranges_in_scope
+
+
+# TODO: SelectInScopeExpr
+# TODO: TextRangesInDateRangeSelector
+# TODO: TextRangesPredicateSelector
+# TODO: TextRangesWithTagSelector
+# TODO: TextRangesFromSemanticRefsSelector
+
+
+@dataclass
+class TextRangesFromMessagesSelector(IQueryTextRangeSelector):
+    source_expr: IQueryOpExpr[MessageAccumulator]
+
+    def eval(
+        self,
+        context: QueryEvalContext,
+        semantic_refs: SemanticRefAccumulator | None = None,
+    ) -> TextRangeCollection | None:
+        matches = self.source_expr.eval(context)
+        ranges_in_scope: list[TextRange] | None = None
+        if matches:
+            all_ordinals = sorted(matches.get_matched_values())
+            ranges_in_scope = text_ranges_from_message_ordinals(all_ordinals)
+        return TextRangeCollection(ranges_in_scope)
+
+
+# TODO: Move to messagelib.py
+def text_ranges_from_message_ordinals(
+    message_ordinals: list[MessageOrdinal],
+) -> list[TextRange]:
+    return [text_range_from_message(ordinal) for ordinal in message_ordinals]
+
+
+# TODO: Move to messagelib.py
+def text_range_from_message(message_ordinal: MessageOrdinal) -> TextRange:
+    return TextRange(start=TextLocation(message_ordinal))
+
+
+# TODO: ThreadSelector
+# TODO: to_grouped_search_results
+
+
+def to_grouped_search_results(
+    eval_results: dict[KnowledgeType, SemanticRefAccumulator],
+) -> dict[KnowledgeType, SemanticRefSearchResult]:
+    semantic_ref_matches: dict[KnowledgeType, SemanticRefSearchResult] = {}
+    for typ, accumulator in eval_results.items():
+        if len(accumulator) > 0:
+            semantic_ref_matches[typ] = SemanticRefSearchResult(
+                term_matches=accumulator.search_term_matches,
+                semantic_ref_matches=accumulator.to_scored_semantic_refs(),
+            )
+    return semantic_ref_matches
+
+
+@dataclass
+class MessagesFromKnowledgeExpr(QueryOpExpr[MessageAccumulator]):
+    src_expr: (
+        IQueryOpExpr[dict[KnowledgeType, SemanticRefSearchResult]]
+        | dict[KnowledgeType, SemanticRefSearchResult]
+    )
+
+    def eval(self, context: QueryEvalContext) -> MessageAccumulator:
+        knowledge = (
+            self.src_expr
+            if isinstance(self.src_expr, dict)
+            else self.src_expr.eval(context)
+        )
+        return message_matches_from_knowledge_matches(context.semantic_refs, knowledge)
+
+
+# TODO: SelectMessagesInCharBudget
+@dataclass
+class RankMessagesBySimilarityExpr(QueryOpExpr[MessageAccumulator]):
+    src_expr: IQueryOpExpr[MessageAccumulator]
+    embedding: NormalizedEmbedding
+    max_messages: int | None = None
+    threshold_score: float | None = None
+
+    def eval(self, context: QueryEvalContext) -> MessageAccumulator:
+        matches = self.src_expr.eval(context)
+        if self.max_messages is not None and len(matches) <= self.max_messages:
+            return matches
+
+        # Try to use the message embedding index for re-ranking if available.
+        message_index = (
+            None
+            if context.conversation.secondary_indexes is None
+            else context.conversation.secondary_indexes.message_index
+        )
+        if isinstance(message_index, IMessageTextEmbeddingIndex):
+            message_ordinals = self._get_message_ordinals_in_index(
+                message_index, matches
+            )
+            if len(message_ordinals) == len(matches):
+                matches.clear_matches()
+                ranked_messages = message_index.lookup_in_subset_by_embedding(
+                    self.embedding,
+                    message_ordinals,
+                    self.max_messages,
+                    self.threshold_score,
+                )
+                for match in ranked_messages:
+                    matches.add(match.message_ordinal, match.score)
+                return matches
+
+        if self.max_messages is not None:
+            # Can't re rank, so just take the top K from what we already have.
+            matches.select_top_n_scoring(self.max_messages)
+        return matches
+
+    def _get_message_ordinals_in_index(
+        self, message_index, matches: MessageAccumulator
+    ):
+        message_ordinals: list[MessageOrdinal] = []
+        index_size = len(message_index)
+        for message_ordinal in matches.get_matched_values():
+            if message_ordinal >= index_size:
+                break
+            message_ordinals.append(message_ordinal)
+        return message_ordinals
+
+
+class GetScoredMessagesExpr(QueryOpExpr[list[ScoredMessageOrdinal]]):
+    def __init__(self, src_expr: IQueryOpExpr[MessageAccumulator]) -> None:
+        self.src_expr = src_expr
+
+    def eval(self, context: QueryEvalContext) -> list[ScoredMessageOrdinal]:
+        matches = self.src_expr.eval(context)
+        return matches.to_scored_message_ordinals()
+
+
+# TODO: MatchMessagesBooleanExpr
+# TODO: MatchMessagesOrExpr
+# TODO: MatchMessagesAndExpr
+# TODO: MatchMessagesOrMaxExpr
+# TODO: MatchMessagesBySimilarityExpr
+
+
+class NoOpExpr[T](QueryOpExpr[T]):
+    def __init__(self, src_expr: IQueryOpExpr[T]) -> None:
+        self.src_expr = src_expr
+        super().__init__()
+
+    def eval(self, context: QueryEvalContext) -> T:
+        return self.src_expr.eval(context)
+
+
+def message_matches_from_knowledge_matches(
+    semantic_refs: ISemanticRefCollection,
+    knowledge_matches: dict[KnowledgeType, SemanticRefSearchResult],
+    intersect_across_knowledge_types: bool = True,
+) -> MessageAccumulator:
+    message_matches = MessageAccumulator()
+    knowledge_type_hit_count = 0  # How many types of knowledge matched?
+    for knowledge_type, matches_by_type in knowledge_matches.items():
+        if matches_by_type and matches_by_type.semantic_ref_matches:
+            knowledge_type_hit_count += 1
+            for match in matches_by_type.semantic_ref_matches:
+                message_matches.add_messages_for_semantic_ref(
+                    semantic_refs[match.semantic_ref_ordinal],
+                    match.score,
+                )
+    if intersect_across_knowledge_types and knowledge_type_hit_count > 0:
+        # Intersect the sets of messages that matched each knowledge type
+        relevant_messages = message_matches.get_with_hit_count(knowledge_type_hit_count)
+        if relevant_messages:
+            message_matches = MessageAccumulator(relevant_messages)
+    message_matches.smooth_scores()
+    return message_matches

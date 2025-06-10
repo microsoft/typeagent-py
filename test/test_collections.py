@@ -61,7 +61,7 @@ def test_match_accumulator_get_matches_with_min_hit_count():
     accumulator.add("example1", score=0.5)
     accumulator.add("example2", score=2.0)
 
-    matches = list(accumulator._matches_with_min_hit_count(min_hit_count=2))
+    matches = list(accumulator._matches_with_min_hit_count(min_hit_count=2))  # type: ignore  # Need an internal method.
     assert len(matches) == 1
     assert matches[0].value == "example1"
 

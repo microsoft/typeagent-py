@@ -27,7 +27,7 @@ parser.add_argument(
 )
 
 
-def test_main(needs_auth):
+def test_main(needs_auth: None):
     # auth is needed because we use embeddings.
     # TODO: Only use the embeddings loaded from the file and cached.
     asyncio.run(main(DEFAULT_FILE))

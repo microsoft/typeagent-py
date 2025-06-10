@@ -7,12 +7,14 @@ from dataclasses import dataclass, field
 import heapq
 import math
 import sys
-from typing import Set, cast
+from typing import Literal, Set, cast
 
 from .interfaces import (
     ISemanticRefCollection,
     Knowledge,
     KnowledgeType,
+    MessageOrdinal,
+    ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SemanticRef,
     SemanticRefOrdinal,
@@ -53,7 +55,7 @@ class MatchAccumulator[T]:
         self._matches[match.value] = match
 
     # TODO: Maybe make the callers call clear_matches()?
-    def set_matches(self, matches: Iterable[Match[T]], *, clear=False) -> None:
+    def set_matches(self, matches: Iterable[Match[T]], *, clear: bool = False) -> None:
         if clear:
             self.clear_matches()
         for match in matches:
@@ -67,21 +69,35 @@ class MatchAccumulator[T]:
 
     # TODO: Rename to add_exact if we ever add add_related
     def add(self, value: T, score: float, is_exact_match: bool = True) -> None:
-        assert is_exact_match, "Only exact matches are supported"
-        existing = self.get_match(value)
-        if existing is not None:
-            existing.hit_count += 1
-            existing.score += score
+        existing_match = self.get_match(value)
+        if existing_match is not None:
+            if is_exact_match:
+                existing_match.hit_count += 1
+                existing_match.score += score
+            else:
+                existing_match.related_hit_count += 1
+                existing_match.related_score += score
         else:
-            self.set_match(
-                Match(
-                    value=value,
-                    hit_count=1,
-                    score=score,
-                    related_hit_count=0,
-                    related_score=0,
+            if is_exact_match:
+                self.set_match(
+                    Match(
+                        value,
+                        hit_count=1,
+                        score=score,
+                        related_hit_count=0,
+                        related_score=0.0,
+                    )
                 )
-            )
+            else:
+                self.set_match(
+                    Match(
+                        value,
+                        hit_count=1,
+                        score=0.0,
+                        related_hit_count=1,
+                        related_score=score,
+                    )
+                )
 
     def add_union(self, other: "MatchAccumulator[T]") -> None:
         """Add matches from another collection of matches."""
@@ -93,8 +109,8 @@ class MatchAccumulator[T]:
                 self.combine_matches(existing_match, other_match)
 
     def intersect(
-        self, other: "MatchAccumulator", intersection: "MatchAccumulator"
-    ) -> "MatchAccumulator":
+        self, other: "MatchAccumulator[T]", intersection: "MatchAccumulator[T]"
+    ) -> "MatchAccumulator[T]":
         """Intersect with another collection of matches."""
         for self_match in self:
             other_match = other.get_match(self_match.value)
@@ -103,7 +119,7 @@ class MatchAccumulator[T]:
                 intersection.set_match(self_match)
         return intersection
 
-    def combine_matches(self, match: Match, other: Match) -> None:
+    def combine_matches(self, match: Match[T], other: Match[T]) -> None:
         """Combine the other match into the first."""
         match.hit_count += other.hit_count
         match.score += other.score
@@ -135,7 +151,7 @@ class MatchAccumulator[T]:
         if not self._matches:
             return []
         if max_matches and max_matches > 0:
-            top_list = TopNList(max_matches)
+            top_list = TopNList[T](max_matches)
             for match in self._matches_with_min_hit_count(min_hit_count):
                 top_list.push(match.value, match.score)
             ranked = top_list.by_rank()
@@ -212,7 +228,7 @@ def get_smooth_score(
         return 0.0
 
 
-def add_smooth_related_score_to_match_score(match: Match) -> None:
+def add_smooth_related_score_to_match_score[T](match: Match[T]) -> None:
     """Add the smooth related score to the match score."""
     if match.related_hit_count > 0:
         # Related term matches can be noisy and duplicative.
@@ -221,6 +237,11 @@ def add_smooth_related_score_to_match_score(match: Match) -> None:
             match.related_score, match.related_hit_count
         )
         match.score += smooth_related_score
+
+
+def smooth_match_score(match: Match) -> None:
+    if match.hit_count > 0:
+        match.score = get_smooth_score(match.score, match.hit_count)
 
 
 type KnowledgePredicate[T: Knowledge] = Callable[[T], bool]
@@ -336,16 +357,72 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             other, SemanticRefAccumulator
         )  # Runtime check b/c other's type mismatch
         intersection = SemanticRefAccumulator()
-        super().intersect(other, intersection)
+        super().intersect(
+            other, intersection
+        )  # TODO: Why is this a red wiggle line in strict mode?
         if len(intersection) > 0:
             intersection.search_term_matches.update(self.search_term_matches)
             intersection.search_term_matches.update(other.search_term_matches)
         return intersection
 
-    # def to_scored_semantic_refs ...
+    def to_scored_semantic_refs(self) -> list[ScoredSemanticRefOrdinal]:
+        """Convert the accumulator to a list of scored semantic references."""
+        return [
+            ScoredSemanticRefOrdinal(
+                semantic_ref_ordinal=match.value,
+                score=match.score,
+            )
+            for match in self.get_sorted_by_score()
+        ]
 
 
-# TODO: MessageAccumulator, intersectScoredMessageOrdinals
+class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
+    def __init__(self, matches: list[Match[MessageOrdinal]] | None = None):
+        super().__init__()
+        if matches:
+            self.set_matches(matches)
+
+    def add(
+        self, value: MessageOrdinal, score: float, is_exact_match: bool = True
+    ) -> None:
+        match = self.get_match(value)
+        if match is None:
+            match = Match(value, score, 1, 0.0, 0)
+            self.set_match(match)
+        elif score > match.score:
+            match.score = score
+            # TODO: Question(Guido->Umesh): Why not increment hit_count always?
+            match.hit_count += 1
+
+    # TODO: add_messages_from_locations
+
+    def add_messages_for_semantic_ref(
+        self,
+        semantic_ref: SemanticRef,
+        score: float,
+    ) -> None:
+        message_ordinal_start = semantic_ref.range.start.message_ordinal
+        if semantic_ref.range.end is not None:
+            message_ordinal_end = semantic_ref.range.end.message_ordinal
+            for message_ordinal in range(message_ordinal_start, message_ordinal_end):
+                self.add(message_ordinal, score)
+        else:
+            self.add(message_ordinal_start, score)
+
+    # TODO: add_range, add_scored_matches, intersect.
+
+    def smooth_scores(self) -> None:
+        for match in self:
+            smooth_match_score(match)
+
+    def to_scored_message_ordinals(self) -> list[ScoredMessageOrdinal]:
+        sorted_matches = self.get_sorted_by_score()
+        return [ScoredMessageOrdinal(m.value, m.score) for m in sorted_matches]
+
+    # TODO: select_messages_in_budget, from_scored_ordinals.
+
+
+# TODO: intersectScoredMessageOrdinals
 
 
 @dataclass
@@ -355,11 +432,14 @@ class TextRangeCollection(Iterable[TextRange]):
     def __init__(
         self,
         ranges: list[TextRange] | None = None,
+        ensure_sorted: bool = False,
     ) -> None:
-        if ranges is None:
-            ranges = []
-        self._ranges = ranges  # TODO: Maybe make a copy?
-        # TODO: Maybe sort? Or assert it's sorted?
+        if ensure_sorted:
+            self._ranges = []
+            if ranges:
+                self.add_ranges(ranges)
+        else:
+            self._ranges = ranges if ranges is not None else []
 
     def __len__(self) -> int:
         return len(self._ranges)
@@ -401,8 +481,7 @@ class TextRangeCollection(Iterable[TextRange]):
 
 @dataclass
 class TextRangesInScope:
-    def __init__(self, text_ranges: list[TextRangeCollection] | None = None):
-        self.text_ranges = text_ranges
+    text_ranges: list[TextRangeCollection] | None = None
 
     def add_text_ranges(
         self,
@@ -492,7 +571,7 @@ class TermSet:
 class PropertyTermSet:
     """A collection of property terms with support for adding, checking, and clearing."""
 
-    terms: dict[str, Term] = field(default_factory=dict)
+    terms: dict[str, Term] = field(default_factory=dict[str, Term])
 
     def add(self, property_name: str, property_value: Term) -> None:
         """Add a property term to the set."""
@@ -525,16 +604,16 @@ class ScoredItem[T]:
     item: T
     score: float
 
-    def __lt__(self, other: "ScoredItem") -> bool:
+    def __lt__(self, other: "ScoredItem[T]") -> bool:
         return self.score < other.score
 
-    def __gt__(self, other: "ScoredItem") -> bool:
+    def __gt__(self, other: "ScoredItem[T]") -> bool:
         return self.score > other.score
 
-    def __le__(self, other: "ScoredItem") -> bool:
+    def __le__(self, other: "ScoredItem[T]") -> bool:
         return self.score <= other.score
 
-    def __ge__(self, other: "ScoredItem") -> bool:
+    def __ge__(self, other: "ScoredItem[T]") -> bool:
         return self.score >= other.score
 
 

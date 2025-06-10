@@ -2,8 +2,11 @@
 # Licensed under the MIT License.
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
-from datetime import datetime as Datetime, timedelta as Timedelta
+from dataclasses import field
+from datetime import (
+    datetime as Datetime,  # For export.
+    timedelta as Timedelta,  # type: ignore  # For export.
+)
 from typing import (
     Any,
     Callable,
@@ -14,6 +17,8 @@ from typing import (
     TypedDict,
     overload,
 )
+
+from pydantic.dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
 from ..aitools.vectorbase import VectorBase
@@ -81,7 +86,7 @@ class ITermToSemanticRefIndex(Protocol):
         self,
         term: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
-    ) -> None:
+    ) -> str:
         raise NotImplementedError
 
     def remove_term(self, term: str, semantic_ref_ordinal: SemanticRefOrdinal) -> None:
@@ -334,24 +339,24 @@ class ITermToRelatedTerms(Protocol):
 
 class ITermToRelatedTermsFuzzy(Protocol):
     async def add_terms(
-        self, terms: Sequence[str], event_handler: "IndexingEventHandlers | None" = None
+        self, texts: list[str], event_handler: "IndexingEventHandlers | None" = None
     ) -> "ListIndexingResult":
         raise NotImplementedError
 
     async def lookup_term(
         self,
         text: str,
-        max_matches: int | None = None,
-        threshold_score: float | None = None,
+        max_hits: int | None = None,
+        min_score: float | None = None,
     ) -> list[Term]:
         raise NotImplementedError
 
     async def lookup_terms(
         self,
-        text_array: Sequence[str],
-        max_matches: int | None = None,
-        threshold_score: float | None = None,
-    ) -> list[Sequence[Term]]:
+        texts: list[str],
+        max_hits: int | None = None,
+        min_score: float | None = None,
+    ) -> list[list[Term]]:
         raise NotImplementedError
 
 
@@ -361,7 +366,7 @@ class ITermToRelatedTermsIndex(Protocol):
         raise NotImplementedError
 
     @property
-    def fuzzy_index(self) -> VectorBase | None:
+    def fuzzy_index(self) -> ITermToRelatedTermsFuzzy | None:
         raise NotImplementedError
 
     def serialize(self) -> "TermsToRelatedTermsIndexData":
@@ -503,7 +508,7 @@ class SearchTerm:
 
 
 # Well-known knowledge properties.
-KnowledgePropertyName = Literal[
+type KnowledgePropertyName = Literal[
     "name",  # the name of an entity
     "type",  # the type of an entity
     "verb",  # the verb of an action
@@ -543,10 +548,10 @@ class SearchTermGroup:
     """A group of search terms."""
 
     boolean_op: Literal["and", "or", "or_max"]
-    terms: list["SearchTermGroupTypes"]
+    terms: list["SearchTermGroupTypes"] = field(default_factory=list)
 
 
-SearchTermGroupTypes = SearchTerm | PropertySearchTerm | SearchTermGroup
+type SearchTermGroupTypes = SearchTerm | PropertySearchTerm | SearchTermGroup
 
 
 @dataclass
@@ -564,6 +569,7 @@ class WhenFilter:
     knowledge_type: KnowledgeType | None = None
     date_range: DateRange | None = None
     thread_description: str | None = None
+    tags: list[str] | None = None
 
     # SCOPE DEFINITION
 

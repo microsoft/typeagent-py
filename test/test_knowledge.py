@@ -13,7 +13,7 @@ from typeagent.knowpro.knowledge import (
 )
 from typeagent.knowpro import convknowledge, kplib
 
-from fixtures import needs_auth
+from fixtures import needs_auth  # type: ignore  # Used!
 
 
 @pytest.fixture

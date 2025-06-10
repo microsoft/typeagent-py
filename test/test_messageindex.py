@@ -6,14 +6,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 from typeagent.knowpro.secindex import (
     ConversationSecondaryIndexes,
-    build_secondary_indexes,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.messageindex import (
     MessageTextIndex,
     build_message_index,
 )
-from typeagent.knowpro.importing import ConversationSettings, MessageTextIndexSettings
+from typeagent.knowpro.importing import MessageTextIndexSettings
 
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -26,7 +25,7 @@ from typeagent.knowpro.interfaces import (
 )
 from typeagent.knowpro.textlocindex import TextToTextLocationIndex
 
-from fixtures import needs_auth
+from fixtures import needs_auth  # type: ignore  # It's used!
 
 
 @pytest.fixture

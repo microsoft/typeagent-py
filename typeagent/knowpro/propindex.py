@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 import enum
-from typing import cast
 
 from .collections import TextRangesInScope
 from .interfaces import (
@@ -11,7 +10,6 @@ from .interfaces import (
     ISemanticRefCollection,
     ListIndexingResult,
     ScoredSemanticRefOrdinal,
-    SemanticRef,
     SemanticRefOrdinal,
     Tag,
 )
@@ -28,6 +26,7 @@ class PropertyNames(enum.Enum):
     Object = "object"
     IndirectObject = "indirectObject"
     Tag = "tag"
+    Topic = "topic"
 
 
 def add_facet(
@@ -44,7 +43,7 @@ def add_facet(
         if facet.value is not None:
             property_index.add_property(
                 PropertyNames.FacetValue.value,
-                str(facet),
+                str(facet.value),
                 semantic_ref_ordinal,
             )
 
@@ -102,7 +101,6 @@ def add_action_properties_to_index(
 
 
 def build_property_index(conversation: IConversation) -> ListIndexingResult:
-    csi = conversation.secondary_indexes
     return add_to_property_index(
         conversation,
         0,

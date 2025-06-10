@@ -33,8 +33,8 @@ class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
 
     def __getitem__(self, arg: Any) -> Any:
         if isinstance(arg, slice):
-            assert arg.step in (None, 1)
-            return self._get_slice(arg.start, arg.stop)
+            assert arg.step in (None, 1)  # type: ignore  # slice weirdness
+            return self._get_slice(arg.start, arg.stop)  # type: ignore  # Use of internal; slice weirdness
         if isinstance(arg, int):
             return self._get(arg)
         if isinstance(arg, list):
@@ -70,10 +70,7 @@ class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
         self.items.extend(items)
 
 
-class SemanticRefCollection(
-    Collection[SemanticRef, SemanticRefOrdinal],
-    ICollection[SemanticRef, SemanticRefOrdinal],
-):
+class SemanticRefCollection(Collection[SemanticRef, SemanticRefOrdinal]):
     """A collection of semantic references."""
 
 

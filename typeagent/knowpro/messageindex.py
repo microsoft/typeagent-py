@@ -2,8 +2,7 @@
 # Licensed under the MIT License.
 
 from collections.abc import Iterable
-from dataclasses import dataclass
-from typing import Any
+from typing import Callable
 
 from ..aitools.embeddings import NormalizedEmbedding
 from .importing import MessageTextIndexSettings
@@ -40,7 +39,19 @@ async def build_message_index[
 
 
 class IMessageTextEmbeddingIndex(IMessageTextIndex):
+    def __len__(self) -> int:
+        raise NotImplementedError
+
     async def generate_embedding(self, text: str) -> NormalizedEmbedding:
+        raise NotImplementedError
+
+    def lookup_by_embedding(
+        self,
+        text_embedding: NormalizedEmbedding,
+        max_matches: int | None = None,
+        threshold_score: float | None = None,
+        predicate: Callable[[MessageOrdinal], bool] | None = None,
+    ) -> list[ScoredMessageOrdinal]:
         raise NotImplementedError
 
     def lookup_in_subset_by_embedding(
@@ -112,23 +123,21 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
 
     async def generate_embedding(self, text: str) -> NormalizedEmbedding:
         # Note: if you rename generate_embedding, be sure to also fix is_message_text_embedding_index.
-        # TODO: This is unused -- remove it?
         # TODO: Retries?
         # TODO: Find a prettier API to get an embedding rather than using _vector_base?
-        return await self.text_location_index._vector_base.get_embedding(text)
+        return await self.text_location_index.generate_embedding(text)  # type: ignore  # Must use internal.
 
-    # TODO: Waiting for text_location_index.lookup_in_subset_by_embeddings.
-    # def lookup_in_subset_by_embedding(
-    #     self,
-    #     text_embedding: NormalizedEmbedding,
-    #     ordinals_to_search: list[MessageOrdinal],
-    #     max_matches: int | None = None,
-    #     threshold_score: float | None = None,
-    # ) -> list[ScoredMessageOrdinal]:
-    #     scored_text_locations = self.text_location_index.lookup_in_subset_by_embedding(
-    #         text_embedding, ordinals_to_search, max_matches, threshold_score
-    #     )
-    #     return self.to_scored_message_ordinals(scored_text_locations)
+    def lookup_in_subset_by_embedding(
+        self,
+        text_embedding: NormalizedEmbedding,
+        ordinals_to_search: list[MessageOrdinal],
+        max_matches: int | None = None,
+        threshold_score: float | None = None,
+    ) -> list[ScoredMessageOrdinal]:
+        scored_text_locations = self.text_location_index.lookup_in_subset_by_embedding(
+            text_embedding, ordinals_to_search, max_matches, threshold_score
+        )
+        return self.to_scored_message_ordinals(scored_text_locations)
 
     def to_scored_message_ordinals(
         self, scored_locations: list[ScoredTextLocation]

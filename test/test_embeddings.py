@@ -6,9 +6,9 @@ import pytest
 from pytest_mock import MockerFixture
 import numpy as np
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, NormalizedEmbedding
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
-from fixtures import needs_auth
+from fixtures import needs_auth  # type: ignore  # Needed!
 
 
 @pytest.fixture

@@ -1,13 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import dataclass, field
 import os
 import re
-from typing import cast, Sequence
 
 from ..knowpro.importing import ConversationSettings
-from ..knowpro.interfaces import Datetime, IMessageCollection, MessageOrdinal
+from ..knowpro.interfaces import Datetime, IMessageCollection
 from ..knowpro.storage import MessageCollection
 from .podcast import Podcast, PodcastMessage
 

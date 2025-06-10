@@ -12,15 +12,15 @@ authors = [
   { name = "Umesh Madan" },
   { name = "Guido van Rossum" },
 ]
-requires-python = "==3.12.7"
+requires-python = ">=3.12.7"
 dependencies = [
   "azure-identity>=1.22.0",
   "black>=25.1.0",
   "build>=1.2.2.post1",
-  "numpy>=2.2.5",
-  "openai>=1.77.0",
+  "numpy>=2.2.6",
+  "openai>=1.81.0",
   "pydantic>=2.11.4",
-  "pyright>=1.1.400",
+  "pyright>=1.1.401",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",

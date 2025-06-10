@@ -25,7 +25,7 @@ from typeagent.knowpro.secindex import (
 from typeagent.knowpro.storage import MessageCollection, SemanticRefCollection
 from typeagent.knowpro.timestampindex import TimestampToTextRangeIndex
 
-from fixtures import needs_auth
+from fixtures import needs_auth  # type: ignore  # Yes it is used!
 
 
 class SimpleMessage(IMessage):

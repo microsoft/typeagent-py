@@ -111,8 +111,8 @@ class AsyncEmbeddingModel:
 
     async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
         """Retrieve embeddings for multiple keys, using the cache."""
-        embeddings = []
-        missing_keys = []
+        embeddings: list[NormalizedEmbedding | None] = []
+        missing_keys: list[str] = []
 
         # Collect cached embeddings and identify missing keys
         for key in keys:

@@ -4,19 +4,19 @@
 import asyncio
 import os
 
-from fixtures import needs_auth, temp_dir
+from fixtures import needs_auth, temp_dir  # type: ignore  # Yes they are used!
 
 from typeagent.podcasts.podcast import Podcast
 from typeagent.knowpro import importing
-from typeagent.knowpro.interfaces import Datetime, IndexingEventHandlers
-from typeagent.podcasts.podcast_import import import_podcast
+from typeagent.knowpro.interfaces import Datetime
+from typeagent.podcasts import podcast_import
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
 
 
 def test_import_podcast(needs_auth, temp_dir):
     # Import the podcast
     settings = importing.ConversationSettings()
-    pod = import_podcast(
+    pod = podcast_import.import_podcast(
         "testdata/FakePodcast.txt",
         None,
         Datetime.now(),

@@ -11,6 +11,9 @@ from ..aitools import auth
 from . import kplib
 
 
+# TODO: Move ModelWrapper and create_typechat_model() to aitools package.
+
+
 class ModelWrapper(typechat.TypeChatLanguageModel):
     def __init__(
         self,
@@ -53,7 +56,7 @@ def create_typechat_model() -> typechat.TypeChatLanguageModel:
 class KnowledgeExtractor:
     model: typechat.TypeChatLanguageModel = field(default_factory=create_typechat_model)
     max_chars_per_chunk: int = 2048
-    merge_action_knowledge: int = True
+    merge_action_knowledge: bool = True
     # Not in the signature:
     translator: typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse] = field(
         init=False
@@ -80,7 +83,7 @@ class KnowledgeExtractor:
         translator = typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse](
             model, validator, kplib.KnowledgeResponse
         )
-        schema_text = translator._schema_str.rstrip()
+        schema_text = translator._schema_str.rstrip()  # type: ignore  # Must access internal.
 
         def create_request_prompt(intent: str) -> str:
             return (
@@ -98,11 +101,11 @@ class KnowledgeExtractor:
                 + f"with 2 spaces of indentation and no properties with the value undefined:\n"
             )
 
-        translator._create_request_prompt = create_request_prompt
+        translator._create_request_prompt = create_request_prompt  # type: ignore  # Must overwrite internal.
         return translator
 
     def merge_action_knowledge_into_response(
         self, knowledge: kplib.KnowledgeResponse
     ) -> None:
         """Merge action knowledge into a single knowledge object."""
-        raise NotImplementedError  # TODO: Implement this method.
+        raise NotImplementedError("TODO")

@@ -2,10 +2,9 @@
 # Licensed under the MIT License.
 
 from dataclasses import dataclass
-from typing import Any, NamedTuple, TypedDict, cast
+from typing import NamedTuple
 
 import numpy as np
-from numpy.typing import NDArray
 
 from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
 
@@ -135,15 +134,15 @@ async def main():
 
     epoch = time.time()
 
-    def log(*args, end="\n"):
+    def log(*args: object, end: str = "\n"):
         stamp = f"{time.time()-epoch:7.3f}"
-        args = list(args)
-        for i, arg in enumerate(args):
+        new_args = list(args)
+        for i, arg in enumerate(new_args):
             if isinstance(arg, str) and "\n" in arg:
-                args[i] = arg.replace("\n", f"\n{stamp}: ")
-        print(f"{stamp}:", *args, end=end)
+                new_args[i] = arg.replace("\n", f"\n{stamp}: ")
+        print(f"{stamp}:", *new_args, end=end)
 
-    def debugv(heading):
+    def debugv(heading: str):
         log(f"{heading}: bool={bool(v)}, len={len(v)}")
 
     auth.load_dotenv()
