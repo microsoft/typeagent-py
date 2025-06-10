@@ -37,7 +37,7 @@ class ConversationThreads(IConversationThreads):
         )
         return [
             ScoredThreadOrdinal(
-                match.ordinal,
+                match.item,
                 match.score,
             )
             for match in matches

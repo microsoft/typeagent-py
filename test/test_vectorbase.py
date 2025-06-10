@@ -7,7 +7,6 @@ import numpy as np
 from typeagent.aitools.vectorbase import (
     VectorBase,
     TextEmbeddingIndexSettings,
-    ScoredOrdinal,
 )
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, NormalizedEmbedding
 
@@ -106,7 +105,7 @@ async def test_fuzzy_lookup(
 
     results = await vector_base.fuzzy_lookup("word1", max_hits=2)
     assert len(results) == 2
-    assert results[0].ordinal == 0
+    assert results[0].item == 0
     assert results[0].score > 0.9  # High similarity score for the same word
 
 

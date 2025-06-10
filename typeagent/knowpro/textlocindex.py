@@ -9,6 +9,8 @@ from ..aitools.vectorbase import VectorBase
 
 from .fuzzyindex import Scored, EmbeddingIndex
 from .importing import TextEmbeddingIndexSettings
+import asyncio
+from typing import Sequence
 from .interfaces import (
     TextToTextLocationIndexData,
     IndexingEventHandlers,
@@ -72,43 +74,16 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
     async def add_text_location(
         self, text: str, text_location: TextLocation
     ) -> ListIndexingResult:
-        # Use embedding index instead of vector base
-        result = await add_text_to_embedding_index(
-            self._embedding_index,
-            self._settings.embedding_model,
-            [text],
-        )
-        if result.number_completed > 0:
-            self._text_locations.append(text_location)
-        return result
+        return await self.add_text_locations([(text, text_location)])
 
     async def add_text_locations(
         self,
         text_and_locations: list[tuple[str, TextLocation]],
         event_handler: IndexingEventHandlers | None = None,
-        batch_size: int | None = None,
     ) -> ListIndexingResult:
-        # Use batch embedding index functionality
-        indexing_events = create_message_indexing_event_handler(
-            text_and_locations, event_handler
-        )
-        result = await add_text_batch_to_embedding_index(
-            self._embedding_index,
-            self._settings.embedding_model,
-            [text for text, _ in text_and_locations],
-            batch_size or self._settings.batch_size,
-            indexing_events,
-        )
-
-        if result.number_completed > 0:
-            if result.number_completed == len(text_and_locations):
-                self._text_locations.extend([loc for _, loc in text_and_locations])
-            else:
-                self._text_locations.extend(
-                    [loc for _, loc in text_and_locations[: result.number_completed]]
-                )
-
-        return result
+        await self._embedding_index.add_texts([text for text, _ in text_and_locations])
+        self._text_locations.extend([loc for _, loc in text_and_locations])
+        return ListIndexingResult(number_completed=len(text_and_locations))
 
     async def lookup_text(
         self,
@@ -116,13 +91,11 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[ScoredTextLocation]:
-        # Use embedding index lookup method
-        matches = await index_of_nearest_text_in_index(
-            self._embedding_index,
-            self._settings.embedding_model,
-            text,
-            max_matches,
-            threshold_score,
+        embedding = await self.generate_embedding(text)
+        matches = self._embedding_index.get_indexes_of_nearest(
+            embedding,
+            max_matches=max_matches,
+            min_score=threshold_score if threshold_score is not None else 0.85,
         )
         return [
             ScoredTextLocation(self._text_locations[match.item], match.score)
@@ -136,10 +109,9 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[ScoredTextLocation]:
-        matches = await index_of_nearest_text_in_index_subset(
-            self._embedding_index,
-            self._settings.embedding_model,
-            text,
+        embedding = await self.generate_embedding(text)
+        matches = self._embedding_index.get_indexes_of_nearest_in_subset(
+            embedding,
             ordinals_to_search,
             max_matches,
             threshold_score,
@@ -152,8 +124,7 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
     async def generate_embedding(
         self, text: str, cache: bool = True
     ) -> NormalizedEmbedding:
-        """Generate an embedding for the given text."""
-        return await self._embedding_index._vector_base.get_embedding(text, cache)
+        return await self._embedding_index.get_embedding(text, cache)
 
     def lookup_by_embedding(
         self,
@@ -216,22 +187,3 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
 
         self._text_locations = [TextLocation.deserialize(loc) for loc in text_locations]
         self._embedding_index.deserialize(embeddings)
-
-
-def create_message_indexing_event_handler(
-    text_and_locations: list[tuple[str, TextLocation]],
-    event_handler: IndexingEventHandlers | None = None,
-) -> IndexingEventHandlers | None:
-    if event_handler is not None and event_handler.on_text_indexed is not None:
-        on_text_indexed = event_handler.on_text_indexed
-        return IndexingEventHandlers(
-            on_embeddings_created=lambda texts, batch, batch_start_at: (
-                on_text_indexed(
-                    text_and_locations,
-                    text_and_locations[batch_start_at : batch_start_at + len(batch)],
-                    batch_start_at,
-                )
-                or True
-            )
-        )
-    return event_handler

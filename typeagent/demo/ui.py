@@ -3,13 +3,13 @@
 
 import asyncio
 import io
-from pprint import pprint
 import readline
 import shutil
 import sys
 import traceback
 from typing import Any
 
+from black import format_str, FileMode
 import typechat
 
 from ..aitools.auth import load_dotenv
@@ -33,6 +33,15 @@ from .search_query_schema import ActionTerm, SearchQuery
 from .querycompiler import SearchQueryCompiler
 
 cap = min  # More readable name for capping a value at some limit
+
+
+def pretty_print(obj: object) -> None:
+    """Pretty-print an object using black.
+
+    Only works if the repr() is a valid Python expression.
+    """
+    line_width = cap(200, shutil.get_terminal_size().columns)
+    print(format_str(repr(obj), mode=FileMode(line_length=line_width)))
 
 
 def main() -> None:
@@ -124,8 +133,6 @@ async def process_query(
     conversation: IConversation[IMessage, Any],
     translator: typechat.TypeChatJsonTranslator[SearchQuery],
 ):
-    line_width = cap(200, shutil.get_terminal_size().columns)
-
     # Gradually turn the query text into something we can use to search.
 
     # TODO: # 0. Recognize @-commands like "@search" and handle them specially.
@@ -138,7 +145,7 @@ async def process_query(
     if search_query is None:
         print("Failed to translate command to search terms.")
         return
-    pprint(search_query, width=line_width)
+    pretty_print(search_query)
     print()
 
     # 2. Translate the search query into something directly usable as a query.
@@ -149,7 +156,7 @@ async def process_query(
         return
     for i, query_expr in enumerate(query_exprs):
         print(f"---------- {i} ----------")
-        pprint(query_expr, width=line_width)
+        pretty_print(query_expr)
     print()
 
     # 3. Search!

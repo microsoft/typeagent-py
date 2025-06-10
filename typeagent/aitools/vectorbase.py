@@ -1,12 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import Callable
 
 import numpy as np
 
 from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
+
+
+@dataclass
+class Scored:
+    item: int
+    score: float
 
 
 @dataclass
@@ -33,11 +40,6 @@ class TextEmbeddingIndexSettings:
         ), f"Given embedding size {embedding_size} doesn't match model's embedding size {self.embedding_size}"
         self.min_score = min_score if min_score is not None else 0.85
         self.max_matches = max_matches
-
-
-class ScoredOrdinal(NamedTuple):
-    ordinal: int
-    score: float
 
 
 class VectorBase:
@@ -79,6 +81,11 @@ class VectorBase:
         if key is not None:
             self._model.add_embedding(key, embedding)
 
+    def add_embeddings(self, embeddings: NormalizedEmbeddings) -> None:
+        assert embeddings.ndim == 2
+        assert embeddings.shape[1] == self._embedding_size
+        self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
+
     async def add_key(self, key: str, cache: bool = True) -> None:
         embeddings = (await self.get_embedding(key, cache=cache)).reshape(
             1, -1
@@ -89,29 +96,64 @@ class VectorBase:
         embeddings = await self.get_embeddings(keys, cache=cache)
         self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
 
-    async def fuzzy_lookup(
-        self, key: str, max_hits: int | None = None, min_score: float | None = None
-    ) -> list[ScoredOrdinal]:
+    def fuzzy_lookup_embedding(
+        self,
+        embedding: NormalizedEmbedding,
+        max_hits: int | None = None,
+        min_score: float | None = None,
+        predicate: Callable[[int], bool] | None = None,
+    ) -> list[Scored]:
         if max_hits is None:
             max_hits = 10
         if min_score is None:
             min_score = 0.0
-        embedding = await self.get_embedding(key)
-        scores = np.dot(self._vectors, embedding)  # This does most of the work
+        # This line does most of the work:
+        scores: Iterable[float] = np.dot(self._vectors, embedding)
         scored_ordinals = [
-            ScoredOrdinal(i, float(score))
+            Scored(i, score)
             for i, score in enumerate(scores)
-            if score >= min_score
+            if score >= min_score and (predicate is None or predicate(i))
         ]
         scored_ordinals.sort(key=lambda x: x.score, reverse=True)
         return scored_ordinals[:max_hits]
+
+    # TODO: Make this and fizzy_lookup_embedding() more similar.
+    def fuzzy_lookup_embedding_in_subset(
+        self,
+        embedding: NormalizedEmbedding,
+        ordinals_of_subset: list[int],
+        max_hits: int | None = None,
+        min_score: float | None = None,
+    ) -> list[Scored]:
+        return self.fuzzy_lookup_embedding(
+            embedding, max_hits, min_score, lambda i: i in ordinals_of_subset
+        )
+
+    async def fuzzy_lookup(
+        self,
+        key: str,
+        max_hits: int | None = None,
+        min_score: float | None = None,
+        predicate: Callable[[int], bool] | None = None,
+    ) -> list[Scored]:
+        embedding = await self.get_embedding(key)
+        return self.fuzzy_lookup_embedding(
+            embedding, max_hits=max_hits, min_score=min_score, predicate=predicate
+        )
 
     def clear(self) -> None:
         self._vectors = np.array([], dtype=np.float32)
         self._vectors.shape = (0, self._embedding_size)
 
-    def serialize_embedding_at(self, ordinal: int) -> NormalizedEmbedding | None:
-        return self._vectors[ordinal] if 0 <= ordinal < len(self._vectors) else None
+    def get_embedding_at(self, pos: int) -> NormalizedEmbedding:
+        if 0 <= pos < len(self._vectors):
+            return self._vectors[pos]
+        raise IndexError(
+            f"Index {pos} out of bounds for embedding index of size {len(self)}"
+        )
+
+    def serialize_embedding_at(self, pos: int) -> NormalizedEmbedding | None:
+        return self._vectors[pos] if 0 <= pos < len(self._vectors) else None
 
     def serialize(self) -> NormalizedEmbeddings:
         assert self._vectors.shape == (len(self._vectors), self._embedding_size)
@@ -181,7 +223,7 @@ async def main():
     log("\nFuzzy lookups:")
     for word in words + ["pancakes", "hello world", "book", "author"]:
         neighbors = await v.fuzzy_lookup(word, max_hits=3)
-        log(f"{word}:", [(nb.ordinal, nb.score) for nb in neighbors])
+        log(f"{word}:", [(nb.item, nb.score) for nb in neighbors])
 
 
 if __name__ == "__main__":

@@ -117,7 +117,7 @@ async def main(filename: str):
     assert isinstance(ser2, dict), f"ser2 is not dict but {type(ser2)!r}"
     assert len(ser2) > 0, f"ser2 is empty {ser2!r}"
     assert "semanticRefs" in ser2, f"'semantic_refs' is not a key in {ser2.keys()!r}"
-    assert ser1 == ser2, f"ser1 != ser2"
+    assert str(ser1) == str(ser2), f"ser1 != ser2"
 
 
 if __name__ == "__main__":
