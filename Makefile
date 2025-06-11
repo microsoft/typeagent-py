@@ -18,6 +18,10 @@ check: venv
 test: venv
 	.venv/bin/python -m pytest test
 
+.PHONY: demo
+demo: venv
+	.venv/bin/python -m typeagent.demo
+
 .PHONY: build
 build: venv
 	.venv/bin/python -m build --wheel

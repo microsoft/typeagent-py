@@ -164,7 +164,7 @@ def lookup_term(
 
 
 @dataclass
-class QueryEvalContext:
+class QueryEvalContext[TMessage: IMessage, TIndex: ITermToSemanticRefIndex]:
     """Context for evaluating a query within a conversation.
 
     This class provides the necessary context for query evaluation, including
@@ -175,7 +175,7 @@ class QueryEvalContext:
     # TODO: Make property and timestamp indexes NON-OPTIONAL
     # TODO: Move non-index based code to test
 
-    conversation: IConversation[IMessage, ITermToSemanticRefIndex]
+    conversation: IConversation[TMessage, TIndex]
     # If a property secondary index is available, the query processor will use it
     property_index: IPropertyToSemanticRefIndex | None = None
     # If a timestamp secondary index is available, the query processor will use it
@@ -214,12 +214,12 @@ class QueryEvalContext:
         assert self.conversation.semantic_refs is not None
         return self.conversation.semantic_refs[semantic_ref_ordinal]
 
-    def get_message_for_ref(self, semantic_ref: SemanticRef) -> IMessage:
+    def get_message_for_ref(self, semantic_ref: SemanticRef) -> TMessage:
         """Retrieve the message associated with a semantic reference."""
         message_ordinal = semantic_ref.range.start.message_ordinal
         return self.conversation.messages[message_ordinal]
 
-    def get_message(self, message_ordinal: MessageOrdinal) -> IMessage:
+    def get_message(self, message_ordinal: MessageOrdinal) -> TMessage:
         """Retrieve a message by its ordinal."""
         return self.messages[message_ordinal]
 

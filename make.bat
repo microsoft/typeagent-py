@@ -13,6 +13,7 @@ if "%~1"=="" goto help
 if /I "%~1"=="format" goto format
 if /I "%~1"=="check" goto check
 if /I "%~1"=="test" goto test
+if /I "%~1"=="demo" goto demo
 if /I "%~1"=="build" goto build
 if /I "%~1"=="venv" goto venv
 if /I "%~1"=="install-uv" goto install-uv
@@ -38,6 +39,12 @@ goto end
 if not exist ".venv\" call make.bat venv
 echo Running tests...
 .venv\Scripts\python -m pytest test
+goto end
+
+:test
+if not exist ".venv\" call make.bat venv
+echo Running tests...
+.venv\Scripts\python -m typeagent.demo
 goto end
 
 :build
