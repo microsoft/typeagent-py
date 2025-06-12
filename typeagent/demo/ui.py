@@ -95,7 +95,6 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
             readline.remove_history_item(readline.get_current_history_length() - 1)
             break
         if query_text == "pdb":
-            breakpoint()
             continue
 
         asyncio.run(wrap_process_query(query_text, context.conversation, translator))
@@ -160,31 +159,30 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     if not query_exprs:
         print("Failed to translate search query to query expressions.")
         return
-    for i, query_expr in enumerate(query_exprs):
-        print(f"---------- {i} ----------")
-        pretty_print(query_expr)
+    # for i, query_expr in enumerate(query_exprs):
+    #     print(f"---------- {i} ----------")
+    #     pretty_print(query_expr)
     print()
 
     # 3. Search!
     for i, query_expr in enumerate(query_exprs):
-        print(f"Searching with expression {i}:")
+        print(f"Query expression {i}:")
+        pretty_print(query_expr)
         results = await run_search_query(conversation, query_expr)
         if results is None:
             print(f"No results for expression {i}.")
         else:
-            print(f"Results for expression {i}:")
-            # pretty_print(results)
-            for result in results:
-                print_result(result, conversation)
+            for j, result in enumerate(results):
+                print(f"Result {i}.{j}:")
+                print()
                 # pretty_print(result)
+                # print_result(result, conversation)
                 answer = await generate_answer(result, conversation)
-                if answer is None:
-                    print("No answer generated.")
-                elif answer.type == "NoAnswer":
-                    print("Why no answer:", answer.whyNoAnswer)
+                if answer.type == "NoAnswer":
+                    print("Failure:", answer.whyNoAnswer)
                 elif answer.type == "Answered":
-                    print("Generated answer:")
                     print(answer.answer)
+                print()
 
 
 def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
@@ -218,7 +216,7 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
 
 async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     context: ConversationSearchResult, conversation: IConversation[TMessage, TIndex]
-) -> AnswerResponse | None:
+) -> AnswerResponse:
     # TODO: lift translator creation out of the outermost loop.
     model = create_typechat_model()
     translator = create_translator(model, AnswerResponse)
@@ -227,10 +225,9 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     # print(request)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
-        print(f"Error generating answer: {result.message}")
-        return None
-    answer = result.value
-    return answer
+        return AnswerResponse(type="NoAnswer", answer=None, whyNoAnswer=result.message)
+    else:
+        return result.value
 
 
 def create_question_prompt(question: str) -> str:

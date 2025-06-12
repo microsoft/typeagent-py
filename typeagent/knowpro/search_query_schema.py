@@ -44,7 +44,7 @@ class EntityTerm:
             "'*' means match any entity name"
         ),
     ]
-    is_name_pronoun: bool | None = None
+    is_name_pronoun: bool | None
     type: Annotated[
         list[str] | None,
         Doc(
@@ -53,14 +53,14 @@ class EntityTerm:
             "Generic types like 'object', 'thing' etc. are NOT allowed. "
             "An entity can have multiple types; entity types should be single words"
         ),
-    ] = None
+    ]
     facets: Annotated[
         list[FacetTerm] | None,
         Doc(
             "Facet terms search for properties or attributes of the entity. Eg: "
             "color(blue), profession(writer), author(*), aunt(Agatha), weight(4kg), phoneNumber(...), etc."
         ),
-    ] = None
+    ]
 
 
 @dataclass
@@ -71,17 +71,15 @@ class VerbsTerm:
 
 @dataclass
 class ActionTerm:
-    """Action verbs describing the interaction."""
-
     action_verbs: Annotated[
-        VerbsTerm | None, Doc("Action verbs describing the interaction")
-    ] = None
+        VerbsTerm | None, Doc("Action verbs describing the interaction.")
+    ]
     actor_entities: Annotated[
         list[EntityTerm] | Literal["*"],
         Doc(
             "The origin of the action or information, typically the entity performing the action"
         ),
-    ] = "*"
+    ]
     target_entities: Annotated[
         list[EntityTerm] | None,
         Doc(
@@ -89,7 +87,7 @@ class ActionTerm:
             "Action verbs can imply relevant facet names on the targetEntity. "
             "E.g. write -> writer, sing -> singer etc."
         ),
-    ] = None
+    ]
     additional_entities: Annotated[
         list[EntityTerm] | None,
         Doc(
@@ -99,45 +97,48 @@ class ActionTerm:
             "E.g. in the phrase 'Did Jane speak about Bach with Nina', "
             "'Bach' would be the additional entity"
         ),
-    ] = None
+    ]
     is_informational: Annotated[
         bool,
         Doc(
             "Is the intent of the phrase translated to this ActionTerm "
-            "to actually get information about specific entities? "
-            "Examples: true: if asking for specific information about an entity, "
-            "such as 'What is Mia's phone number?' or 'Where did Jane study?' "
-            "false: if involves actions and interactions between entities, "
+            "to actually get information about specific entities?\n"
+            "Examples:\n"
+            "True: if asking for specific information about an entity, "
+            "such as 'What is Mia's phone number?' or 'Where did Jane study?\n"
+            "False: if involves actions and interactions between entities, "
             "such as 'What phone number did Mia mention in her note to Jane?'"
         ),
-    ] = False
+    ]
 
 
 @dataclass
 class SearchFilter:
     """
-    Search filter with action terms, entity terms, and search terms.
+    Search a search engine for:
     entitySearchTerms cannot contain entities already in actionSearchTerms.
     """
 
-    action_search_term: ActionTerm | None = None
-    entity_search_terms: list[EntityTerm] | None = None
+    action_search_term: ActionTerm | None
+    entity_search_terms: list[EntityTerm] | None
     search_terms: Annotated[
         list[str] | None,
         Doc(
-            "Concepts, topics or other terms that don't fit ActionTerms or EntityTerms. "
-            "Do not use noisy searchTerms like 'topic', 'topics', 'subject', "
-            "'discussion' etc. even if they are mentioned in the user request. "
-            "Phrases like 'email address' or 'first name' are a single term. "
-            "Use empty searchTerms array when use asks for summaries."
+            "search_terms:\n"
+            "Concepts, topics or other terms that don't fit ActionTerms or EntityTerms.\n"
+            "- Do not use noisy searchTerms like 'topic', 'topics', 'subject', "
+            "'discussion' etc. even if they are mentioned in the user request.\n"
+            "- Phrases like 'email address' or 'first name' are a single term.\n"
+            "- Use empty searchTerms array when use asks for summaries."
         ),
-    ] = None
+    ]
     time_range: Annotated[
         DateTimeRange | None,
         Doc(
-            "Use only if request explicitly asks for time range, particular year, month etc."
+            "Use only if request explicitly asks for time range, particular year, month etc.\n"
+            "In this time range."
         ),
-    ] = None
+    ]
 
 
 @dataclass
@@ -148,10 +149,11 @@ class SearchExpr:
 
 @dataclass
 class SearchQuery:
-    """
-    One expression for each search required by user request.
-    Each SearchExpr runs independently, so make them standalone by resolving "
-    "references like 'it', 'that', 'them' etc.
-    """
-
-    search_expressions: list[SearchExpr]
+    search_expressions: Annotated[
+        list[SearchExpr],
+        Doc(
+            "One expression for each search required by user request.\n"
+            "Each SearchExpr runs independently, so make them standalone by resolving "
+            "references like 'it', 'that', 'them' etc."
+        ),
+    ]
