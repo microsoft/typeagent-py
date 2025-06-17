@@ -2,7 +2,9 @@
 # Licensed under the MIT License.
 
 import asyncio
+from contextlib import contextmanager
 from dataclasses import asdict
+import time
 import io
 import re
 import shutil
@@ -51,14 +53,29 @@ def pretty_print(obj: object) -> None:
     print(format_str(repr(obj), mode=FileMode(line_length=line_width)).rstrip())
 
 
+@contextmanager
+def timelog(label: str):
+    """Context manager to log the time taken by a block of code."""
+    start_time = time.time()
+    try:
+        yield
+    finally:
+        elapsed_time = time.time() - start_time
+        print(f"{elapsed_time:.3f}s -- {label}")
+
+
 def main() -> None:
     load_dotenv()
-    model = create_typechat_model()
+    with timelog("create typechat model"):
+        model = create_typechat_model()
     translator = create_translator(model, SearchQuery)
+
     file = "testdata/Episode_53_AdrianTchaikovsky_index"
-    pod = Podcast.read_from_file(file)
+    with timelog("load podcast"):
+        pod = Podcast.read_from_file(file)
     assert pod is not None, f"Failed to load podcast from {file!r}"
     context = QueryEvalContext(pod)
+
     print("TypeAgent demo UI 0.1 (type 'q' to exit)")
     if readline and sys.stdin.isatty():
         try:
@@ -191,7 +208,9 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
         # print(f"Query expression {i} before running:")
         # pretty_print(query_expr)
 
-        results = await run_search_query(conversation, query_expr, original_query_text=query_text)
+        results = await run_search_query(
+            conversation, query_expr, original_query_text=query_text
+        )
         print(f"Query expression {i} after running a search query:")
         pretty_print(query_expr)
         for j, result in enumerate(results, 1):
@@ -295,13 +314,17 @@ def create_context_prompt(context: AnswerContext) -> str:
 def dictify(object: object) -> Any:
     """Convert an object to a dictionary, recursively."""
     if ann := getattr(object.__class__, "__annotations__", None):
-        return {k: dictify(v) for k in ann if (v := getattr(object, k, None)) is not None}
+        return {
+            k: dictify(v) for k in ann if (v := getattr(object, k, None)) is not None
+        }
     elif isinstance(object, dict):
         return {k: dictify(v) for k, v in object.items() if v is not None}
     elif isinstance(object, list):
         return [dictify(item) for item in object]
     elif hasattr(object, "__dict__"):
-        return {k: dictify(v) for k, v in object.__dict__.items() if v is not None}  #  if not k.startswith("_")
+        return {
+            k: dictify(v) for k, v in object.__dict__.items() if v is not None
+        }  #  if not k.startswith("_")
     else:
         if isinstance(object, float) and object.is_integer():
             return int(object)

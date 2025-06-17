@@ -14,9 +14,13 @@ class EmbeddingIndex:
 
     # TODO: Don't use self._vector_base._vectors directly; use VectorBase methods.
 
-    def __init__(self, embeddings: NormalizedEmbeddings | None = None):
+    def __init__(
+        self,
+        embeddings: NormalizedEmbeddings | None = None,
+        settings: TextEmbeddingIndexSettings | None = None,
+    ):
         # Use VectorBase for storage and operations on embeddings.
-        settings = TextEmbeddingIndexSettings()
+        settings = settings or TextEmbeddingIndexSettings()
         self._vector_base = VectorBase(settings)
 
         # Initialize with embeddings if provided.

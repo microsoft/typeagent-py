@@ -49,9 +49,9 @@ class ConversationSettings:
     message_text_index_settings: MessageTextIndexSettings
     semantic_ref_index_settings: SemanticRefIndexSettings
 
-    def __init__(self):
+    def __init__(self, model: AsyncEmbeddingModel | None = None):
         # All settings share the same model, so they share the embedding cache.
-        model = AsyncEmbeddingModel()
+        model = model or AsyncEmbeddingModel()
         min_score = 0.85
         self.related_term_index_settings = RelatedTermIndexSettings(
             TextEmbeddingIndexSettings(model, min_score=min_score, max_matches=50)

@@ -61,10 +61,10 @@ class AsyncEmbeddingModel:
         openai_key_name = "OPENAI_API_KEY"
         azure_key_name = "AZURE_OPENAI_API_KEY"
         if os.getenv(openai_key_name):
-            print(f"\nUsing OpenAI")
+            print(f"Using OpenAI")
             self.async_client = AsyncOpenAI()
         elif azure_api_key := os.getenv(azure_key_name):
-            print("\nUsing Azure OpenAI")
+            print("Using Azure OpenAI")
             self._setup_azure(azure_api_key)
         else:
             raise ValueError(
@@ -88,7 +88,7 @@ class AsyncEmbeddingModel:
         if azure_api_key.lower() == "identity":
             self.azure_token_provider = get_shared_token_provider()
             azure_api_key = self.azure_token_provider.get_token()
-            print("Using shared TokenProvider")
+            # print("Using shared TokenProvider")
         self.async_client = AsyncAzureOpenAI(
             api_version=self.azure_api_version,
             azure_endpoint=self.azure_endpoint,

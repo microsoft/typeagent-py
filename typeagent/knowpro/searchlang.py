@@ -53,7 +53,7 @@ class SearchQueryCompiler:
         *,
         exact_scope: bool = False,
         verb_scope: bool = True,
-        term_filter: Callable[[str], bool] | None = None,  # Use to ignore noise terms etc.
+        term_filter: Callable[[str], bool] | None = None,  # To ignore noise terms
         apply_scope: bool = True,  # False to turn off scope matching entirely
         lang_search_filter: LanguageSearchFilter | None = None,
     ):

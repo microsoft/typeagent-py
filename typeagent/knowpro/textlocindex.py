@@ -56,7 +56,7 @@ class ITextToTextLocationIndex(Protocol):
 class TextToTextLocationIndex(ITextToTextLocationIndex):
     def __init__(self, settings: TextEmbeddingIndexSettings):
         self._text_locations: list[TextLocation] = []
-        self._embedding_index: EmbeddingIndex = EmbeddingIndex()
+        self._embedding_index: EmbeddingIndex = EmbeddingIndex(settings=settings)
         self._settings = settings
 
     def __len__(self) -> int:
