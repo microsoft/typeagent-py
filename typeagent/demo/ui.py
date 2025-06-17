@@ -5,11 +5,15 @@ import asyncio
 from dataclasses import asdict
 import io
 import re
-import readline
 import shutil
 import sys
 import traceback
 from typing import Any, cast
+
+try:
+    import readline
+except ImportError:
+    readline = None
 
 from black import format_str, FileMode
 import typechat
@@ -56,7 +60,7 @@ def main() -> None:
     assert pod is not None, f"Failed to load podcast from {file!r}"
     context = QueryEvalContext(pod)
     print("TypeAgent demo UI 0.1 (type 'q' to exit)")
-    if sys.stdin.isatty():
+    if readline and sys.stdin.isatty():
         try:
             readline.read_history_file(".ui_history")
         except FileNotFoundError:
@@ -66,7 +70,7 @@ def main() -> None:
     except KeyboardInterrupt:
         print()
     finally:
-        if sys.stdin.isatty():
+        if readline and sys.stdin.isatty():
             readline.write_history_file(".ui_history")
 
 
@@ -92,7 +96,8 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
             case "":
                 continue
             case "exit" | "q" | "quit":
-                readline.remove_history_item(readline.get_current_history_length() - 1)
+                if readline:
+                    readline.remove_history_item(readline.get_current_history_length() - 1)
                 break
             case "pdb":
                 pretty_print(

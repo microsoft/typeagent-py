@@ -41,9 +41,9 @@ echo Running tests...
 .venv\Scripts\python -m pytest test
 goto end
 
-:test
+:demo
 if not exist ".venv\" call make.bat venv
-echo Running tests...
+echo Running demo...
 .venv\Scripts\python -m typeagent.demo
 goto end
 
