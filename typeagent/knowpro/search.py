@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, TypeGuard, cast
+from typing import Callable, TypeGuard, cast
 
 from .collections import SemanticRefAccumulator
 from .interfaces import (
@@ -132,7 +132,8 @@ async def run_search_query(
     conversation: IConversation,
     query: SearchQueryExpr,
     options: SearchOptions | None = None,
-) -> list[ConversationSearchResult] | None:
+    original_query_text: str | None = None,
+) -> list[ConversationSearchResult]:
     options = options or SearchOptions()
     results: list[ConversationSearchResult] = []
     for expr in query.select_expressions:
@@ -141,7 +142,7 @@ async def run_search_query(
             expr.search_term_group,
             expr.when,
             options,
-            query.raw_query,
+            original_query_text or query.raw_query,
         )
         if search_results is not None:
             results.append(search_results)
@@ -220,7 +221,7 @@ class QueryCompiler:
         ),
         options: SearchOptions | None = None,
         raw_query_text: str | None = None,
-    ) -> IQueryOpExpr:
+    ) -> GetScoredMessagesExpr:
         query: IQueryOpExpr = MessagesFromKnowledgeExpr(knowledge)
         if options is not None:
             query = await self.compile_message_re_rank(
@@ -467,6 +468,8 @@ class QueryCompiler:
         dedupe: bool,
         filter: WhenFilter | None = None,
     ) -> None:
+        if not compiled_terms:
+            return
         for ct in compiled_terms:
             self.validate_and_prepare_search_terms(ct.terms)
         if (
@@ -491,7 +494,7 @@ class QueryCompiler:
             return False
         # Matching the term - exact match - counts for more than matching related terms
         # Therefore, we boost any matches where the term matches directly...
-        if search_term.term is None:
+        if search_term.term.weight is None:
             search_term.term.weight = self.default_term_match_weight
         if search_term.related_terms is not None:
             for related_term in search_term.related_terms:
@@ -505,6 +508,12 @@ class QueryCompiler:
                     related_term.weight = self.default_term_match_weight
         return True
 
+    # Currently, just changes the case of a term
+    #  But here, we may do other things like:
+    # - Check for noise terms
+    # - Do additional rewriting
+    # - Additional checks that *reject* certain search terms
+    # Return false if the term should be rejected
     def validate_and_prepare_term(self, term: Term | None) -> bool:
         if term:
             term.text = term.text.lower()

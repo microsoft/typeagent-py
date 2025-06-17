@@ -15,11 +15,48 @@ type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
 
 
+DEFAULT_MODEL_NAME = "ada-002"
+DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
+DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
+
+model_to_embedding_size_and_envvar = {
+    DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
+    "text-embedding-small": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
+    "text-embedding-large": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
+    # For testing only, not a real model (insert real embeddings above)
+    "test": (3, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
+}
+
+
 class AsyncEmbeddingModel:
-    def __init__(self, embedding_size: int | None = None):
+    def __init__(
+        self, embedding_size: int | None = None, model_name: str | None = None
+    ):
+        if model_name is None:
+            model_name = DEFAULT_MODEL_NAME
+        self.model_name = model_name
+
+        required_embedding_size, endpoint_envvar = (
+            model_to_embedding_size_and_envvar.get(model_name, (None, None))
+        )
+        if required_embedding_size is not None:
+            if embedding_size is not None and embedding_size != required_embedding_size:
+                raise ValueError(
+                    f"Embedding size {embedding_size} does not match "
+                    f"required size {required_embedding_size} for model {model_name}."
+                )
+            embedding_size = required_embedding_size
         if embedding_size is None or embedding_size <= 0:
-            embedding_size = 1536
+            embedding_size = DEFAULT_EMBEDDING_SIZE
         self.embedding_size = embedding_size
+
+        if not endpoint_envvar:
+            raise ValueError(
+                f"Model {model_name} is not supported. "
+                f"Supported models are: {', '.join(model_to_embedding_size_and_envvar.keys())}"
+            )
+        self.endpoint_envvar = endpoint_envvar
+
         self.azure_token_provider: AzureTokenProvider | None = None
         openai_key_name = "OPENAI_API_KEY"
         azure_key_name = "AZURE_OPENAI_API_KEY"
@@ -37,14 +74,15 @@ class AsyncEmbeddingModel:
 
     def _setup_azure(self, azure_api_key: str) -> None:
         # TODO: support different endpoint names
-        endpoint_name = "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"
-        self.azure_endpoint = os.environ.get(endpoint_name)
+        endpoint_envvar = self.endpoint_envvar
+        self.azure_endpoint = os.environ.get(endpoint_envvar)
         if not self.azure_endpoint:
-            raise ValueError(f"Environment variable {endpoint_name} not found.")
+            raise ValueError(f"Environment variable {endpoint_envvar} not found.")
         m = re.search(r"[?,]api-version=([^,]+)$", self.azure_endpoint)
         if not m:
             raise ValueError(
-                f"{endpoint_name}={self.azure_endpoint} doesn't end in api-version=<version>"
+                f"{endpoint_envvar}={self.azure_endpoint} "
+                f"doesn't end in api-version=<version>"
             )
         self.azure_api_version = m.group(1)
         if azure_api_key.lower() == "identity":
@@ -90,12 +128,15 @@ class AsyncEmbeddingModel:
             return empty
         if self.azure_token_provider and self.azure_token_provider.needs_refresh():
             await self.refresh_auth()
+        extra_args = {}
+        if self.model_name != DEFAULT_MODEL_NAME:
+            extra_args["dimensions"] = self.embedding_size
         data = (
             await self.async_client.embeddings.create(
                 input=input,
-                model="text-embedding-3-small",
+                model=self.model_name,
                 encoding_format="float",
-                dimensions=self.embedding_size,
+                **extra_args,
             )
         ).data
         assert len(data) == len(input), (len(data), "!=", len(input))

@@ -14,7 +14,7 @@ from fixtures import needs_auth  # type: ignore  # Needed!
 @pytest.fixture
 def embedding_model() -> AsyncEmbeddingModel:
     """Fixture to create an instance of AsyncEmbeddingModel."""
-    return AsyncEmbeddingModel(embedding_size=3)
+    return AsyncEmbeddingModel(model_name="test")
 
 
 @pytest.mark.asyncio

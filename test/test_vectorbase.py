@@ -19,8 +19,8 @@ def vector_base(scope="function") -> VectorBase:
     return make_vector_base()
 
 
-def make_vector_base(embedding_size=3) -> VectorBase:
-    settings = TextEmbeddingIndexSettings(embedding_size=embedding_size)
+def make_vector_base() -> VectorBase:
+    settings = TextEmbeddingIndexSettings(AsyncEmbeddingModel(model_name="test"))
     return VectorBase(settings)
 
 

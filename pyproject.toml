@@ -12,7 +12,7 @@ authors = [
   { name = "Umesh Madan" },
   { name = "Guido van Rossum" },
 ]
-requires-python = ">=3.12.7"
+requires-python = ">=3.12.7,<3.14"
 dependencies = [
   "azure-identity>=1.22.0",
   "black>=25.1.0",
@@ -20,7 +20,7 @@ dependencies = [
   "numpy>=2.2.6",
   "openai>=1.81.0",
   "pydantic>=2.11.4",
-  "pyright>=1.1.401",
+  "pyright==1.1.402",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",

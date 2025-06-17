@@ -4,6 +4,7 @@
 # TODO: Move this file into knowpro.
 
 import copy
+from dataclasses import dataclass
 from pyexpat.errors import XML_ERROR_RESERVED_PREFIX_XML
 from typing import Callable, Literal, TypeGuard, cast
 
@@ -12,7 +13,9 @@ from ..knowpro.collections import PropertyTermSet
 from ..knowpro.interfaces import (
     DateRange,
     Datetime,
+    IConversation,
     KnowledgePropertyName,
+    KnowledgeType,
     PropertySearchTerm,
     SearchSelectExpr,
     SearchTerm,
@@ -35,22 +38,31 @@ from .search_query_schema import (
 )
 
 
+@dataclass
+class LanguageSearchFilter:
+    knowledgeType: KnowledgeType | None = None
+    threadDescription: str | None = None
+    tags: list[str] | None = None
+
+
 class SearchQueryCompiler:
 
     def __init__(
         self,
+        conversation: IConversation,
         *,
         exact_scope: bool = False,
         verb_scope: bool = True,
-        # Use to ignore noise terms etc.
-        term_filter: Callable[[str], bool] | None = None,
-        # Debug flags
+        term_filter: Callable[[str], bool] | None = None,  # Use to ignore noise terms etc.
         apply_scope: bool = True,  # False to turn off scope matching entirely
+        lang_search_filter: LanguageSearchFilter | None = None,
     ):
+        self.conversation = conversation
         self.exact_scope = exact_scope
         self.verb_scope = verb_scope
         self.term_filter = term_filter
         self.apply_scope = apply_scope
+        self.lang_search_filter = lang_search_filter
 
         self.entity_terms_added = PropertyTermSet()
         self.dedupe = True
@@ -62,6 +74,8 @@ class SearchQueryCompiler:
             query_expressions.append(self.compile_search_expr(search_expr))
         return query_expressions
 
+    # Every searchExpr has one or more filters.
+    # Each filter is compiled into a selectExpr.
     def compile_search_expr(self, search_expr: SearchExpr) -> SearchQueryExpr:
         query_expr = SearchQueryExpr(select_expressions=[])
         if search_expr.filters:

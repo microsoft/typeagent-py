@@ -4,15 +4,14 @@
 import asyncio
 from dataclasses import asdict
 import io
+import re
 import readline
 import shutil
 import sys
 import traceback
-from typing import cast
+from typing import Any, cast
 
 from black import format_str, FileMode
-from click import File
-from colorama import AnsiToWin32
 import typechat
 
 from ..aitools.auth import load_dotenv
@@ -45,7 +44,7 @@ def pretty_print(obj: object) -> None:
     Only works if the repr() is a valid Python expression.
     """
     line_width = cap(200, shutil.get_terminal_size().columns)
-    print(format_str(repr(obj), mode=FileMode(line_length=line_width)))
+    print(format_str(repr(obj), mode=FileMode(line_length=line_width)).rstrip())
 
 
 def main() -> None:
@@ -89,17 +88,34 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
         query_text = read_one_line(ps1, stream)
         if query_text is None:  # EOF
             break
-        if not query_text:
-            continue
-        if query_text.lower() in ("exit", "quit", "q"):
-            readline.remove_history_item(readline.get_current_history_length() - 1)
-            break
-        if query_text == "pdb":
-            continue
-
-        asyncio.run(wrap_process_query(query_text, context.conversation, translator))
-
-        print()
+        match query_text:  # Already stripped
+            case "":
+                continue
+            case "exit" | "q" | "quit":
+                readline.remove_history_item(readline.get_current_history_length() - 1)
+                break
+            case "pdb":
+                pretty_print(
+                    asyncio.run(
+                        context.conversation.secondary_indexes.term_to_related_terms_index.fuzzy_index.lookup_term(  # type: ignore
+                            "novel"
+                        )
+                    )
+                )
+                print("Entering debugger; end with 'c' or 'continue'.")
+                breakpoint()  # Do not remove -- 'pdb' should enter the debugger.
+            case _ if re.match(r"^\d+$", query_text):
+                msg_ord = int(query_text)
+                messages = context.conversation.messages
+                if msg_ord < 0 or msg_ord >= len(messages):
+                    print(f"Message ordinal {msg_ord} out of range({len(messages)}).")
+                    continue
+                pretty_print(messages[msg_ord])
+            case _:
+                asyncio.run(
+                    wrap_process_query(query_text, context.conversation, translator)
+                )
+                print()
 
 
 def read_one_line(ps1: str, stream: io.TextIOWrapper) -> str | None:
@@ -142,9 +158,9 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
 
     # TODO: # 0. Recognize @-commands like "@search" and handle them specially.
 
-    # 1. With LLM help, translate to SearchQuery (a tree but not yet usable to query)
+    # 1. With LLM help, translate text to SearchQuery.
     print("Search query:")
-    search_query = await translate_text_to_search_query(
+    search_query: SearchQuery | None = await translate_text_to_search_query(
         conversation, translator, query_text
     )
     if search_query is None:
@@ -153,36 +169,37 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     pretty_print(search_query)
     print()
 
-    # 2. Translate the search query into something directly usable as a query.
+    # 2. Translate SearchQuery to SearchQueryExpr using SearchQueryCompiler.
     print("Search query expressions:")
-    query_exprs = translate_search_query_to_search_query_exprs(search_query)
+    query_exprs: list[SearchQueryExpr] = translate_search_query_to_search_query_exprs(
+        conversation, search_query
+    )
     if not query_exprs:
         print("Failed to translate search query to query expressions.")
         return
-    # for i, query_expr in enumerate(query_exprs):
+    # for i, query_expr in enumerate(query_exprs, 1):
     #     print(f"---------- {i} ----------")
     #     pretty_print(query_expr)
-    print()
 
     # 3. Search!
-    for i, query_expr in enumerate(query_exprs):
-        print(f"Query expression {i}:")
+    for i, query_expr in enumerate(query_exprs, 1):
+        # print(f"Query expression {i} before running:")
+        # pretty_print(query_expr)
+
+        results = await run_search_query(conversation, query_expr, original_query_text=query_text)
+        print(f"Query expression {i} after running a search query:")
         pretty_print(query_expr)
-        results = await run_search_query(conversation, query_expr)
-        if results is None:
-            print(f"No results for expression {i}.")
-        else:
-            for j, result in enumerate(results):
-                print(f"Result {i}.{j}:")
-                print()
-                # pretty_print(result)
-                # print_result(result, conversation)
-                answer = await generate_answer(result, conversation)
-                if answer.type == "NoAnswer":
-                    print("Failure:", answer.whyNoAnswer)
-                elif answer.type == "Answered":
-                    print(answer.answer)
-                print()
+        for j, result in enumerate(results, 1):
+            print(f"Query {i} result {j}:")
+            print()
+            # pretty_print(result)
+            # print_result(result, conversation)
+            answer = await generate_answer(result, conversation)
+            if answer.type == "NoAnswer":
+                print("Failure:", answer.whyNoAnswer)
+            elif answer.type == "Answered":
+                print(answer.answer)
+            print()
 
 
 def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
@@ -190,7 +207,19 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
 ) -> None:
     print(f"Raw query: {result.raw_query_text}")
     if result.message_matches:
-        print("Message matches:", result.message_matches)
+        print("Message matches:")
+        for scored_ord in sorted(
+            result.message_matches, key=lambda x: x.score, reverse=True
+        ):
+            score = scored_ord.score
+            msg_ord = scored_ord.message_ordinal
+            msg = conversation.messages[msg_ord]
+            text = " ".join(msg.text_chunks).strip()
+            print(
+                f"({score:5.1f}){msg_ord:4d}: "
+                f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
+                f"{repr(text)[1:-1]:<150.150s}  "
+            )
     if result.knowledge_matches:
         print("Knowledge matches:")
         for key, value in sorted(result.knowledge_matches.items()):
@@ -207,7 +236,7 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                     chunk_ord = sem_ref.range.start.chunk_ordinal
                     msg = conversation.messages[msg_ord]
                     print(
-                        f"({score:4.1f}) {msg_ord:3d}: "
+                        f"({score:5.1f}){msg_ord:4d}: "
                         f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
                         f"{repr(msg.text_chunks[chunk_ord].strip())[1:-1]:<50.50s}  "
                         f"{summarize_knowledge(sem_ref)}"
@@ -222,7 +251,7 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     translator = create_translator(model, AnswerResponse)
     assert context.raw_query_text is not None, "Raw query text must not be None"
     request = f"{create_question_prompt(context.raw_query_text)}\n\n{create_context_prompt(make_context(context, conversation))}"
-    # print(request)
+    # print("="*50 + "\n" + request + "\n" + "="*50)gf
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
         return AnswerResponse(type="NoAnswer", answer=None, whyNoAnswer=result.message)
@@ -252,10 +281,27 @@ def create_context_prompt(context: AnswerContext) -> str:
     prompt = [
         "[ANSWER CONTEXT]",
         "===",
-        format_str(str(asdict(context)), mode=FileMode(line_length=200)),
+        format_str(str(dictify(context)), mode=FileMode(line_length=200)),
         "===",
     ]
     return "\n".join(prompt)
+
+
+def dictify(object: object) -> Any:
+    """Convert an object to a dictionary, recursively."""
+    if ann := getattr(object.__class__, "__annotations__", None):
+        return {k: dictify(v) for k in ann if (v := getattr(object, k, None)) is not None}
+    elif isinstance(object, dict):
+        return {k: dictify(v) for k, v in object.items() if v is not None}
+    elif isinstance(object, list):
+        return [dictify(item) for item in object]
+    elif hasattr(object, "__dict__"):
+        return {k: dictify(v) for k, v in object.__dict__.items() if v is not None}  #  if not k.startswith("_")
+    else:
+        if isinstance(object, float) and object.is_integer():
+            return int(object)
+        else:
+            return object
 
 
 def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
@@ -330,9 +376,10 @@ async def translate_text_to_search_query[
 
 
 def translate_search_query_to_search_query_exprs(
+    conversation: IConversation,
     search_query: SearchQuery,
 ) -> list[SearchQueryExpr]:
-    return SearchQueryCompiler().compile_query(search_query)
+    return SearchQueryCompiler(conversation).compile_query(search_query)
 
 
 def summarize_knowledge(sem_ref: SemanticRef) -> str:
@@ -350,6 +397,8 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
                     value = facet.value
                     if isinstance(value, Quantity):
                         value = f"{value.amount} {value.units}"
+                    elif isinstance(value, float) and value.is_integer():
+                        value = int(value)
                     res.append(f"<{facet.name}:{value}>")
             return " ".join(res)
         case "action":

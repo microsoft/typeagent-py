@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 from typing import Callable
 
 from typechat import Failure
@@ -531,11 +530,11 @@ def add_metadata_to_index[TMessage: IMessage](
                 add_topic_to_index(topic, semantic_refs, semantic_ref_index, i)
 
 
-@dataclass
 class ConversationIndex(ITermToSemanticRefIndex):
     _map: dict[str, list[ScoredSemanticRefOrdinal]]
 
     def __init__(self, data: TermToSemanticRefIndexData | None = None):
+        super().__init__()
         self._map = {}
         if data:
             self.deserialize(data)
