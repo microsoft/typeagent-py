@@ -14,6 +14,20 @@
   especially `TTermToSemanticRefIndex` is annoying. Can we do better?
 - Unify or align or refactor `VectorBase` and `EmbeddingIndex`.
 
+## Development
+
+- Move `typeagent` into `src`.
+- Separate development dependencies from installation dependencies.
+- Move test to tests
+- Configure testpaths in pyproject.toml
+
+## Testing
+
+- Review Copilot-generated tests for sanity and minimal mocking
+- Add new tests for newly added classes/methods/functions
+- Coverage testing (needs to use a mix of indexing and querying)
+- Automated end-to-end tests using Umesh's test data files
+
 ## Tighter types
 
 - Several places allow `None` and in that case construct a default instance.
@@ -44,11 +58,16 @@ All of these stages are at least partially implemented
 (though only the simplest form of answer generation),
 so we have some end-to-end functionality.
 
-The TODO items include:
+The TODO items include (in no particular order):
 
-- Move out of `demo` into `knowpro` what blongs there.
+- Fix handling of datetime range queries.
+- Use fallback query and other fallback stuff in search_conv*_w*_lang*.
+- Change the context to be text, including message texts and timestamps,
+  rather than JSON (and especially not just semantic ref ordinals).
+- Property translate time range filters.
+- Add message timestamp to context.
+- Move out of `demo` into `knowpro` what belongs there.
 - Complete the implementation of each stage (3b is missing a lot).
-- Combine multiple human answers into a single "best" one (4a).
 - Split large contexts to avoid overflowing the answer generator's
   context buffer (4b).
 - Fix all the TODOs left in the code.
@@ -70,17 +89,6 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 
 - fuzzy_index type mismatch (could VectorBase be made to match the type?)
 - Fix need for `# type: ignore` comments (usually need to make some I-interface generic in actual message/index/etc.)
-
-## Projct layout
-
-- Move typeagent into src and associated changes everywhere
-- Move test to tests
-- Configure testpaths in pyproject.toml
-
-## Testing
-
-- Review Copilot-generated tests for sanity and minimal mocking
-- Add new tests for newly added classes/methods/functions
 
 ## Deletions
 

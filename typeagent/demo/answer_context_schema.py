@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 from typing import Annotated, Any, Union
-from datetime import date
 
 from pydantic.dataclasses import dataclass
 
@@ -32,7 +31,7 @@ class RelevantKnowledge:
 class RelevantMessage:
     from_: Annotated[EntityNames | None, Doc("Sender(s) of the message")]
     to: Annotated[EntityNames | None, Doc("Recipient(s) of the message")]
-    timestamp: Annotated[date | None, Doc("Timestamp of the message")]
+    timestamp: Annotated[str | None, Doc("Timestamp of the message in ISO format")]
     messageText: Annotated[str | list[str] | None, Doc("Text chunks in this message")]
 
 
