@@ -409,7 +409,19 @@ class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
         else:
             self.add(message_ordinal_start, score)
 
-    # TODO: add_range, add_scored_matches, intersect.
+    # TODO: add_range, add_scored_matches
+
+    def intersect(
+        self,
+        other: "MatchAccumulator[MessageOrdinal]",
+        intersection: "MatchAccumulator[MessageOrdinal] | None" = None,
+    ) -> "MessageAccumulator":
+        if intersection is None:
+            intersection = MessageAccumulator()
+        else:
+            assert isinstance(intersection, MessageAccumulator)
+        super().intersect(other, intersection)
+        return intersection
 
     def smooth_scores(self) -> None:
         for match in self:
