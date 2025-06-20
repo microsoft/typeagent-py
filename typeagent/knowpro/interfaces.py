@@ -262,9 +262,9 @@ class DateRange:
 
     def __repr__(self) -> str:
         if self.end is None:
-            return f"{self.__class__.__name__}({self.start})"
+            return f"{self.__class__.__name__}({self.start!r})"
         else:
-            return f"{self.__class__.__name__}({self.start}, {self.end})"
+            return f"{self.__class__.__name__}({self.start!r}, {self.end!r})"
 
     def __contains__(self, datetime: Datetime) -> bool:
         if self.end is None:

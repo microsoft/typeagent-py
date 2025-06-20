@@ -3,8 +3,9 @@
 
 from dataclasses import dataclass
 from typing import Callable, TypeGuard, cast
+from xmlrpc.client import boolean
 
-from .collections import SemanticRefAccumulator
+from .collections import MessageAccumulator, SemanticRefAccumulator
 from .interfaces import (
     IConversation,
     IConversationSecondaryIndexes,
@@ -30,7 +31,12 @@ from .query import (
     GroupByKnowledgeTypeExpr,
     GroupSearchResultsExpr,
     IQueryOpExpr,
+    IQuerySemanticRefPredicate,
     IQueryTextRangeSelector,
+    MatchMessagesAndExpr,
+    MatchMessagesBooleanExpr,
+    MatchMessagesOrExpr,
+    MatchMessagesOrMaxExpr,
     MatchPropertySearchTermExpr,
     MatchSearchTermExpr,
     MatchTagExpr,
@@ -46,6 +52,8 @@ from .query import (
     SelectTopNExpr,
     SelectTopNKnowledgeGroupExpr,
     TextRangeSelector,
+    TextRangesFromMessagesSelector,
+    TextRangesInDateRangeSelector,
     WhereSemanticRefExpr,
     is_conversation_searchable,
     match_entity_name_or_type,
@@ -288,23 +296,27 @@ class QueryCompiler:
     ) -> tuple[list[CompiledTermGroup], IQueryOpExpr[SemanticRefAccumulator]]:
         return self.compile_search_group(
             search_group,
-            lambda term_exprs, boolean_op, scope: create_match_terms_boolean_expr(
-                term_exprs, boolean_op, scope
-            ),
+            create_match_terms_boolean_expr,
             scope_expr,
         )
 
-    # TODO: compile_search_group_messages
+    def compile_search_group_messages(
+        self,
+        search_group: SearchTermGroup,
+    ) -> tuple[list[CompiledTermGroup], IQueryOpExpr[MessageAccumulator]]:
+        return self.compile_search_group(
+            search_group, create_match_messages_boolean_expr
+        )
 
     def compile_search_group(
         self,
         search_group: SearchTermGroup,
         create_op: Callable[
             [list[IQueryOpExpr], BooleanOp, GetScopeExpr | None],
-            IQueryOpExpr[SemanticRefAccumulator],
+            IQueryOpExpr[SemanticRefAccumulator | MessageAccumulator],
         ],
         scope_expr: GetScopeExpr | None = None,
-    ) -> tuple[list[CompiledTermGroup], IQueryOpExpr[SemanticRefAccumulator]]:
+    ) -> tuple[list[CompiledTermGroup], IQueryOpExpr]:
         t0_terms: list[SearchTerm] = []
         compiled_terms: list[CompiledTermGroup] = [
             CompiledTermGroup(boolean_op="and", terms=t0_terms)
@@ -415,7 +427,11 @@ class QueryCompiler:
             scope_selectors.append(TextRangesFromMessagesSelector(select_expr))
             self.all_scope_search_terms.extend(search_terms_used)
 
-    # TODO: compile_where
+    def compile_where(self, filter: WhenFilter) -> list[IQuerySemanticRefPredicate]:
+        predicates: list[IQuerySemanticRefPredicate] = []
+        if filter.knowledge_type:
+            predicates.append(KnowledgeTypePredicate(filter.knowledge_type))
+        return predicates
 
     async def compile_message_re_rank(
         self,
@@ -537,6 +553,7 @@ class QueryCompiler:
             return scored_ref
 
 
+# TODO: Move to compilelib.py
 def create_match_terms_boolean_expr(
     term_expressions: list[IQueryOpExpr[SemanticRefAccumulator | None]],
     boolean_op: BooleanOp,
@@ -549,6 +566,25 @@ def create_match_terms_boolean_expr(
             return MatchTermsOrExpr(term_expressions, scope_expr)
         case "or_max":
             return MatchTermsOrMaxExpr(term_expressions, scope_expr)
+        case _:
+            raise ValueError(f"Unknown boolean op: {boolean_op}")
+
+
+# TODO: Move to compilelib.py
+def create_match_messages_boolean_expr(
+    term_expressions: list[
+        IQueryOpExpr[SemanticRefAccumulator | MessageAccumulator | None]
+    ],
+    boolean_op: BooleanOp,
+    scope_expr: GetScopeExpr | None = None,
+) -> MatchMessagesBooleanExpr:
+    match boolean_op:
+        case "and":
+            return MatchMessagesAndExpr(term_expressions)
+        case "or":
+            return MatchMessagesOrExpr(term_expressions)
+        case "or_max":
+            return MatchMessagesOrMaxExpr(term_expressions)
         case _:
             raise ValueError(f"Unknown boolean op: {boolean_op}")
 

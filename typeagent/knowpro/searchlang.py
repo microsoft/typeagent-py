@@ -275,6 +275,7 @@ class SearchQueryCompiler:
             if when is None:
                 when = WhenFilter()
             when.date_range = date_range_from_datetime_range(filter.time_range)
+        return when
 
     def compile_action_term_as_search_terms(
         self,
