@@ -853,6 +853,8 @@ class MessagesFromKnowledgeExpr(QueryOpExpr[MessageAccumulator]):
 
 
 # TODO: SelectMessagesInCharBudget
+
+
 @dataclass
 class RankMessagesBySimilarityExpr(QueryOpExpr[MessageAccumulator]):
     src_expr: IQueryOpExpr[MessageAccumulator]
@@ -915,10 +917,14 @@ class GetScoredMessagesExpr(QueryOpExpr[list[ScoredMessageOrdinal]]):
 
 @dataclass
 class MatchMessagesBooleanExpr(IQueryOpExpr[MessageAccumulator]):
-    def eval(self, context: QueryEvalContext) -> MessageAccumulator:
-        raise NotImplementedError
+    term_expressions: list[
+        IQueryOpExpr[SemanticRefAccumulator | MessageAccumulator | None]
+    ]
 
-    def accumulate_messages(
+    def _begin_match(self, context: QueryEvalContext) -> None:
+        context.clear_matched_terms()
+
+    def _accumulate_messages(
         self,
         context: QueryEvalContext,
         semantic_ref_matches: SemanticRefAccumulator,
@@ -935,30 +941,45 @@ class MatchMessagesBooleanExpr(IQueryOpExpr[MessageAccumulator]):
 
 @dataclass
 class MatchMessagesOrExpr(MatchMessagesBooleanExpr):
-    term_expressions: list[
-        IQueryOpExpr[SemanticRefAccumulator | MessageAccumulator | None]
-    ]
 
     def eval(self, context: QueryEvalContext) -> MessageAccumulator:
-        raise NotImplementedError("TODO")
+        self._begin_match(context)
+
+        all_matches: MessageAccumulator | None = None
+        for match_expr in self.term_expressions:
+            matches = match_expr.eval(context)
+            if not matches:
+                continue
+            if isinstance(matches, SemanticRefAccumulator):
+                message_matches = self._accumulate_messages(context, matches)
+            else:
+                message_matches = matches
+            if all_matches is not None:
+                all_matches.add_union(message_matches)
+            else:
+                all_matches = message_matches
+        if all_matches is not None:
+            all_matches.calculate_total_score()
+        else:
+            all_matches = MessageAccumulator()
+        return all_matches
 
 
 @dataclass
 class MatchMessagesAndExpr(MatchMessagesBooleanExpr):
-    term_expressions: list[
-        IQueryOpExpr[SemanticRefAccumulator | MessageAccumulator | None]
-    ]
 
     def eval(self, context: QueryEvalContext) -> MessageAccumulator:
+        self._begin_match(context)
+
         all_matches: MessageAccumulator | None = None
         all_done = False
-        for term in self.term_expressions:
-            matches = term.eval(context)
+        for match_expr in self.term_expressions:
+            matches = match_expr.eval(context)
             if not matches:
-                # If any term does not match, the AND fails.
+                # If any expr does not match, the AND fails.
                 break
             if isinstance(matches, SemanticRefAccumulator):
-                message_matches = self.accumulate_messages(context, matches)
+                message_matches = self._accumulate_messages(context, matches)
             else:
                 message_matches = matches
             if all_matches is None:
@@ -973,26 +994,29 @@ class MatchMessagesAndExpr(MatchMessagesBooleanExpr):
             # If we did not break, all terms matched.
             all_done = True
 
-        if all_matches:
+        if all_matches is not None:
             if all_done:
                 all_matches.calculate_total_score()
                 all_matches.select_with_hit_count(len(self.term_expressions))
             else:
                 all_matches.clear_matches()
-
-        if all_matches is None:
+        else:
             all_matches = MessageAccumulator()
         return all_matches
 
 
 @dataclass
 class MatchMessagesOrMaxExpr(MatchMessagesOrExpr):
-    pass  # TODO
+
+    def eval(self, context: QueryEvalContext) -> MessageAccumulator:
+        matches = super().eval(context)
+        max_hit_count = matches.get_max_hit_count()
+        if max_hit_count > 1:
+            matches.select_with_hit_count(max_hit_count)
+        return matches
 
 
-@dataclass
-class MatchMessagesBySimilarityExpr:
-    pass  # TODO
+# TODO: class MatchMessagesBySimilarityExpr(QueryOpExpr[list[ScoredMessageOrdinal]]):
 
 
 class NoOpExpr[T](QueryOpExpr[T]):

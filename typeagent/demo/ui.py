@@ -22,11 +22,8 @@ from black import format_str, FileMode
 import typechat
 
 from ..aitools.auth import load_dotenv
-from ..knowpro.convutils import get_time_range_prompt_section_for_conversation
 from ..knowpro.convknowledge import create_typechat_model
 from ..knowpro.interfaces import (
-    DateRange,
-    Datetime,
     IConversation,
     IMessage,
     ITermToSemanticRefIndex,
@@ -35,7 +32,7 @@ from ..knowpro.interfaces import (
 )
 from ..knowpro.kplib import Action, ActionParam, ConcreteEntity, Quantity
 from ..knowpro.query import QueryEvalContext
-from ..knowpro.search import ConversationSearchResult, SearchQueryExpr, run_search_query
+from ..knowpro.search import ConversationSearchResult
 from ..knowpro.searchlang import (
     LanguageSearchDebugContext,
     search_conversation_with_language,
@@ -183,56 +180,94 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     conversation: IConversation[TMessage, TIndex],
     translator: typechat.TypeChatJsonTranslator[SearchQuery],
 ) -> None:
-    debug_context = LanguageSearchDebugContext()
+    debug_context = None  # LanguageSearchDebugContext()  # For lots of debug output.
     result = await search_conversation_with_language(
         conversation,
         translator,
         orig_query_text,
         debug_context=debug_context,
     )
-    if debug_context.search_query:
+    if debug_context and debug_context.search_query:
         print("Search query:")
         pretty_print(debug_context.search_query)
     if not isinstance(result, typechat.Success):
         print(f"Error searching conversation: {result.message}")
         return
     search_results = result.value
-    await generate_answers(search_results, conversation, orig_query_text, debug_context)
+    all_answers, combined_answer = await generate_answers(
+        search_results, conversation, orig_query_text, debug_context
+    )
+    print("-" * 40)
+    if combined_answer.type == "NoAnswer":
+        print(f"Failure: {combined_answer.whyNoAnswer}")
+        pretty_print(all_answers)
+    else:
+        print(combined_answer.answer)
+    print("-" * 40)
 
 
+# TODO: Move to answer*.py.
+# TODO: Return list of partial answers and combined answer.
 async def generate_answers(
     search_results: list[ConversationSearchResult],
     conversation: IConversation,
     orig_query_text: str,
-    debug_context: LanguageSearchDebugContext,
-) -> None:
-    answers: list[AnswerResponse] = []
+    debug_context: LanguageSearchDebugContext | None = None,
+) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
+    all_answers: list[AnswerResponse] = []
+    good_answers: list[str] = []
     for i, search_result in enumerate(search_results):
-        if debug_context.search_query_expr:
-            assert len(debug_context.search_query_expr) == len(search_results)
-            print(f"Query expression {i+1}:")
-            pretty_print(debug_context.search_query_expr[i])
-        print_result(search_result, conversation)
+        if debug_context and debug_context.search_query_expr:
+            # assert len(debug_context.search_query_expr) == len(search_results)
+            if i < len(debug_context.search_query_expr):
+                print(f"Query expression {i+1}:")
+                pretty_print(debug_context.search_query_expr[i])
+            else:
+                print(f"Query expression {i+1}: <not available>")
+        if debug_context:
+            print_result(search_result, conversation)
         for j, result in enumerate(search_results):
-            print(f"Query {i+1} result {j+1}:")
-            # print()
-            # pretty_print(result)
-            # print_result(result, conversation)
-            answer = await generate_answer(result, conversation)
-            answers.append(answer)
-            if answer.type == "NoAnswer":
-                print("Failure:", answer.whyNoAnswer)
-            elif answer.type == "Answered":
-                print(answer.answer)
-            # print()
-    if len(answers) >= 2:
+            if debug_context:
+                print(f"Query {i+1} result {j+1}:")
+                # print()
+                # pretty_print(result)
+                # print_result(result, conversation)
+            combined_answer = await generate_answer(result, conversation)
+            all_answers.append(combined_answer)
+            if combined_answer.type == "NoAnswer":
+                if debug_context:
+                    print("Failure:", combined_answer.whyNoAnswer)
+            elif combined_answer.type == "Answered":
+                assert (
+                    combined_answer.answer is not None
+                ), "Answered answer must not be None"
+                good = combined_answer.answer.strip()
+                if good:
+                    good_answers.append(good)
+                if debug_context:
+                    if good:
+                        print(good)
+                    else:
+                        print("Empty answer.")
+
+    combined_answer: AnswerResponse | None = None
+    if len(good_answers) >= 2:
         # Synthesize the overall answer.
-        print(f"----- COMBINED ANSWER to '{orig_query_text}' -----")
-        answer = await combine_answers(answers, orig_query_text)
-        if answer.type == "NoAnswer":
-            print("Failure:", answer.whyNoAnswer)
-        elif answer.type == "Answered":
-            print(answer.answer)
+        if debug_context:
+            print(f"----- COMBINED ANSWER to '{orig_query_text}' -----")
+        combined_answer = await combine_answers(good_answers, orig_query_text)
+        if debug_context:
+            if combined_answer.type == "NoAnswer":
+                print("Failure:", combined_answer.whyNoAnswer)
+            elif combined_answer.type == "Answered":
+                print(combined_answer.answer)
+    elif len(good_answers) == 1:
+        combined_answer = AnswerResponse(type="Answered", answer=good_answers[0])
+    else:
+        combined_answer = AnswerResponse(
+            type="NoAnswer", whyNoAnswer="No good answers found."
+        )
+    return all_answers, combined_answer
 
 
 def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
@@ -254,7 +289,7 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 f"{repr(text)[1:-1]:<150.150s}  "
             )
     if result.knowledge_matches:
-        print("Knowledge matches:")
+        print(f"Knowledge matches ({', '.join(result.knowledge_matches.keys())}):")
         for key, value in sorted(result.knowledge_matches.items()):
             print(f"Type {key} -- {value.term_matches}:")
             for scored_sem_ref_ord in value.semantic_ref_matches:
@@ -280,7 +315,7 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
 async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     context: ConversationSearchResult, conversation: IConversation[TMessage, TIndex]
 ) -> AnswerResponse:
-    # TODO: lift translator creation out of the outermost loop.
+    # TODO: lift model & translator creation out of the outermost loop.
     model = create_typechat_model()
     translator = create_translator(model, AnswerResponse)
     assert context.raw_query_text is not None, "Raw query text must not be None"
@@ -395,16 +430,14 @@ def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
 
 
 async def combine_answers(
-    answers: list[AnswerResponse],
+    answers: list[str],
     original_query_text: str,
 ) -> AnswerResponse:
     """Combine multiple answers into a single answer."""
     if not answers:
-        return AnswerResponse(
-            type="NoAnswer", answer=None, whyNoAnswer="No answers provided."
-        )
+        return AnswerResponse(type="NoAnswer", whyNoAnswer="No answers provided.")
     if len(answers) == 1:
-        return answers[0]
+        return AnswerResponse(type="Answered", answer=answers[0])
     model = create_typechat_model()
     translator = create_translator(model, AnswerResponse)
     request_parts = [
@@ -418,17 +451,12 @@ async def combine_answers(
         "===",
     ]
     for answer in answers:
-        if answer.type == "NoAnswer":
-            request_parts.append(f"Failure: {answer.whyNoAnswer}")
-            request_parts.append("===")
-        elif answer.type == "Answered":
-            assert answer.answer is not None
-            request_parts.append(answer.answer)
-            request_parts.append("===")
+        request_parts.append(answer.strip())
+        request_parts.append("===")
     request = "\n".join(request_parts)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
-        return AnswerResponse(type="NoAnswer", answer=None, whyNoAnswer=result.message)
+        return AnswerResponse(type="NoAnswer", whyNoAnswer=result.message)
     else:
         return result.value
 

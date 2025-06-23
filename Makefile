@@ -22,6 +22,10 @@ test: venv
 demo: venv
 	.venv/bin/python -m typeagent.demo
 
+.PHONY: eval
+eval: venv
+	.venv/bin/python -m test.cmpsearch
+
 .PHONY: build
 build: venv
 	.venv/bin/python -m build --wheel

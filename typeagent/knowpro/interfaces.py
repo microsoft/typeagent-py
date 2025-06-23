@@ -21,7 +21,6 @@ from typing import (
 from pydantic.dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
-from ..aitools.vectorbase import VectorBase
 from . import kplib
 
 
@@ -153,6 +152,7 @@ class TextRangeData(TypedDict):
 
 
 # A text range within a session.
+# TODO: Are TextRanges totally ordered?
 @dataclass
 class TextRange:
     # The start of the range.
@@ -548,7 +548,9 @@ class SearchTermGroup:
     """A group of search terms."""
 
     boolean_op: Literal["and", "or", "or_max"]
-    terms: list["SearchTermGroupTypes"] = field(default_factory=list)
+    terms: list["SearchTermGroupTypes"] = field(
+        default_factory=list["SearchTermGroupTypes"]
+    )
 
 
 type SearchTermGroupTypes = SearchTerm | PropertySearchTerm | SearchTermGroup
