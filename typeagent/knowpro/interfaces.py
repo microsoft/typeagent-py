@@ -604,7 +604,7 @@ class SemanticRefSearchResult:
 
 class ThreadDataItem(TypedDict):
     thread: ThreadData
-    embedding: NormalizedEmbedding | None
+    embedding: list[float] | None  # TODO: Why not NormalizedEmbedding?
 
 
 class ConversationThreadData[TThreadDataItem: ThreadDataItem](TypedDict):

@@ -75,7 +75,11 @@ class VectorBase:
     def __bool__(self) -> bool:
         return True
 
-    def add_embedding(self, key: str | None, embedding: NormalizedEmbedding) -> None:
+    def add_embedding(
+        self, key: str | None, embedding: NormalizedEmbedding | list[float]
+    ) -> None:
+        if isinstance(embedding, list):
+            embedding = np.array(embedding, dtype=np.float32)
         embeddings = embedding.reshape(1, -1)  # Make it 2D
         self._vectors = np.append(self._vectors, embeddings, axis=0)
         if key is not None:

@@ -10,6 +10,7 @@ import json
 import numpy as np
 import typechat
 
+from typeagent.knowpro.importing import ConversationSettings
 from typeagent.aitools import auth
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.demo import ui  # TODO: Move what we import to a more appropriate place
@@ -80,7 +81,9 @@ def main():
     # Read podcast data.
 
     auth.load_dotenv()
-    conversation = Podcast.read_from_file(args.podcast)
+    settings = ConversationSettings()
+    with ui.timelog("Loading podcast data"):
+        conversation = Podcast.read_from_file(args.podcast, settings)
     assert conversation is not None, f"Failed to load podcast from {file!r}"
 
     # Create translator.

@@ -23,6 +23,7 @@ import typechat
 
 from ..aitools.auth import load_dotenv
 from ..knowpro.convknowledge import create_typechat_model
+from ..knowpro.importing import ConversationSettings
 from ..knowpro.interfaces import (
     IConversation,
     IMessage,
@@ -70,11 +71,14 @@ def main() -> None:
     load_dotenv()
     with timelog("create typechat model"):
         model = create_typechat_model()
-    translator = create_translator(model, SearchQuery)
+    with timelog("create typechat translator"):
+        translator = create_translator(model, SearchQuery)
 
     file = "testdata/Episode_53_AdrianTchaikovsky_index"
+    with timelog("create conversation settings"):
+        settings = ConversationSettings()
     with timelog("load podcast"):
-        pod = Podcast.read_from_file(file)
+        pod = Podcast.read_from_file(file, settings)
     assert pod is not None, f"Failed to load podcast from {file!r}"
     context = QueryEvalContext(pod)
 
@@ -232,16 +236,14 @@ async def generate_answers(
                 # print()
                 # pretty_print(result)
                 # print_result(result, conversation)
-            combined_answer = await generate_answer(result, conversation)
-            all_answers.append(combined_answer)
-            if combined_answer.type == "NoAnswer":
+            answer = await generate_answer(result, conversation)
+            all_answers.append(answer)
+            if answer.type == "NoAnswer":
                 if debug_context:
-                    print("Failure:", combined_answer.whyNoAnswer)
-            elif combined_answer.type == "Answered":
-                assert (
-                    combined_answer.answer is not None
-                ), "Answered answer must not be None"
-                good = combined_answer.answer.strip()
+                    print("Failure:", answer.whyNoAnswer)
+            elif answer.type == "Answered":
+                assert answer.answer is not None, "Answered answer must not be None"
+                good = answer.answer.strip()
                 if good:
                     good_answers.append(good)
                 if debug_context:
@@ -313,13 +315,14 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
 # TODO: Pass typechat model in as an argument to avoid creating it every time.
 # TODO: Move to answer*.py.
 async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
-    context: ConversationSearchResult, conversation: IConversation[TMessage, TIndex]
+    search_result: ConversationSearchResult,
+    conversation: IConversation[TMessage, TIndex],
 ) -> AnswerResponse:
     # TODO: lift model & translator creation out of the outermost loop.
     model = create_typechat_model()
     translator = create_translator(model, AnswerResponse)
-    assert context.raw_query_text is not None, "Raw query text must not be None"
-    request = f"{create_question_prompt(context.raw_query_text)}\n\n{create_context_prompt(make_context(context, conversation))}"
+    assert search_result.raw_query_text is not None, "Raw query text must not be None"
+    request = f"{create_question_prompt(search_result.raw_query_text)}\n\n{create_context_prompt(make_context(search_result, conversation))}"
     # print("="*50 + "\n" + request + "\n" + "="*50)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
@@ -379,15 +382,16 @@ def dictify(object: object) -> Any:
 
 
 def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
-    context: ConversationSearchResult, conversation: IConversation[TMessage, TIndex]
+    search_result: ConversationSearchResult,
+    conversation: IConversation[TMessage, TIndex],
 ) -> AnswerContext:
     answer_context = AnswerContext([], [], [])
     answer_context.entities = []
     answer_context.topics = []
     answer_context.messages = []
-    for scored_msg_ord in context.message_matches:
+    # TODO: TopK
+    for scored_msg_ord in search_result.message_matches:
         msg = conversation.messages[scored_msg_ord.message_ordinal]
-        # TODO: Dedupe messages
         answer_context.messages.append(
             RelevantMessage(  # TODO: type-safety
                 from_=msg.speaker,  # type: ignore  # It's a PodcastMessage
@@ -396,7 +400,8 @@ def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 messageText=" ".join(msg.text_chunks),
             )
         )
-    for ktype, knowledge in context.knowledge_matches.items():
+    # TODO: merge, then TopK
+    for ktype, knowledge in search_result.knowledge_matches.items():
         assert conversation.semantic_refs is not None, "Semantic refs must not be None"
         match ktype:
             case "entity":
@@ -405,7 +410,6 @@ def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                         scored_sem_ref_ord.semantic_ref_ordinal
                     ]
                     entity = cast(ConcreteEntity, sem_ref.knowledge)
-                    # TODO: Dedupe entities
                     answer_context.entities.append(
                         RelevantKnowledge(
                             knowledge=asdict(entity),

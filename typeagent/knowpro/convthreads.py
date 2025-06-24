@@ -58,10 +58,11 @@ class ConversationThreads(IConversationThreads):
 
         thread_data: list[ThreadDataItem] = []
         for i, thread in enumerate(self.threads):
+            emb = embedding_index.serialize_embedding_at(i)
             thread_data.append(
                 ThreadDataItem(
                     thread=thread.serialize(),
-                    embedding=embedding_index.serialize_embedding_at(i),
+                    embedding=list(emb) if emb is not None else None,
                 )
             )
 
@@ -77,5 +78,6 @@ class ConversationThreads(IConversationThreads):
             embedding = item["embedding"]
             thread = Thread.deserialize(thread_data)
             self.threads.append(thread)
-            if embedding:
+            if embedding is not None:
+                # assert isinstance(embedding, list), "Expected embedding to be a list"
                 self.vector_base.add_embedding(thread_data["description"], embedding)
