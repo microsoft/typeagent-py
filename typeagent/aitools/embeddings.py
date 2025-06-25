@@ -179,9 +179,9 @@ class AsyncEmbeddingModel:
 
 
 async def main():
-    from . import auth
+    from . import utils
 
-    auth.load_dotenv()
+    utils.load_dotenv()
 
     async_model = AsyncEmbeddingModel()
     e = await async_model.get_embeddings([])

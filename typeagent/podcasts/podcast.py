@@ -263,9 +263,8 @@ class Podcast(
         settings: ConversationSettings | None = None,
     ) -> "Podcast | None":
         podcast = Podcast(settings=settings or ConversationSettings())
-        embedding_size = (
-            podcast.settings.related_term_index_settings.embedding_index_settings.embedding_model.embedding_size
-        )
+        e_i_s = podcast.settings.related_term_index_settings.embedding_index_settings
+        embedding_size = e_i_s.embedding_model.embedding_size
         data = serialization.read_conversation_data_from_file(filename, embedding_size)
         if data:
             podcast.deserialize(data)

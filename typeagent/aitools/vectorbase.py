@@ -7,11 +7,12 @@ from typing import Callable
 
 import numpy as np
 
+from ..aitools import utils
 from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
 
 
 @dataclass
-class Scored:
+class ScoredInt:
     item: int
     score: float
 
@@ -106,7 +107,7 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
         predicate: Callable[[int], bool] | None = None,
-    ) -> list[Scored]:
+    ) -> list[ScoredInt]:
         if max_hits is None:
             max_hits = 10
         if min_score is None:
@@ -114,7 +115,7 @@ class VectorBase:
         # This line does most of the work:
         scores: Iterable[float] = np.dot(self._vectors, embedding)
         scored_ordinals = [
-            Scored(i, score)
+            ScoredInt(i, score)
             for i, score in enumerate(scores)
             if score >= min_score and (predicate is None or predicate(i))
         ]
@@ -128,7 +129,7 @@ class VectorBase:
         ordinals_of_subset: list[int],
         max_hits: int | None = None,
         min_score: float | None = None,
-    ) -> list[Scored]:
+    ) -> list[ScoredInt]:
         return self.fuzzy_lookup_embedding(
             embedding, max_hits, min_score, lambda i: i in ordinals_of_subset
         )
@@ -139,7 +140,7 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
         predicate: Callable[[int], bool] | None = None,
-    ) -> list[Scored]:
+    ) -> list[ScoredInt]:
         embedding = await self.get_embedding(key)
         return self.fuzzy_lookup_embedding(
             embedding, max_hits=max_hits, min_score=min_score, predicate=predicate
@@ -191,7 +192,7 @@ async def main():
     def debugv(heading: str):
         log(f"{heading}: bool={bool(v)}, len={len(v)}")
 
-    auth.load_dotenv()
+    utils.load_dotenv()
     v = VectorBase()
     debugv("\nEmpty vector base")
 

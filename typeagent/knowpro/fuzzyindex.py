@@ -5,7 +5,7 @@ from typing import Callable, Optional, TypedDict, List
 from dataclasses import dataclass
 import numpy as np
 
-from ..aitools.vectorbase import VectorBase, TextEmbeddingIndexSettings, Scored
+from ..aitools.vectorbase import VectorBase, TextEmbeddingIndexSettings, ScoredInt
 from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
 
 
@@ -84,7 +84,7 @@ class EmbeddingIndex:
         max_matches: int | None = None,
         min_score: float | None = None,
         predicate: Callable[[int], bool] | None = None,
-    ) -> list[Scored]:
+    ) -> list[ScoredInt]:
         return self._vector_base.fuzzy_lookup_embedding(
             embedding,
             max_hits=max_matches,
@@ -98,7 +98,7 @@ class EmbeddingIndex:
         ordinals_of_subset: list[int],
         max_matches: int | None = None,
         min_score: float | None = None,
-    ) -> list[Scored]:
+    ) -> list[ScoredInt]:
         return self._vector_base.fuzzy_lookup_embedding_in_subset(
             embedding,
             ordinals_of_subset,

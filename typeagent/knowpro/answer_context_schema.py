@@ -1,13 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Annotated, Any, Union
+# TODO: Are we sure this isn't used as a translator schema class?
 
-from pydantic.dataclasses import dataclass
+from dataclasses import dataclass
+from typing import Annotated, Any, Union
+from typing_extensions import Doc
 
 from ..knowpro.interfaces import DateRange
-
-Doc = lambda s: s  # Placeholder for Doc metadata
 
 EntityNames = Union[str, list[str]]
 
@@ -17,14 +17,14 @@ class RelevantKnowledge:
     knowledge: Annotated[Any, Doc("The actual knowledge")]
     origin: Annotated[
         EntityNames | None, Doc("Entity or entities who mentioned the knowledge")
-    ]
+    ] = None
     audience: Annotated[
         EntityNames | None,
         Doc("Entity or entities who received or consumed this knowledge"),
-    ]
+    ] = None
     timeRange: Annotated[
         DateRange | None, Doc("Time period during which this knowledge was gathered")
-    ]
+    ] = None
 
 
 @dataclass
@@ -37,11 +37,13 @@ class RelevantMessage:
 
 @dataclass
 class AnswerContext:
+    """Use empty lists for unneeded properties."""
+
     entities: Annotated[
-        list[RelevantKnowledge] | None,
+        list[RelevantKnowledge],
         Doc(
             "Relevant entities. Use the 'name' and 'type' properties of entities to PRECISELY identify those that answer the user question."
         ),
     ]
-    topics: Annotated[list[RelevantKnowledge] | None, Doc("Relevant topics")]
-    messages: Annotated[list[RelevantMessage] | None, Doc("Relevant messages")]
+    topics: Annotated[list[RelevantKnowledge], Doc("Relevant topics")]
+    messages: Annotated[list[RelevantMessage], Doc("Relevant messages")]

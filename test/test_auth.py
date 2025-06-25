@@ -5,11 +5,7 @@ import time
 import pytest
 from pytest_mock import MockerFixture
 
-from typeagent.aitools.auth import (
-    AzureTokenProvider,
-    get_shared_token_provider,
-    load_dotenv,
-)
+from typeagent.aitools.auth import AzureTokenProvider, get_shared_token_provider
 
 
 @pytest.fixture
@@ -105,11 +101,3 @@ def test_get_shared_token_provider():
     provider1 = get_shared_token_provider()
     provider2 = get_shared_token_provider()
     assert provider1 is provider2
-
-
-def test_load_dotenv(mocker: MockerFixture):
-    """Test that load_dotenv loads the .env file."""
-    # Not a very thorough test, but at least we know dotenv.load_env() is called
-    mock_load_dotenv = mocker.patch("typeagent.aitools.auth.dotenv.load_dotenv")
-    load_dotenv()
-    mock_load_dotenv.assert_called_once()

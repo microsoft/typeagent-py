@@ -7,7 +7,7 @@ from typing import Any, Callable, Literal, Protocol
 from ..aitools.embeddings import NormalizedEmbedding
 from ..aitools.vectorbase import VectorBase
 
-from .fuzzyindex import Scored, EmbeddingIndex
+from .fuzzyindex import ScoredInt, EmbeddingIndex
 from .importing import TextEmbeddingIndexSettings
 import asyncio
 from typing import Sequence
@@ -156,7 +156,7 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         )
         return self.to_scored_locations(matches)
 
-    def to_scored_locations(self, matches: list[Scored]) -> list[ScoredTextLocation]:
+    def to_scored_locations(self, matches: list[ScoredInt]) -> list[ScoredTextLocation]:
         return [
             ScoredTextLocation(self._text_locations[match.item], match.score)
             for match in matches

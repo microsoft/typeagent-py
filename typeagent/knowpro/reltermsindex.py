@@ -4,7 +4,7 @@
 from collections.abc import Sequence
 from typing import Callable, Protocol
 
-from ..aitools.vectorbase import Scored, TextEmbeddingIndexSettings, VectorBase
+from ..aitools.vectorbase import ScoredInt, TextEmbeddingIndexSettings, VectorBase
 
 from .collections import TermSet
 from .common import is_search_term_wildcard
@@ -287,7 +287,7 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
         ]
         return [self.matches_to_terms(m) for m in matches]
 
-    def matches_to_terms(self, matches: list[Scored]) -> list[Term]:
+    def matches_to_terms(self, matches: list[ScoredInt]) -> list[Term]:
         return [
             Term(text=self._texts[match.item], weight=match.score) for match in matches
         ]

@@ -198,7 +198,6 @@ def read_conversation_data_from_file(
 ) -> ConversationDataWithIndexes[Any] | None:
     with open(filename + DATA_FILE_SUFFIX, "r", encoding="utf-8") as f:
         json_data: ConversationJsonData[podcast.PodcastMessageData] = json.load(f)
-    # TODO: validate json_data. (Isn't this done by deserialize()?)
     embeddings_list: list[NormalizedEmbeddings] | None = None
     if embedding_size:
         with open(filename + EMBEDDING_FILE_SUFFIX, "rb") as f:
@@ -266,7 +265,7 @@ def get_embeddings_from_binary_data(
 ) -> int:
     if count is None or count <= 0:
         return 0
-    embeddings = embeddings[offset : offset + count]
+    embeddings = embeddings[offset : offset + count]  # Simple np slice creates a view.
     if len(embeddings) != count:
         raise DeserializationError(
             f"Expected {count} embeddings, got {len(embeddings)}"

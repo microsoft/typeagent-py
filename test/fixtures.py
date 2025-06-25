@@ -5,12 +5,12 @@ import tempfile
 
 import pytest
 
-from typeagent.aitools import auth
+from typeagent.aitools import utils
 
 
 @pytest.fixture(scope="session")
 def needs_auth():
-    auth.load_dotenv()
+    utils.load_dotenv()
 
 
 @pytest.fixture

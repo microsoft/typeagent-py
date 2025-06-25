@@ -5,7 +5,7 @@ from typeagent.knowpro.collections import (
     Match,
     MatchAccumulator,
     PropertyTermSet,
-    ScoredItem,
+    Scored,
     SemanticRefAccumulator,
     TermSet,
     TextRangeCollection,
@@ -448,9 +448,9 @@ def test_top_n_collection():
 def test_get_top_k():
     """Test retrieving the top K items from an unsorted list."""
     items = [
-        ScoredItem(item="low", score=0.5),
-        ScoredItem(item="medium", score=1.0),
-        ScoredItem(item="high", score=2.0),
+        Scored(item="low", score=0.5),
+        Scored(item="medium", score=1.0),
+        Scored(item="high", score=2.0),
     ]
 
     top_k = get_top_k(items, top_k=2)

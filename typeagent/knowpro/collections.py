@@ -619,20 +619,20 @@ class PropertyTermSet:
 
 
 @dataclass
-class ScoredItem[T]:
+class Scored[T]:
     item: T
     score: float
 
-    def __lt__(self, other: "ScoredItem[T]") -> bool:
+    def __lt__(self, other: "Scored[T]") -> bool:
         return self.score < other.score
 
-    def __gt__(self, other: "ScoredItem[T]") -> bool:
+    def __gt__(self, other: "Scored[T]") -> bool:
         return self.score > other.score
 
-    def __le__(self, other: "ScoredItem[T]") -> bool:
+    def __le__(self, other: "Scored[T]") -> bool:
         return self.score <= other.score
 
-    def __ge__(self, other: "ScoredItem[T]") -> bool:
+    def __ge__(self, other: "Scored[T]") -> bool:
         return self.score >= other.score
 
 
@@ -643,7 +643,7 @@ class TopNCollection[T]:
 
     def __init__(self, max_count: int):
         self._max_count = max_count
-        self._heap: list[ScoredItem[T]] = []
+        self._heap: list[Scored[T]] = []
 
     def __len__(self) -> int:
         return len(self._heap)
@@ -651,19 +651,19 @@ class TopNCollection[T]:
     def reset(self) -> None:
         self._heap = []
 
-    def pop(self) -> ScoredItem[T]:
+    def pop(self) -> Scored[T]:
         return heapq.heappop(self._heap)
 
-    def top(self) -> ScoredItem[T]:
+    def top(self) -> Scored[T]:
         return self._heap[0]
 
     def push(self, item: T, score: float) -> None:
         if len(self._heap) < self._max_count:
-            heapq.heappush(self._heap, ScoredItem(item, score))
+            heapq.heappush(self._heap, Scored(item, score))
         else:
-            heapq.heappushpop(self._heap, ScoredItem(item, score))
+            heapq.heappushpop(self._heap, Scored(item, score))
 
-    def by_rank(self) -> list[ScoredItem[T]]:
+    def by_rank(self) -> list[Scored[T]]:
         return sorted(self._heap, reverse=True)
 
     def values_by_rank(self) -> list[T]:
@@ -682,9 +682,9 @@ class TopNListAll[T](TopNList[T]):
 
 
 def get_top_k[T](
-    scored_items: Iterable[ScoredItem[T]],
+    scored_items: Iterable[Scored[T]],
     top_k: int,
-) -> list[ScoredItem[T]]:
+) -> list[Scored[T]]:
     """A function to get the top K of an unsorted list of scored items."""
     top_n_list = TopNCollection[T](top_k)
     for scored_item in scored_items:
