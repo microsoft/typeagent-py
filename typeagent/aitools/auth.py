@@ -5,10 +5,8 @@
 from dataclasses import dataclass
 import time
 from typing import Protocol
-import os
 
 from azure.identity import DefaultAzureCredential
-import dotenv
 
 
 class IAccessToken(Protocol):

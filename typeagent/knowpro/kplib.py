@@ -21,8 +21,7 @@ class Quantity:
         return f"{self.amount} {self.units}"
 
 
-# NOTE: Don't use `type`, pydantic doesn't like it.
-Value = str | float | bool | Quantity
+type Value = str | float | bool | Quantity
 
 
 @dataclass
@@ -76,8 +75,7 @@ class ActionParam:
     value: Value
 
 
-# NOTE: Don't use `type`, pydantic doesn't like it.
-VerbTense = Literal["past", "present", "future"]
+type VerbTense = Literal["past", "present", "future"]
 
 
 @dataclass

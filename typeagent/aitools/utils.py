@@ -54,8 +54,9 @@ def load_dotenv() -> None:
 
 def create_translator[T](
     model: typechat.TypeChatLanguageModel,
-    schema: type[T],
+    schema_class: type[T],
 ) -> typechat.TypeChatJsonTranslator[T]:
     """Create a TypeChat translator for a given model and schema."""
-    validator = typechat.TypeChatValidator[T](schema)
-    return typechat.TypeChatJsonTranslator[T](model, validator, schema)
+    validator = typechat.TypeChatValidator[T](schema_class)
+    translator = typechat.TypeChatJsonTranslator[T](model, validator, schema_class)
+    return translator

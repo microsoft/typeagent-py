@@ -40,6 +40,12 @@ from typeagent.knowpro.query import (
     MatchSearchTermExpr,
     MatchPropertySearchTermExpr,
     GetScopeExpr,
+    get_text_range_for_date_range,
+    get_matching_term_for_text,
+    match_search_term_to_text,
+    match_search_term_to_one_of_text,
+    match_entity_name_or_type,
+    lookup_knowledge_type,
 )
 from typeagent.knowpro.propindex import PropertyIndex
 from typeagent.knowpro.storage import MessageCollection, SemanticRefCollection
@@ -55,9 +61,11 @@ class MockMessage(IMessage):
     """Mock message for testing."""
 
     def __init__(self, message_ordinal: int, text: str = ""):
-        self.message_ordinal = message_ordinal
+        self.ordinal = message_ordinal
         self.text_chunks = [text]
-        self.timestamp = None
+        # Assign a valid ISO-format timestamp string
+        # For variety, increment the hour by message_ordinal
+        self.timestamp = f"2020-01-01T0{message_ordinal}:00:00"
         self.tags = []
 
     def get_knowledge(self) -> KnowledgeResponse:
@@ -288,12 +296,12 @@ class TestQueryEvalContext:
         """Test get_message_for_ref method."""
         ref = eval_context.get_semantic_ref(0)
         message = downcast(MockMessage, eval_context.get_message_for_ref(ref))
-        assert message.message_ordinal == 0
+        assert message.ordinal == 0
 
     def test_get_message(self, eval_context: QueryEvalContext):
         """Test get_message method."""
         message = downcast(MockMessage, eval_context.get_message(1))
-        assert message.message_ordinal == 1
+        assert message.ordinal == 1
 
     def test_clear_matched_terms(self, eval_context: QueryEvalContext):
         """Test clear_matched_terms method."""
@@ -558,3 +566,124 @@ class TestSelectTopNExpr:
         sorted_matches = result.get_sorted_by_score()
         assert sorted_matches[0].value == 1
         assert sorted_matches[1].value == 2
+
+
+def test_get_text_range_for_date_range():
+    from typeagent.knowpro.query import get_text_range_for_date_range
+    from typeagent.knowpro.interfaces import (
+        TextLocation,
+        TextRange,
+        DateRange,
+        Datetime,
+    )
+
+    # Should return None for empty input and any date range
+    empty_conv = MockConversation()
+    empty_conv.messages = MockMessageCollection()
+    date_range = DateRange(
+        start=Datetime(2020, 1, 1, 0, 0, 0),
+        end=Datetime(2020, 1, 2, 0, 0, 0),
+    )
+    assert get_text_range_for_date_range(empty_conv, date_range) is None
+
+    # Should return a TextRange for a valid date range (simulate all messages in range)
+    # (Assume all messages are in the date range for this mock)
+    conv = MockConversation()
+    result_with_range = get_text_range_for_date_range(conv, date_range)
+    assert isinstance(result_with_range, TextRange)
+    assert result_with_range.start == TextLocation(0, 0)
+    assert result_with_range.end == TextLocation(2, 0)  # End is exclusive
+
+
+def test_get_matching_term_for_text():
+    from typeagent.knowpro.query import get_matching_term_for_text
+    from typeagent.knowpro.interfaces import SearchTerm, Term
+
+    # Should return None if no terms match
+    assert get_matching_term_for_text(SearchTerm(term=Term("bar")), "foo") is None
+    # Should return the matching term (case-insensitive)
+    assert get_matching_term_for_text(SearchTerm(term=Term("Foo")), "foo") == Term(
+        "Foo"
+    )
+
+
+def test_get_matching_term_for_text_multiple():
+    from typeagent.knowpro.query import get_matching_term_for_text
+    from typeagent.knowpro.interfaces import SearchTerm, Term
+
+    terms = [SearchTerm(term=Term("bar")), SearchTerm(term=Term("baz"))]
+    assert all(get_matching_term_for_text(term, "foo") is None for term in terms)
+
+
+def test_match_search_term_to_text():
+    from typeagent.knowpro.query import match_search_term_to_text
+    from typeagent.knowpro.interfaces import SearchTerm, Term
+
+    # Should return True if term is in text
+    assert match_search_term_to_text(SearchTerm(term=Term("foo")), "foo")
+    # Should return False if term is not in text
+    assert not match_search_term_to_text(SearchTerm(term=Term("baz")), "foo bar")
+
+
+def test_match_search_term_to_one_of_text():
+    from typeagent.knowpro.query import match_search_term_to_one_of_text
+    from typeagent.knowpro.interfaces import SearchTerm, Term
+
+    # Should return True if term matches any text
+    assert match_search_term_to_one_of_text(
+        SearchTerm(term=Term("foo")), ["bar", "foo"]
+    )
+    # Should return False if term matches none
+    assert not match_search_term_to_one_of_text(
+        SearchTerm(term=Term("baz")), ["bar", "foo"]
+    )
+
+
+def test_match_entity_name_or_type():
+    from typeagent.knowpro.query import match_entity_name_or_type, ConcreteEntity
+    from typeagent.knowpro.interfaces import SearchTerm, Term
+
+    entity = ConcreteEntity(name="foo", type=["bar"])
+    # Should return True if name matches
+    assert match_entity_name_or_type(SearchTerm(term=Term("foo")), entity)
+    # Should return True if type matches
+    assert match_entity_name_or_type(SearchTerm(term=Term("bar")), entity)
+    # Should return False if neither matches
+    assert not match_entity_name_or_type(SearchTerm(term=Term("baz")), entity)
+
+
+def test_lookup_knowledge_type():
+    from typeagent.knowpro.query import lookup_knowledge_type
+    from typeagent.knowpro.interfaces import (
+        SemanticRef,
+        ScoredSemanticRefOrdinal,
+        TextRange,
+        TextLocation,
+        Topic,
+    )
+    from typeagent.knowpro.storage import SemanticRefCollection
+
+    # Create valid TextRange and Topic objects
+    rng = TextRange(TextLocation(0, 0), TextLocation(0, 1))
+    topic1 = Topic("foo")
+    topic2 = Topic("bar")
+
+    # Use only valid knowledge_type values: 'entity', 'action', 'topic', 'tag'
+    refs = [
+        SemanticRef(
+            semantic_ref_ordinal=0, range=rng, knowledge_type="topic", knowledge=topic1
+        ),
+        SemanticRef(
+            semantic_ref_ordinal=1, range=rng, knowledge_type="entity", knowledge=topic2
+        ),
+        SemanticRef(
+            semantic_ref_ordinal=2, range=rng, knowledge_type="topic", knowledge=topic2
+        ),
+    ]
+    collection = SemanticRefCollection(refs)
+    result = lookup_knowledge_type(collection, "topic")
+    assert isinstance(result, list)
+    assert all(isinstance(r, ScoredSemanticRefOrdinal) for r in result)
+    assert {r.semantic_ref_ordinal for r in result} == {0, 2}
+    # Should return empty list if no match
+    assert lookup_knowledge_type(collection, "action") == []

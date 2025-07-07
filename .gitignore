@@ -3,3 +3,5 @@ venv
 *_data.json
 *_embeddings.bin
 .ui_history
+/testdata/Episode_53_Answer_results.json
+evals/

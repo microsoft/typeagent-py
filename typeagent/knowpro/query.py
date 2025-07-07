@@ -78,7 +78,6 @@ def get_text_range_for_date_range(
     date_range: DateRange,
 ) -> TextRange | None:
     messages = conversation.messages
-    message_count = len(messages)
     range_start_ordinal: MessageOrdinal = -1
     range_end_ordinal = range_start_ordinal
     for message in messages:

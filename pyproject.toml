@@ -17,6 +17,7 @@ dependencies = [
   "azure-identity>=1.22.0",
   "black>=25.1.0",
   "build>=1.2.2.post1",
+  "colorama>=0.4.6",
   "coverage>=7.9.1",
   "numpy>=2.2.6",
   "openai>=1.81.0",

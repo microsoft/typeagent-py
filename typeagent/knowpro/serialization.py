@@ -14,6 +14,7 @@ from typing import (
     Literal,
     NotRequired,
     overload,
+    TypeAliasType,
     TypedDict,
     Union,
 )
@@ -310,11 +311,15 @@ def is_primitive(typ: type) -> bool:
 # TODO: Use type(obj) is X instead of isinstance(obj, X). It's faster.
 # TODO: Design a consistent reporting format.
 def deserialize_object(typ: Any, obj: Any) -> Any:
+    if typ.__class__ is TypeAliasType:
+        typ = typ.__value__
     origin = get_origin(typ)
 
     # Handle Annotated by substituting its first argument for typ.
     if origin is Annotated:
         typ = get_args(typ)[0]
+        if typ.__class__ is TypeAliasType:
+            typ = typ.__value__
         origin = get_origin(typ)  # Get the first type argument.
 
     # Non-generic: primitives and dataclasses.

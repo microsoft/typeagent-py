@@ -279,6 +279,12 @@ class Term:
     # Optional weighting for these matches.
     weight: float | None = None
 
+    def __repr__(self) -> str:
+        if self.weight is None:
+            return f"{self.__class__.__name__}({self.text!r})"
+        else:
+            return f"{self.__class__.__name__}({self.text!r}, {self.weight:.4g})"
+
     def serialize(self) -> "TermData":
         if self.weight is None:
             return TermData(text=self.text)

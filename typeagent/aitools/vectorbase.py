@@ -44,15 +44,17 @@ class TextEmbeddingIndexSettings:
 
 
 class VectorBase:
+    settings: TextEmbeddingIndexSettings
     _vectors: NormalizedEmbeddings
+    _model: AsyncEmbeddingModel
+    _embedding_size: int
 
     def __init__(self, settings: TextEmbeddingIndexSettings | None = None):
-        model = settings.embedding_model if settings else None
-        embedding_size = settings.embedding_size if settings else None
-        if model is None:
-            model = AsyncEmbeddingModel(embedding_size)
-        self._model = model
-        self._embedding_size = model.embedding_size
+        if settings is None:
+            settings = TextEmbeddingIndexSettings()
+        self.settings = settings
+        self._model = settings.embedding_model
+        self._embedding_size = self._model.embedding_size
         self.clear()
 
     async def get_embedding(self, key: str, cache: bool = True) -> NormalizedEmbedding:
@@ -141,6 +143,10 @@ class VectorBase:
         min_score: float | None = None,
         predicate: Callable[[int], bool] | None = None,
     ) -> list[ScoredInt]:
+        if max_hits is None:
+            max_hits = self.settings.max_matches
+        if min_score is None:
+            min_score = self.settings.min_score
         embedding = await self.get_embedding(key)
         return self.fuzzy_lookup_embedding(
             embedding, max_hits=max_hits, min_score=min_score, predicate=predicate

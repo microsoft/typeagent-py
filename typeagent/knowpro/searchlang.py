@@ -81,6 +81,15 @@ class LanguageSearchOptions(SearchOptions):
     fallback_rag_options: None = None  # Don't need LanguageSearchRagOptions yet
     model_instructions: list[typechat.PromptSection] | None = None
 
+    def __repr__(self):
+        parts = []
+        for key in dir(self):
+            if not key.startswith("_"):
+                value = getattr(self, key)
+                if value is not None:
+                    parts.append(f"{key}={value!r}")
+        return f"{self.__class__.__name__}({', '.join(parts)})"
+
 
 @dataclass
 class LanguageSearchDebugContext:
@@ -663,4 +672,7 @@ async def search_query_from_language(
         prompt_preamble.extend(model_instructions)
     if time_range:
         prompt_preamble.append(time_range)
+    # print("[" * 50)
+    # print(translator.schema_str)
+    # print("]" * 50)
     return await translator.translate(query_text, prompt_preamble=prompt_preamble)

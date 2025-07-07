@@ -28,16 +28,15 @@ class Context:
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse]
     embedding_model: AsyncEmbeddingModel
-    options: None
+    lang_search_options: searchlang.LanguageSearchOptions
+    answer_options: answers.AnswerContextOptions
     interactive: bool
 
 
 def main():
     # Parse arguments.
 
-    default_qafile = (
-        "../../../AISystems-Archive/data/knowpro/test/Episode_53_Answer_results.json"
-    )
+    default_qafile = "testdata/Episode_53_Answer_results.json"
     default_podcast_file = "testdata/Episode_53_AdrianTchaikovsky_index"
 
     explanation = "a list of objects with 'question' and 'answer' keys"
@@ -55,10 +54,16 @@ def main():
         help="Path to the podcast index files (excluding the '_index.json' suffix)",
     )
     parser.add_argument(
-        "--skip",
+        "--offset",
         type=int,
         default=0,
-        help="Number of initial Q/A pairs to skip (for debugging purposes)",
+        help="Number of initial Q/A pairs to skip",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Number of Q/A pairs to print (0 means all)",
     )
     parser.add_argument(
         "--interactive",
@@ -101,25 +106,44 @@ def main():
         query_translator,
         answer_translator,
         AsyncEmbeddingModel(),
-        options=None,  # TODO: Set options if needed
+        lang_search_options=searchlang.LanguageSearchOptions(
+            compile_options=searchlang.LanguageQueryCompileOptions(
+                exact_scope=False, verb_scope=True, term_filter=None, apply_scope=True
+            ),
+            exact_match=False,
+            max_message_matches=25,
+        ),
+        answer_options=answers.AnswerContextOptions(
+            entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
+        ),
         interactive=args.interactive,
     )
+    utils.pretty_print(context.lang_search_options)
+    utils.pretty_print(context.answer_options)
 
     # Loop over eval data, skipping duplicate questions
     # (Those differ in 'cmd' value, which we don't support yet.)
 
-    skip = args.skip
+    offset = args.offset
+    limit = args.limit
     last_q = ""
     counter = 0
+    all_scores: list[tuple[float, int]] = []  # [(score, counter), ...]
     for qa_pair in data:
-        counter += 1
         question = qa_pair.get("question")
         answer = qa_pair.get("answer")
+        if question:
+            question = question.strip()
+        if answer:
+            answer = answer.strip()
         if not (question and answer) or question == last_q:
             continue
+        counter += 1
         last_q = question
-        if skip > 0:
-            skip -= 1
+
+        # Process offset if specified.
+        if offset > 0:
+            offset -= 1
             continue
 
         # Wait for user input before continuing.
@@ -132,15 +156,39 @@ def main():
 
         # Compare the given answer with the actual answer for the question.
         actual_answer, score = asyncio.run(compare(context, qa_pair))
-        print("-" * 25, counter, "-" * 25)
-        if not context.interactive and score < 0.97:
-            print(f"Question: {question}")
+        all_scores.append((score, counter))
+        good_enough = score >= 0.97
+        sep = "-" if good_enough else "*"
+        print(sep * 25, counter, sep * 25)
+        print(f"Score: {score:.3f}; Question: {question}", flush=True)
+        if context.interactive or not good_enough:
+            cmd = qa_pair.get("cmd")
+            if cmd and cmd != f'@kpAnswer --query "{question}"':
+                print(f"Command: {cmd}")
+            if qa_pair.get("hasNoAnswer"):
+                answer = f"Failure: {answer}"
             print(f"Expected answer:\n{answer}")
             print("-" * 20)
-            print(f"Actual answer:\n{actual_answer}")
-            print(f"Score: {score:.3f}")
-        else:
-            print(f"Score: {score:.3f} (question: {question})")
+            print(f"Actual answer:\n{actual_answer}", flush=True)
+
+        # Process limit if specified.
+        if limit > 0:
+            limit -= 1
+            if limit == 0:
+                break
+
+    print("=" * 50)
+    all_scores.sort(reverse=True)
+    good_scores = [(score, counter) for score, counter in all_scores if score >= 0.97]
+    bad_scores = [(score, counter) for score, counter in all_scores if score < 0.97]
+    for label, pairs in [("Good", good_scores), ("Bad", bad_scores)]:
+        print(f"{label} scores ({len(pairs)}):")
+        for i in range(0, len(pairs), 10):
+            print(
+                ", ".join(
+                    f"{score:.3f}({counter})" for score, counter in pairs[i : i + 10]
+                )
+            )
 
 
 async def compare(
@@ -151,6 +199,7 @@ async def compare(
 
     question = qa_pair.get("question")
     answer = qa_pair.get("answer")
+    failed = qa_pair.get("hasNoAnswer")
     cmd = qa_pair.get("cmd")
     if not (question and answer):
         return None, score
@@ -172,25 +221,35 @@ async def compare(
         context.conversation,
         context.query_translator,
         question,
-        context.options,
+        context.lang_search_options,
     )
     print("-" * 40)
     if not isinstance(result, typechat.Success):
         print("Error:", result.message)
     else:
         all_answers, combined_answer = await answers.generate_answers(
-            context.answer_translator, result.value, context.conversation, question
+            context.answer_translator,
+            result.value,
+            context.conversation,
+            question,
+            options=context.answer_options,
         )
         print("-" * 40)
         if combined_answer.type == "NoAnswer":
-            print("Failure:", combined_answer.whyNoAnswer)
+            if failed:
+                score = 1.0
+            the_answer = f"Failure: {combined_answer.whyNoAnswer}"
+            print(the_answer)
             print("All answers:")
             if context.interactive:
                 utils.pretty_print(all_answers)
         else:
             assert combined_answer.answer is not None, "Expected an answer"
             the_answer = combined_answer.answer
-            score = await equality_score(context, answer, the_answer)
+            if failed:
+                score = 0.0
+            else:
+                score = await equality_score(context, answer, the_answer)
             print(the_answer)
             print("Correctness score:", score)
     print("=" * 40)

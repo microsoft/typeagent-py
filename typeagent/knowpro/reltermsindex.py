@@ -231,9 +231,13 @@ class ITermEmbeddingIndex(ITermToRelatedTermsFuzzy, Protocol):
 class TermEmbeddingIndex(ITermEmbeddingIndex):
     # The Python version wraps a VectorBase
 
+    settings: TextEmbeddingIndexSettings
+    _vectorbase: VectorBase
+    _texts: list[str]
+
     def __init__(
         self,
-        settings: TextEmbeddingIndexSettings | None = None,
+        settings: TextEmbeddingIndexSettings,
         data: TextEmbeddingIndexData | None = None,
     ):
         self.settings = settings

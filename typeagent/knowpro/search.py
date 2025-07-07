@@ -79,6 +79,15 @@ class SearchOptions:
     max_chars_in_budget: int | None = None
     threshold_score: float | None = None
 
+    def __repr__(self):
+        parts = []
+        for key in dir(self):
+            if not key.startswith("_"):
+                value = getattr(self, key)
+                if value is not None:
+                    parts.append(f"{key}={value!r}")
+        return f"{self.__class__.__name__}({', '.join(parts)})"
+
 
 @dataclass
 class ConversationSearchResult:

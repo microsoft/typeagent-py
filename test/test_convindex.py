@@ -200,3 +200,51 @@ def test_add_knowledge_to_index(conversation_index: ConversationIndex):
     result = conversation_index.lookup_term("ExampleTopic")
     assert result is not None
     assert len(result) == 1
+
+
+def test_conversation_index_len_and_get_terms(conversation_index: ConversationIndex):
+    """Test __len__ and get_terms method."""
+    assert len(conversation_index) == 0
+    conversation_index.add_term("foo", 1)
+    conversation_index.add_term("bar", 2)
+    terms = conversation_index.get_terms()
+    assert "foo" in terms
+    assert "bar" in terms
+    assert len(conversation_index) == 2
+
+
+def test_conversation_index_contains(conversation_index: ConversationIndex):
+    """Test presence of a term using lookup_term."""
+    conversation_index.add_term("foo", 1)
+    assert conversation_index.lookup_term("foo") != []
+    assert conversation_index.lookup_term("bar") == []
+
+
+def test_conversation_index_clear(conversation_index: ConversationIndex):
+    """Test clear method."""
+    conversation_index.add_term("foo", 1)
+    conversation_index.add_term("bar", 2)
+    conversation_index.clear()
+    assert len(conversation_index) == 0
+    assert conversation_index.lookup_term("foo") == []
+
+
+def test_conversation_index_remove_term_nonexistent(
+    conversation_index: ConversationIndex,
+):
+    """Test removing a term that does not exist does not raise."""
+    conversation_index.remove_term("nonexistent", 123)  # Should not raise
+
+
+def test_conversation_index_remove_term_if_empty_nonexistent(
+    conversation_index: ConversationIndex,
+):
+    """Test remove_term_if_empty on a term that does not exist."""
+    conversation_index.remove_term_if_empty("nonexistent")  # Should not raise
+
+
+def test_conversation_index_serialize_empty(conversation_index: ConversationIndex):
+    """Test serialize on an empty index."""
+    serialized = conversation_index.serialize()
+    assert "items" in serialized
+    assert serialized["items"] == []

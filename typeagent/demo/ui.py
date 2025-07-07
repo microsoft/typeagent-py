@@ -1,9 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+__version__ = "0.1"
+
 import asyncio
-from contextlib import contextmanager
-import time
 import io
 import re
 import sys
@@ -15,11 +15,12 @@ try:
 except ImportError:
     readline = None
 
+import colorama
 import typechat
 
 from ..aitools.utils import create_translator, load_dotenv, pretty_print, timelog
 from ..knowpro.answer_response_schema import AnswerResponse
-from ..knowpro.answers import generate_answers
+from ..knowpro.answers import AnswerContextOptions, generate_answers
 from ..knowpro.convknowledge import create_typechat_model
 from ..knowpro.importing import ConversationSettings
 from ..knowpro.interfaces import (
@@ -33,7 +34,9 @@ from ..knowpro.kplib import Action, ActionParam, ConcreteEntity, Quantity
 from ..knowpro.query import QueryEvalContext
 from ..knowpro.search import ConversationSearchResult
 from ..knowpro.searchlang import (
+    LanguageQueryCompileOptions,
     LanguageSearchDebugContext,
+    LanguageSearchOptions,
     search_conversation_with_language,
 )
 from ..knowpro.search_query_schema import SearchQuery
@@ -41,11 +44,37 @@ from ..podcasts.podcast import Podcast
 
 
 def main() -> None:
+    if sys.stdin.isatty():
+        print(f"TypeAgent demo UI {__version__} (type 'q' to exit)")
+        if readline:
+            try:
+                readline.read_history_file(".ui_history")
+            except FileNotFoundError:
+                pass  # Ignore if history file does not exist.
+
+    colorama.init(autoreset=True)
     load_dotenv()
     model = create_typechat_model()
     with timelog("create typechat translator"):
         query_translator = create_translator(model, SearchQuery)
         answer_translator = create_translator(model, AnswerResponse)
+
+    print(colorama.Fore.YELLOW + query_translator.schema_str)  # For debugging purposes.
+
+    lang_search_options = LanguageSearchOptions(
+        exact_match=False,
+        max_message_matches=25,
+        max_chars_in_budget=None,
+        compile_options=LanguageQueryCompileOptions(
+            exact_scope=False, apply_scope=True
+        ),
+    )
+    pretty_print(lang_search_options)
+    answer_context_options = AnswerContextOptions(
+        entities_top_k=50,
+        topics_top_k=50,
+    )
+    pretty_print(answer_context_options)
 
     file = "testdata/Episode_53_AdrianTchaikovsky_index"
     with timelog("create conversation settings"):
@@ -55,16 +84,12 @@ def main() -> None:
     assert pod is not None, f"Failed to load podcast from {file!r}"
     context = QueryEvalContext(pod)
 
-    print("TypeAgent demo UI 0.1 (type 'q' to exit)")
-    if readline and sys.stdin.isatty():
-        try:
-            readline.read_history_file(".ui_history")
-        except FileNotFoundError:
-            pass  # Ignore if history file does not exist.
     try:
         process_inputs(
             query_translator,
             answer_translator,
+            lang_search_options,
+            answer_context_options,
             context,
             cast(io.TextIOWrapper, sys.stdin),
         )
@@ -78,6 +103,8 @@ def main() -> None:
 def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery],
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
+    lang_search_options: LanguageSearchOptions,
+    answer_context_options: AnswerContextOptions,
     context: QueryEvalContext[TMessage, TIndex],
     stream: io.TextIOWrapper,
 ) -> None:
@@ -113,6 +140,7 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                     continue
                 pretty_print(messages[msg_ord])
             case _:
+                print("-" * 50)
                 with timelog("Query processing"):
                     asyncio.run(
                         wrap_process_query(
@@ -120,8 +148,11 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                             context.conversation,
                             query_translator,
                             answer_translator,
+                            lang_search_options,
+                            answer_context_options,
                         )
                     )
+                print("-" * 50)
 
 
 def read_one_line(ps1: str, stream: io.TextIOWrapper) -> str | None:
@@ -147,11 +178,18 @@ async def wrap_process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex
     conversation: IConversation[TMessage, TIndex],
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery],
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
+    lang_search_options: LanguageSearchOptions,
+    answer_context_options: AnswerContextOptions,
 ) -> None:
     """Wrap the process_query function to handle exceptions."""
     try:
         await process_query(
-            query_text, conversation, query_translator, answer_translator
+            query_text,
+            conversation,
+            query_translator,
+            answer_translator,
+            lang_search_options,
+            answer_context_options,
         )
     except Exception as exc:
         traceback.print_exc()
@@ -163,45 +201,55 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     conversation: IConversation[TMessage, TIndex],
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery],
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
+    lang_search_options: LanguageSearchOptions,
+    answer_context_options: AnswerContextOptions,
 ) -> None:
     debug_context = LanguageSearchDebugContext()  # For lots of debug output.
     result = await search_conversation_with_language(
         conversation,
         query_translator,
         orig_query_text,
+        options=lang_search_options,
         debug_context=debug_context,
     )
     if debug_context:
         if debug_context.search_query:
-            print("-" * 50)
             pretty_print(debug_context.search_query)
-        if debug_context.search_query_expr:
             print("-" * 50)
+        if debug_context.search_query_expr:
             pretty_print(debug_context.search_query_expr)
+            print("-" * 50)
     if not isinstance(result, typechat.Success):
         print(f"Error searching conversation: {result.message}")
         return
     search_results = result.value
     for sr in search_results:
-        print("-" * 50)
         print_result(sr, conversation)
+        print("-" * 50)
     all_answers, combined_answer = await generate_answers(
-        answer_translator, search_results, conversation, orig_query_text
+        answer_translator,
+        search_results,
+        conversation,
+        orig_query_text,
+        options=answer_context_options,
     )
-    print("-" * 40)
     pretty_print(all_answers)
-    print("-" * 40)
+    print("-" * 50)
     if combined_answer.type == "NoAnswer":
-        print(f"Failure: {combined_answer.whyNoAnswer}")
+        print(colorama.Fore.RED + f"Failure: {combined_answer.whyNoAnswer}")
     else:
-        print(combined_answer.answer)
-    print("-" * 40)
+        print(colorama.Fore.GREEN + f"{combined_answer.answer}")
+    print("-" * 50)
 
 
 def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     result: ConversationSearchResult, conversation: IConversation[TMessage, TIndex]
 ) -> None:
-    print(f"Raw query: {result.raw_query_text}")
+    print(
+        f"Raw query: {result.raw_query_text};",
+        f"{len(result.message_matches)} message matches,",
+        f"{len(result.knowledge_matches)} knowledge matches",
+    )
     if result.message_matches:
         print("Message matches:")
         for scored_ord in sorted(

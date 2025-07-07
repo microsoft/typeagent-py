@@ -16,19 +16,23 @@ check: venv
 
 .PHONY: test
 test: venv
-	.venv/bin/python -m pytest test
+	.venv/bin/python -m coverage run --source=typeagent -m pytest test
 
 .PHONY: demo
 demo: venv
 	.venv/bin/python -m typeagent.demo
 
-.PHONY: eval
-eval: venv
+.PHONY: compare
+compare: venv
 	.venv/bin/python -m test.cmpsearch
 
 .PHONY: profile
 profile: venv
 	</dev/null .venv/bin/python -m cProfile -s ncalls -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index | head -60
+
+.PHONY: scaling
+scaling: venv
+	</dev/null .venv/bin/python -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index
 
 .PHONY: build
 build: venv

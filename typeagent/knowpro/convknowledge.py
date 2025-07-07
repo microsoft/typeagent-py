@@ -83,7 +83,7 @@ class KnowledgeExtractor:
         translator = typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse](
             model, validator, kplib.KnowledgeResponse
         )
-        schema_text = translator._schema_str.rstrip()  # type: ignore  # Must access internal.
+        schema_text = translator.schema_str.rstrip()  # type: ignore  # Must access internal.
 
         def create_request_prompt(intent: str) -> str:
             return (

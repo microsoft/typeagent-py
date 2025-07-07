@@ -707,6 +707,7 @@ dependencies = [
     { name = "azure-identity" },
     { name = "black" },
     { name = "build" },
+    { name = "colorama" },
     { name = "coverage" },
     { name = "numpy" },
     { name = "openai" },
@@ -724,6 +725,7 @@ requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
     { name = "black", specifier = ">=25.1.0" },
     { name = "build", specifier = ">=1.2.2.post1" },
+    { name = "colorama", specifier = ">=0.4.6" },
     { name = "coverage", specifier = ">=7.9.1" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "openai", specifier = ">=1.81.0" },
@@ -739,7 +741,7 @@ requires-dist = [
 [[package]]
 name = "typechat"
 version = "0.0.2"
-source = { git = "https://github.com/microsoft/TypeChat?subdirectory=python#fb4bdeb8eefc5ed33718c5ed83417f38f83f1480" }
+source = { git = "https://github.com/microsoft/TypeChat?subdirectory=python#02e0a748b4a3f9cfad13db2ecba8d9616b0754a6" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },

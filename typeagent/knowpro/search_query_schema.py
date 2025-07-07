@@ -16,14 +16,14 @@ class FacetTerm:
         str,
         Doc(
             "The name of the facet, such as 'color', 'profession', 'patent number'; "
-            "'*' means match any facet name"
+            "'*' means match any facet name."
         ),
     ]
     facet_value: Annotated[
         str,
         Doc(
             "The value of the facet, such as 'red', 'writer'; "
-            "'*' means match any facet value"
+            "'*' means match any facet value."
         ),
     ]
 
@@ -41,7 +41,7 @@ class EntityTerm:
         str,
         Doc(
             "The name of the entity or thing such as 'Bach', 'Great Gatsby', 'frog' or 'piano' or 'we', 'I'; "
-            "'*' means match any entity name"
+            "'*' means match any entity name."
         ),
     ]
     is_name_pronoun: bool | None
@@ -49,23 +49,23 @@ class EntityTerm:
         list[str] | None,
         Doc(
             "The specific types of the entity such as 'book', 'movie', 'song', 'speaker', "
-            "'person', 'artist', 'animal', 'instrument', 'school', 'room', 'museum', 'food' etc. "
-            "Generic types like 'object', 'thing' etc. are NOT allowed. "
-            "An entity can have multiple types; entity types should be single words"
+            "'person', 'artist', 'animal', 'instrument', 'school', 'room', 'museum', 'food' etc.\n"
+            "Generic types like 'object', 'thing' etc. are NOT allowed.\n"
+            "An entity can have multiple types; entity types should be single words."
         ),
-    ]
+    ] = None
     facets: Annotated[
         list[FacetTerm] | None,
         Doc(
-            "Facet terms search for properties or attributes of the entity. Eg: "
-            "color(blue), profession(writer), author(*), aunt(Agatha), weight(4kg), phoneNumber(...), etc."
+            "Facet terms search for properties or attributes of the entity.\n"
+            "E.g.: color(blue), profession(writer), author(*), aunt(Agatha), weight(4kg), phoneNumber(...), etc."
         ),
-    ]
+    ] = None
 
 
 @dataclass
 class VerbsTerm:
-    words: Annotated[list[str], Doc("Individual words in single or compound verb")]
+    words: Annotated[list[str], Doc("Individual words in single or compound verb.")]
     tense: Literal["Past", "Present", "Future"]
 
 
@@ -73,31 +73,31 @@ class VerbsTerm:
 class ActionTerm:
     action_verbs: Annotated[
         VerbsTerm | None, Doc("Action verbs describing the interaction.")
-    ]
+    ] = None
     actor_entities: Annotated[
         list[EntityTerm] | Literal["*"],
         Doc(
-            "The origin of the action or information, typically the entity performing the action"
+            "The origin of the action or information, typically the entity performing the action."
         ),
-    ]
+    ] = "*"
     target_entities: Annotated[
         list[EntityTerm] | None,
         Doc(
-            "The recipient or target of the action or information. "
+            "The recipient or target of the action or information.\n"
             "Action verbs can imply relevant facet names on the targetEntity. "
             "E.g. write -> writer, sing -> singer etc."
         ),
-    ]
+    ] = None
     additional_entities: Annotated[
         list[EntityTerm] | None,
         Doc(
-            "Additional entities participating in the action. "
+            "Additional entities participating in the action.\n"
             "E.g. in the phrase 'Jane ate the spaghetti with the fork', "
-            "'the fork' would be an additional entity. "
+            "'the fork' would be an additional entity.\n"
             "E.g. in the phrase 'Did Jane speak about Bach with Nina', "
-            "'Bach' would be the additional entity"
+            "'Bach' would be the additional entity."
         ),
-    ]
+    ] = None
     is_informational: Annotated[
         bool,
         Doc(
@@ -109,18 +109,18 @@ class ActionTerm:
             "False: if involves actions and interactions between entities, "
             "such as 'What phone number did Mia mention in her note to Jane?'"
         ),
-    ]
+    ] = False
 
 
 @dataclass
 class SearchFilter:
     """
     Search a search engine for:
-    entitySearchTerms cannot contain entities already in actionSearchTerms.
+    entity_search_terms cannot contain entities already in action_search_terms.
     """
 
-    action_search_term: ActionTerm | None
-    entity_search_terms: list[EntityTerm] | None
+    action_search_term: ActionTerm | None = None
+    entity_search_terms: list[EntityTerm] | None = None
     search_terms: Annotated[
         list[str] | None,
         Doc(
@@ -131,14 +131,14 @@ class SearchFilter:
             "- Phrases like 'email address' or 'first name' are a single term.\n"
             "- Use empty searchTerms array when use asks for summaries."
         ),
-    ]
+    ] = None
     time_range: Annotated[
         DateTimeRange | None,
         Doc(
             "Use only if request explicitly asks for time range, particular year, month etc.\n"
-            "In this time range."
+            "in this time range."
         ),
-    ]
+    ] = None
 
 
 @dataclass
