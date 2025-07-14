@@ -3,8 +3,10 @@
 
 __version__ = "0.1"
 
+import argparse
 import asyncio
 import io
+import json
 import re
 import sys
 import traceback
@@ -35,31 +37,60 @@ from ..knowpro.query import QueryEvalContext
 from ..knowpro.search import ConversationSearchResult
 from ..knowpro.searchlang import (
     LanguageQueryCompileOptions,
+    LanguageQueryExpr,
     LanguageSearchDebugContext,
     LanguageSearchOptions,
     search_conversation_with_language,
 )
 from ..knowpro.search_query_schema import SearchQuery
+from ..knowpro.serialization import deserialize_object
 from ..podcasts.podcast import Podcast
 
 
 def main() -> None:
-    if sys.stdin.isatty():
-        print(f"TypeAgent demo UI {__version__} (type 'q' to exit)")
-        if readline:
-            try:
-                readline.read_history_file(".ui_history")
-            except FileNotFoundError:
-                pass  # Ignore if history file does not exist.
+    parser = argparse.ArgumentParser(description="TypeAgent demo UI.")
+    parser.add_argument(
+        "--podcast",
+        type=str,
+        default="testdata/Episode_53_AdrianTchaikovsky_index",
+        help="Path to the podcast file, less _data.json suffix.",
+    )
+    parser.add_argument(
+        "--alt-schema",
+        type=str,
+        default=None,
+        help="Path to alternate schema file for query translator.",
+    )
+    parser.add_argument(
+        "--search-query-index",
+        type=str,
+        default=None,
+        help="Path to a JSON file containing a search query index mapping.",
+    )
+
+    args = parser.parse_args()
 
     colorama.init(autoreset=True)
     load_dotenv()
-    model = create_typechat_model()
-    with timelog("create typechat translator"):
-        query_translator = create_translator(model, SearchQuery)
-        answer_translator = create_translator(model, AnswerResponse)
 
-    print(colorama.Fore.YELLOW + query_translator.schema_str)  # For debugging purposes.
+    model = create_typechat_model()
+    query_translator = create_translator(model, SearchQuery)
+    answer_translator = create_translator(model, AnswerResponse)
+
+    if args.alt_schema:
+        print(f"Substituting alt schema from {args.alt_schema}")
+        with open(args.alt_schema) as f:
+            query_translator.schema_str = f.read()
+
+    print(colorama.Fore.YELLOW + query_translator.schema_str.rstrip())
+
+    search_query_index: dict[str, dict[str, object]] = {}
+    if args.search_query_index:
+        print(f"Loading search query index from {args.search_query_index}")
+        with open(args.search_query_index) as f:
+            # TODO: Add type checks and annotations.
+            srdata = json.load(f)
+            search_query_index = {item["searchText"]: item for item in srdata}
 
     lang_search_options = LanguageSearchOptions(
         exact_match=False,
@@ -69,20 +100,27 @@ def main() -> None:
             exact_scope=False, apply_scope=True
         ),
     )
-    pretty_print(lang_search_options)
+    pretty_print(lang_search_options, colorama.Fore.CYAN)
     answer_context_options = AnswerContextOptions(
         entities_top_k=50,
         topics_top_k=50,
     )
-    pretty_print(answer_context_options)
+    pretty_print(answer_context_options, colorama.Fore.CYAN)
 
-    file = "testdata/Episode_53_AdrianTchaikovsky_index"
-    with timelog("create conversation settings"):
-        settings = ConversationSettings()
-    with timelog("load podcast"):
+    file = args.podcast
+    settings = ConversationSettings()
+    with timelog(f"load podcast from {file!r}"):
         pod = Podcast.read_from_file(file, settings)
     assert pod is not None, f"Failed to load podcast from {file!r}"
     context = QueryEvalContext(pod)
+
+    if sys.stdin.isatty():
+        print(f"TypeAgent demo UI {__version__} (type 'q' to exit)")
+        if readline:
+            try:
+                readline.read_history_file(".ui_history")
+            except FileNotFoundError:
+                pass  # Ignore if history file does not exist.
 
     try:
         process_inputs(
@@ -92,9 +130,12 @@ def main() -> None:
             answer_context_options,
             context,
             cast(io.TextIOWrapper, sys.stdin),
+            search_query_index,
         )
+
     except KeyboardInterrupt:
         print()
+
     finally:
         if readline and sys.stdin.isatty():
             readline.write_history_file(".ui_history")
@@ -107,6 +148,7 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     answer_context_options: AnswerContextOptions,
     context: QueryEvalContext[TMessage, TIndex],
     stream: io.TextIOWrapper,
+    search_query_index: dict[str, dict[str, object]],
 ) -> None:
     ps1 = "--> "
     while True:
@@ -142,6 +184,13 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
             case _:
                 print("-" * 50)
                 with timelog("Query processing"):
+                    use_search_query: SearchQuery | None = None
+                    if search_query_index and query_text in search_query_index:
+                        print(colorama.Fore.YELLOW + "Using pre-computed SearchQuery")
+                        use_search_query = deserialize_object(
+                            SearchQuery,
+                            search_query_index[query_text]["searchQueryExpr"],
+                        )
                     asyncio.run(
                         wrap_process_query(
                             query_text,
@@ -150,6 +199,7 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                             answer_translator,
                             lang_search_options,
                             answer_context_options,
+                            use_search_query,
                         )
                     )
                 print("-" * 50)
@@ -180,6 +230,7 @@ async def wrap_process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     lang_search_options: LanguageSearchOptions,
     answer_context_options: AnswerContextOptions,
+    use_search_query: SearchQuery | None = None,
 ) -> None:
     """Wrap the process_query function to handle exceptions."""
     try:
@@ -190,6 +241,7 @@ async def wrap_process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex
             answer_translator,
             lang_search_options,
             answer_context_options,
+            use_search_query,
         )
     except Exception as exc:
         traceback.print_exc()
@@ -203,8 +255,9 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     lang_search_options: LanguageSearchOptions,
     answer_context_options: AnswerContextOptions,
+    use_search_query: SearchQuery | None = None,
 ) -> None:
-    debug_context = LanguageSearchDebugContext()  # For lots of debug output.
+    debug_context = LanguageSearchDebugContext(use_search_query=use_search_query)
     result = await search_conversation_with_language(
         conversation,
         query_translator,
@@ -260,12 +313,12 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
             msg = conversation.messages[msg_ord]
             text = " ".join(msg.text_chunks).strip()
             print(
-                f"({score:5.1f}){msg_ord:4d}: "
+                f"({score:5.1f}) M={msg_ord:d}: "
                 f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
                 f"{repr(text)[1:-1]:<150.150s}  "
             )
     if result.knowledge_matches:
-        print(f"Knowledge matches ({', '.join(result.knowledge_matches.keys())}):")
+        print(f"Knowledge matches ({', '.join(sorted(result.knowledge_matches))}):")
         for key, value in sorted(result.knowledge_matches.items()):
             print(f"Type {key} -- {value.term_matches}:")
             for scored_sem_ref_ord in value.semantic_ref_matches:
@@ -279,10 +332,10 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                     chunk_ord = sem_ref.range.start.chunk_ordinal
                     msg = conversation.messages[msg_ord]
                     print(
-                        f"({score:5.1f}){msg_ord:4d}: "
-                        f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
-                        f"{repr(msg.text_chunks[chunk_ord].strip())[1:-1]:<50.50s}  "
-                        f"{summarize_knowledge(sem_ref)}"
+                        f"({score:5.1f}) M={msg_ord}: "
+                        # f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
+                        # f"{repr(msg.text_chunks[chunk_ord].strip())[1:-1]:<50.50s}  "
+                        f"S={summarize_knowledge(sem_ref)}"
                     )
 
 
@@ -290,7 +343,7 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
     """Summarize the knowledge in a SemanticRef."""
     knowledge = sem_ref.knowledge
     if knowledge is None:
-        return "<No knowledge>"
+        return f"{sem_ref.semantic_ref_ordinal}: <No knowledge>"
     match sem_ref.knowledge_type:
         case "entity":
             entity = knowledge
@@ -304,7 +357,7 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
                     elif isinstance(value, float) and value.is_integer():
                         value = int(value)
                     res.append(f"<{facet.name}:{value}>")
-            return " ".join(res)
+            return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
         case "action":
             action = knowledge
             assert isinstance(action, Action)
@@ -326,17 +379,17 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
                         res.append(f"<{param}>")
             if action.subject_entity_facet is not None:
                 res.append(f"subj_facet={action.subject_entity_facet}")
-            return " ".join(res)
+            return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
         case "topic":
             topic = knowledge
             assert isinstance(topic, Topic)
-            return repr(topic.text)
+            return f"{sem_ref.semantic_ref_ordinal}: {topic.text!r}]"
         case "tag":
             tag = knowledge
             assert isinstance(tag, str)
-            return f"#{tag}"
+            return f"{sem_ref.semantic_ref_ordinal}: #{tag!r}"
         case _:
-            return str(sem_ref.knowledge)
+            return f"{sem_ref.semantic_ref_ordinal}: {sem_ref.knowledge!r}"
 
 
 if __name__ == "__main__":

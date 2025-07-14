@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 import copy
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pyexpat.errors import XML_ERROR_RESERVED_PREFIX_XML
 from typing import Callable, Literal, TypeGuard, cast
 
@@ -100,6 +100,10 @@ class LanguageSearchDebugContext:
     # For each expr in searchQueryExpr, returns if a raw text similarity match was used:
     # TODO: used_similarity_fallback: list[bool] | None = None
 
+    # Values to override the search query
+    use_search_query: SearchQuery | None = None
+    use_compiled_search_query_exprs: list[SearchQueryExpr] | None = None
+
 
 # NOTE: Arguments 2 and 3 are reversed compared to the TypeScript version
 # for consistency with other similar functions in this file.
@@ -112,17 +116,20 @@ async def search_conversation_with_language(
     lang_search_filter: LanguageSearchFilter | None = None,
     debug_context: LanguageSearchDebugContext | None = None,
 ) -> typechat.Result[list[ConversationSearchResult]]:
-    lang_query_result = await search_query_expr_from_language(
-        conversation,
-        query_translator,
-        search_text,
-        options,
-        lang_search_filter,
-        debug_context,
-    )
-    if not isinstance(lang_query_result, typechat.Success):
-        return lang_query_result
-    search_query_exprs = lang_query_result.value.query_expressions
+    if debug_context and debug_context.use_compiled_search_query_exprs:
+        search_query_exprs = debug_context.use_compiled_search_query_exprs
+    else:
+        lang_query_result = await search_query_expr_from_language(
+            conversation,
+            query_translator,
+            search_text,
+            options,
+            lang_search_filter,
+            debug_context,
+        )
+        if not isinstance(lang_query_result, typechat.Success):
+            return lang_query_result
+        search_query_exprs = lang_query_result.value.query_expressions
     if debug_context:
         debug_context.search_query_expr = search_query_exprs
     # TODO: Compile fallback query.
@@ -146,15 +153,19 @@ async def search_query_expr_from_language(
     lang_search_filter: LanguageSearchFilter | None = None,
     debug_context: LanguageSearchDebugContext | None = None,
 ) -> typechat.Result[LanguageQueryExpr]:
-    query_result = await search_query_from_language(
-        conversation,
-        translator,
-        query_text,
-        options.model_instructions if options else None,
-    )
-    if not isinstance(query_result, typechat.Success):
-        return query_result
-    query = query_result.value
+    if debug_context and debug_context.use_search_query:
+        # If the debug context has a use_search query, use it instead of translating.
+        query = debug_context.use_search_query
+    else:
+        query_result = await search_query_from_language(
+            conversation,
+            translator,
+            query_text,
+            options.model_instructions if options else None,
+        )
+        if not isinstance(query_result, typechat.Success):
+            return query_result
+        query = query_result.value
     if debug_context:
         debug_context.search_query = query
     options = options or LanguageSearchOptions()

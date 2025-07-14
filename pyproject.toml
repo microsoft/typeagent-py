@@ -22,7 +22,7 @@ dependencies = [
   "numpy>=2.2.6",
   "openai>=1.81.0",
   "pydantic>=2.11.4",
-  "pyright==1.1.402",
+  "pyright==1.1.403",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",

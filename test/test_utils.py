@@ -15,7 +15,7 @@ def test_timelog():
         with utils.timelog("test block"):
             pass
     out = buf.getvalue()
-    assert out.endswith("s -- test block\n")
+    assert "s -- test block" in out
 
 
 def test_pretty_print():

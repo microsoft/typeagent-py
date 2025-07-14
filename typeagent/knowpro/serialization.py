@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from dataclasses import is_dataclass, Field, MISSING
+from datetime import datetime
 import functools
 import json
 import types
@@ -24,6 +25,7 @@ import numpy as np
 from ..aitools.embeddings import NormalizedEmbeddings
 from ..podcasts import podcast
 
+from .searchlang import SearchTermGroupTypes
 from .interfaces import (
     ConversationDataWithIndexes,
     Tag,
@@ -310,7 +312,26 @@ def is_primitive(typ: type) -> bool:
 
 # TODO: Use type(obj) is X instead of isinstance(obj, X). It's faster.
 # TODO: Design a consistent reporting format.
+# TODO: Doesn't Pydantic have this functionality?
 def deserialize_object(typ: Any, obj: Any) -> Any:
+    if isinstance(typ, str):
+        # A forward reference; special-case those that matter.
+        match typ:
+            case "SearchTermGroupTypes":
+                typ = SearchTermGroupTypes
+            case _:
+                raise DeserializationError(f"Unknown forward type reference {typ!r}")
+    elif typ is datetime:
+        # Special case for datetime, which is serialized as a string.
+        if isinstance(obj, str):
+            try:
+                return datetime.fromisoformat(obj)
+            except ValueError as e:
+                raise DeserializationError(f"Invalid datetime string {obj!r}") from e
+        else:
+            raise DeserializationError(
+                f"Expected datetime string, got {type(obj)}: {obj!r}"
+            )
     if typ.__class__ is TypeAliasType:
         typ = typ.__value__
     origin = get_origin(typ)

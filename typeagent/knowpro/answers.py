@@ -60,6 +60,8 @@ async def generate_answers(
                     pass
                 case _:
                     raise ValueError(f"Unexpected answer type: {answer.type}")
+    if len(all_answers) == 1:
+        return all_answers, all_answers[0]
     combined_answer: AnswerResponse | None = None
     if len(good_answers) >= 2:
         combined_answer = await combine_answers(

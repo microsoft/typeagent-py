@@ -115,7 +115,8 @@ class ActionTerm:
 @dataclass
 class SearchFilter:
     """
-    Search a search engine for:
+    Specifies the search terms for a search expression.
+    Make sure at least one field below is present and not None nor empty.
     entity_search_terms cannot contain entities already in action_search_terms.
     """
 

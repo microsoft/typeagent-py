@@ -40,10 +40,14 @@ def add_facet(
             facet.name,
             semantic_ref_ordinal,
         )
-        if facet.value is not None:
+        value = facet.value
+        if value is not None:
+            # If the value is a float, we use .g format store it as a string.
+            if isinstance(value, float) and value:
+                value = f"{value:g}"
             property_index.add_property(
                 PropertyNames.FacetValue.value,
-                str(facet.value),
+                str(value),
                 semantic_ref_ordinal,
             )
 

@@ -6,7 +6,7 @@ from ast import Not
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from re import search
-from typing import Callable, Literal, Protocol
+from typing import Callable, Literal, Protocol, cast
 
 from ..aitools.embeddings import NormalizedEmbedding
 
@@ -55,9 +55,33 @@ type BooleanOp = Literal["and", "or", "or_max"]
 
 # TODO: Move to compilelib.py
 @dataclass
+class CompiledSearchTerm(SearchTerm):
+    related_terms_required: bool = False
+
+
+# TODO: Move to compilelib.py
+def to_required_search_term(term: SearchTerm) -> CompiledSearchTerm:
+    # NOTE: We must cast since the output must alias the input.
+    # If not, assignments to related_terms will be lost.
+    cst = cast(CompiledSearchTerm, term)
+    cst.related_terms_required = True
+    return cst
+
+
+# TODO: Move to compilelib.py
+def to_non_required_search_term(term: SearchTerm) -> CompiledSearchTerm:
+    # NOTE: We must cast since the output must alias the input.
+    # If not, assignments to related_terms will be lost.
+    cst = cast(CompiledSearchTerm, term)
+    cst.related_terms_required = False
+    return cst
+
+
+# TODO: Move to compilelib.py
+@dataclass
 class CompiledTermGroup:
     boolean_op: BooleanOp
-    terms: list[SearchTerm]
+    terms: list[CompiledSearchTerm]
 
 
 def is_conversation_searchable(conversation: IConversation) -> bool:

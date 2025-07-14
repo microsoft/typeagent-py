@@ -18,7 +18,7 @@ class Quantity:
     units: str
 
     def __str__(self) -> str:
-        return f"{self.amount} {self.units}"
+        return f"{self.amount:g} {self.units}"
 
 
 type Value = str | float | bool | Quantity
