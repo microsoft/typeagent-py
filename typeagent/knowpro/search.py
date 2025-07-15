@@ -331,7 +331,7 @@ class QueryCompiler:
     ) -> tuple[list[CompiledTermGroup], IQueryOpExpr]:
         t0_terms: list[CompiledSearchTerm] = []
         compiled_terms: list[CompiledTermGroup] = [
-            CompiledTermGroup(boolean_op="and", terms=t0_terms)
+            CompiledTermGroup(boolean_op=search_group.boolean_op, terms=t0_terms)
         ]
         term_expressions: list[IQueryOpExpr[SemanticRefAccumulator | None]] = []
         for term in search_group.terms:

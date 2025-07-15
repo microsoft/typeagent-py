@@ -9,7 +9,7 @@ import difflib
 import json
 import re
 import sys
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import black
 import colorama
@@ -43,20 +43,12 @@ class Context:
     lang_search_options: searchlang.LanguageSearchOptions
     answer_options: answers.AnswerContextOptions
     interactive: bool
-    sr_index: dict[str, dict[str, object]]
+    sr_index: dict[str, dict[str, Any]]
     use_search_query: bool
     use_compiled_search_query: bool
 
 
 def main():
-    try:
-        return real_main()
-    except KeyboardInterrupt:
-        print("\n")
-        sys.exit(1)
-
-
-def real_main():
     colorama.init()  # So timelog behaves with non-tty stdout.
 
     # Parse arguments.
@@ -437,9 +429,14 @@ def compare_results(
     return res
 
 
+# Special case: In the Podcast, these messages are all Kevin saying "Yeah",
+# so if the difference is limited to these, we consider it a match.
+NOISE_MESSAGES = frozenset({42, 46, 52, 68, 70})
+
+
 def compare_message_ordinals(aa: list[ScoredMessageOrdinal], b: list[int]) -> bool:
     a = [aai.message_ordinal for aai in aa]
-    if sorted(a) == sorted(b):
+    if set(a) ^ set(b) <= NOISE_MESSAGES:
         return True
     print("Message ordinals do not match:")
     utils.list_diff("  Expected:", b, "  Actual:", a, max_items=20)
@@ -468,8 +465,8 @@ def compare_and_print_diff(
     if a_repr == b_repr:
         return False
     # Shorten floats so slight differences in score etc. don't cause false positives.
-    a_repr = re.sub(r"\b\d\.\d\d+", lambda m: f"{float(m.group()):.1f}", a_repr)
-    b_repr = re.sub(r"\b\d\.\d\d+", lambda m: f"{float(m.group()):.1f}", b_repr)
+    a_repr = re.sub(r"\b\d\.\d\d+", lambda m: f"{float(m.group()):.3f}", a_repr)
+    b_repr = re.sub(r"\b\d\.\d\d+", lambda m: f"{float(m.group()):.3f}", b_repr)
     if a_repr == b_repr:
         return False
     print("Warning:", message)
@@ -488,4 +485,8 @@ def compare_and_print_diff(
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        sys.exit(1)

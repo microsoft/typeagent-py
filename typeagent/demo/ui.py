@@ -174,13 +174,23 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 )
                 print("Entering debugger; end with 'c' or 'continue'.")
                 breakpoint()  # Do not remove -- 'pdb' should enter the debugger.
-            case _ if re.match(r"^\d+$", query_text):
-                msg_ord = int(query_text)
+            case _ if m := re.match(r"^(\d+)$", query_text):
+                msg_ord = int(m.group(1))
                 messages = context.conversation.messages
                 if msg_ord < 0 or msg_ord >= len(messages):
                     print(f"Message ordinal {msg_ord} out of range({len(messages)}).")
                     continue
                 pretty_print(messages[msg_ord])
+            case _ if m := re.match(r"^\.(\d+)$", query_text):
+                semref_ord = int(m.group(1))
+                sem_refs = context.conversation.semantic_refs
+                if not sem_refs:
+                    print("No semantic references in this conversation.")
+                    continue
+                if semref_ord < 0 or semref_ord >= len(sem_refs):
+                    print(f"SemanticRef ordinal {semref_ord} out of range({len(sem_refs)}).")
+                    continue
+                pretty_print(sem_refs[semref_ord])
             case _:
                 print("-" * 50)
                 with timelog("Query processing"):
