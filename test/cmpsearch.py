@@ -288,20 +288,18 @@ async def compare_actual_to_expected(
     log("-" * 40)
 
     debug_context = searchlang.LanguageSearchDebugContext()
-    if context.use_search_query:
+    if context.use_search_query or context.use_compiled_search_query:
         record = context.sr_index.get(question)
         if record:
             print("Using search query from SRFILE")
             debug_context.use_search_query = deserialize_object(
                 SearchQuery, record["searchQueryExpr"]
             )
-    if context.use_compiled_search_query:
-        record = context.sr_index.get(question)
-        if record:
-            print("Using compiled search query from SRFILE")
-            debug_context.use_compiled_search_query_exprs = deserialize_object(
-                list[SearchQueryExpr], record["compiledQueryExpr"]
-            )
+            if context.use_compiled_search_query:
+                print("Using compiled search query from SRFILE")
+                debug_context.use_compiled_search_query_exprs = deserialize_object(
+                    list[SearchQueryExpr], record["compiledQueryExpr"]
+                )
 
     result = await searchlang.search_conversation_with_language(
         context.conversation,

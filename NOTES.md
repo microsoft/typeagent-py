@@ -54,3 +54,20 @@ These are variants that look for books in the first 15 minutes.
 The query compilation seems to be off here.
 
 **Fixed date/time conversions to account for proper timezones.**
+
+Skynet
+------
+
+Six questions still have mismatching message or semref ordinals
+when using precomputed query or compiled query.
+
+- Five of these are all the questions about Skynet.
+- Number six is 55 above (Adrian's struggle to get published).
+
+The five Skynet questions are:
+
+- 38 "What did Adrian say about Skynet?"
+- 39 "Adrian talked about Skynet. What did he say?"
+- 40: "What was Adrian's sentiment when he talked about Skynet?"
+- 54: "What points did they make about Skynet?"
+- 58: "What did Christina say about Skynet?"

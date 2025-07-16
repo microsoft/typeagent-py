@@ -564,6 +564,14 @@ class QueryCompiler:
             return scored_ref
 
 
+def has_conversation_results(results: list[ConversationSearchResult]) -> bool:
+    return any(r.knowledge_matches or r.message_matches for r in results)
+
+
+def has_conversation_result(result: ConversationSearchResult) -> bool:
+    return bool(result.knowledge_matches or result.message_matches)
+
+
 # TODO: Move to compilelib.py
 def create_match_terms_boolean_expr(
     term_expressions: list[IQueryOpExpr[SemanticRefAccumulator | None]],
@@ -606,5 +614,6 @@ def is_property_term(term: SearchTerm) -> TypeGuard[PropertySearchTerm]:
     return isinstance(term, PropertySearchTerm)
 
 
+# TODO: Move to compilelib.py
 def is_action_property_term(term: PropertySearchTerm) -> bool:
     return term.property_name in ("subject", "verb", "object", "indirectObject")

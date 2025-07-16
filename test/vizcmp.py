@@ -20,20 +20,18 @@ def main():
         with open(file, "r") as f:
             lines = f.readlines()
 
+        counter = None
         for i, line in enumerate(lines):
-            m = re.match(r"^(?:-+|\*+)\s+(\d+)\s+", line)
-            if m:
+            if m := re.match(r"^(?:-+|\*+)\s+(\d+)\s+", line):
                 counter = int(m.group(1))
-                nextline = lines[i + 1]
-                mm = re.match(r"^.*; Question:\s+(.*)$", nextline)
-                if mm:
-                    question = mm.group(1)
-                    if counter not in questions:
-                        questions[counter] = question
-                    elif questions[counter] != question:
-                        print(f"File {file} has a different question for {counter}:")
-                        print(f"< {questions[counter]}")
-                        print(f"> {question}")
+            elif m := re.match(r"^.*; Question:\s+(.*)$", line):
+                question = m.group(1)
+                if counter not in questions:
+                    questions[counter] = question
+                elif questions[counter] != question:
+                    print(f"File {file} has a different question for {counter}:")
+                    print(f"< {questions[counter]}")
+                    print(f"> {question}")
 
         i = lines.index("==================================================\n")
         if i < 0:

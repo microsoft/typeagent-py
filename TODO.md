@@ -30,6 +30,11 @@ Then combine the ones that most improve effectiveless
   especially `TTermToSemanticRefIndex` is annoying. Can we do better?
 - Unify or align or refactor `VectorBase` and `EmbeddingIndex`.
 
+## Serialization
+
+- Look into whether Pydantic can do our (de)serialization --
+  if it can, presumably it's faster?
+
 ## Development
 
 - Move `typeagent` into `src`.
