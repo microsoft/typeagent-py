@@ -3,7 +3,9 @@
 
 import copy
 from dataclasses import asdict, dataclass
+import datetime
 from pyexpat.errors import XML_ERROR_RESERVED_PREFIX_XML
+import zoneinfo
 from typing import Callable, Literal, TypeGuard, cast
 
 import typechat
@@ -644,14 +646,17 @@ def date_range_from_datetime_range(date_time_range: DateTimeRange) -> DateRange:
 
 
 def datetime_from_date_time(date_time: DateTime) -> Datetime:
-    return Datetime(
+    local_tz = zoneinfo.ZoneInfo("America/Los_Angeles")
+    dt = Datetime(
         year=date_time.date.year,
         month=date_time.date.month,
         day=date_time.date.day,
         hour=date_time.time.hour if date_time.time else 0,
         minute=date_time.time.minute if date_time.time else 0,
         second=date_time.time.seconds if date_time.time else 0,
+        tzinfo=local_tz,
     )
+    return dt.astimezone(datetime.timezone.utc)
 
 
 def create_property_search_term(

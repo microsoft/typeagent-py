@@ -389,7 +389,7 @@ class MatchTermsAndExpr(MatchTermsBooleanExpr):
             if all_matches is None:
                 all_matches = term_matches
             else:
-                all_matches.intersect(term_matches)
+                all_matches = all_matches.intersect(term_matches)
         if all_matches is not None:
             all_matches.calculate_total_score()
             all_matches.select_with_hit_count(len(self.term_expressions))
@@ -1009,7 +1009,7 @@ class MatchMessagesAndExpr(MatchMessagesBooleanExpr):
                 all_matches = message_matches
             else:
                 # Intersect the message matches
-                all_matches.intersect(message_matches)
+                all_matches = all_matches.intersect(message_matches)
                 if not all_matches:
                     # If the intersection is empty, we can stop early.
                     break

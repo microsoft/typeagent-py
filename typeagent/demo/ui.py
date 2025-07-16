@@ -188,7 +188,9 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                     print("No semantic references in this conversation.")
                     continue
                 if semref_ord < 0 or semref_ord >= len(sem_refs):
-                    print(f"SemanticRef ordinal {semref_ord} out of range({len(sem_refs)}).")
+                    print(
+                        f"SemanticRef ordinal {semref_ord} out of range({len(sem_refs)})."
+                    )
                     continue
                 pretty_print(sem_refs[semref_ord])
             case _:

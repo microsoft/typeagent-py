@@ -2,7 +2,9 @@
 # Licensed under the MIT License.
 
 from dataclasses import dataclass, field
-from typing import TypedDict
+import json
+import os
+from typing import TypedDict, cast
 
 from ..knowpro import convindex, interfaces, kplib, secindex
 from ..knowpro.convthreads import ConversationThreads
@@ -15,9 +17,11 @@ from ..knowpro.interfaces import (
     ISemanticRefCollection,
     MessageOrdinal,
     SemanticRef,
+    Term,
     Timedelta,
 )
 from ..knowpro.messageindex import MessageTextIndex
+from ..knowpro.reltermsindex import TermToRelatedTermsMap
 from ..knowpro import serialization
 from ..knowpro.storage import MessageCollection, SemanticRefCollection
 
@@ -274,6 +278,7 @@ class Podcast(
         if build_all:
             secindex.build_transient_secondary_indexes(self)
         self._build_participant_aliases()
+        self._add_synonyms()
 
     def _build_participant_aliases(self) -> None:
         aliases = self.secondary_indexes.term_to_related_terms_index.aliases  # type: ignore  # TODO
@@ -285,6 +290,28 @@ class Podcast(
                 interfaces.Term(text=alias) for alias in name_to_alias_map[name]
             ]
             aliases.add_related_term(name, related_terms)  # type: ignore  # TODO: Same issue as above.
+
+    def _add_synonyms(self) -> None:
+        assert self.secondary_indexes.term_to_related_terms_index is not None
+        aliases = cast(
+            TermToRelatedTermsMap,
+            self.secondary_indexes.term_to_related_terms_index.aliases,
+        )
+        assert aliases is not None
+        synonym_file = os.path.join(os.path.dirname(__file__), "podcastVerbs.json")
+        with open(synonym_file) as f:
+            data: list[dict] = json.load(f)
+        if data:
+            for obj in data:
+                text = obj.get("term")
+                synonyms = obj.get("relatedTerms")
+                if text and synonyms:
+                    related_term = Term(text=text.lower())
+                    for synonym in synonyms:
+                        aliases.add_related_term(
+                            synonym.lower(),
+                            related_term,
+                        )
 
     def _collect_participant_aliases(self) -> dict[str, set[str]]:
 
