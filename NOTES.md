@@ -55,6 +55,11 @@ The query compilation seems to be off here.
 
 **Fixed date/time conversions to account for proper timezones.**
 
+We still see failures on 5, but they are hard to repro. Maybe this
+hit a random network or server failure?
+
+**Fixed by adding create_relevant_knowledge()**
+
 Skynet
 ------
 
@@ -71,3 +76,5 @@ The five Skynet questions are:
 - 40: "What was Adrian's sentiment when he talked about Skynet?"
 - 54: "What points did they make about Skynet?"
 - 58: "What did Christina say about Skynet?"
+
+**Solved by implementing fallback queries**

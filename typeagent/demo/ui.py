@@ -82,7 +82,7 @@ def main() -> None:
         with open(args.alt_schema) as f:
             query_translator.schema_str = f.read()
 
-    print(colorama.Fore.YELLOW + query_translator.schema_str.rstrip())
+    # print(colorama.Fore.YELLOW + query_translator.schema_str.rstrip())
 
     search_query_index: dict[str, dict[str, object]] = {}
     if args.search_query_index:
@@ -323,10 +323,11 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
             score = scored_ord.score
             msg_ord = scored_ord.message_ordinal
             msg = conversation.messages[msg_ord]
+            assert msg.metadata is not None  # For type checkers
             text = " ".join(msg.text_chunks).strip()
             print(
                 f"({score:5.1f}) M={msg_ord:d}: "
-                f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
+                f"{msg.metadata.source:>15.15s}: "
                 f"{repr(text)[1:-1]:<150.150s}  "
             )
     if result.knowledge_matches:

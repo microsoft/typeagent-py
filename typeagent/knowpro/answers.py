@@ -12,17 +12,23 @@ from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMes
 from .answer_response_schema import AnswerResponse
 from .collections import Scored, get_top_k
 from .interfaces import (
+    DateRange,
+    Datetime,
     IConversation,
     IMessage,
+    IMessageCollection,
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
     Knowledge,
     KnowledgeType,
+    IMessageMetadata,
     MessageOrdinal,
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SemanticRef,
     SemanticRefSearchResult,
+    TextLocation,
+    TextRange,
     Topic,
 )
 from .kplib import ConcreteEntity, Facet
@@ -213,12 +219,13 @@ def get_relevant_messages_for_answer[
         msg = conversation.messages[scored_msg_ord.message_ordinal]
         if not msg.text_chunks:
             continue
-        # TODO: Type-safety: In TS, message.metadata has source/dest attrs. Copy that.
+        metadata: IMessageMetadata | None = msg.metadata
+        assert metadata is not None  # For type checkers
         relevant_messages.append(
             RelevantMessage(
-                from_=msg.speaker,  # type: ignore  # It's a PodcastMessage
-                to=msg.listeners,  # type: ignore  # It's a PodcastMessage
-                timestamp=msg.timestamp,  # type: ignore  # It's a PodcastMessage
+                from_=metadata.source,
+                to=metadata.dest,
+                timestamp=msg.timestamp,
                 messageText=(
                     msg.text_chunks[0] if len(msg.text_chunks) == 1 else msg.text_chunks
                 ),
@@ -330,11 +337,103 @@ def create_relevant_knowledge(
     relevant_knowledge = RelevantKnowledge(knowledge)
 
     if source_message_ordinals:
-        # TODO: getEnclosingDateRangeForMessages(...) etc.
-        relevant_knowledge.timeRange = None
-        relevant_knowledge.origin = None
-        relevant_knowledge.audience = None
+        relevant_knowledge.time_range = get_enclosing_data_range_for_messages(
+            conversation.messages, source_message_ordinals
+        )
+        meta = get_enclosing_metadata_for_messages(
+            conversation.messages, source_message_ordinals
+        )
+        if meta.source:
+            relevant_knowledge.origin = meta.source
+        if meta.dest:
+            relevant_knowledge.audience = meta.dest
+
     return relevant_knowledge
+
+
+def get_enclosing_data_range_for_messages(
+    messages: IMessageCollection,
+    message_ordinals: Iterable[MessageOrdinal],
+) -> DateRange | None:
+    text_range = get_enclosing_text_range(message_ordinals)
+    if not text_range:
+        return None
+    return get_enclosing_date_range_for_text_range(messages, text_range)
+
+
+def get_enclosing_text_range(
+    message_ordinals: Iterable[MessageOrdinal],
+) -> TextRange | None:
+    start: MessageOrdinal | None = None
+    end: MessageOrdinal | None = start
+    for ordinal in message_ordinals:
+        if start is None or ordinal < start:
+            start = ordinal
+        if end is None or ordinal > end:
+            end = ordinal
+    if start is None or end is None:
+        return None
+    return text_range_from_message_range(start, end)
+
+
+def text_range_from_message_range(
+    start: MessageOrdinal, end: MessageOrdinal
+) -> TextRange | None:
+    if start == end:
+        # Point location
+        return TextRange(start=TextLocation(start))
+    elif start < end:
+        return TextRange(
+            start=TextLocation(start),
+            end=TextLocation(end),
+        )
+    else:
+        raise ValueError(f"Expect message ordinal range: {start} <= {end}")
+
+
+def get_enclosing_date_range_for_text_range(
+    messages: IMessageCollection,
+    range: TextRange,
+) -> DateRange | None:
+    start_timestamp = messages[range.start.message_ordinal].timestamp
+    if not start_timestamp:
+        return None
+    end_timestamp = messages[range.end.message_ordinal].timestamp if range.end else None
+    return DateRange(
+        start=Datetime.fromisoformat(start_timestamp),
+        end=Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
+    )
+
+
+@dataclass
+class MessageMetadata(IMessageMetadata):
+    source: str | list[str] | None = None
+    dest: str | list[str] | None = None
+
+
+def get_enclosing_metadata_for_messages(
+    messages: IMessageCollection,
+    message_ordinals: Iterable[MessageOrdinal],
+) -> IMessageMetadata:
+    source: set[str] = set()
+    dest: set[str] = set()
+
+    def collect(s: set[str], value: str | list[str] | None) -> None:
+        if isinstance(value, str):
+            s.add(value)
+        elif isinstance(value, list):
+            s.update(value)
+
+    for ordinal in message_ordinals:
+        metadata = messages[ordinal].metadata
+        if not metadata:
+            continue
+        collect(source, metadata.source)
+        collect(dest, metadata.dest)
+
+    return MessageMetadata(
+        source=list(source) if source else None, dest=list(dest) if dest else None
+    )
 
 
 def get_scored_semantic_refs_from_ordinals_iter(

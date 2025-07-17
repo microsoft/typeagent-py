@@ -22,7 +22,7 @@ class RelevantKnowledge:
         EntityNames | None,
         Doc("Entity or entities who received or consumed this knowledge"),
     ] = None
-    timeRange: Annotated[
+    time_range: Annotated[
         DateRange | None, Doc("Time period during which this knowledge was gathered")
     ] = None
 

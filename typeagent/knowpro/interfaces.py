@@ -20,13 +20,15 @@ from typing import (
 
 from pydantic.dataclasses import dataclass
 
-from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
+from ..aitools.embeddings import NormalizedEmbeddings
 from . import kplib
 
 
-# An object that can provide a KnowledgeResponse structure.
 class IKnowledgeSource(Protocol):
+    """A Knowledge Source is any object that returns knowledge."""
+
     def get_knowledge(self) -> kplib.KnowledgeResponse:
+        """Retrieves knowledge from the source."""
         raise NotImplementedError
 
 
@@ -36,15 +38,40 @@ class DeletionInfo:
     reason: str | None = None
 
 
+# Messages are referenced by their sequential ordinal numbers.
 type MessageOrdinal = int
 
 
-class IMessage(IKnowledgeSource, Protocol):
+class IMessageMetadata(Protocol):
+    """Metadata associated with a message."""
+
+    # The source ("senders") of the message
+    source: str | list[str] | None = None
+
+    # The dest ("recipients") of the message
+    dest: str | list[str] | None = None
+
+
+class IMessage[TMetadata: IMessageMetadata](IKnowledgeSource, Protocol):
+    """A message in a conversation
+
+    A Message contains one or more text chunks.
+    """
+
     # The text of the message, split into chunks.
     text_chunks: list[str]
+
+    # The (optional) timestamp of the message.
     timestamp: str | None = None
+
+    # (Optional) tags associated with the message.
     tags: list[str]
+
+    # (Future) Information about the deletion of the message.
     deletion_info: DeletionInfo | None = None
+
+    # Metadata associated with the message such as its source.
+    metadata: TMetadata | None = None
 
 
 type SemanticRefOrdinal = int

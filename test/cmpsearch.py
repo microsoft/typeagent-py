@@ -345,7 +345,7 @@ async def compare_actual_to_expected(
         if combined_answer.type == "NoAnswer":
             # TODO: Compare failure messages.
             if failed:
-                score = 1.0
+                score = 1.001  # Magic score so we can tell both are failures.
             the_answer = f"Failure: {combined_answer.whyNoAnswer}"
             log(the_answer)
             log("All answers:")

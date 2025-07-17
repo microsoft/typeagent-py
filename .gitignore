@@ -4,4 +4,6 @@ venv
 *_embeddings.bin
 .ui_history
 /testdata/Episode_53_Answer_results.json
+/testdata/Episode_53_Search_results.json
 evals/
+junk/

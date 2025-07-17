@@ -7,7 +7,7 @@ import re
 from ..knowpro.importing import ConversationSettings
 from ..knowpro.interfaces import Datetime, IMessageCollection
 from ..knowpro.storage import MessageCollection
-from .podcast import Podcast, PodcastMessage
+from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
 
 
 def import_podcast(
@@ -60,7 +60,8 @@ def import_podcast(
             if not cur_msg:
                 if speaker:
                     participants.add(speaker)
-                cur_msg = PodcastMessage(speaker, [], [speech])
+                metadata = PodcastMessageMeta(speaker)
+                cur_msg = PodcastMessage([speech], metadata)
     if cur_msg:
         msgs.append(cur_msg)
 
@@ -80,6 +81,6 @@ def assign_message_listeners(
     participants: set[str],
 ) -> None:
     for msg in msgs:
-        if msg.speaker:
-            listeners = [p for p in participants if p != msg.speaker]
-            msg.listeners = listeners
+        if msg.metadata.speaker:
+            listeners = [p for p in participants if p != msg.metadata.speaker]
+            msg.metadata.listeners = listeners
