@@ -34,7 +34,7 @@ from ..knowpro.interfaces import (
 )
 from ..knowpro.kplib import Action, ActionParam, ConcreteEntity, Quantity
 from ..knowpro.query import QueryEvalContext
-from ..knowpro.search import ConversationSearchResult
+from ..knowpro.search import ConversationSearchResult, SearchQueryExpr
 from ..knowpro.searchlang import (
     LanguageQueryCompileOptions,
     LanguageQueryExpr,
@@ -47,27 +47,61 @@ from ..knowpro.serialization import deserialize_object
 from ..podcasts.podcast import Podcast
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="TypeAgent demo UI.")
+def make_arg_parser(description: str) -> argparse.ArgumentParser:
+    """Create an argument parser with common options."""
+    parser = argparse.ArgumentParser(description=description)
+
+    default_qafile = "testdata/Episode_53_Answer_results.json"
+    default_srfile = "testdata/Episode_53_Search_results.json"
+    default_podcast_file = "testdata/Episode_53_AdrianTchaikovsky_index"
+
+    explain_qa = "a list of objects with 'question' and 'answer' keys"
+    explain_sr = (
+        "a list of objects with 'searchText', 'searchQueryExpr' and 'results' keys"
+    )
+
     parser.add_argument(
         "--podcast",
         type=str,
-        default="testdata/Episode_53_AdrianTchaikovsky_index",
-        help="Path to the podcast file, less _data.json suffix.",
+        default=default_podcast_file,
+        help="Path to the podcast index files (excluding the '_index.json' suffix)",
+    )
+    parser.add_argument(
+        "--qafile",
+        type=str,
+        default=default_qafile,
+        help=f"Path to the Answer_results.json file ({explain_qa})",
+    )
+    parser.add_argument(
+        "--srfile",
+        type=str,
+        default=default_srfile,
+        help=f"Path to the Search_results.json file ({explain_sr})",
     )
     parser.add_argument(
         "--alt-schema",
         type=str,
         default=None,
-        help="Path to alternate schema file for query translator.",
+        help="Path to alternate schema file for query translator (modifies phase 1).",
     )
     parser.add_argument(
-        "--search-query-index",
-        type=str,
-        default=None,
-        help="Path to a JSON file containing a search query index mapping.",
+        "--skip-phase-1",
+        action="store_true",
+        default=False,
+        help="Skip phase 1 of the query processing (LLM generating SearchQuery from human text)",
+    )
+    parser.add_argument(
+        "--skip-phase-2",
+        action="store_true",
+        default=False,
+        help="Skip phases 1 and 2 of the query processing (compiling SearchQuery to list[SearchQueryExpr])",
     )
 
+    return parser
+
+
+def main() -> None:
+    parser = make_arg_parser(description="TypeAgent demo UI.")
     args = parser.parse_args()
 
     colorama.init(autoreset=True)
@@ -85,9 +119,9 @@ def main() -> None:
     # print(colorama.Fore.YELLOW + query_translator.schema_str.rstrip())
 
     search_query_index: dict[str, dict[str, object]] = {}
-    if args.search_query_index:
-        print(f"Loading search query index from {args.search_query_index}")
-        with open(args.search_query_index) as f:
+    if args.srfile:
+        print(f"Loading search query index from {args.srfile}")
+        with open(args.srfile) as f:
             # TODO: Add type checks and annotations.
             srdata = json.load(f)
             search_query_index = {item["searchText"]: item for item in srdata}
@@ -131,6 +165,8 @@ def main() -> None:
             context,
             cast(io.TextIOWrapper, sys.stdin),
             search_query_index,
+            args.skip_phase_1,
+            args.skip_phase_2,
         )
 
     except KeyboardInterrupt:
@@ -149,6 +185,8 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     context: QueryEvalContext[TMessage, TIndex],
     stream: io.TextIOWrapper,
     search_query_index: dict[str, dict[str, object]],
+    skip_phase_1: bool = False,
+    skip_phase_2: bool = False,
 ) -> None:
     ps1 = "--> "
     while True:
@@ -197,11 +235,21 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 print("-" * 50)
                 with timelog("Query processing"):
                     use_search_query: SearchQuery | None = None
-                    if search_query_index and query_text in search_query_index:
+                    if skip_phase_1 and query_text in search_query_index:
                         print(colorama.Fore.YELLOW + "Using pre-computed SearchQuery")
                         use_search_query = deserialize_object(
                             SearchQuery,
                             search_query_index[query_text]["searchQueryExpr"],
+                        )
+                    use_compiled_search_query: list[SearchQueryExpr] | None = None
+                    if skip_phase_2 and query_text in search_query_index:
+                        print(
+                            colorama.Fore.YELLOW
+                            + "Using pre-compiled list[SearchQueryExpr]"
+                        )
+                        use_compiled_search_query = deserialize_object(
+                            list[SearchQueryExpr],
+                            search_query_index[query_text]["compiledQueryExpr"],
                         )
                     asyncio.run(
                         wrap_process_query(
@@ -212,6 +260,7 @@ def process_inputs[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                             lang_search_options,
                             answer_context_options,
                             use_search_query,
+                            use_compiled_search_query,
                         )
                     )
                 print("-" * 50)
@@ -242,7 +291,8 @@ async def wrap_process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     lang_search_options: LanguageSearchOptions,
     answer_context_options: AnswerContextOptions,
-    use_search_query: SearchQuery | None = None,
+    use_search_query: SearchQuery | None,
+    use_compiled_search_query: list[SearchQueryExpr] | None,
 ) -> None:
     """Wrap the process_query function to handle exceptions."""
     try:
@@ -254,6 +304,7 @@ async def wrap_process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex
             lang_search_options,
             answer_context_options,
             use_search_query,
+            use_compiled_search_query,
         )
     except Exception as exc:
         traceback.print_exc()
@@ -267,9 +318,13 @@ async def process_query[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     lang_search_options: LanguageSearchOptions,
     answer_context_options: AnswerContextOptions,
-    use_search_query: SearchQuery | None = None,
+    use_search_query: SearchQuery | None,
+    use_compiled_search_query: list[SearchQueryExpr] | None,
 ) -> None:
-    debug_context = LanguageSearchDebugContext(use_search_query=use_search_query)
+    debug_context = LanguageSearchDebugContext(
+        use_search_query=use_search_query,
+        use_compiled_search_query_exprs=use_compiled_search_query,
+    )
     result = await search_conversation_with_language(
         conversation,
         query_translator,

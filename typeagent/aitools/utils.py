@@ -34,16 +34,34 @@ def timelog(label: str):
 def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
     """Pretty-print an object using black.
 
-    NOTE: Only works if the repr() is a valid Python expression.
+    NOTE: Only works if its repr() is a valid Python expression.
     """
-    line_width = cap(200, shutil.get_terminal_size().columns)
-    print(
-        prefix
-        + black.format_str(
-            repr(obj), mode=black.FileMode(line_length=line_width)
-        ).rstrip()
-        + suffix
-    )
+    print(prefix + format_code(repr(obj)) + suffix)
+
+
+def format_code(text: str, line_width=None) -> str:
+    """Format a block of code using black, then reindent to 2 spaces.
+
+    NOTE: The text must be a valid Python expression or code block.
+    """
+    if line_width is None:
+        # Use the terminal width, but cap it to 200 characters.
+        line_width = cap(200, shutil.get_terminal_size().columns)
+    formatted_text = black.format_str(
+        text, mode=black.FileMode(line_length=line_width)
+    ).rstrip()
+    return reindent(formatted_text)
+
+
+def reindent(text: str) -> str:
+    """Reindent a block of text from 4 to 2 spaces per indent level."""
+    lines = text.splitlines()
+    reindented_lines = []
+    for line in lines:
+        stripped_line = line.lstrip()
+        twice_indent_level = (len(line) - len(stripped_line) + 1) // 2  # Round up
+        reindented_lines.append(" " * twice_indent_level + stripped_line)
+    return "\n".join(reindented_lines)
 
 
 def load_dotenv() -> None:

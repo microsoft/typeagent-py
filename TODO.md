@@ -1,19 +1,24 @@
 # TODO for the Python knowpro port
 
-## Short-term plans and TODOs
+## Eval-based improvements
 
-- Collect eval outputs (one change at a time)
+- Collect eval outputs (one change at a time) **[DONE]**
   - Baseline
   - Schema in reversed order (TC change)
   - null -> undefined (TC change)
   - field names -> fieldNames (local change, add alias)
   - Move required fields in ActionTerm before optionals
+  - Many others.
 
-Then combine the ones that most improve effectiveless
+Then combine the ones that most improve effectiveless.  **[DONE]**
+(Actually, we mostly found bugs this way. Only one schema change.)
+
+### Left to do here
 
 - Look more into why the search query schema is so instable
 - Implement at least a subset of the @kpBlah commands in ui.py
 - More debug options (turn on/off various debug prints dynamically)
+- Unify ui.py and cmp [CLI args done; should share diffing code too]
 - Try pydantic.ai again
 
 ## General: Look for things marked as incomplete in source
