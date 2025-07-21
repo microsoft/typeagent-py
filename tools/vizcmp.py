@@ -69,7 +69,7 @@ def main():
         for file in all_files:
             score = table[file].get(counter, None)
             if score is None:
-                output = "N/A"
+                output = "  N/A "
             else:
                 output = f"{score:.3f}"
                 output = f"{output:>6}"

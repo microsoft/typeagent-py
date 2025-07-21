@@ -8,11 +8,11 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/black typeagent test
+	.venv/bin/black typeagent test tools
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test
+	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test tools
 
 .PHONY: test
 test: venv
@@ -20,11 +20,11 @@ test: venv
 
 .PHONY: demo
 demo: venv
-	.venv/bin/python -m typeagent.demo
+	.venv/bin/python -m tools.utool $(FLAGS)
 
 .PHONY: compare
 compare: venv
-	.venv/bin/python -m test.cmpsearch
+	.venv/bin/python -m tools.utool --batch $(FLAGS)
 
 .PHONY: profile
 profile: venv
@@ -60,13 +60,15 @@ clean:
 .PHONY: help
 help:
 	@echo "Usage: make [target]"
-	@echo "make help   # Help (this message)"
-	@echo "make        # Same as 'make all'"
-	@echo "make all    # venv, format, check, test, build"
-	@echo "make format # Run black"
-	@echo "make check  # Run pyright"
-	@echo "make test   # Run pytest (tests are in test/)"
-	@echo "make build  # Build the wheel (under dist/)"
-	@echo "make venv   # Create .venv/"
-	@echo "make clean  # Remove build/, dist/, .venv/, *.egg-info/"
+	@echo "make help        # Help (this message)"
+	@echo "make             # Same as 'make all'"
+	@echo "make all         # venv, format, check, test, build"
+	@echo "make demo        # python tools/utools.py (interactive)"
+	@echo "make compare     # python tools/utools.py --batch"
+	@echo "make format      # Run black"
+	@echo "make check       # Run pyright"
+	@echo "make test        # Run pytest (tests are in test/)"
+	@echo "make build       # Build the wheel (under dist/)"
+	@echo "make venv        # Create .venv/"
+	@echo "make clean       # Remove build/, dist/, .venv/, *.egg-info/"
 	@echo "make install-uv  # Install uv (if not already installed)"

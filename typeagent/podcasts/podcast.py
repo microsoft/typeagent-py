@@ -28,7 +28,7 @@ from ..knowpro.storage import MessageCollection, SemanticRefCollection
 
 @dataclass
 class PodcastMessageMeta(interfaces.IKnowledgeSource, interfaces.IMessageMetadata):
-    """Base class for podcast messages."""
+    """Metadata class (!= metaclass) for podcast messages."""
 
     speaker: str | None = None
     listeners: list[str] = field(default_factory=list)
@@ -97,9 +97,9 @@ class PodcastMessageData(TypedDict):
 
 
 @dataclass
-class PodcastMessage[TMeta: PodcastMessageMeta](interfaces.IMessage):
+class PodcastMessage(interfaces.IMessage):
     text_chunks: list[str]
-    metadata: TMeta
+    metadata: PodcastMessageMeta
     tags: list[str] = field(default_factory=list[str])
     timestamp: str | None = None
 
