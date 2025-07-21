@@ -67,8 +67,8 @@ class RawSearchResultData(typing.TypedDict):
 
 class SearchResultData(typing.TypedDict):
     searchText: str
-    searchQueryExpr: dict[str, typing.Any]  # SearchQueryExpr
-    compiledQueryExpr: list[dict[str, typing.Any]]  # list[SearchQueryExpr]
+    searchQueryExpr: dict[str, typing.Any]  # Serialized search_query_schema.SearchQuery
+    compiledQueryExpr: list[dict[str, typing.Any]]  # list[search.SearchQueryExpr]
     results: list[RawSearchResultData]
 
 
@@ -146,8 +146,16 @@ def main():
         embeddings.AsyncEmbeddingModel(),
         query_translator,
         answer_translator,
-        searchlang.LanguageSearchOptions(),
-        answers.AnswerContextOptions(),
+        searchlang.LanguageSearchOptions(
+            compile_options=searchlang.LanguageQueryCompileOptions(
+                exact_scope=False, verb_scope=True, term_filter=None, apply_scope=True
+            ),
+            exact_match=False,
+            max_message_matches=25,
+        ),
+        answers.AnswerContextOptions(
+            entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
+        ),
     )
 
     utils.pretty_print(context, Fore.BLUE, Fore.RESET)
@@ -155,7 +163,7 @@ def main():
     if args.batch:
         print(
             Fore.YELLOW
-            + "Running in batch mode, suppressing interactive prompts."
+            + f"Running in batch mode [{args.offset}:{args.offset + args.limit if args.limit else ''}]."
             + Fore.RESET
         )
         asyncio.run(batch_loop(context, args.offset, args.limit))
@@ -222,6 +230,7 @@ def interactive_loop(context: ProcessingContext) -> None:
                         readline.get_current_history_length() - 1
                     )
                 break
+            prsep()
             asyncio.run(process_query(context, line))
 
     finally:
@@ -257,6 +266,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
                 print(
                     "Skipping stage 2, substituting precomputed compiled query expressions."
                 )
+        prsep()
 
     result = await searchlang.search_conversation_with_language(
         context.query_context.conversation,
@@ -276,45 +286,53 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         if context.debug1 == "full":
             print("Stage 1 results:")
             utils.pretty_print(actual1, Fore.GREEN, Fore.RESET)
+            prsep()
         elif context.debug1 == "diff":
             if record and "searchQueryExpr" in record:
                 print("Stage 1 diff:")
                 expected1 = serialization.deserialize_object(
                     search_query_schema.SearchQuery, record["searchQueryExpr"]
                 )
-                compare_and_print_diff(expected1, actual1, "Stage 1 mismatch")
+                compare_and_print_diff(expected1, actual1)
             else:
                 print("Stage 1 diff unavailable")
+            prsep()
 
     actual2 = debug_context.search_query_expr
-    if context.debug2 == "full":
-        print("Stage 2 results:")
-        utils.pretty_print(actual2, Fore.GREEN, Fore.RESET)
-    elif context.debug2 == "diff":
-        if record and "compiledQueryExpr" in record:
-            print("Stage 2 diff:")
-            expected2 = serialization.deserialize_object(
-                list[search.SearchQueryExpr], record["compiledQueryExpr"]
-            )
-            compare_and_print_diff(expected2, actual2, "Stage 2 mismatch")
-        else:
-            print("Stage 2 diff unavailable")
+    if actual2:
+        if context.debug2 == "full":
+            print("Stage 2 results:")
+            utils.pretty_print(actual2, Fore.GREEN, Fore.RESET)
+            prsep()
+        elif context.debug2 == "diff":
+            if record and "compiledQueryExpr" in record:
+                print("Stage 2 diff:")
+                expected2 = serialization.deserialize_object(
+                    list[search.SearchQueryExpr], record["compiledQueryExpr"]
+                )
+                compare_and_print_diff(expected2, actual2)
+            else:
+                print("Stage 2 diff unavailable")
+            prsep()
 
     actual3 = search_results
     if context.debug3 == "full":
-        print("Stage 3 results:")
+        print("Stage 3 full results:")
         utils.pretty_print(actual3, Fore.GREEN, Fore.RESET)
+        prsep()
     elif context.debug3 == "nice":
-        print("Stage 3 'nice' results:")
+        print("Stage 3 nice results:")
         for sr in search_results:
             print_result(sr, context.query_context.conversation)
+        prsep()
     elif context.debug3 == "diff":
         if record and "results" in record:
             print("Stage 3 diff:")
             expected3: list[RawSearchResultData] = record["results"]
-            compare_results(expected3, actual3, "Stage 3 mismatch")
+            compare_results(expected3, actual3)
         else:
             print("Stage 3 diff unavailable")
+        prsep()
 
     all_answers, combined_answer = await answers.generate_answers(
         context.answer_translator,
@@ -326,13 +344,13 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
 
     if context.debug4 == "full":
         utils.pretty_print(all_answers)
-        print("-" * 50)
+        prsep()
     if context.debug4 in ("full", "nice"):
         if combined_answer.type == "NoAnswer":
             print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
         else:
             print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
-        print("-" * 50)
+        prsep()
     elif context.debug4 == "diff":
         if query_text in context.ar_index:
             record = context.ar_index[query_text]
@@ -347,7 +365,16 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
             print(f"Score: {score:.3f}; Question: {query_text}")
             return score
         else:
-            print("Stage 4 diff unavailable")
+            print("Stage 4 diff unavailable; nice answer:")
+            if combined_answer.type == "NoAnswer":
+                print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+            else:
+                print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
+        prsep()
+
+
+def prsep():
+    print("-" * 50)
 
 
 ### CLI processing ###
@@ -471,11 +498,11 @@ def fill_in_debug_defaults(
     # In interactive mode they are none, none, none, nice.
     if not args.batch:
         if args.start or args.offset or args.limit:
-            parser.exit(2, "Error: --start, --offset and --limit require --batch")
+            parser.exit(2, "Error: --start, --offset and --limit require --batch\n")
     else:
         if args.start:
             if args.offset != 0:
-                parser.exit(2, "Error: --start and --offset can't be both set")
+                parser.exit(2, "Error: --start and --offset can't be both set\n")
             args.offset = args.start - 1
             if args.limit == 0:
                 args.limit = 1
@@ -508,8 +535,8 @@ def load_index_file[T: Mapping[str, typing.Any]](
         with open(file) as f:
             lst: list[T] = json.load(f)
     except FileNotFoundError as err:
-        print(err, file=sys.stderr)
-        sys.exit(1)
+        print(Fore.RED + str(err) + Fore.RESET)
+        lst = []
     index = {item[selector]: item for item in lst}
     if len(index) != len(lst):
         print(f"{len(lst) - len(index)} duplicate items found in {file!r}. ")
@@ -621,13 +648,9 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
 def compare_results(
     matches_records: list[RawSearchResultData],
     results: list[search.ConversationSearchResult],
-    message: str,
 ) -> bool:
     if len(results) != len(matches_records):
-        print(
-            f"Warning: {message} "
-            f"(Result sizes mismatch, {len(results)} != {len(matches_records)})"
-        )
+        print(f"(Result sizes mismatch, {len(results)} != {len(matches_records)})")
         return False
     res = True
     for result, record in zip(results, matches_records):
@@ -665,8 +688,6 @@ def compare_results(
             "topic",
         ):
             res = False
-    if not res:
-        print(f"Warning: {message}")
     return res
 
 
@@ -695,7 +716,7 @@ def compare_semantic_ref_ordinals(
     return False
 
 
-def compare_and_print_diff(a: object, b: object, message: str) -> bool:  # True if equal
+def compare_and_print_diff(a: object, b: object) -> bool:  # True if equal
     """Diff two objects whose repr() is a valid Python expression."""
     if a == b:
         return True
@@ -708,7 +729,6 @@ def compare_and_print_diff(a: object, b: object, message: str) -> bool:  # True 
     b_repr = re.sub(r"\b\d\.\d\d+", lambda m: f"{float(m.group()):.3f}", b_repr)
     if a_repr == b_repr:
         return True
-    print("Warning:", message)
     a_formatted = utils.format_code(a_repr)
     b_formatted = utils.format_code(b_repr)
     print_diff(a_formatted, b_formatted, n=2)
@@ -716,15 +736,13 @@ def compare_and_print_diff(a: object, b: object, message: str) -> bool:  # True 
 
 
 async def compare_answers(
-    context: ProcessingContext,
-    expected: tuple[str, bool],
-    actual: tuple[str, bool],
+    context: ProcessingContext, expected: tuple[str, bool], actual: tuple[str, bool]
 ) -> float:
     expected_text, expected_success = expected
     actual_text, actual_success = actual
 
     if expected_success != actual_success:
-        print(f"Warning: expected={expected_success}, actual={actual_success}")
+        print(f"Expected success: {expected_success}; actual: {actual_success}")
         return 0.000
 
     if not actual_success:
@@ -735,7 +753,6 @@ async def compare_answers(
         print(Fore.GREEN + f"Both equal" + Fore.RESET)
         return 1.000
 
-    print(f"Warning: Answer text mismatch")
     if len(expected_text.splitlines()) <= 100 and len(actual_text.splitlines()) <= 100:
         n = 100
     else:
