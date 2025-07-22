@@ -125,7 +125,7 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
         # Note: if you rename generate_embedding, be sure to also fix is_message_text_embedding_index.
         # TODO: Retries?
         # TODO: Find a prettier API to get an embedding rather than using _vector_base?
-        return await self.text_location_index.generate_embedding(text)  # type: ignore  # Must use internal.
+        return await self.text_location_index.generate_embedding(text)
 
     def lookup_in_subset_by_embedding(
         self,

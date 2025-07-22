@@ -16,27 +16,27 @@ Then combine the ones that most improve effectiveless.  **[DONE]**
 ### Left to do here
 
 - Look more into why the search query schema is so instable
-- Implement at least a subset of the @kpBlah commands in ui.py
+- Implement at least a subset of the @kpBlah commands in utool.py
 - More debug options (turn on/off various debug prints dynamically)
-- Unify ui.py and cmp [CLI args done; should share diffing code too]
+- Unify ui.py and cmp [**done**]
 - Try pydantic.ai again
 
 ## General: Look for things marked as incomplete in source
 
-- `TODO` comments
-- `raise NotImplementedError` with TODO in arg or comment
+- `TODO` comments (too numerous)
+- `raise NotImplementedError("TODO")` (three found indexing)
 
 ## Cleanup:
 
-- Remove a bunch of `XxxData` TypedDicts that can be dealt with using
-  `deserialize_object` and `serialize_object`
-- Catch and report `DeserializationError` better
 - Sort out why `IConversation` needs two generic parameters;
   especially `TTermToSemanticRefIndex` is annoying. Can we do better?
 - Unify or align or refactor `VectorBase` and `EmbeddingIndex`.
 
 ## Serialization
 
+- Remove a bunch of `XxxData` TypedDicts that can be dealt with using
+  `deserialize_object` and `serialize_object`
+- Catch and report `DeserializationError` better
 - Look into whether Pydantic can do our (de)serialization --
   if it can, presumably it's faster?
 
@@ -86,18 +86,21 @@ so we have some end-to-end functionality.
 
 The TODO items include (in no particular order):
 
-- Fix handling of datetime range queries.
-- Use fallback query and other fallback stuff in search_conv*_w*_lang*.
+- Implement token budgets -- may leave out messages, favoring only knowledge,
+  if it answers the question.
+- Fix handling of datetime range queries. [**DONE**]
+- Use fallback query and other fallback stuff in search_conv*_w*_lang*. [**DONE**]
 - Change the context to be text, including message texts and timestamps,
   rather than JSON (and especially not just semantic ref ordinals).
-- Property translate time range filters.
-- Add message timestamp to context.
-- Move out of `demo` into `knowpro` what belongs there.
-- Complete the implementation of each stage (3b is missing a lot).
+- Property translate time range filters. [**DONE**]
+- Add message timestamp to context. [**DONE**]
+- Move out of `demo` into `knowpro` what belongs there. [**DONE**]
+- Complete the implementation of each stage (3b is missing a lot). [**DONE**]
 - Split large contexts to avoid overflowing the answer generator's
   context buffer (4b).
 - Fix all the TODOs left in the code.
-- Redesign the whole pipeline now that I understand the archtecture better.
+- Redesign the whole pipeline now that I understand the archtecture better;
+  notably make each stage its own function with simpler API.
 
 # Older TODO action items
 

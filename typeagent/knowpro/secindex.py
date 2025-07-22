@@ -38,7 +38,7 @@ async def build_secondary_indexes[
     if conversation.secondary_indexes is None:
         conversation.secondary_indexes = ConversationSecondaryIndexes()
     result: SecondaryIndexingResults = build_transient_secondary_indexes(
-        conversation,  # type: ignore  # TODO
+        conversation,
     )
     result.related_terms = await build_related_terms_index(
         conversation, conversation_settings, event_handler
@@ -60,7 +60,7 @@ def build_transient_secondary_indexes[
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
 ) -> SecondaryIndexingResults:
     if conversation.secondary_indexes is None:
-        conversation.secondary_indexes = ConversationSecondaryIndexes()  # type: ignore  # TODO
+        conversation.secondary_indexes = ConversationSecondaryIndexes()
     result = SecondaryIndexingResults()
     result.properties = build_property_index(conversation)
     result.timestamps = build_timestamp_index(conversation)

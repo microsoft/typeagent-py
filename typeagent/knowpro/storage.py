@@ -33,8 +33,8 @@ class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
 
     def __getitem__(self, arg: Any) -> Any:
         if isinstance(arg, slice):
-            assert arg.step in (None, 1)  # type: ignore  # slice weirdness
-            return self._get_slice(arg.start, arg.stop)  # type: ignore  # Use of internal; slice weirdness
+            assert arg.step in (None, 1)
+            return self._get_slice(arg.start, arg.stop)
         if isinstance(arg, int):
             return self._get(arg)
         if isinstance(arg, list):

@@ -629,7 +629,7 @@ async def build_conversation_index[TMessage: IMessage](
         and conversation.semantic_ref_index
     ):
         result.secondary_index_results = await secindex.build_secondary_indexes(
-            conversation,  # type: ignore  # TODO
+            conversation,
             conversation_settings,
             event_handler,
         )
@@ -684,7 +684,7 @@ def begin_indexing[
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
 ) -> None:
     if conversation.semantic_ref_index is None:
-        conversation.semantic_ref_index = ConversationIndex()  # type: ignore  # TODO: Why doesn't strict mode like this?
+        conversation.semantic_ref_index = ConversationIndex()  # type: ignore  # TODO: Why doesn't pyright like this?
     if conversation.semantic_refs is None:
         conversation.semantic_refs = SemanticRefCollection()
 
@@ -698,7 +698,7 @@ def dump(
     semantic_ref_index: ConversationIndex, semantic_refs: ISemanticRefCollection
 ) -> None:
     print("semantic_ref_index = {")
-    for k, v in semantic_ref_index._map.items():  # type: ignore  # Need internal access to dump.
+    for k, v in semantic_ref_index._map.items():
         print(f"    {k!r}: {v},")
     print("}\n")
     print("semantic_refs = []")

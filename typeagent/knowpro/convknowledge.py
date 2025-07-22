@@ -83,7 +83,7 @@ class KnowledgeExtractor:
         translator = typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse](
             model, validator, kplib.KnowledgeResponse
         )
-        schema_text = translator.schema_str.rstrip()  # type: ignore  # Must access internal.
+        schema_text = translator.schema_str.rstrip()
 
         def create_request_prompt(intent: str) -> str:
             return (
@@ -101,7 +101,7 @@ class KnowledgeExtractor:
                 + f"with 2 spaces of indentation and no properties with the value undefined:\n"
             )
 
-        translator._create_request_prompt = create_request_prompt  # type: ignore  # Must overwrite internal.
+        translator._create_request_prompt = create_request_prompt
         return translator
 
     def merge_action_knowledge_into_response(

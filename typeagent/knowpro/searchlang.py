@@ -4,7 +4,6 @@
 import copy
 from dataclasses import dataclass, replace
 import datetime
-import zoneinfo
 from typing import Callable, Literal, TypeGuard, cast
 
 import typechat
@@ -697,7 +696,8 @@ def date_range_from_datetime_range(date_time_range: DateTimeRange) -> DateRange:
 
 
 def datetime_from_date_time(date_time: DateTime) -> Datetime:
-    local_tz = zoneinfo.ZoneInfo("America/Los_Angeles")
+    # We ASSUME that the LLM gave the DateTime in UTC.
+    # If it didn't, well, how would we know???
     dt = Datetime(
         year=date_time.date.year,
         month=date_time.date.month,
@@ -705,9 +705,9 @@ def datetime_from_date_time(date_time: DateTime) -> Datetime:
         hour=date_time.time.hour if date_time.time else 0,
         minute=date_time.time.minute if date_time.time else 0,
         second=date_time.time.seconds if date_time.time else 0,
-        tzinfo=local_tz,
+        tzinfo=datetime.timezone.utc,
     )
-    return dt.astimezone(datetime.timezone.utc)
+    return dt
 
 
 def create_property_search_term(

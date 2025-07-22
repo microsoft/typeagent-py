@@ -161,7 +161,7 @@ def serialize_object(arg: Any) -> Any | None:
     assert hasattr(arg, "__dict__"), f"Cannot serialize knowledge of type {type(arg)}"
     result = to_json(arg)
     assert isinstance(result, dict), f"Serialized knowledge is not a dict: {result}"
-    return result  # type: ignore  # Make strict checking level happy
+    return result
 
 
 def to_json(obj: Any) -> Any:

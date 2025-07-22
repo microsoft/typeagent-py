@@ -5,7 +5,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import field
 from datetime import (
     datetime as Datetime,  # For export.
-    timedelta as Timedelta,  # type: ignore  # For export.
+    timedelta as Timedelta,  # For export.
 )
 from typing import (
     Any,

@@ -586,8 +586,6 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                     msg = conversation.messages[msg_ord]
                     print(
                         f"({score:5.1f}) M={msg_ord}: "
-                        # f"{msg.speaker:>15.15s}: "  # type: ignore  # It's a PodcastMessage
-                        # f"{repr(msg.text_chunks[chunk_ord].strip())[1:-1]:<50.50s}  "
                         f"S={summarize_knowledge(sem_ref)}"
                     )
 
