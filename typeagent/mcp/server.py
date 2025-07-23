@@ -4,7 +4,6 @@
 """Fledgling MCP server on top of knowpro."""
 
 from dataclasses import dataclass
-import functools
 import time
 
 from mcp.server.fastmcp import FastMCP
@@ -33,9 +32,9 @@ class ProcessingContext:
         return f"Context({', '.join(parts)})"
 
 
-@functools.lru_cache(maxsize=1)
 def make_context() -> ProcessingContext:
     utils.load_dotenv()
+    settings = importing.ConversationSettings()
     lang_search_options = searchlang.LanguageSearchOptions(
         compile_options=searchlang.LanguageQueryCompileOptions(
             exact_scope=False, verb_scope=True, term_filter=None, apply_scope=True
@@ -47,7 +46,9 @@ def make_context() -> ProcessingContext:
         entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
     )
 
-    query_context = load_podcast_index("testdata/Episode_53_AdrianTchaikovsky_index")
+    query_context = load_podcast_index(
+        "testdata/Episode_53_AdrianTchaikovsky_index", settings
+    )
 
     model = convknowledge.create_typechat_model()
     query_translator = utils.create_translator(model, SearchQuery)
@@ -57,7 +58,7 @@ def make_context() -> ProcessingContext:
         lang_search_options,
         answer_context_options,
         query_context,
-        embeddings.AsyncEmbeddingModel(),
+        settings.embedding_model,
         query_translator,
         answer_translator,
     )
@@ -65,8 +66,9 @@ def make_context() -> ProcessingContext:
     return context
 
 
-def load_podcast_index(podcast_file: str) -> query.QueryEvalContext:
-    settings = importing.ConversationSettings()
+def load_podcast_index(
+    podcast_file: str, settings: importing.ConversationSettings
+) -> query.QueryEvalContext:
     conversation = podcast.Podcast.read_from_file(podcast_file, settings)
     assert conversation is not None, f"Failed to load podcast from {podcast_file!r}"
     return query.QueryEvalContext(conversation)
@@ -90,7 +92,9 @@ async def answer_question(question: str) -> QuestionResponse:
     question = question.strip()
     if not question:
         dt = int((time.time() - t0) * 1000)  # Convert to milliseconds
-        return QuestionResponse(success=False, answer="No question provided", time_used=dt)
+        return QuestionResponse(
+            success=False, answer="No question provided", time_used=dt
+        )
     context = make_context()
 
     # Stages 1, 2, 3 (LLM -> proto-query, compile, execute query)
@@ -102,7 +106,7 @@ async def answer_question(question: str) -> QuestionResponse:
     )
     if isinstance(result, typechat.Failure):
         dt = int((time.time() - t0) * 1000)  # Convert to milliseconds
-        return QuestionResponse(success=False, answer=str(result), time_used=dt)
+        return QuestionResponse(success=False, answer=result.message, time_used=dt)
 
     # Stages 3a, 4 (ordinals -> messages/semrefs, LLM -> answer)
     _, combined_answer = await answers.generate_answers(
@@ -115,9 +119,13 @@ async def answer_question(question: str) -> QuestionResponse:
     dt = int((time.time() - t0) * 1000)  # Convert to milliseconds
     match combined_answer.type:
         case "NoAnswer":
-            return QuestionResponse(success=False, answer=combined_answer.whyNoAnswer or "", time_used=dt)
+            return QuestionResponse(
+                success=False, answer=combined_answer.whyNoAnswer or "", time_used=dt
+            )
         case "Answered":
-            return QuestionResponse(success=True, answer=combined_answer.answer or "", time_used=dt)
+            return QuestionResponse(
+                success=True, answer=combined_answer.answer or "", time_used=dt
+            )
 
 
 # Run the MCP server

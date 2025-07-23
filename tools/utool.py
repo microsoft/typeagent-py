@@ -116,7 +116,8 @@ def main():
     parser = make_arg_parser("TypeAgent Query Tool")
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
-    query_context = load_podcast_index(args.podcast)
+    settings = importing.ConversationSettings()
+    query_context = load_podcast_index(args.podcast, settings)
     ar_list, ar_index = load_index_file(args.qafile, "question", QuestionAnswerData)
     sr_list, sr_index = load_index_file(args.srfile, "searchText", SearchResultData)
 
@@ -143,7 +144,7 @@ def main():
         args.debug2,
         args.debug3,
         args.debug4,
-        embeddings.AsyncEmbeddingModel(),
+        settings.embedding_model,
         query_translator,
         answer_translator,
         searchlang.LanguageSearchOptions(
@@ -519,8 +520,9 @@ def fill_in_debug_defaults(
 ### Data loading ###
 
 
-def load_podcast_index(podcast_file: str) -> query.QueryEvalContext:
-    settings = importing.ConversationSettings()
+def load_podcast_index(
+    podcast_file: str, settings: importing.ConversationSettings
+) -> query.QueryEvalContext:
     with utils.timelog(f"load podcast from {podcast_file!r}"):
         conversation = podcast.Podcast.read_from_file(podcast_file, settings)
     assert conversation is not None, f"Failed to load podcast from {podcast_file!r}"
