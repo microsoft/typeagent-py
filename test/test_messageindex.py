@@ -58,7 +58,7 @@ def test_message_text_index_init(needs_auth: None):
 
 
 @pytest.mark.asyncio
-async def test_add_messages(message_text_index, needs_auth: None):
+async def test_add_messages(message_text_index):
     """Test adding messages to the MessageTextIndex."""
     messages = [
         MagicMock(text_chunks=["chunk1", "chunk2"]),
@@ -73,7 +73,7 @@ async def test_add_messages(message_text_index, needs_auth: None):
 
 
 @pytest.mark.asyncio
-async def test_lookup_messages(message_text_index, needs_auth: None):
+async def test_lookup_messages(message_text_index):
     """Test looking up messages in the MessageTextIndex."""
     message_text_index.text_location_index.lookup_text.return_value = [
         MagicMock(text_location=TextLocation(1, 0), score=0.9),
@@ -92,7 +92,7 @@ async def test_lookup_messages(message_text_index, needs_auth: None):
 
 
 @pytest.mark.asyncio
-async def test_lookup_messages_in_subset(message_text_index, needs_auth: None):
+async def test_lookup_messages_in_subset(message_text_index):
     """Test looking up messages in a subset of the MessageTextIndex."""
     message_text_index.text_location_index.lookup_text_in_subset.return_value = [
         MagicMock(text_location=TextLocation(1, 0), score=0.9),
@@ -111,7 +111,7 @@ async def test_lookup_messages_in_subset(message_text_index, needs_auth: None):
     reason="TODO: Doesn't work; also does too much mocking (probably related)"
 )
 @pytest.mark.asyncio
-async def test_generate_embedding(message_text_index, needs_auth: None):
+async def test_generate_embedding(message_text_index):
     """Test generating an embedding for a message."""
     message_text_index.text_location_index._vector_base.get_embedding = AsyncMock(
         return_value=[0.1, 0.2, 0.3]
@@ -130,7 +130,7 @@ def test_serialize(message_text_index):
     message_text_index.text_location_index.serialize.assert_called_once()
 
 
-def test_deserialize(message_text_index, needs_auth: None):
+def test_deserialize(message_text_index):
     """Test deserialization of the MessageTextIndex."""
     data = MessageTextIndexData(
         indexData=TextToTextLocationIndexData(textLocations=[], embeddings=None)

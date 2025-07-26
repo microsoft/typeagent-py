@@ -28,29 +28,24 @@ class ScoredTextLocation:
 class ITextToTextLocationIndex(Protocol):
     async def add_text_location(
         self, text: str, text_location: TextLocation
-    ) -> ListIndexingResult:
-        raise NotImplementedError
+    ) -> ListIndexingResult: ...
 
     async def add_text_locations(
         self,
         text_and_locations: list[tuple[str, TextLocation]],
         event_handler: IndexingEventHandlers | None = None,
-    ) -> ListIndexingResult:
-        raise NotImplementedError
+    ) -> ListIndexingResult: ...
 
     async def lookup_text(
         self,
         text: str,
         max_matches: int | None = None,
         threshold_score: float | None = None,
-    ) -> list[ScoredTextLocation]:
-        raise NotImplementedError
+    ) -> list[ScoredTextLocation]: ...
 
-    def serialize(self) -> TextToTextLocationIndexData:
-        raise NotImplementedError
+    def serialize(self) -> TextToTextLocationIndexData: ...
 
-    def deserialize(self, data: TextToTextLocationIndexData) -> None:
-        raise NotImplementedError
+    def deserialize(self, data: TextToTextLocationIndexData) -> None: ...
 
 
 class TextToTextLocationIndex(ITextToTextLocationIndex):

@@ -197,13 +197,13 @@ def to_camel(name: str) -> str:
 
 # No exceptions are caught; they just bubble out.
 def read_conversation_data_from_file(
-    filename: str, embedding_size: int
+    filename_prefix: str, embedding_size: int
 ) -> ConversationDataWithIndexes[Any] | None:
-    with open(filename + DATA_FILE_SUFFIX, "r", encoding="utf-8") as f:
+    with open(filename_prefix + DATA_FILE_SUFFIX, "r", encoding="utf-8") as f:
         json_data: ConversationJsonData[podcast.PodcastMessageData] = json.load(f)
     embeddings_list: list[NormalizedEmbeddings] | None = None
     if embedding_size:
-        with open(filename + EMBEDDING_FILE_SUFFIX, "rb") as f:
+        with open(filename_prefix + EMBEDDING_FILE_SUFFIX, "rb") as f:
             embeddings = np.fromfile(f, dtype=np.float32).reshape((-1, embedding_size))
             embeddings_list = [embeddings]
     else:

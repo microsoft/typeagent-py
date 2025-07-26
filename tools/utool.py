@@ -521,11 +521,13 @@ def fill_in_debug_defaults(
 
 
 def load_podcast_index(
-    podcast_file: str, settings: importing.ConversationSettings
+    podcast_file_prefix: str, settings: importing.ConversationSettings
 ) -> query.QueryEvalContext:
-    with utils.timelog(f"load podcast from {podcast_file!r}"):
-        conversation = podcast.Podcast.read_from_file(podcast_file, settings)
-    assert conversation is not None, f"Failed to load podcast from {podcast_file!r}"
+    with utils.timelog(f"load podcast from {podcast_file_prefix!r}"):
+        conversation = podcast.Podcast.read_from_file(podcast_file_prefix, settings)
+    assert (
+        conversation is not None
+    ), f"Failed to load podcast from {podcast_file_prefix!r}"
     return query.QueryEvalContext(conversation)
 
 

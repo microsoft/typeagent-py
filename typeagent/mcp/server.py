@@ -67,10 +67,12 @@ def make_context() -> ProcessingContext:
 
 
 def load_podcast_index(
-    podcast_file: str, settings: importing.ConversationSettings
+    podcast_file_prefix: str, settings: importing.ConversationSettings
 ) -> query.QueryEvalContext:
-    conversation = podcast.Podcast.read_from_file(podcast_file, settings)
-    assert conversation is not None, f"Failed to load podcast from {podcast_file!r}"
+    conversation = podcast.Podcast.read_from_file(podcast_file_prefix, settings)
+    assert (
+        conversation is not None
+    ), f"Failed to load podcast from {podcast_file_prefix!r}"
     return query.QueryEvalContext(conversation)
 
 
@@ -86,7 +88,7 @@ class QuestionResponse:
 
 
 @mcp.tool()
-async def answer_question(question: str) -> QuestionResponse:
+async def query_conversation(question: str) -> QuestionResponse:
     """Send a question to the memory server and get an answer back"""
     t0 = time.time()
     question = question.strip()

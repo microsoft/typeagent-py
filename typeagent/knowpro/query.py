@@ -290,8 +290,7 @@ def lookup_knowledge_type(
 class IQueryOpExpr[T](Protocol):
     """Protocol for query operation expressions that can be evaluated in a context."""
 
-    def eval(self, context: QueryEvalContext) -> T:
-        raise NotImplementedError
+    def eval(self, context: QueryEvalContext) -> T: ...
 
 
 class QueryOpExpr[T](IQueryOpExpr[T]):
@@ -415,8 +414,7 @@ class MatchTermExpr(QueryOpExpr[SemanticRefAccumulator | None], ABC):
     @abstractmethod
     def accumulate_matches(
         self, context: QueryEvalContext, matches: SemanticRefAccumulator
-    ) -> None:
-        raise NotImplementedError("Subclass must implement accumulate_matches")
+    ) -> None: ...
 
 
 type ScoreBoosterType = Callable[
@@ -720,8 +718,7 @@ class WhereSemanticRefExpr(QueryOpExpr[SemanticRefAccumulator]):
 
 
 class IQuerySemanticRefPredicate(Protocol):
-    def eval(self, context: QueryEvalContext, semantic_ref: SemanticRef) -> bool:
-        raise NotImplementedError
+    def eval(self, context: QueryEvalContext, semantic_ref: SemanticRef) -> bool: ...
 
 
 # TODO: match_predicates
@@ -741,7 +738,7 @@ class IQueryTextRangeSelector(Protocol):
         semantic_refs: SemanticRefAccumulator | None = None,
     ) -> TextRangeCollection | None:
         """Evaluate the selector and return the text range."""
-        raise NotImplementedError("Subclass must implement eval")
+        ...
 
 
 class TextRangeSelector(IQueryTextRangeSelector):

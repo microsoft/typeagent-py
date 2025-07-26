@@ -33,12 +33,13 @@ def test_main(needs_auth: None):
     asyncio.run(main(DEFAULT_FILE))
 
 
-async def main(filename: str):
+async def main(filename_prefix: str):
     print("Create conversation settings ...")
     settings = ConversationSettings()
-    model = settings.thread_settings.embedding_model
+    model = settings.embedding_model
     assert model is not None
     assert isinstance(model, AsyncEmbeddingModel), f"model is {model!r}"
+    assert settings.thread_settings.embedding_model is model
     assert (
         settings.message_text_index_settings.embedding_index_settings.embedding_model
         is model
@@ -48,9 +49,9 @@ async def main(filename: str):
         is model
     )
 
-    print(f"Loading {filename} ...")
+    print(f"Loading {filename_prefix} ...")
     t0 = time.time()
-    pod = podcast.Podcast.read_from_file(filename, settings)
+    pod = podcast.Podcast.read_from_file(filename_prefix, settings)
     t1 = time.time()
     print(f"Loading took {t1-t0:.3f} seconds")
     assert pod is not None, "Failed to load podcast"
@@ -118,9 +119,3 @@ async def main(filename: str):
     assert len(ser2) > 0, f"ser2 is empty {ser2!r}"
     assert "semanticRefs" in ser2, f"'semantic_refs' is not a key in {ser2.keys()!r}"
     assert str(ser1) == str(ser2), f"ser1 != ser2"
-
-
-if __name__ == "__main__":
-    args = parser.parse_args()
-    needs_auth()
-    asyncio.run(main(args.filename))

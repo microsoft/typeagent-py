@@ -12,6 +12,8 @@ from typing import (
 from .interfaces import (
     ICollection,
     IMessage,
+    IStorageProvider,
+    JsonSerializer,
     MessageOrdinal,
     SemanticRef,
     SemanticRefOrdinal,
@@ -78,11 +80,16 @@ class MessageCollection[TMessage: IMessage](Collection[TMessage, MessageOrdinal]
     """A collection of messages."""
 
 
-class MemoryStorageProvider[TMessage: IMessage]:
+class MemoryStorageProvider(IStorageProvider):
     """A storage provider that operates in memory."""
 
-    def create_message_collection(self) -> MessageCollection[TMessage]:
+    def create_message_collection[TMessage: IMessage](
+        self,
+        serializer: JsonSerializer[TMessage] | type[TMessage] | None = None,
+    ) -> MessageCollection[TMessage]:
         """Create a new message collection."""
+        if isinstance(serializer, JsonSerializer):
+            raise ValueError("MemoryStorageProvider does not use a serializer.")
         return MessageCollection[TMessage]()
 
     def create_semantic_ref_collection(self) -> SemanticRefCollection:
@@ -92,6 +99,9 @@ class MemoryStorageProvider[TMessage: IMessage]:
     def close(self) -> None:
         """Close the storage provider."""
         pass
+
+
+# TODO: The rest of this file is not currently used.
 
 
 @dataclass

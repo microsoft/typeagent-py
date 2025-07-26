@@ -231,11 +231,9 @@ def dedupe_related_terms(
 
 
 class ITermEmbeddingIndex(ITermToRelatedTermsFuzzy, Protocol):
-    def serialize(self) -> TextEmbeddingIndexData:
-        raise NotImplementedError
+    def serialize(self) -> TextEmbeddingIndexData: ...
 
-    def deserialize(self, data: TextEmbeddingIndexData) -> None:
-        raise NotImplementedError
+    def deserialize(self, data: TextEmbeddingIndexData) -> None: ...
 
 
 # TODO: Inherit from TextEmbeddingCache too.

@@ -259,7 +259,7 @@ class FakeConversation[
         self.secondary_indexes = ConversationSecondaryIndexes()
 
 
-def test_add_to_property_index(property_index, needs_auth):
+def test_add_to_property_index(property_index):
     """Test adding semantic references to the property index."""
     semantic_refs = [
         SemanticRef(

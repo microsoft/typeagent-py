@@ -6,15 +6,22 @@ import json
 import os
 from typing import TypedDict, cast
 
-from ..knowpro import convindex, interfaces, kplib, secindex
+from ..knowpro import convindex, kplib, secindex
 from ..knowpro.convthreads import ConversationThreads
 from ..knowpro.importing import ConversationSettings
 from ..knowpro.interfaces import (
     ConversationDataWithIndexes,
     Datetime,
     ICollection,
+    IConversation,
+    IConversationSecondaryIndexes,
+    IKnowledgeSource,
+    IMessage,
     IMessageCollection,
+    IMessageMetadata,
     ISemanticRefCollection,
+    IndexingEventHandlers,
+    IndexingResults,
     MessageOrdinal,
     SemanticRef,
     Term,
@@ -24,10 +31,11 @@ from ..knowpro.messageindex import MessageTextIndex
 from ..knowpro.reltermsindex import TermToRelatedTermsMap
 from ..knowpro import serialization
 from ..knowpro.storage import MessageCollection, SemanticRefCollection
+from ..storage.sqlitestore import get_storage_provider
 
 
 @dataclass
-class PodcastMessageMeta(interfaces.IKnowledgeSource, interfaces.IMessageMetadata):
+class PodcastMessageMeta(IKnowledgeSource, IMessageMetadata):
     """Metadata class (!= metaclass) for podcast messages."""
 
     speaker: str | None = None
@@ -97,7 +105,7 @@ class PodcastMessageData(TypedDict):
 
 
 @dataclass
-class PodcastMessage(interfaces.IMessage):
+class PodcastMessage(IMessage):
     text_chunks: list[str]
     metadata: PodcastMessageMeta
     tags: list[str] = field(default_factory=list[str])
@@ -137,13 +145,13 @@ class PodcastMessage(interfaces.IMessage):
         )
 
 
-class PodcastData(interfaces.ConversationDataWithIndexes[PodcastMessageData]):
+class PodcastData(ConversationDataWithIndexes[PodcastMessageData]):
     pass
 
 
 @dataclass
 class Podcast(
-    interfaces.IConversation[
+    IConversation[
         PodcastMessage,
         convindex.ConversationIndex,
     ]
@@ -161,12 +169,12 @@ class Podcast(
         default_factory=convindex.ConversationIndex
     )
 
-    secondary_indexes: interfaces.IConversationSecondaryIndexes[PodcastMessage] = field(
-        init=False
-    )
+    secondary_indexes: IConversationSecondaryIndexes[PodcastMessage] = field(init=False)
 
     def __post_init__(self) -> None:
-        self.secondary_indexes = secindex.ConversationSecondaryIndexes(self.settings.related_term_index_settings)  # type: ignore  # TODO
+        self.secondary_indexes = secindex.ConversationSecondaryIndexes(  # type: ignore  # TODO
+            self.settings.related_term_index_settings
+        )
 
     def add_metadata_to_index(self) -> None:
         if self.semantic_ref_index is not None:
@@ -186,8 +194,8 @@ class Podcast(
 
     async def build_index(
         self,
-        event_handler: interfaces.IndexingEventHandlers | None = None,
-    ) -> interfaces.IndexingResults:
+        event_handler: IndexingEventHandlers | None = None,
+    ) -> IndexingResults:
         self.add_metadata_to_index()
         result = await convindex.build_conversation_index(
             self, self.settings, event_handler
@@ -233,16 +241,18 @@ class Podcast(
     ) -> None:
         self.name_tag = podcast_data["nameTag"]
 
-        self.messages = MessageCollection[PodcastMessage]()
+        if self.messages or self.semantic_refs:
+            raise RuntimeError("Cannot deserialize into a non-empty Podcast.")
         for message_data in podcast_data["messages"]:
             msg = PodcastMessage.deserialize(message_data)
             self.messages.append(msg)
 
         semantic_refs_data = podcast_data.get("semanticRefs")
         if semantic_refs_data is not None:
-            self.semantic_refs = SemanticRefCollection()
-            for r in semantic_refs_data:
-                self.semantic_refs.append(SemanticRef.deserialize(r))
+            if self.semantic_refs is None:
+                self.semantic_refs = SemanticRefCollection()
+            semrefs = [SemanticRef.deserialize(r) for r in semantic_refs_data]
+            self.semantic_refs.extend(semrefs)
 
         self.tags = podcast_data["tags"]
 
@@ -278,15 +288,26 @@ class Podcast(
 
     @staticmethod
     def read_from_file(
-        filename: str,
+        filename_prefix: str,
         settings: ConversationSettings | None = None,
+        dbname: str | None = None,
     ) -> "Podcast | None":
-        podcast = Podcast(settings=settings or ConversationSettings())
-        e_i_s = podcast.settings.related_term_index_settings.embedding_index_settings
-        embedding_size = e_i_s.embedding_model.embedding_size
-        data = serialization.read_conversation_data_from_file(filename, embedding_size)
-        if data:
-            podcast.deserialize(data)
+        settings = settings or ConversationSettings()
+        embedding_size = settings.embedding_model.embedding_size
+        data = serialization.read_conversation_data_from_file(
+            filename_prefix, embedding_size
+        )
+        if not data:
+            return None
+        provider = get_storage_provider(dbname)
+        msgs = provider.create_message_collection(PodcastMessage)
+        semrefs = provider.create_semantic_ref_collection()
+        if len(msgs) or len(semrefs):
+            raise RuntimeError(
+                f"Database {dbname!r} already has messages or semantic refs."
+            )
+        podcast = Podcast(messages=msgs, semantic_refs=semrefs, settings=settings)
+        podcast.deserialize(data)
         return podcast
 
     def _build_transient_secondary_indexes(self, build_all: bool) -> None:
@@ -301,8 +322,8 @@ class Podcast(
         aliases.clear()  # type: ignore  # Same issue as above.
         name_to_alias_map = self._collect_participant_aliases()
         for name in name_to_alias_map.keys():
-            related_terms: list[interfaces.Term] = [
-                interfaces.Term(text=alias) for alias in name_to_alias_map[name]
+            related_terms: list[Term] = [
+                Term(text=alias) for alias in name_to_alias_map[name]
             ]
             aliases.add_related_term(name, related_terms)  # type: ignore  # TODO: Same issue as above.
 

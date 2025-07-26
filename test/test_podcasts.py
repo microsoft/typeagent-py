@@ -35,15 +35,15 @@ def test_import_podcast(needs_auth, temp_dir):
     assert indexing_result.semantic_refs.error is None
 
     # Write the podcast to files
-    filename = os.path.join(temp_dir, "podcast")
-    pod.write_to_file(filename)
+    filename_prefix = os.path.join(temp_dir, "podcast")
+    pod.write_to_file(filename_prefix)
 
     # Verify the files were created
-    assert os.path.exists(filename + DATA_FILE_SUFFIX)
-    assert os.path.exists(filename + EMBEDDING_FILE_SUFFIX)
+    assert os.path.exists(filename_prefix + DATA_FILE_SUFFIX)
+    assert os.path.exists(filename_prefix + EMBEDDING_FILE_SUFFIX)
 
     # Load and verify the podcast
-    pod2 = Podcast.read_from_file(filename)
+    pod2 = Podcast.read_from_file(filename_prefix)
     assert pod2 is not None
 
     # Assertions for the loaded podcast
@@ -61,11 +61,11 @@ def test_import_podcast(needs_auth, temp_dir):
     assert os.path.exists(filename2 + EMBEDDING_FILE_SUFFIX)
 
     # Check that the files at filename2 are identical to those at filename
-    with open(filename + DATA_FILE_SUFFIX, "r") as f1, open(
+    with open(filename_prefix + DATA_FILE_SUFFIX, "r") as f1, open(
         filename2 + DATA_FILE_SUFFIX, "r"
     ) as f2:
         assert f1.read() == f2.read(), "Data (json) files do not match"
-    with open(filename + EMBEDDING_FILE_SUFFIX, "rb") as f1, open(
+    with open(filename_prefix + EMBEDDING_FILE_SUFFIX, "rb") as f1, open(
         filename2 + EMBEDDING_FILE_SUFFIX, "rb"
     ) as f2:
         assert f1.read() == f2.read(), "Embedding (binary) files do not match"

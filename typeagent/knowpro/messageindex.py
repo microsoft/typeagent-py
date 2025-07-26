@@ -39,11 +39,9 @@ async def build_message_index[
 
 
 class IMessageTextEmbeddingIndex(IMessageTextIndex):
-    def __len__(self) -> int:
-        raise NotImplementedError
+    def __len__(self) -> int: ...
 
-    async def generate_embedding(self, text: str) -> NormalizedEmbedding:
-        raise NotImplementedError
+    async def generate_embedding(self, text: str) -> NormalizedEmbedding: ...
 
     def lookup_by_embedding(
         self,
@@ -51,8 +49,7 @@ class IMessageTextEmbeddingIndex(IMessageTextIndex):
         max_matches: int | None = None,
         threshold_score: float | None = None,
         predicate: Callable[[MessageOrdinal], bool] | None = None,
-    ) -> list[ScoredMessageOrdinal]:
-        raise NotImplementedError
+    ) -> list[ScoredMessageOrdinal]: ...
 
     def lookup_in_subset_by_embedding(
         self,
@@ -60,8 +57,7 @@ class IMessageTextEmbeddingIndex(IMessageTextIndex):
         ordinals_to_search: list[MessageOrdinal],
         max_matches: int | None = None,
         threshold_score: float | None = None,
-    ) -> list[ScoredMessageOrdinal]:
-        raise NotImplementedError
+    ) -> list[ScoredMessageOrdinal]: ...
 
 
 class MessageTextIndex(IMessageTextEmbeddingIndex):

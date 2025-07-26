@@ -5,8 +5,8 @@ import os
 import re
 
 from ..knowpro.importing import ConversationSettings
-from ..knowpro.interfaces import Datetime, IMessageCollection
-from ..knowpro.storage import MessageCollection
+from ..knowpro.interfaces import Datetime
+from ..storage.sqlitestore import get_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
 
 
@@ -16,7 +16,9 @@ def import_podcast(
     start_date: Datetime | None = None,
     length_minutes: float = 60.0,
     settings: ConversationSettings | None = None,
+    dbname: str | None = None,
 ) -> Podcast:
+    settings = settings or ConversationSettings()
     with open(transcript_file_path, "r") as f:
         transcript_lines = f.readlines()
     if not podcast_name:
@@ -40,8 +42,9 @@ def import_podcast(
     """
     turn_parse_regex = re.compile(regex)
     participants: set[str] = set()
-    msgs = MessageCollection[PodcastMessage]()
+
     cur_msg: PodcastMessage | None = None
+    msgs: list[PodcastMessage] = []
     for line in transcript_lines:
         match = turn_parse_regex.match(line)
         if match:
@@ -67,8 +70,16 @@ def import_podcast(
 
     assign_message_listeners(msgs, participants)
 
+    provider = get_storage_provider(dbname)
+    msg_coll = provider.create_message_collection(PodcastMessage)
+    semref_coll = provider.create_semantic_ref_collection()
+    if len(msg_coll) or len(semref_coll):
+        raise RuntimeError(f"{dbname!r} already has messages or semantic refs.")
+
+    msg_coll.extend(msgs)
+
     pod = Podcast(
-        podcast_name, msgs, [podcast_name], settings=settings or ConversationSettings()
+        podcast_name, msg_coll, [podcast_name], semref_coll, settings=settings
     )
     if start_date:
         pod.generate_timestamps(start_date, length_minutes)
@@ -77,7 +88,7 @@ def import_podcast(
 
 
 def assign_message_listeners(
-    msgs: IMessageCollection[PodcastMessage],
+    msgs: list[PodcastMessage],
     participants: set[str],
 ) -> None:
     for msg in msgs:

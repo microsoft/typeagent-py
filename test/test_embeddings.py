@@ -8,8 +8,6 @@ import numpy as np
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
-from fixtures import needs_auth  # type: ignore  # Needed!
-
 
 @pytest.fixture
 def embedding_model() -> AsyncEmbeddingModel:
@@ -18,9 +16,7 @@ def embedding_model() -> AsyncEmbeddingModel:
 
 
 @pytest.mark.asyncio
-async def test_get_embedding_nocache(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None
-):
+async def test_get_embedding_nocache(embedding_model: AsyncEmbeddingModel):
     """Test retrieving an embedding without using the cache."""
     input_text = "Hello, world"
     embedding = await embedding_model.get_embedding_nocache(input_text)
@@ -31,9 +27,7 @@ async def test_get_embedding_nocache(
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_nocache(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None
-):
+async def test_get_embeddings_nocache(embedding_model: AsyncEmbeddingModel):
     """Test retrieving multiple embeddings without using the cache."""
     inputs = ["Hello, world", "Foo bar baz"]
     embeddings = await embedding_model.get_embeddings_nocache(inputs)
@@ -45,7 +39,7 @@ async def test_get_embeddings_nocache(
 
 @pytest.mark.asyncio
 async def test_get_embedding_with_cache(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None, mocker: MockerFixture
+    embedding_model: AsyncEmbeddingModel, mocker: MockerFixture
 ):
     """Test retrieving an embedding with caching."""
     input_text = "Hello, world"
@@ -69,7 +63,7 @@ async def test_get_embedding_with_cache(
 
 @pytest.mark.asyncio
 async def test_get_embeddings_with_cache(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None, mocker: MockerFixture
+    embedding_model: AsyncEmbeddingModel, mocker: MockerFixture
 ):
     """Test retrieving multiple embeddings with caching."""
     inputs = ["Hello, world", "Foo bar baz"]
@@ -93,9 +87,7 @@ async def test_get_embeddings_with_cache(
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_empty_input(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None
-):
+async def test_get_embeddings_empty_input(embedding_model: AsyncEmbeddingModel):
     """Test retrieving embeddings for an empty input list."""
     inputs = []
     embeddings = await embedding_model.get_embeddings(inputs)
@@ -106,9 +98,7 @@ async def test_get_embeddings_empty_input(
 
 
 @pytest.mark.asyncio
-async def test_add_embedding_to_cache(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None
-):
+async def test_add_embedding_to_cache(embedding_model: AsyncEmbeddingModel):
     """Test adding an embedding to the cache."""
     key = "test_key"
     embedding = np.array([0.1, 0.2, 0.3], dtype=np.float32)
@@ -119,17 +109,15 @@ async def test_add_embedding_to_cache(
 
 
 @pytest.mark.asyncio
-async def test_get_embedding_nocache_empty_input(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None
-):
+async def test_get_embedding_nocache_empty_input(embedding_model: AsyncEmbeddingModel):
     """Test retrieving an embedding with no cache for an empty input."""
-    with pytest.raises(openai.BadRequestError):
+    with pytest.raises(openai.OpenAIError):
         await embedding_model.get_embedding_nocache("")
 
 
 @pytest.mark.asyncio
 async def test_refresh_auth(
-    embedding_model: AsyncEmbeddingModel, needs_auth: None, mocker: MockerFixture
+    embedding_model: AsyncEmbeddingModel, mocker: MockerFixture
 ):
     """Test refreshing authentication when using Azure."""
     # Note that pyright doesn't understand mocking, hence the `# type: ignore` below
