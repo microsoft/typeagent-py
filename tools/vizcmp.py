@@ -11,7 +11,7 @@ from colorama import Back, Fore, Style
 
 
 def main():
-    files = sys.argv[1:] or glob.glob("evals/eval-*.txt")
+    files = sys.argv[1:] or sorted(glob.glob("evals/eval-*.txt"))
     table = {}  # {file: {counter: score, ...}, ...}
     questions = {}  # {counter: question, ...}
 
@@ -20,12 +20,15 @@ def main():
         with open(file, "r") as f:
             lines = f.readlines()
 
+        scores = {}
         counter = None
         for i, line in enumerate(lines):
             if m := re.match(r"^(?:-+|\*+)\s+(\d+)\s+", line):
                 counter = int(m.group(1))
-            elif m := re.match(r"^.*; Question:\s+(.*)$", line):
-                question = m.group(1)
+            elif m := re.match(r"^Score:\s+([\d.]+); Question:\s+(.*)$", line):
+                score = float(m.group(1))
+                scores[counter] = score
+                question = m.group(2)
                 if counter not in questions:
                     questions[counter] = question
                 elif questions[counter] != question:
@@ -33,35 +36,16 @@ def main():
                     print(f"< {questions[counter]}")
                     print(f"> {question}")
 
-        i = lines.index("==================================================\n")
-        if i < 0:
-            print(f"File {file} does not contain a separator line")
-            continue
-        lines = lines[i + 1 :]
-        text = "".join(lines)
-        matches = re.findall(r"\d\.\d\d\d\(\d+\)", text)
-        if not matches:
-            print(f"File {file} does not contain any scores")
-            continue
-        # print(len(matches), matches)
-        data = {}
-        for match in matches:
-            m = re.match(r"(\d\.\d\d\d)\((\d+)\)", match)
-            assert m
-            score = float(m.group(1))
-            counter = int(m.group(2))
-            data[counter] = score
-        assert len(data) == len(matches)
-        table[file] = data
+        table[file] = scores
 
     # Print header
-    all_files = sorted(table.keys())
+    all_files = list(table.keys())
     print_header(all_files)
 
     # Print data
     all_counters = sorted(
         {counter for data in table.values() for counter in data.keys()},
-        key=lambda x: table[all_files[0]].get(x, 0.0),
+        key=lambda x: statistics.mean(table[file].get(x, 0.0) for file in all_files),
         reverse=True,
     )
     for counter in all_counters:
@@ -69,7 +53,8 @@ def main():
         for file in all_files:
             score = table[file].get(counter, None)
             if score is None:
-                output = "  N/A "
+                output = Fore.YELLOW + "  N/A " + Fore.RESET
+                output = Style.BRIGHT + output + Style.RESET_ALL
             else:
                 output = f"{score:.3f}"
                 output = f"{output:>6}"
@@ -87,7 +72,7 @@ def main():
         print(f" {questions.get(counter)}")
 
     # Print header again
-    print_header(all_files)
+    print_footer(all_files)
 
 
 def print_header(all_files):
@@ -101,6 +86,11 @@ def print_header(all_files):
             label = "--"
         print(f"{label:>6}", end="")
     print()
+
+
+def print_footer(all_files):
+    for i, file in reversed(list(enumerate(all_files))):
+        print("     |" * i + "     " + os.path.basename(file))
 
 
 if __name__ == "__main__":

@@ -48,6 +48,33 @@ from typeagent.knowpro import serialization
 from typeagent.podcasts import podcast
 
 
+### Logfire setup ###
+
+
+def setup_logfire():
+    import logfire
+
+    def scrubbing_callback(m: logfire.ScrubMatch):
+        # if m.path == ('attributes', 'http.request.header.authorization'):
+        #     return m.value
+
+        # if m.path == ('attributes', 'http.request.header.api-key'):
+        #     return m.value
+
+        if (
+            m.path == ("attributes", "http.request.body.text", "messages", 0, "content")
+            and m.pattern_match.group(0) == "secret"
+        ):
+            return m.value
+
+        # if m.path == ('attributes', 'http.response.header.azureml-model-session'):
+        #     return m.value
+
+    logfire.configure(scrubbing=logfire.ScrubbingOptions(callback=scrubbing_callback))
+    logfire.instrument_pydantic_ai()
+    logfire.instrument_httpx(capture_all=True)
+
+
 ### Classes ###
 
 
@@ -116,6 +143,8 @@ def main():
     parser = make_arg_parser("TypeAgent Query Tool")
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
+    if args.logfire:
+        setup_logfire()
     settings = importing.ConversationSettings()
     query_context = load_podcast_index(args.podcast, settings)
     ar_list, ar_index = load_index_file(args.qafile, "question", QuestionAnswerData)
@@ -488,6 +517,11 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         action="store_true",
         help="Show the TypeScript schema computed by typechat.",
     )
+    debug.add_argument(
+        "--logfire",
+        action="store_true",
+        help="Upload log events to Pydantic's Logfire server",
+    )
 
     return parser
 
@@ -744,14 +778,16 @@ async def compare_answers(
     actual_text, actual_success = actual
 
     if expected_success != actual_success:
-        print(f"Expected success: {expected_success}; actual: {actual_success}")
-        return 0.000
+        print(
+            f"Expected success: {Fore.RED}{expected_success}{Fore.RESET}; "
+            f"actual: {Fore.GREEN}{actual_success}{Fore.RESET}"
+        )
 
-    if not actual_success:
+    elif not actual_success:
         print(Fore.GREEN + f"Both failed" + Fore.RESET)
         return 1.001
 
-    if expected_text == actual_text:
+    elif expected_text == actual_text:
         print(Fore.GREEN + f"Both equal" + Fore.RESET)
         return 1.000
 
@@ -760,7 +796,11 @@ async def compare_answers(
     else:
         n = 2
     print_diff(expected_text, actual_text, n=n)
-    return await equality_score(context, expected_text, actual_text)
+
+    if expected_success != actual_success:
+        return 0.000 if expected_success else 0.001  # 0.001 == Answer not expected
+    else:
+        return await equality_score(context, expected_text, actual_text)
 
 
 def print_diff(a: str, b: str, n: int) -> None:
