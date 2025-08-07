@@ -6,6 +6,7 @@
 from contextlib import contextmanager
 import difflib
 import os
+import re
 import shutil
 import time
 
@@ -14,6 +15,7 @@ import colorama
 import dotenv
 import typechat
 
+from pydantic_ai import Agent
 
 cap = min  # More readable name for capping a value at some limit.
 
@@ -88,6 +90,7 @@ def create_translator[T](
 
 # Vibe-coded by o4-mini-high
 def list_diff(label_a, a, label_b, b, max_items):
+    """Print colorized diff between two sorted list of numbers."""
     sm = difflib.SequenceMatcher(None, a, b)
     a_out, b_out = [], []
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
@@ -142,3 +145,80 @@ def list_diff(label_a, a, label_b, b, max_items):
         seg_widths = widths[start:end]
         print(la, fmt(a_cols[start:end], seg_widths))
         print(lb, fmt(b_cols[start:end], seg_widths))
+
+
+def setup_logfire():
+    """Configure logfire for pydantic_ai and httpx."""
+
+    import logfire
+
+    def scrubbing_callback(m: logfire.ScrubMatch):
+        """Instructions: Uncomment any block where you deem it safe to not scrub."""
+        # if m.path == ('attributes', 'http.request.header.authorization'):
+        #     return m.value
+
+        # if m.path == ('attributes', 'http.request.header.api-key'):
+        #     return m.value
+
+        if (
+            m.path == ("attributes", "http.request.body.text", "messages", 0, "content")
+            and m.pattern_match.group(0) == "secret"
+        ):
+            return m.value
+
+        # if m.path == ('attributes', 'http.response.header.azureml-model-session'):
+        #     return m.value
+
+    logfire.configure(scrubbing=logfire.ScrubbingOptions(callback=scrubbing_callback))
+    logfire.instrument_pydantic_ai()
+    logfire.instrument_httpx(capture_all=True)
+
+
+def make_agent[T](cls: type[T]) -> Agent[None, T]:
+    """Create Pydantic AI agent using hardcoded preferences."""
+    from pydantic_ai import NativeOutput, ToolOutput
+    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai.providers.azure import AzureProvider
+    from .auth import get_shared_token_provider
+
+    # Prefer straight OpenAI over Azure OpenAI.
+    if os.getenv("OPENAI_API_KEY"):
+        Wrapper = NativeOutput
+        print(f"## Using OpenAI with {Wrapper.__name__} ##")
+        model = OpenAIModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
+
+    elif azure_openai_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
+        # This section is rather specific to our team's setup  at Microsoft.
+        if azure_openai_api_key == "identity":
+            token_provider = get_shared_token_provider()
+            azure_openai_api_key = token_provider.get_token()
+
+        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+        if not azure_endpoint:
+            raise RuntimeError("AZURE_OPENAI_ENDPOINT not found")
+
+        print(f"## {azure_endpoint} ##")
+        m = re.search(r"api-version=([\d-]+(?:preview)?)", azure_endpoint)
+        if not m:
+            raise RuntimeError(
+                f"AZURE_OPENAI_ENDPOINT has no valid api-version field: {azure_endpoint}"
+            )
+        api_version = m.group(1)
+        Wrapper = ToolOutput
+
+        print(f"## Using Azure {api_version} with {Wrapper.__name__} ##")
+        model = OpenAIModel(
+            "gpt-4o",
+            provider=AzureProvider(
+                azure_endpoint=azure_endpoint,
+                api_version=api_version,
+                api_key=azure_openai_api_key,
+            ),
+        )
+
+    else:
+        raise RuntimeError(
+            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
+        )
+
+    return Agent(model, output_type=Wrapper(cls, strict=True), retries=3)
