@@ -65,7 +65,7 @@ async def generate_answers(
                 case "NoAnswer":
                     pass
                 case _:
-                    raise ValueError(f"Unexpected answer type: {answer.type}")
+                    assert False, f"Unexpected answer type: {answer.type}"
     if len(all_answers) == 1:
         return all_answers, all_answers[0]
     combined_answer: AnswerResponse | None = None
@@ -96,7 +96,11 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     # print("+" * 80)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
-        return AnswerResponse(type="NoAnswer", answer=None, whyNoAnswer=result.message)
+        return AnswerResponse(
+            type="NoAnswer",
+            answer=None,
+            whyNoAnswer=f"TypeChat failure: {result.message}",
+        )
     else:
         return result.value
 

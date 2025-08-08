@@ -8,6 +8,7 @@ from pydantic.dataclasses import dataclass
 AnswerType = Literal[
     "NoAnswer",  # If question cannot be accurately answered from [ANSWER CONTEXT]
     "Answered",  # Fully answer question
+    # TODO: Add a category for outright errors, e.g. network errors
 ]
 
 

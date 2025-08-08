@@ -392,7 +392,10 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
                 case "Answered":
                     actual4 = (combined_answer.answer or "", True)
             score = await compare_answers(context, expected4, actual4)
-            print(f"Score: {score:.3f}; Question: {query_text}")
+            if actual4[0].startswith("TypeChat failure:"):
+                print(Fore.YELLOW + "No answer received" + Fore.RESET)
+            else:
+                print(f"Score: {score:.3f}; Question: {query_text}")
             return score
         else:
             print("Stage 4 diff unavailable; nice answer:")

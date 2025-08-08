@@ -1,17 +1,44 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import os
+import argparse
 import glob
+import os
 import re
 import statistics
 import sys
 
-from colorama import Back, Fore, Style
+from colorama import init as colorama_init, Back, Fore, Style
 
 
 def main():
-    files = sys.argv[1:] or sorted(glob.glob("evals/eval-*.txt"))
+    parser = argparse.ArgumentParser(
+        description="Compare evaluation results from multiple files."
+    )
+    parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Control color output. Default 'auto' uses colors if stdout is a terminal.",
+    )
+    parser.add_argument(
+        "files",
+        nargs="*",
+    )
+    args = parser.parse_args()
+
+    # Initialize colorama according to --color.
+    match args.color:
+        case "auto":
+            colorama_init(strip=not sys.stdout.isatty())
+        case "always":
+            colorama_init(strip=False)
+        case "never":
+            colorama_init(strip=True)
+        case _:
+            raise ValueError(f"Invalid color option: {args.color}")
+
+    files = args.files or sorted(glob.glob("evals/eval-*.txt"))
     table = {}  # {file: {counter: score, ...}, ...}
     questions = {}  # {counter: question, ...}
 
