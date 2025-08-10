@@ -55,10 +55,6 @@ class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
         """Retrieve multiple items by their ordinals."""
         return [self._get(ordinal) for ordinal in ordinals]
 
-    def get_all(self) -> list[T]:
-        """Retrieve all items in the collection."""
-        return self.items
-
     @property
     def is_persistent(self) -> bool:
         return False
@@ -101,6 +97,27 @@ class MemoryStorageProvider(IStorageProvider):
         pass
 
 
+class ListStorageProvider(IStorageProvider):
+    """A storage provider that uses a list to store items."""
+
+    def create_message_collection[TMessage: IMessage](
+        self,
+        serializer: JsonSerializer[TMessage] | type[TMessage] | None = None,
+    ) -> MessageCollection[TMessage]:
+        """Create a new message collection."""
+        if isinstance(serializer, JsonSerializer):
+            raise ValueError("MemoryStorageProvider does not use a serializer.")
+        return []  # type: ignore[return-value]
+
+    def create_semantic_ref_collection(self) -> SemanticRefCollection:
+        """Create a new semantic reference collection."""
+        return []  # type: ignore[return-value]
+
+    def close(self) -> None:
+        """Close the storage provider."""
+        pass
+
+
 # TODO: The rest of this file is not currently used.
 
 
@@ -120,7 +137,7 @@ def get_batches_from_collection[T](
     """Generate batches of items from a collection."""
     start_at = start_at_ordinal
     while True:
-        batch = collection._get_slice(start_at, start_at + batch_size)
+        batch = collection[start_at : start_at + batch_size]
         if not batch:
             break
         yield Batch(start_at=start_at, value=batch)
