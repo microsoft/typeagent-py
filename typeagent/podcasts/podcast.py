@@ -239,10 +239,11 @@ class Podcast(
     def deserialize(
         self, podcast_data: ConversationDataWithIndexes[PodcastMessageData]
     ) -> None:
-        self.name_tag = podcast_data["nameTag"]
-
         if self.messages or self.semantic_refs:
             raise RuntimeError("Cannot deserialize into a non-empty Podcast.")
+
+        self.name_tag = podcast_data["nameTag"]
+
         for message_data in podcast_data["messages"]:
             msg = PodcastMessage.deserialize(message_data)
             self.messages.append(msg)

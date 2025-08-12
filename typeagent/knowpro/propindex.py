@@ -105,10 +105,7 @@ def add_action_properties_to_index(
 
 
 def build_property_index(conversation: IConversation) -> ListIndexingResult:
-    return add_to_property_index(
-        conversation,
-        0,
-    )
+    return add_to_property_index(conversation, 0)
 
 
 def add_to_property_index(
@@ -116,18 +113,14 @@ def add_to_property_index(
     start_at_ordinal: SemanticRefOrdinal,
 ) -> ListIndexingResult:
     """Add semantic references from a conversation to the property index starting at a specific ordinal."""
-    if conversation.secondary_indexes and conversation.semantic_refs:
-        if conversation.secondary_indexes.property_to_semantic_ref_index is None:
-            conversation.secondary_indexes.property_to_semantic_ref_index = (
-                PropertyIndex()
-            )
+    if (csi := conversation.secondary_indexes) and conversation.semantic_refs:
+        if (property_index := csi.property_to_semantic_ref_index) is None:
+            property_index = csi.property_to_semantic_ref_index = PropertyIndex()
 
-        property_index = conversation.secondary_indexes.property_to_semantic_ref_index
         semantic_refs = conversation.semantic_refs
 
         for semantic_ref_ordinal, semantic_ref in enumerate(
-            semantic_refs[start_at_ordinal : len(semantic_refs)],
-            start_at_ordinal,
+            semantic_refs[start_at_ordinal:], start_at_ordinal
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
             match semantic_ref.knowledge_type:
@@ -147,8 +140,10 @@ def add_to_property_index(
                     property_index.add_property(
                         PropertyNames.Tag.value, tag.text, semantic_ref_ordinal
                     )
-                case _:
+                case "topic":
                     pass
+                case _:
+                    assert_never(semantic_ref.knowledge_type)
 
         return ListIndexingResult(
             number_completed=len(semantic_refs) - start_at_ordinal

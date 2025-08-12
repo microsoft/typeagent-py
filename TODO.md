@@ -1,5 +1,36 @@
 # TODO for the Python knowpro port
 
+# From Meeting 8/12/2025 morning
+
+- Switch db API to async (even for in-memory); fix all related bugs
+- "Ordinals" ("ids") are sequential (ordered) but not contiguous
+- So we can use auto-increment
+- Fix all bugs related to that
+- Get rid of `__getitem__` in favor of get(), get_slice()
+- Flatten and reduce IConversation structure:
+  - Message collection
+  - SemanticRef collection
+  - SemanticRef index
+  - Property to SemanticRef index
+  - Timestamp to TextRange
+  - Terms to relatedterms
+- Persist all of the above in the SQLite version
+- Keep in-memory version (with some compromises) for comparison
+
+# From Meeting 8/12/2025 afternoon
+
+- Toss out character ordinals from TextLocation etc. [DONE]
+  - Message ordinal must exist
+  - Chunk ordinal of end in range is 1 past last chunk in range
+    (== standard Python slice conventions)
+  - TextRange is a half-open interval; end points past last chunk
+- Indexing (knowledge extraction) operates chunk by chunk
+- TimeRange always points to a TextRange
+- Always import VTT, helper to convert podcast to VTT format
+- Rename "Ordinal" to "Id"
+
+# Other stuff
+
 ## Eval-based improvements
 
 - Collect eval outputs (one change at a time) **[DONE]**

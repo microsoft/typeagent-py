@@ -405,7 +405,9 @@ class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
         message_ordinal_start = semantic_ref.range.start.message_ordinal
         if semantic_ref.range.end is not None:
             message_ordinal_end = semantic_ref.range.end.message_ordinal
-            for message_ordinal in range(message_ordinal_start, message_ordinal_end):
+            for message_ordinal in range(
+                message_ordinal_start, message_ordinal_end + 1
+            ):
                 self.add(message_ordinal, score)
         else:
             self.add(message_ordinal_start, score)
