@@ -126,7 +126,7 @@ def add_entity_to_index(
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int = 0,
 ) -> None:
-    ref_ordinal = len(semantic_refs)
+    ref_ordinal = semantic_refs.size()
     semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
@@ -182,7 +182,7 @@ def add_entity(
         chunk_ordinal: Ordinal of the chunk within the message
         terms_added: Optional set to track terms added to the index
     """
-    semantic_ref_ordinal = len(semantic_refs)
+    semantic_ref_ordinal = semantic_refs.size()
     semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
@@ -252,7 +252,7 @@ def add_topic(
         chunk_ordinal: Ordinal of the chunk within the message
         terms_added: Optional set to track terms added to the index
     """
-    semantic_ref_ordinal = len(semantic_refs)
+    semantic_ref_ordinal = semantic_refs.size()
     semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
@@ -288,7 +288,7 @@ def add_action(
         chunk_ordinal: Ordinal of the chunk within the message
         terms_added: Optional set to track terms added to the index
     """
-    semantic_ref_ordinal = len(semantic_refs)
+    semantic_ref_ordinal = semantic_refs.size()
     semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
@@ -444,7 +444,7 @@ def add_topic_to_index(
 ) -> None:
     if isinstance(topic, str):
         topic = Topic(text=topic)
-    ref_ordinal = len(semantic_refs)
+    ref_ordinal = semantic_refs.size()
     semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
@@ -463,7 +463,7 @@ def add_action_to_index(
     message_ordinal: int,
     chunk_ordinal: int = 0,
 ) -> None:
-    ref_ordinal = len(semantic_refs)
+    ref_ordinal = semantic_refs.size()
     semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,

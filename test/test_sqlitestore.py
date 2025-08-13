@@ -61,11 +61,11 @@ def test_sqlite_storage_provider_message_collection(temp_db_path):
     provider = SqliteStorageProvider(temp_db_path)
     collection = provider.create_message_collection(DummyMessage)
     assert collection.is_persistent
-    assert len(collection) == 0
+    assert collection.size() == 0
 
     msg = DummyMessage(["hello"])
     collection.append(msg)
-    assert len(collection) == 1
+    assert collection.size() == 1
     # get_item and __iter__
     loaded = collection.get_item(0)
     assert isinstance(loaded, DummyMessage)
@@ -73,7 +73,7 @@ def test_sqlite_storage_provider_message_collection(temp_db_path):
     assert list(collection)[0].text_chunks == ["hello"]
     collection.append(DummyMessage(["world"]))
     collection.append(DummyMessage(["foo", "bar"]))
-    assert len(collection) == 3
+    assert collection.size() == 3
     # slice
     assert [msg.text_chunks[0] for msg in collection.get_slice(1, 3)] == [
         "world",
@@ -90,13 +90,13 @@ def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
     provider = SqliteStorageProvider(temp_db_path)
     collection = provider.create_semantic_ref_collection()
     assert collection.is_persistent
-    assert len(collection) == 0
+    assert collection.size() == 0
 
     # Create a dummy SemanticRef
     ref = make_dummy_semantic_ref()
 
     collection.append(ref)
-    assert len(collection) == 1
+    assert collection.size() == 1
     loaded = collection.get_item(0)
     assert isinstance(loaded, SemanticRef)
     assert loaded.semantic_ref_ordinal == 0
@@ -119,7 +119,7 @@ def test_sqlite_message_collection_append_and_get(temp_db_path):
     store = SqliteMessageCollection(db, serializer)
     msg = DummyMessage(["foo"])
     store.append(msg)
-    assert len(store) == 1
+    assert store.size() == 1
     loaded = store.get_item(0)
     assert loaded.text_chunks == ["foo"]
     with pytest.raises(IndexError):
@@ -143,7 +143,7 @@ def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path):
     collection = SqliteSemanticRefCollection(db)
     ref = make_dummy_semantic_ref(123)
     collection.append(ref)
-    assert len(collection) == 1
+    assert collection.size() == 1
     loaded = collection.get_item(123)
     assert loaded.semantic_ref_ordinal == 123
     with pytest.raises(IndexError):

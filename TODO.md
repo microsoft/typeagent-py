@@ -2,11 +2,12 @@
 
 # From Meeting 8/12/2025 morning
 
+- Get rid of `__getitem__` in favor of get_item(), get_slice(), get_multiple() [DONE]
+  - Also rename `__len__` to size() [DONE]
 - Switch db API to async (even for in-memory); fix all related bugs
 - "Ordinals" ("ids") are sequential (ordered) but not contiguous
 - So we can use auto-increment
 - Fix all bugs related to that
-- Get rid of `__getitem__` in favor of get(), get_slice()
 - Flatten and reduce IConversation structure:
   - Message collection
   - SemanticRef collection

@@ -36,10 +36,10 @@ def get_time_range_for_conversation[
     conversation: IConversation[TMessage, TIndex],
 ) -> DateRange | None:
     messages = conversation.messages
-    if len(messages) > 0:
+    if messages.size() > 0:
         start = messages.get_item(0).timestamp
         if start is not None:
-            end = messages.get_item(len(messages) - 1).timestamp
+            end = messages.get_item(messages.size() - 1).timestamp
             return DateRange(
                 start=Datetime.fromisoformat(start),
                 end=Datetime.fromisoformat(end) if end else None,

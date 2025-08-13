@@ -51,7 +51,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
     def is_persistent(self) -> bool:
         return True
 
-    def __len__(self) -> int:
+    def size(self) -> int:
         cursor = self.db.cursor()
         cursor.execute("SELECT COUNT(*) FROM Messages")
         return cursor.fetchone()[0]
@@ -94,13 +94,13 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         serialized_message = json.dumps(json_obj)
         cursor.execute(
             "INSERT INTO Messages (id, msgdata) VALUES (?, ?)",
-            (len(self), serialized_message),
+            (self.size(), serialized_message),
         )
 
     def extend(self, items: typing.Iterable[TMessage]) -> None:
         self.db.commit()
         cursor = self.db.cursor()
-        for ord, item in enumerate(items, len(self)):
+        for ord, item in enumerate(items, self.size()):
             json_obj = self._serialize(item)
             serialized_message = json.dumps(json_obj)
             cursor.execute(
@@ -124,7 +124,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
     def is_persistent(self) -> bool:
         return True
 
-    def __len__(self) -> int:
+    def size(self) -> int:
         cursor = self.db.cursor()
         cursor.execute("SELECT COUNT(*) FROM SemanticRefs")
         return cursor.fetchone()[0]

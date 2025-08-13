@@ -96,7 +96,7 @@ async def test_build_secondary_indexes(simple_conversation, conversation_setting
     assert result.related_terms is not None
     assert isinstance(result.message, TextIndexingResult)
     assert result.message.completed_upto == TextLocation(
-        len(simple_conversation.messages)
+        simple_conversation.messages.size()
     )
 
 

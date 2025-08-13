@@ -70,7 +70,7 @@ async def main(filename_prefix: str):
     for scored_ord in results:
         ord = scored_ord.semantic_ref_ordinal
         assert pod.semantic_refs is not None
-        assert 0 <= ord < len(pod.semantic_refs)
+        assert 0 <= ord < pod.semantic_refs.size()
         sref = pod.semantic_refs.get_item(ord)
         assert sref.semantic_ref_ordinal == ord
         print(f"\n{ord}: Term {term!r} has knowledge", end=" ")

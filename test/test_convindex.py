@@ -99,7 +99,7 @@ def test_add_entity_to_index(conversation_index: ConversationIndex):
     semantic_refs = SemanticRefCollection()
     add_entity_to_index(entity, semantic_refs, conversation_index, 0)
 
-    assert len(semantic_refs) == 1
+    assert semantic_refs.size() == 1
     assert semantic_refs.get_item(0).knowledge_type == "entity"
     assert (
         cast(ConcreteEntity, semantic_refs.get_item(0).knowledge).name
@@ -125,7 +125,7 @@ def test_add_topic_to_index(conversation_index: ConversationIndex):
     semantic_refs = SemanticRefCollection()
     add_topic_to_index(topic, semantic_refs, conversation_index, 0)
 
-    assert len(semantic_refs) == 1
+    assert semantic_refs.size() == 1
     assert semantic_refs.get_item(0).knowledge_type == "topic"
     assert cast(Topic, semantic_refs.get_item(0).knowledge).text == "ExampleTopic"
 
@@ -148,7 +148,7 @@ def test_add_action_to_index(conversation_index: ConversationIndex):
     semantic_refs = SemanticRefCollection()
     add_action_to_index(action, semantic_refs, conversation_index, 0)
 
-    assert len(semantic_refs) == 1
+    assert semantic_refs.size() == 1
     assert semantic_refs.get_item(0).knowledge_type == "action"
     assert cast(Action, semantic_refs.get_item(0).knowledge).verbs == ["run", "jump"]
 
@@ -192,7 +192,7 @@ def test_add_knowledge_to_index(conversation_index: ConversationIndex):
     semantic_refs = SemanticRefCollection()
     add_knowledge_to_index(semantic_refs, conversation_index, 0, knowledge)
 
-    assert len(semantic_refs) == 3  # 1 entity + 1 action + 1 topic
+    assert semantic_refs.size() == 3  # 1 entity + 1 action + 1 topic
 
     result = conversation_index.lookup_term("ExampleEntity")
     assert result is not None

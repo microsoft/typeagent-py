@@ -73,7 +73,7 @@ def import_podcast(
     provider = get_storage_provider(dbname)
     msg_coll = provider.create_message_collection(PodcastMessage)
     semref_coll = provider.create_semantic_ref_collection()
-    if len(msg_coll) or len(semref_coll):
+    if msg_coll.size() or semref_coll.size():
         raise RuntimeError(f"{dbname!r} already has messages or semantic refs.")
 
     msg_coll.extend(msgs)

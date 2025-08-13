@@ -26,7 +26,7 @@ class Collection[T, TOrdinal: int](ICollection[T, TOrdinal]):
     def __init__(self, items: list[T] | None = None):
         self.items: list[T] = items or []
 
-    def __len__(self) -> int:
+    def size(self) -> int:
         return len(self.items)
 
     def __iter__(self) -> Iterator[T]:

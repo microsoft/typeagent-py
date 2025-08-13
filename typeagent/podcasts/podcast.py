@@ -239,7 +239,9 @@ class Podcast(
     def deserialize(
         self, podcast_data: ConversationDataWithIndexes[PodcastMessageData]
     ) -> None:
-        if self.messages or self.semantic_refs:
+        if self.messages.size() or (
+            self.semantic_refs is not None and self.semantic_refs.size()
+        ):
             raise RuntimeError("Cannot deserialize into a non-empty Podcast.")
 
         self.name_tag = podcast_data["nameTag"]
@@ -303,7 +305,7 @@ class Podcast(
         provider = get_storage_provider(dbname)
         msgs = provider.create_message_collection(PodcastMessage)
         semrefs = provider.create_semantic_ref_collection()
-        if len(msgs) or len(semrefs):
+        if msgs.size() or semrefs.size():
             raise RuntimeError(
                 f"Database {dbname!r} already has messages or semantic refs."
             )

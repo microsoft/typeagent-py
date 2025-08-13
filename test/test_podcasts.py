@@ -27,7 +27,7 @@ def test_import_podcast(needs_auth, temp_dir):
     # Basic assertions about the imported podcast
     assert pod.name_tag is not None
     assert len(pod.tags) > 0
-    assert len(pod.messages) > 0
+    assert pod.messages.size() > 0
 
     # Build the index
     indexing_result = asyncio.run(pod.build_index())
@@ -49,7 +49,9 @@ def test_import_podcast(needs_auth, temp_dir):
     # Assertions for the loaded podcast
     assert pod2.name_tag == pod.name_tag, "Name tags do not match"
     assert pod2.tags == pod.tags, "Tags do not match"
-    assert len(pod2.messages) == len(pod.messages), "Number of messages do not match"
+    assert (
+        pod2.messages.size() == pod.messages.size()
+    ), "Number of messages do not match"
     assert all(
         m1.serialize() == m2.serialize() for m1, m2 in zip(pod.messages, pod2.messages)
     ), "Messages do not match"

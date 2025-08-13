@@ -121,7 +121,7 @@ def add_to_property_index(
         semantic_refs = conversation.semantic_refs
 
         for semantic_ref_ordinal, semantic_ref in enumerate(
-            semantic_refs.get_slice(start_at_ordinal, len(semantic_refs)),
+            semantic_refs.get_slice(start_at_ordinal, semantic_refs.size()),
             start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
@@ -148,7 +148,7 @@ def add_to_property_index(
                     assert_never(semantic_ref.knowledge_type)
 
         return ListIndexingResult(
-            number_completed=len(semantic_refs) - start_at_ordinal
+            number_completed=semantic_refs.size() - start_at_ordinal
         )
 
     return ListIndexingResult(number_completed=0)
