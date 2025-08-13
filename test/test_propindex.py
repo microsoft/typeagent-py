@@ -255,7 +255,7 @@ class FakeConversation[
         self.tags = []
         self.semantic_refs = SemanticRefCollection(semantic_refs or [])
         self.semantic_ref_index = None
-        self.messages = MessageCollection([FakeMessage(["Hello"])])
+        self.messages: IMessageCollection[TMessage] = MessageCollection([FakeMessage(["Hello"])])  # type: ignore[assignment]
         self.secondary_indexes = ConversationSecondaryIndexes()
 
 

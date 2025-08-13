@@ -302,7 +302,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         predicate: Callable[[SemanticRef], bool],
     ) -> Iterable[SemanticRef]:
         for match in self:
-            semantic_ref = semantic_refs[match.value]
+            semantic_ref = semantic_refs.get_item(match.value)
             if predicate is None or predicate(semantic_ref):
                 yield semantic_ref
 
@@ -323,7 +323,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
     ) -> dict[KnowledgeType, "SemanticRefAccumulator"]:
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
         for match in self:
-            semantic_ref = semantic_refs[match.value]
+            semantic_ref = semantic_refs.get_item(match.value)
             group = groups.get(semantic_ref.knowledge_type)
             if group is None:
                 group = SemanticRefAccumulator()
@@ -339,7 +339,9 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
     ) -> "SemanticRefAccumulator":
         accumulator = SemanticRefAccumulator(self.search_term_matches)
         for match in self:
-            if ranges_in_scope.is_range_in_scope(semantic_refs[match.value].range):
+            if ranges_in_scope.is_range_in_scope(
+                semantic_refs.get_item(match.value).range
+            ):
                 accumulator.set_match(match)
         return accumulator
 

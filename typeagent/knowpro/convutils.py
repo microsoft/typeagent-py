@@ -37,9 +37,9 @@ def get_time_range_for_conversation[
 ) -> DateRange | None:
     messages = conversation.messages
     if len(messages) > 0:
-        start = messages[0].timestamp
+        start = messages.get_item(0).timestamp
         if start is not None:
-            end = messages[-1].timestamp
+            end = messages.get_item(len(messages) - 1).timestamp
             return DateRange(
                 start=Datetime.fromisoformat(start),
                 end=Datetime.fromisoformat(end) if end else None,

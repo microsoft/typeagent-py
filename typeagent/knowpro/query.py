@@ -181,7 +181,7 @@ def lookup_term_filtered(
         filtered = [
             sr
             for sr in scored_refs
-            if filter(semantic_refs[sr.semantic_ref_ordinal], sr)
+            if filter(semantic_refs.get_item(sr.semantic_ref_ordinal), sr)
         ]
         return filtered
     return None
@@ -260,16 +260,16 @@ class QueryEvalContext[TMessage: IMessage, TIndex: ITermToSemanticRefIndex]:
     def get_semantic_ref(self, semantic_ref_ordinal: SemanticRefOrdinal) -> SemanticRef:
         """Retrieve a semantic reference by its ordinal."""
         assert self.conversation.semantic_refs is not None
-        return self.conversation.semantic_refs[semantic_ref_ordinal]
+        return self.conversation.semantic_refs.get_item(semantic_ref_ordinal)
 
     def get_message_for_ref(self, semantic_ref: SemanticRef) -> TMessage:
         """Retrieve the message associated with a semantic reference."""
         message_ordinal = semantic_ref.range.start.message_ordinal
-        return self.conversation.messages[message_ordinal]
+        return self.conversation.messages.get_item(message_ordinal)
 
     def get_message(self, message_ordinal: MessageOrdinal) -> TMessage:
         """Retrieve a message by its ordinal."""
-        return self.messages[message_ordinal]
+        return self.messages.get_item(message_ordinal)
 
     def clear_matched_terms(self) -> None:
         """Clear all matched terms and property terms."""
@@ -1060,7 +1060,7 @@ def message_matches_from_knowledge_matches(
             knowledge_type_hit_count += 1
             for match in matches_by_type.semantic_ref_matches:
                 message_matches.add_messages_for_semantic_ref(
-                    semantic_refs[match.semantic_ref_ordinal],
+                    semantic_refs.get_item(match.semantic_ref_ordinal),
                     match.score,
                 )
     if intersect_across_knowledge_types and knowledge_type_hit_count > 0:

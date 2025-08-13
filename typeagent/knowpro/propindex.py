@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import enum
+from typing import assert_never
 
 from .collections import TextRangesInScope
 from .interfaces import (
@@ -120,7 +121,8 @@ def add_to_property_index(
         semantic_refs = conversation.semantic_refs
 
         for semantic_ref_ordinal, semantic_ref in enumerate(
-            semantic_refs[start_at_ordinal:], start_at_ordinal
+            semantic_refs.get_slice(start_at_ordinal, len(semantic_refs)),
+            start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
             match semantic_ref.knowledge_type:
@@ -220,7 +222,7 @@ def lookup_property_in_property_index(
             sr
             for sr in scored_refs
             if ranges_in_scope.is_range_in_scope(
-                semantic_refs[sr.semantic_ref_ordinal].range,
+                semantic_refs.get_item(sr.semantic_ref_ordinal).range,
             )
         ]
 

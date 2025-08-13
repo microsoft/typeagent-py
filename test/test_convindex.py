@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import pytest
+from typing import cast
 from typeagent.knowpro.convindex import (
     ConversationIndex,
     add_entity_to_index,
@@ -10,6 +11,7 @@ from typeagent.knowpro.convindex import (
     add_knowledge_to_index,
 )
 from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
+from typeagent.knowpro.interfaces import Topic
 from typeagent.knowpro.storage import SemanticRefCollection
 
 
@@ -98,8 +100,11 @@ def test_add_entity_to_index(conversation_index: ConversationIndex):
     add_entity_to_index(entity, semantic_refs, conversation_index, 0)
 
     assert len(semantic_refs) == 1
-    assert semantic_refs[0].knowledge_type == "entity"
-    assert semantic_refs[0].knowledge.name == "ExampleEntity"
+    assert semantic_refs.get_item(0).knowledge_type == "entity"
+    assert (
+        cast(ConcreteEntity, semantic_refs.get_item(0).knowledge).name
+        == "ExampleEntity"
+    )
 
     result = conversation_index.lookup_term("ExampleEntity")
     assert result is not None
@@ -121,8 +126,8 @@ def test_add_topic_to_index(conversation_index: ConversationIndex):
     add_topic_to_index(topic, semantic_refs, conversation_index, 0)
 
     assert len(semantic_refs) == 1
-    assert semantic_refs[0].knowledge_type == "topic"
-    assert semantic_refs[0].knowledge.text == "ExampleTopic"
+    assert semantic_refs.get_item(0).knowledge_type == "topic"
+    assert cast(Topic, semantic_refs.get_item(0).knowledge).text == "ExampleTopic"
 
     result = conversation_index.lookup_term("ExampleTopic")
     assert result is not None
@@ -144,8 +149,8 @@ def test_add_action_to_index(conversation_index: ConversationIndex):
     add_action_to_index(action, semantic_refs, conversation_index, 0)
 
     assert len(semantic_refs) == 1
-    assert semantic_refs[0].knowledge_type == "action"
-    assert semantic_refs[0].knowledge.verbs == ["run", "jump"]
+    assert semantic_refs.get_item(0).knowledge_type == "action"
+    assert cast(Action, semantic_refs.get_item(0).knowledge).verbs == ["run", "jump"]
 
     result = conversation_index.lookup_term("run jump")
     assert result is not None

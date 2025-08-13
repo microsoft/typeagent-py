@@ -603,7 +603,7 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
         ):
             score = scored_ord.score
             msg_ord = scored_ord.message_ordinal
-            msg = conversation.messages[msg_ord]
+            msg = conversation.messages.get_item(msg_ord)
             assert msg.metadata is not None  # For type checkers
             text = " ".join(msg.text_chunks).strip()
             print(
@@ -621,10 +621,10 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 if conversation.semantic_refs is None:
                     print(f"  Ord: {sem_ref_ord} (score {score})")
                 else:
-                    sem_ref = conversation.semantic_refs[sem_ref_ord]
+                    sem_ref = conversation.semantic_refs.get_item(sem_ref_ord)
                     msg_ord = sem_ref.range.start.message_ordinal
                     chunk_ord = sem_ref.range.start.chunk_ordinal
-                    msg = conversation.messages[msg_ord]
+                    msg = conversation.messages.get_item(msg_ord)
                     print(
                         f"({score:5.1f}) M={msg_ord}: "
                         f"S={summarize_knowledge(sem_ref)}"

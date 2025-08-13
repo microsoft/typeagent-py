@@ -66,8 +66,8 @@ def test_sqlite_storage_provider_message_collection(temp_db_path):
     msg = DummyMessage(["hello"])
     collection.append(msg)
     assert len(collection) == 1
-    # __getitem__ and __iter__
-    loaded = collection[0]
+    # get_item and __iter__
+    loaded = collection.get_item(0)
     assert isinstance(loaded, DummyMessage)
     assert loaded.text_chunks == ["hello"]
     assert list(collection)[0].text_chunks == ["hello"]
@@ -75,9 +75,15 @@ def test_sqlite_storage_provider_message_collection(temp_db_path):
     collection.append(DummyMessage(["foo", "bar"]))
     assert len(collection) == 3
     # slice
-    assert [msg.text_chunks[0] for msg in collection[1:3]] == ["world", "foo"]
+    assert [msg.text_chunks[0] for msg in collection.get_slice(1, 3)] == [
+        "world",
+        "foo",
+    ]
     # multiple get
-    assert [msg.text_chunks[0] for msg in collection[[0, 2]]] == ["hello", "foo"]
+    assert [msg.text_chunks[0] for msg in collection.get_multiple([0, 2])] == [
+        "hello",
+        "foo",
+    ]
 
 
 def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
@@ -91,7 +97,7 @@ def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
 
     collection.append(ref)
     assert len(collection) == 1
-    loaded = collection[0]
+    loaded = collection.get_item(0)
     assert isinstance(loaded, SemanticRef)
     assert loaded.semantic_ref_ordinal == 0
     assert list(collection)[0].semantic_ref_ordinal == 0
@@ -100,8 +106,9 @@ def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
 def test_default_serializer_roundtrip():
     serializer = DefaultSerializer(DummyMessage)
     msg = DummyMessage(["test"])
-    s = serializer.serialize(msg)
-    msg2 = serializer.deserialize(s)
+    json_obj = serializer.serialize(msg)
+    assert isinstance(json_obj, dict)  # Should return a JSON object, not a string
+    msg2 = serializer.deserialize(json_obj)
     assert isinstance(msg2, DummyMessage)
     assert msg2.text_chunks == ["test"]
 
@@ -113,12 +120,12 @@ def test_sqlite_message_collection_append_and_get(temp_db_path):
     msg = DummyMessage(["foo"])
     store.append(msg)
     assert len(store) == 1
-    loaded = store[0]
+    loaded = store.get_item(0)
     assert loaded.text_chunks == ["foo"]
     with pytest.raises(IndexError):
-        _ = store[999]
+        _ = store.get_item(999)
     with pytest.raises(TypeError):
-        _ = store["bad"]  # type: ignore  # Tests runtime behavior
+        _ = store.get_item("bad")  # type: ignore  # Tests runtime behavior
 
 
 def test_sqlite_message_collection_iter(temp_db_path):
@@ -137,12 +144,12 @@ def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path):
     ref = make_dummy_semantic_ref(123)
     collection.append(ref)
     assert len(collection) == 1
-    loaded = collection[123]
+    loaded = collection.get_item(123)
     assert loaded.semantic_ref_ordinal == 123
     with pytest.raises(IndexError):
-        _ = collection[999]
+        _ = collection.get_item(999)
     with pytest.raises(TypeError):
-        _ = collection["bad"]  # type: ignore  # Tests runtime behavior
+        _ = collection.get_item("bad")  # type: ignore  # Tests runtime behavior
 
 
 def test_sqlite_semantic_ref_collection_iter(temp_db_path):

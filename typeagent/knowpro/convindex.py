@@ -86,7 +86,7 @@ async def add_batch_to_semantic_ref_index[
     indexing_result = TextIndexingResult()
 
     text_batch = [
-        messages[tl.message_ordinal].text_chunks[tl.chunk_ordinal].strip()
+        messages.get_item(tl.message_ordinal).text_chunks[tl.chunk_ordinal].strip()
         for tl in batch
     ]
 

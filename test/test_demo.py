@@ -71,7 +71,7 @@ async def main(filename_prefix: str):
         ord = scored_ord.semantic_ref_ordinal
         assert pod.semantic_refs is not None
         assert 0 <= ord < len(pod.semantic_refs)
-        sref = pod.semantic_refs[ord]
+        sref = pod.semantic_refs.get_item(ord)
         assert sref.semantic_ref_ordinal == ord
         print(f"\n{ord}: Term {term!r} has knowledge", end=" ")
         print(f"of type {sref.knowledge_type!r} at {sref.range}:")
@@ -81,7 +81,7 @@ async def main(filename_prefix: str):
         end_msg_ord = (
             sref.range.end.message_ordinal if sref.range.end else start_msg_ord + 1
         )
-        messages = pod.messages[start_msg_ord:end_msg_ord]
+        messages = pod.messages.get_slice(start_msg_ord, end_msg_ord)
         assert len(messages) > 0, f"messages is {messages!r}"
         for i, message in enumerate(messages, start_msg_ord):
             print(f" MESSAGE {i}:")

@@ -220,7 +220,7 @@ def get_relevant_messages_for_answer[
     relevant_messages = []
 
     for scored_msg_ord in message_matches:
-        msg = conversation.messages[scored_msg_ord.message_ordinal]
+        msg = conversation.messages.get_item(scored_msg_ord.message_ordinal)
         if not msg.text_chunks:
             continue
         metadata: IMessageMetadata | None = msg.metadata
@@ -399,10 +399,12 @@ def get_enclosing_date_range_for_text_range(
     messages: IMessageCollection,
     range: TextRange,
 ) -> DateRange | None:
-    start_timestamp = messages[range.start.message_ordinal].timestamp
+    start_timestamp = messages.get_item(range.start.message_ordinal).timestamp
     if not start_timestamp:
         return None
-    end_timestamp = messages[range.end.message_ordinal].timestamp if range.end else None
+    end_timestamp = (
+        messages.get_item(range.end.message_ordinal).timestamp if range.end else None
+    )
     return DateRange(
         start=Datetime.fromisoformat(start_timestamp),
         end=Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
@@ -429,7 +431,7 @@ def get_enclosing_metadata_for_messages(
             s.update(value)
 
     for ordinal in message_ordinals:
-        metadata = messages[ordinal].metadata
+        metadata = messages.get_item(ordinal).metadata
         if not metadata:
             continue
         collect(source, metadata.source)
@@ -446,7 +448,7 @@ def get_scored_semantic_refs_from_ordinals_iter(
     knowledge_type: KnowledgeType,
 ) -> Iterator[Scored[SemanticRef]]:
     for semantic_ref_match in semantic_ref_matches:
-        semantic_ref = semantic_refs[semantic_ref_match.semantic_ref_ordinal]
+        semantic_ref = semantic_refs.get_item(semantic_ref_match.semantic_ref_ordinal)
         if semantic_ref.knowledge_type == knowledge_type:
             yield Scored(
                 item=semantic_ref,
