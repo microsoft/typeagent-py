@@ -10,7 +10,7 @@ from ..storage.sqlitestore import get_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
 
 
-def import_podcast(
+async def import_podcast(
     transcript_file_path: str,
     podcast_name: str | None = None,
     start_date: Datetime | None = None,
@@ -73,16 +73,16 @@ def import_podcast(
     provider = get_storage_provider(dbname)
     msg_coll = provider.create_message_collection(PodcastMessage)
     semref_coll = provider.create_semantic_ref_collection()
-    if msg_coll.size() or semref_coll.size():
+    if await msg_coll.size() or await semref_coll.size():
         raise RuntimeError(f"{dbname!r} already has messages or semantic refs.")
 
-    msg_coll.extend(msgs)
+    await msg_coll.extend(msgs)
 
     pod = Podcast(
         podcast_name, msg_coll, [podcast_name], semref_coll, settings=settings
     )
     if start_date:
-        pod.generate_timestamps(start_date, length_minutes)
+        await pod.generate_timestamps(start_date, length_minutes)
     # TODO: Add more tags.
     return pod
 

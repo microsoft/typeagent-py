@@ -296,15 +296,17 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
                     )
             self.search_term_matches.add(search_term.text)
 
-    def get_semantic_refs(
+    async def get_semantic_refs(
         self,
         semantic_refs: ISemanticRefCollection,
         predicate: Callable[[SemanticRef], bool],
-    ) -> Iterable[SemanticRef]:
+    ) -> list[SemanticRef]:
+        result = []
         for match in self:
-            semantic_ref = semantic_refs.get_item(match.value)
+            semantic_ref = await semantic_refs.get_item(match.value)
             if predicate is None or predicate(semantic_ref):
-                yield semantic_ref
+                result.append(semantic_ref)
+        return result
 
     def get_matches_of_type[T: Knowledge](
         self,
@@ -317,13 +319,13 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             if predicate is None or predicate(cast(T, semantic_ref.knowledge)):
                 yield match
 
-    def group_matches_by_type(
+    async def group_matches_by_type(
         self,
         semantic_refs: ISemanticRefCollection,
     ) -> dict[KnowledgeType, "SemanticRefAccumulator"]:
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
         for match in self:
-            semantic_ref = semantic_refs.get_item(match.value)
+            semantic_ref = await semantic_refs.get_item(match.value)
             group = groups.get(semantic_ref.knowledge_type)
             if group is None:
                 group = SemanticRefAccumulator()
@@ -332,7 +334,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             group.set_match(match)
         return groups
 
-    def get_matches_in_scope(
+    async def get_matches_in_scope(
         self,
         semantic_refs: ISemanticRefCollection,
         ranges_in_scope: "TextRangesInScope",
@@ -340,7 +342,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         accumulator = SemanticRefAccumulator(self.search_term_matches)
         for match in self:
             if ranges_in_scope.is_range_in_scope(
-                semantic_refs.get_item(match.value).range
+                (await semantic_refs.get_item(match.value)).range
             ):
                 accumulator.set_match(match)
         return accumulator

@@ -105,11 +105,11 @@ def add_action_properties_to_index(
         )
 
 
-def build_property_index(conversation: IConversation) -> ListIndexingResult:
-    return add_to_property_index(conversation, 0)
+async def build_property_index(conversation: IConversation) -> ListIndexingResult:
+    return await add_to_property_index(conversation, 0)
 
 
-def add_to_property_index(
+async def add_to_property_index(
     conversation: IConversation,
     start_at_ordinal: SemanticRefOrdinal,
 ) -> ListIndexingResult:
@@ -119,9 +119,10 @@ def add_to_property_index(
             property_index = csi.property_to_semantic_ref_index = PropertyIndex()
 
         semantic_refs = conversation.semantic_refs
+        size = await semantic_refs.size()
 
         for semantic_ref_ordinal, semantic_ref in enumerate(
-            semantic_refs.get_slice(start_at_ordinal, semantic_refs.size()),
+            await semantic_refs.get_slice(start_at_ordinal, size),
             start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
@@ -147,9 +148,7 @@ def add_to_property_index(
                 case _:
                     assert_never(semantic_ref.knowledge_type)
 
-        return ListIndexingResult(
-            number_completed=semantic_refs.size() - start_at_ordinal
-        )
+        return ListIndexingResult(number_completed=size - start_at_ordinal)
 
     return ListIndexingResult(number_completed=0)
 
@@ -206,7 +205,7 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
         return term_text.lower()
 
 
-def lookup_property_in_property_index(
+async def lookup_property_in_property_index(
     property_index: IPropertyToSemanticRefIndex,
     property_name: str,
     property_value: str,
@@ -218,13 +217,12 @@ def lookup_property_in_property_index(
         property_value,
     )
     if ranges_in_scope is not None and scored_refs:
-        scored_refs = [
-            sr
-            for sr in scored_refs
-            if ranges_in_scope.is_range_in_scope(
-                semantic_refs.get_item(sr.semantic_ref_ordinal).range,
-            )
-        ]
+        filtered_refs = []
+        for sr in scored_refs:
+            semantic_ref = await semantic_refs.get_item(sr.semantic_ref_ordinal)
+            if ranges_in_scope.is_range_in_scope(semantic_ref.range):
+                filtered_refs.append(sr)
+        scored_refs = filtered_refs
 
     return scored_refs or None  # Return None if no results
 

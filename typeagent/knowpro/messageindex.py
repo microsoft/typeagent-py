@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Iterable
+from collections.abc import AsyncIterable, Iterable
 from typing import Callable
 
 from ..aitools.embeddings import NormalizedEmbedding
@@ -35,7 +35,9 @@ async def build_message_index[
     if csi.message_index is None:
         csi.message_index = MessageTextIndex(settings)
     messages = conversation.messages
-    return await csi.message_index.add_messages(messages, event_handler)
+    # Convert collection to list for add_messages
+    messages_list = [message async for message in messages]
+    return await csi.message_index.add_messages(messages_list, event_handler)
 
 
 class IMessageTextEmbeddingIndex(IMessageTextIndex):

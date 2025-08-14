@@ -89,7 +89,7 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     options: AnswerContextOptions | None = None,
 ) -> AnswerResponse:
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
-    context = make_context(search_result, conversation, options)
+    context = await make_context(search_result, conversation, options)
     request = f"{create_question_prompt(search_result.raw_query_text)}\n\n{create_context_prompt(context)}"
     # print("+" * 80)
     # print(request)
@@ -156,7 +156,7 @@ def dictify(object: object) -> Any:
             return object
 
 
-def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
+async def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     search_result: ConversationSearchResult,
     conversation: IConversation[TMessage, TIndex],
     options: AnswerContextOptions | None = None,
@@ -164,7 +164,7 @@ def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     context = AnswerContext([], [], [])
 
     if search_result.message_matches:
-        context.messages = get_relevant_messages_for_answer(
+        context.messages = await get_relevant_messages_for_answer(
             conversation,
             search_result.message_matches,
             options and options.messages_top_k,
@@ -173,13 +173,13 @@ def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     for ktype, knowledge in search_result.knowledge_matches.items():
         match ktype:
             case "entity":
-                context.entities = get_relevant_entities_for_answer(
+                context.entities = await get_relevant_entities_for_answer(
                     conversation,
                     knowledge,
                     options and options.entities_top_k,
                 )
             case "topic":
-                context.topics = get_relevant_topics_for_answer(
+                context.topics = await get_relevant_topics_for_answer(
                     conversation,
                     knowledge,
                     options and options.topics_top_k,
@@ -210,7 +210,7 @@ class MergedEntity(MergedKnowledge):
     facets: MergedFacets | None = None
 
 
-def get_relevant_messages_for_answer[
+async def get_relevant_messages_for_answer[
     TMessage: IMessage, TIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TIndex],
@@ -220,7 +220,7 @@ def get_relevant_messages_for_answer[
     relevant_messages = []
 
     for scored_msg_ord in message_matches:
-        msg = conversation.messages.get_item(scored_msg_ord.message_ordinal)
+        msg = await conversation.messages.get_item(scored_msg_ord.message_ordinal)
         if not msg.text_chunks:
             continue
         metadata: IMessageMetadata | None = msg.metadata
@@ -241,14 +241,14 @@ def get_relevant_messages_for_answer[
     return relevant_messages
 
 
-def get_relevant_topics_for_answer(
+async def get_relevant_topics_for_answer(
     conversation: IConversation,
     search_result: SemanticRefSearchResult,
     top_k: int | None = None,
 ) -> list[RelevantKnowledge]:
     assert conversation.semantic_refs is not None, "Semantic refs must not be None"
     scored_topics: Iterable[Scored[SemanticRef]] = (
-        get_scored_semantic_refs_from_ordinals_iter(
+        await get_scored_semantic_refs_from_ordinals_iter(
             conversation.semantic_refs,
             search_result.semantic_ref_matches,
             "topic",
@@ -264,7 +264,7 @@ def get_relevant_topics_for_answer(
     for scored_value in candidate_topics:
         merged_topic = scored_value.item
         relevant_topics.append(
-            create_relevant_knowledge(
+            await create_relevant_knowledge(
                 conversation,
                 merged_topic.topic,
                 merged_topic.source_message_ordinals,
@@ -301,14 +301,14 @@ def merge_scored_topics(
     return merged_topics
 
 
-def get_relevant_entities_for_answer(
+async def get_relevant_entities_for_answer(
     conversation: IConversation,
     search_result: SemanticRefSearchResult,
     top_k: int | None = None,
 ) -> list[RelevantKnowledge]:
     assert conversation.semantic_refs is not None, "Semantic refs must not be None"
     merged_entities = merge_scored_concrete_entities(
-        get_scored_semantic_refs_from_ordinals_iter(
+        await get_scored_semantic_refs_from_ordinals_iter(
             conversation.semantic_refs,
             search_result.semantic_ref_matches,
             "entity",
@@ -323,7 +323,7 @@ def get_relevant_entities_for_answer(
 
     for scored_value in candidate_entities:
         merged_entity = scored_value.item
-        relevane_entity = create_relevant_knowledge(
+        relevane_entity = await create_relevant_knowledge(
             conversation,
             merged_to_concrete_entity(merged_entity),
             merged_entity.source_message_ordinals,
@@ -333,7 +333,7 @@ def get_relevant_entities_for_answer(
     return relevant_entities
 
 
-def create_relevant_knowledge(
+async def create_relevant_knowledge(
     conversation: IConversation,
     knowledge: Knowledge,
     source_message_ordinals: set[MessageOrdinal] | None = None,
@@ -341,10 +341,10 @@ def create_relevant_knowledge(
     relevant_knowledge = RelevantKnowledge(knowledge)
 
     if source_message_ordinals:
-        relevant_knowledge.time_range = get_enclosing_data_range_for_messages(
+        relevant_knowledge.time_range = await get_enclosing_data_range_for_messages(
             conversation.messages, source_message_ordinals
         )
-        meta = get_enclosing_metadata_for_messages(
+        meta = await get_enclosing_metadata_for_messages(
             conversation.messages, source_message_ordinals
         )
         if meta.source:
@@ -355,14 +355,14 @@ def create_relevant_knowledge(
     return relevant_knowledge
 
 
-def get_enclosing_data_range_for_messages(
+async def get_enclosing_data_range_for_messages(
     messages: IMessageCollection,
     message_ordinals: Iterable[MessageOrdinal],
 ) -> DateRange | None:
     text_range = get_enclosing_text_range(message_ordinals)
     if not text_range:
         return None
-    return get_enclosing_date_range_for_text_range(messages, text_range)
+    return await get_enclosing_date_range_for_text_range(messages, text_range)
 
 
 def get_enclosing_text_range(
@@ -395,15 +395,17 @@ def text_range_from_message_range(
         raise ValueError(f"Expect message ordinal range: {start} <= {end}")
 
 
-def get_enclosing_date_range_for_text_range(
+async def get_enclosing_date_range_for_text_range(
     messages: IMessageCollection,
     range: TextRange,
 ) -> DateRange | None:
-    start_timestamp = messages.get_item(range.start.message_ordinal).timestamp
+    start_timestamp = (await messages.get_item(range.start.message_ordinal)).timestamp
     if not start_timestamp:
         return None
     end_timestamp = (
-        messages.get_item(range.end.message_ordinal).timestamp if range.end else None
+        (await messages.get_item(range.end.message_ordinal)).timestamp
+        if range.end
+        else None
     )
     return DateRange(
         start=Datetime.fromisoformat(start_timestamp),
@@ -417,7 +419,7 @@ class MessageMetadata(IMessageMetadata):
     dest: str | list[str] | None = None
 
 
-def get_enclosing_metadata_for_messages(
+async def get_enclosing_metadata_for_messages(
     messages: IMessageCollection,
     message_ordinals: Iterable[MessageOrdinal],
 ) -> IMessageMetadata:
@@ -431,7 +433,7 @@ def get_enclosing_metadata_for_messages(
             s.update(value)
 
     for ordinal in message_ordinals:
-        metadata = messages.get_item(ordinal).metadata
+        metadata = (await messages.get_item(ordinal)).metadata
         if not metadata:
             continue
         collect(source, metadata.source)
@@ -442,18 +444,24 @@ def get_enclosing_metadata_for_messages(
     )
 
 
-def get_scored_semantic_refs_from_ordinals_iter(
+async def get_scored_semantic_refs_from_ordinals_iter(
     semantic_refs: ISemanticRefCollection,
     semantic_ref_matches: list[ScoredSemanticRefOrdinal],
     knowledge_type: KnowledgeType,
-) -> Iterator[Scored[SemanticRef]]:
+) -> list[Scored[SemanticRef]]:
+    result = []
     for semantic_ref_match in semantic_ref_matches:
-        semantic_ref = semantic_refs.get_item(semantic_ref_match.semantic_ref_ordinal)
+        semantic_ref = await semantic_refs.get_item(
+            semantic_ref_match.semantic_ref_ordinal
+        )
         if semantic_ref.knowledge_type == knowledge_type:
-            yield Scored(
-                item=semantic_ref,
-                score=semantic_ref_match.score,
+            result.append(
+                Scored(
+                    item=semantic_ref,
+                    score=semantic_ref_match.score,
+                )
             )
+    return result
 
 
 def merge_scored_concrete_entities(

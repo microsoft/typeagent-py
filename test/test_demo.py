@@ -51,7 +51,7 @@ async def main(filename_prefix: str):
 
     print(f"Loading {filename_prefix} ...")
     t0 = time.time()
-    pod = podcast.Podcast.read_from_file(filename_prefix, settings)
+    pod = await podcast.Podcast.read_from_file(filename_prefix, settings)
     t1 = time.time()
     print(f"Loading took {t1-t0:.3f} seconds")
     assert pod is not None, "Failed to load podcast"
@@ -70,8 +70,8 @@ async def main(filename_prefix: str):
     for scored_ord in results:
         ord = scored_ord.semantic_ref_ordinal
         assert pod.semantic_refs is not None
-        assert 0 <= ord < pod.semantic_refs.size()
-        sref = pod.semantic_refs.get_item(ord)
+        assert 0 <= ord < await pod.semantic_refs.size()
+        sref = await pod.semantic_refs.get_item(ord)
         assert sref.semantic_ref_ordinal == ord
         print(f"\n{ord}: Term {term!r} has knowledge", end=" ")
         print(f"of type {sref.knowledge_type!r} at {sref.range}:")
@@ -81,7 +81,7 @@ async def main(filename_prefix: str):
         end_msg_ord = (
             sref.range.end.message_ordinal if sref.range.end else start_msg_ord + 1
         )
-        messages = pod.messages.get_slice(start_msg_ord, end_msg_ord)
+        messages = await pod.messages.get_slice(start_msg_ord, end_msg_ord)
         assert len(messages) > 0, f"messages is {messages!r}"
         for i, message in enumerate(messages, start_msg_ord):
             print(f" MESSAGE {i}:")
@@ -98,7 +98,7 @@ async def main(filename_prefix: str):
                     print(f"  {i}: {line}")
 
     print(f"\nChecking that serialize -> deserialize -> serialize roundtrips ...")
-    ser1 = pod.serialize()
+    ser1 = await pod.serialize()
     assert ser1 is not None, "Failed to serialize podcast"
     assert isinstance(ser1, dict), f"ser1 is not dict but {type(ser1)!r}"
     assert len(ser1) > 0, f"ser1 is empty {ser1!r}"
@@ -108,12 +108,12 @@ async def main(filename_prefix: str):
     assert pod2 is not None, "Failed to create podcast"
     assert isinstance(pod2, podcast.Podcast), f"pod2 is not Podcast but {type(pod2)!r}"
 
-    pod2.deserialize(ser1)
+    await pod2.deserialize(ser1)
     assert (
         pod2.name_tag == pod.name_tag
     ), f"pod2.name_tag is {pod2.name_tag!r} but expected {pod.name_tag!r}"
 
-    ser2 = pod2.serialize()
+    ser2 = await pod2.serialize()
     assert ser2 is not None, "Failed to serialize podcast"
     assert isinstance(ser2, dict), f"ser2 is not dict but {type(ser2)!r}"
     assert len(ser2) > 0, f"ser2 is empty {ser2!r}"

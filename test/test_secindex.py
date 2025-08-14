@@ -85,8 +85,8 @@ def test_conversation_secondary_indexes_initialization(needs_auth):
 async def test_build_secondary_indexes(simple_conversation, conversation_settings):
     """Test building secondary indexes asynchronously."""
     # Add some dummy data to the conversation
-    simple_conversation.messages.append(SimpleMessage("Message 1"))
-    simple_conversation.messages.append(SimpleMessage("Message 2"))
+    await simple_conversation.messages.append(SimpleMessage("Message 1"))
+    await simple_conversation.messages.append(SimpleMessage("Message 2"))
 
     result = await build_secondary_indexes(
         simple_conversation, conversation_settings, None
@@ -96,17 +96,18 @@ async def test_build_secondary_indexes(simple_conversation, conversation_setting
     assert result.related_terms is not None
     assert isinstance(result.message, TextIndexingResult)
     assert result.message.completed_upto == TextLocation(
-        simple_conversation.messages.size()
+        await simple_conversation.messages.size()
     )
 
 
-def test_build_transient_secondary_indexes(simple_conversation, needs_auth):
+@pytest.mark.asyncio
+async def test_build_transient_secondary_indexes(simple_conversation, needs_auth):
     """Test building transient secondary indexes."""
     # Add some dummy data to the conversation
-    simple_conversation.messages.append(SimpleMessage("Message 1"))
-    simple_conversation.messages.append(SimpleMessage("Message 2"))
+    await simple_conversation.messages.append(SimpleMessage("Message 1"))
+    await simple_conversation.messages.append(SimpleMessage("Message 2"))
 
-    result = build_transient_secondary_indexes(simple_conversation)
+    result = await build_transient_secondary_indexes(simple_conversation)
 
     assert isinstance(result, SecondaryIndexingResults)
     assert result.properties is not None

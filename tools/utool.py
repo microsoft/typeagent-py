@@ -136,7 +136,7 @@ class ProcessingContext:
 ### Main logic ###
 
 
-def main():
+async def main():
     utils.load_dotenv()
     colorama_init(autoreset=True)
 
@@ -146,7 +146,7 @@ def main():
     if args.logfire:
         setup_logfire()
     settings = importing.ConversationSettings()
-    query_context = load_podcast_index(args.podcast, settings)
+    query_context = await load_podcast_index(args.podcast, settings, args.sqlite_db)
     ar_list, ar_index = load_index_file(args.qafile, "question", QuestionAnswerData)
     sr_list, sr_index = load_index_file(args.srfile, "searchText", SearchResultData)
 
@@ -196,10 +196,10 @@ def main():
             + f"Running in batch mode [{args.offset}:{args.offset + args.limit if args.limit else ''}]."
             + Fore.RESET
         )
-        asyncio.run(batch_loop(context, args.offset, args.limit))
+        await batch_loop(context, args.offset, args.limit)
     else:
         print(Fore.YELLOW + "Running in interactive mode." + Fore.RESET)
-        interactive_loop(context)
+        await interactive_loop(context)
 
 
 async def batch_loop(context: ProcessingContext, offset: int, limit: int) -> None:
@@ -229,13 +229,13 @@ async def batch_loop(context: ProcessingContext, offset: int, limit: int) -> Non
             )
 
 
-def interactive_loop(context: ProcessingContext) -> None:
+async def interactive_loop(context: ProcessingContext) -> None:
     if not sys.stdin.isatty():
         for line in sys.stdin:
             line = line.strip()
             if not line:
                 continue
-            asyncio.run(process_query(context, line))
+            await process_query(context, line)
         return
 
     print(f"TypeAgent demo UI {__version__} (type 'q' to exit)")
@@ -261,7 +261,7 @@ def interactive_loop(context: ProcessingContext) -> None:
                     )
                 break
             prsep()
-            asyncio.run(process_query(context, line))
+            await process_query(context, line)
 
     finally:
         if readline:
@@ -353,7 +353,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
     elif context.debug3 == "nice":
         print("Stage 3 nice results:")
         for sr in search_results:
-            print_result(sr, context.query_context.conversation)
+            await print_result(sr, context.query_context.conversation)
         prsep()
     elif context.debug3 == "diff":
         if record and "results" in record:
@@ -444,6 +444,12 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         type=str,
         default=default_srfile,
         help=f"Path to the Search_results.json file ({explain_sr})",
+    )
+    parser.add_argument(
+        "--sqlite-db",
+        type=str,
+        default=None,
+        help="Path to the SQLite database file (default: no SQLite)",
     )
 
     batch = parser.add_argument_group("Batch mode options")
@@ -557,11 +563,15 @@ def fill_in_debug_defaults(
 ### Data loading ###
 
 
-def load_podcast_index(
-    podcast_file_prefix: str, settings: importing.ConversationSettings
+async def load_podcast_index(
+    podcast_file_prefix: str,
+    settings: importing.ConversationSettings,
+    dbname: str | None,
 ) -> query.QueryEvalContext:
     with utils.timelog(f"load podcast from {podcast_file_prefix!r}"):
-        conversation = podcast.Podcast.read_from_file(podcast_file_prefix, settings)
+        conversation = await podcast.Podcast.read_from_file(
+            podcast_file_prefix, settings, dbname
+        )
     assert (
         conversation is not None
     ), f"Failed to load podcast from {podcast_file_prefix!r}"
@@ -587,7 +597,7 @@ def load_index_file[T: Mapping[str, typing.Any]](
 ### Debug output ###
 
 
-def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
+async def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     result: search.ConversationSearchResult,
     conversation: IConversation[TMessage, TIndex],
 ) -> None:
@@ -603,7 +613,7 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
         ):
             score = scored_ord.score
             msg_ord = scored_ord.message_ordinal
-            msg = conversation.messages.get_item(msg_ord)
+            msg = await conversation.messages.get_item(msg_ord)
             assert msg.metadata is not None  # For type checkers
             text = " ".join(msg.text_chunks).strip()
             print(
@@ -621,10 +631,10 @@ def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 if conversation.semantic_refs is None:
                     print(f"  Ord: {sem_ref_ord} (score {score})")
                 else:
-                    sem_ref = conversation.semantic_refs.get_item(sem_ref_ord)
+                    sem_ref = await conversation.semantic_refs.get_item(sem_ref_ord)
                     msg_ord = sem_ref.range.start.message_ordinal
                     chunk_ord = sem_ref.range.start.chunk_ordinal
-                    msg = conversation.messages.get_item(msg_ord)
+                    msg = await conversation.messages.get_item(msg_ord)
                     print(
                         f"({score:5.1f}) M={msg_ord}: "
                         f"S={summarize_knowledge(sem_ref)}"
@@ -837,7 +847,7 @@ async def equality_score(context: ProcessingContext, a: str, b: str) -> float:
 
 if __name__ == "__main__":
     try:
-        main()
+        asyncio.run(main())
     except (KeyboardInterrupt, BrokenPipeError):
         print()
         sys.exit(1)

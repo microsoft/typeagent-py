@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import AsyncIterable, Iterable, Sequence
 from dataclasses import field
 from datetime import (
     datetime as Datetime,  # For export.
@@ -776,14 +776,14 @@ class IndexingResults:
 # --------
 
 
-class IReadonlyCollection[T, TOrdinal](Iterable[T], Protocol):
-    def size(self) -> int: ...
+class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
+    async def size(self) -> int: ...
 
-    def get_item(self, arg: TOrdinal) -> T: ...
+    async def get_item(self, arg: TOrdinal) -> T: ...
 
-    def get_slice(self, start: int, stop: int) -> list[T]: ...
+    async def get_slice(self, start: int, stop: int) -> list[T]: ...
 
-    def get_multiple(self, arg: list[TOrdinal]) -> list[T]: ...
+    async def get_multiple(self, arg: list[TOrdinal]) -> list[T]: ...
 
 
 class ICollection[T, TOrdinal](IReadonlyCollection[T, TOrdinal], Protocol):
@@ -792,13 +792,13 @@ class ICollection[T, TOrdinal](IReadonlyCollection[T, TOrdinal], Protocol):
     @property
     def is_persistent(self) -> bool: ...
 
-    def append(self, item: T) -> None: ...
+    async def append(self, item: T) -> None: ...
 
-    def extend(self, items: Iterable[T]) -> None:
+    async def extend(self, items: Iterable[T]) -> None:
         """Append multiple items to the collection."""
         # The default implementation just calls append for each item.
         for item in items:
-            self.append(item)
+            await self.append(item)
 
 
 class IMessageCollection[TMessage: IMessage](

@@ -4,7 +4,7 @@
 import json
 import sqlite3
 import typing
-from typing import Any
+from typing import Any, AsyncIterator
 
 from ..knowpro.storage import MemoryStorageProvider
 from ..knowpro import interfaces
@@ -51,19 +51,23 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
     def is_persistent(self) -> bool:
         return True
 
-    def size(self) -> int:
+    async def size(self) -> int:
         cursor = self.db.cursor()
         cursor.execute("SELECT COUNT(*) FROM Messages")
         return cursor.fetchone()[0]
 
-    def __iter__(self) -> typing.Iterator[TMessage]:
+    def __aiter__(self) -> typing.AsyncIterator[TMessage]:
+        return self._async_iterator()
+
+    async def _async_iterator(self) -> typing.AsyncIterator[TMessage]:
         cursor = self.db.cursor()
         cursor.execute("SELECT msgdata FROM Messages")
         for row in cursor:
             json_data = json.loads(row[0])
             yield self._deserialize(json_data)
+            # Potentially add await asyncio.sleep(0) here to yield control
 
-    def get_item(self, arg: int) -> TMessage:
+    async def get_item(self, arg: int) -> TMessage:
         if not isinstance(arg, int):
             raise TypeError(f"Index must be an int, not {type(arg).__name__}")
         cursor = self.db.cursor()
@@ -74,7 +78,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
             return self._deserialize(json_data)
         raise IndexError("Message not found")
 
-    def get_slice(self, start: int, stop: int) -> list[TMessage]:
+    async def get_slice(self, start: int, stop: int) -> list[TMessage]:
         if stop <= start:
             return []
         cursor = self.db.cursor()
@@ -85,22 +89,26 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         rows = cursor.fetchall()
         return [self._deserialize(json.loads(row[0])) for row in rows]
 
-    def get_multiple(self, arg: list[int]) -> list[TMessage]:
-        return [self.get_item(i) for i in arg]
+    async def get_multiple(self, arg: list[int]) -> list[TMessage]:
+        results = []
+        for i in arg:
+            results.append(await self.get_item(i))
+        return results
 
-    def append(self, item: TMessage) -> None:
+    async def append(self, item: TMessage) -> None:
         cursor = self.db.cursor()
         json_obj = self._serialize(item)
         serialized_message = json.dumps(json_obj)
         cursor.execute(
             "INSERT INTO Messages (id, msgdata) VALUES (?, ?)",
-            (self.size(), serialized_message),
+            (await self.size(), serialized_message),
         )
 
-    def extend(self, items: typing.Iterable[TMessage]) -> None:
+    async def extend(self, items: typing.Iterable[TMessage]) -> None:
         self.db.commit()
         cursor = self.db.cursor()
-        for ord, item in enumerate(items, self.size()):
+        current_size = await self.size()
+        for ord, item in enumerate(items, current_size):
             json_obj = self._serialize(item)
             serialized_message = json.dumps(json_obj)
             cursor.execute(
@@ -124,7 +132,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
     def is_persistent(self) -> bool:
         return True
 
-    def size(self) -> int:
+    async def size(self) -> int:
         cursor = self.db.cursor()
         cursor.execute("SELECT COUNT(*) FROM SemanticRefs")
         return cursor.fetchone()[0]
@@ -136,7 +144,14 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
             json_obj = json.loads(row[0])
             yield self._deserialize(json_obj)
 
-    def get_item(self, arg: int) -> interfaces.SemanticRef:
+    async def __aiter__(self) -> typing.AsyncIterator[interfaces.SemanticRef]:
+        cursor = self.db.cursor()
+        cursor.execute("SELECT srdata FROM SemanticRefs")
+        for row in cursor:
+            json_obj = json.loads(row[0])
+            yield self._deserialize(json_obj)
+
+    async def get_item(self, arg: int) -> interfaces.SemanticRef:
         if not isinstance(arg, int):
             raise TypeError(f"Index must be an int, not {type(arg).__name__}")
         cursor = self.db.cursor()
@@ -147,7 +162,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
             return self._deserialize(json_obj)
         raise IndexError("SemanticRef not found")
 
-    def get_slice(self, start: int, stop: int) -> list[interfaces.SemanticRef]:
+    async def get_slice(self, start: int, stop: int) -> list[interfaces.SemanticRef]:
         if stop <= start:
             return []
         cursor = self.db.cursor()
@@ -157,12 +172,15 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         )
         return [self._deserialize(json.loads(row[0])) for row in cursor.fetchall()]
 
-    def get_multiple(self, arg: list[int]) -> list[interfaces.SemanticRef]:
+    async def get_multiple(self, arg: list[int]) -> list[interfaces.SemanticRef]:
         # TODO: Do we really want to support this?
         # If so, we should probably try to optimize it.
-        return [self.get_item(i) for i in arg]
+        results = []
+        for i in arg:
+            results.append(await self.get_item(i))
+        return results
 
-    def append(self, item: interfaces.SemanticRef) -> None:
+    async def append(self, item: interfaces.SemanticRef) -> None:
         cursor = self.db.cursor()
         json_obj = self._serialize(item)
         serialized_message = json.dumps(json_obj)
@@ -172,7 +190,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         )
         self.db.commit()
 
-    def extend(self, items: typing.Iterable[interfaces.SemanticRef]) -> None:
+    async def extend(self, items: typing.Iterable[interfaces.SemanticRef]) -> None:
         cursor = self.db.cursor()
         for item in items:
             json_obj = self._serialize(item)

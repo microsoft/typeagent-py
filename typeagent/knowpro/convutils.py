@@ -12,12 +12,12 @@ from .interfaces import (
 )
 
 
-def get_time_range_prompt_section_for_conversation[
+async def get_time_range_prompt_section_for_conversation[
     TMessage: IMessage, TIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TIndex],
 ) -> typechat.PromptSection | None:
-    time_range = get_time_range_for_conversation(conversation)
+    time_range = await get_time_range_for_conversation(conversation)
     if time_range is not None:
         start = time_range.start.replace(tzinfo=None).isoformat()
         end = (
@@ -30,16 +30,17 @@ def get_time_range_prompt_section_for_conversation[
         )
 
 
-def get_time_range_for_conversation[
+async def get_time_range_for_conversation[
     TMessage: IMessage, TIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TIndex],
 ) -> DateRange | None:
     messages = conversation.messages
-    if messages.size() > 0:
-        start = messages.get_item(0).timestamp
+    size = await messages.size()
+    if size > 0:
+        start = (await messages.get_item(0)).timestamp
         if start is not None:
-            end = messages.get_item(messages.size() - 1).timestamp
+            end = (await messages.get_item(size - 1)).timestamp
             return DateRange(
                 start=Datetime.fromisoformat(start),
                 end=Datetime.fromisoformat(end) if end else None,

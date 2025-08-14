@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from fixtures import needs_auth  # type: ignore  # Yes it is used!
 from typeagent.knowpro.collections import TextRangeCollection, TextRangesInScope
 from typeagent.knowpro.interfaces import (
     ICollection,
@@ -128,7 +129,8 @@ def test_is_known_property(property_index):
     )
 
 
-def test_build_property_index(needs_auth):
+@pytest.mark.asyncio
+async def test_build_property_index(needs_auth):
     """Test the build_property_index function with a concrete conversation."""
     # Create a sample conversation with semantic references
     semantic_refs = [
@@ -137,8 +139,8 @@ def test_build_property_index(needs_auth):
             knowledge_type="entity",
             knowledge=ConcreteEntity(
                 name="Entity1",
-                type=["Type1", "Type2"],
-                facets=None,
+                type=["type1", "type2"],
+                facets=[Facet(name="color", value="blue")],
             ),
             range=TextRange(start=TextLocation(0), end=TextLocation(10)),
         ),
@@ -165,7 +167,7 @@ def test_build_property_index(needs_auth):
     conversation = FakeConversation(semantic_refs)
 
     # Call the function
-    result = build_property_index(conversation)
+    result = await build_property_index(conversation)
 
     # Assertions
     assert result.number_completed == 3  # All semantic references should be processed
@@ -241,7 +243,7 @@ class FakeBaseCollection[T, TOrdinal: int](ICollection[T, int]):
     def _get_slice(self, start: int, end: int) -> list[T]:
         return self.items[start:end]
 
-    def append(self, item: T) -> None:
+    async def append(self, item: T) -> None:
         self.items.append(item)
 
 
@@ -259,7 +261,8 @@ class FakeConversation[
         self.secondary_indexes = ConversationSecondaryIndexes()
 
 
-def test_add_to_property_index(property_index):
+@pytest.mark.asyncio
+async def test_add_to_property_index(needs_auth, property_index):
     """Test adding semantic references to the property index."""
     semantic_refs = [
         SemanticRef(
@@ -274,7 +277,7 @@ def test_add_to_property_index(property_index):
         )
     ]
     conversation = FakeConversation(semantic_refs)
-    result = add_to_property_index(conversation, 0)
+    result = await add_to_property_index(conversation, 0)
     assert isinstance(result, ListIndexingResult)
     assert result.number_completed == 1
 
@@ -290,7 +293,8 @@ def test_add_to_property_index(property_index):
     assert lookup_result[0].semantic_ref_ordinal == 0
 
 
-def test_lookup_property_in_property_index(property_index):
+@pytest.mark.asyncio
+async def test_lookup_property_in_property_index(property_index):
     """Test filtering properties based on ranges_in_scope."""
     property_index.add_property("name", "value1", 0)
     property_index.add_property("name", "value2", 1)
@@ -313,7 +317,7 @@ def test_lookup_property_in_property_index(property_index):
         [TextRangeCollection([TextRange(TextLocation(0), TextLocation(15))])]
     )
 
-    result = lookup_property_in_property_index(
+    result = await lookup_property_in_property_index(
         property_index,
         "name",
         "value1",
@@ -324,7 +328,7 @@ def test_lookup_property_in_property_index(property_index):
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 0
 
-    result = lookup_property_in_property_index(
+    result = await lookup_property_in_property_index(
         property_index,
         "name",
         "value2",

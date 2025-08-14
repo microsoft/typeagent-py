@@ -89,7 +89,8 @@ def test_conversation_index_serialize_and_deserialize(
     assert test[0].semantic_ref_ordinal == 2
 
 
-def test_add_entity_to_index(conversation_index: ConversationIndex):
+@pytest.mark.asyncio
+async def test_add_entity_to_index(conversation_index: ConversationIndex):
     """Test adding an entity to the index."""
     entity = ConcreteEntity(
         name="ExampleEntity",
@@ -97,12 +98,12 @@ def test_add_entity_to_index(conversation_index: ConversationIndex):
         facets=[Facet(name="color", value="blue")],
     )
     semantic_refs = SemanticRefCollection()
-    add_entity_to_index(entity, semantic_refs, conversation_index, 0)
+    await add_entity_to_index(entity, semantic_refs, conversation_index, 0)
 
-    assert semantic_refs.size() == 1
-    assert semantic_refs.get_item(0).knowledge_type == "entity"
+    assert await semantic_refs.size() == 1
+    assert (await semantic_refs.get_item(0)).knowledge_type == "entity"
     assert (
-        cast(ConcreteEntity, semantic_refs.get_item(0).knowledge).name
+        cast(ConcreteEntity, (await semantic_refs.get_item(0)).knowledge).name
         == "ExampleEntity"
     )
 
@@ -119,22 +120,26 @@ def test_add_entity_to_index(conversation_index: ConversationIndex):
     assert len(result) == 1
 
 
-def test_add_topic_to_index(conversation_index: ConversationIndex):
+@pytest.mark.asyncio
+async def test_add_topic_to_index(conversation_index: ConversationIndex):
     """Test adding a topic to the index."""
     topic = "ExampleTopic"
     semantic_refs = SemanticRefCollection()
-    add_topic_to_index(topic, semantic_refs, conversation_index, 0)
+    await add_topic_to_index(topic, semantic_refs, conversation_index, 0)
 
-    assert semantic_refs.size() == 1
-    assert semantic_refs.get_item(0).knowledge_type == "topic"
-    assert cast(Topic, semantic_refs.get_item(0).knowledge).text == "ExampleTopic"
+    assert await semantic_refs.size() == 1
+    assert (await semantic_refs.get_item(0)).knowledge_type == "topic"
+    assert (
+        cast(Topic, (await semantic_refs.get_item(0)).knowledge).text == "ExampleTopic"
+    )
 
     result = conversation_index.lookup_term("ExampleTopic")
     assert result is not None
     assert len(result) == 1
 
 
-def test_add_action_to_index(conversation_index: ConversationIndex):
+@pytest.mark.asyncio
+async def test_add_action_to_index(conversation_index: ConversationIndex):
     """Test adding an action to the index."""
     action = Action(
         verbs=["run", "jump"],
@@ -146,11 +151,14 @@ def test_add_action_to_index(conversation_index: ConversationIndex):
         subject_entity_facet=None,
     )
     semantic_refs = SemanticRefCollection()
-    add_action_to_index(action, semantic_refs, conversation_index, 0)
+    await add_action_to_index(action, semantic_refs, conversation_index, 0)
 
-    assert semantic_refs.size() == 1
-    assert semantic_refs.get_item(0).knowledge_type == "action"
-    assert cast(Action, semantic_refs.get_item(0).knowledge).verbs == ["run", "jump"]
+    assert await semantic_refs.size() == 1
+    assert (await semantic_refs.get_item(0)).knowledge_type == "action"
+    assert cast(Action, (await semantic_refs.get_item(0)).knowledge).verbs == [
+        "run",
+        "jump",
+    ]
 
     result = conversation_index.lookup_term("run jump")
     assert result is not None
@@ -165,7 +173,8 @@ def test_add_action_to_index(conversation_index: ConversationIndex):
     assert len(result) == 1
 
 
-def test_add_knowledge_to_index(conversation_index: ConversationIndex):
+@pytest.mark.asyncio
+async def test_add_knowledge_to_index(conversation_index: ConversationIndex):
     """Test adding knowledge to the index."""
     knowledge = KnowledgeResponse(
         entities=[
@@ -190,9 +199,9 @@ def test_add_knowledge_to_index(conversation_index: ConversationIndex):
         topics=["ExampleTopic"],
     )
     semantic_refs = SemanticRefCollection()
-    add_knowledge_to_index(semantic_refs, conversation_index, 0, knowledge)
+    await add_knowledge_to_index(semantic_refs, conversation_index, 0, knowledge)
 
-    assert semantic_refs.size() == 3  # 1 entity + 1 action + 1 topic
+    assert await semantic_refs.size() == 3  # 1 entity + 1 action + 1 topic
 
     result = conversation_index.lookup_term("ExampleEntity")
     assert result is not None

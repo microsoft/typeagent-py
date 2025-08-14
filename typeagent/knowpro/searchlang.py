@@ -733,7 +733,7 @@ async def search_query_from_language(
     query_text: str,
     model_instructions: list[typechat.PromptSection] | None = None,
 ) -> typechat.Result[SearchQuery]:
-    time_range = get_time_range_prompt_section_for_conversation(conversation)
+    time_range = await get_time_range_prompt_section_for_conversation(conversation)
     prompt_preamble: list[typechat.PromptSection] = []
     if model_instructions:
         prompt_preamble.extend(model_instructions)

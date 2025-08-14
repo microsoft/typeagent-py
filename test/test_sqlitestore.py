@@ -36,15 +36,15 @@ class DummyMessage(IMessage):
 
 def make_dummy_semantic_ref(ordinal: int = 0) -> SemanticRef:
     # Minimal valid Topic for knowledge
-    topic = Topic(text="dummy_topic")
+    topic = Topic(text="dummy_topic")  # type: ignore  # pydantic dataclass
     # Minimal valid TextLocation and TextRange for range
-    location = TextLocation(message_ordinal=0)
-    text_range = TextRange(start=location)
-    return SemanticRef(
-        semantic_ref_ordinal=ordinal,
-        range=text_range,
-        knowledge_type="topic",
-        knowledge=topic,
+    location = TextLocation(message_ordinal=0)  # type: ignore  # pydantic dataclass
+    text_range = TextRange(start=location)  # type: ignore  # pydantic dataclass
+    return SemanticRef(  # type: ignore  # pydantic dataclass
+        semantic_ref_ordinal=ordinal,  # type: ignore  # pydantic dataclass
+        range=text_range,  # type: ignore  # pydantic dataclass
+        knowledge_type="topic",  # type: ignore  # pydantic dataclass
+        knowledge=topic,  # type: ignore  # pydantic dataclass
     )
 
 
@@ -57,50 +57,56 @@ def temp_db_path():
         os.remove(path)
 
 
-def test_sqlite_storage_provider_message_collection(temp_db_path):
+@pytest.mark.asyncio
+async def test_sqlite_storage_provider_message_collection(temp_db_path):
     provider = SqliteStorageProvider(temp_db_path)
     collection = provider.create_message_collection(DummyMessage)
     assert collection.is_persistent
-    assert collection.size() == 0
+    assert await collection.size() == 0
 
     msg = DummyMessage(["hello"])
-    collection.append(msg)
-    assert collection.size() == 1
-    # get_item and __iter__
-    loaded = collection.get_item(0)
+    await collection.append(msg)
+    assert await collection.size() == 1
+    # get_item and async iteration
+    loaded = await collection.get_item(0)
     assert isinstance(loaded, DummyMessage)
     assert loaded.text_chunks == ["hello"]
-    assert list(collection)[0].text_chunks == ["hello"]
-    collection.append(DummyMessage(["world"]))
-    collection.append(DummyMessage(["foo", "bar"]))
-    assert collection.size() == 3
+    collection_list = [item async for item in collection]
+    assert collection_list[0].text_chunks == ["hello"]
+    await collection.append(DummyMessage(["world"]))
+    await collection.append(DummyMessage(["foo", "bar"]))
+    assert await collection.size() == 3
     # slice
-    assert [msg.text_chunks[0] for msg in collection.get_slice(1, 3)] == [
+    slice_result = await collection.get_slice(1, 3)
+    assert [msg.text_chunks[0] for msg in slice_result] == [
         "world",
         "foo",
     ]
     # multiple get
-    assert [msg.text_chunks[0] for msg in collection.get_multiple([0, 2])] == [
+    multiple_result = await collection.get_multiple([0, 2])
+    assert [msg.text_chunks[0] for msg in multiple_result] == [
         "hello",
         "foo",
     ]
 
 
-def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
+@pytest.mark.asyncio
+async def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
     provider = SqliteStorageProvider(temp_db_path)
     collection = provider.create_semantic_ref_collection()
     assert collection.is_persistent
-    assert collection.size() == 0
+    assert await collection.size() == 0
 
     # Create a dummy SemanticRef
     ref = make_dummy_semantic_ref()
 
-    collection.append(ref)
-    assert collection.size() == 1
-    loaded = collection.get_item(0)
+    await collection.append(ref)
+    assert await collection.size() == 1
+    loaded = await collection.get_item(0)
     assert isinstance(loaded, SemanticRef)
     assert loaded.semantic_ref_ordinal == 0
-    assert list(collection)[0].semantic_ref_ordinal == 0
+    collection_list = [item async for item in collection]
+    assert collection_list[0].semantic_ref_ordinal == 0
 
 
 def test_default_serializer_roundtrip():
@@ -113,49 +119,53 @@ def test_default_serializer_roundtrip():
     assert msg2.text_chunks == ["test"]
 
 
-def test_sqlite_message_collection_append_and_get(temp_db_path):
+@pytest.mark.asyncio
+async def test_sqlite_message_collection_append_and_get(temp_db_path):
     db = SqliteStorageProvider(temp_db_path).get_db()
     serializer = DefaultSerializer(DummyMessage)
     store = SqliteMessageCollection(db, serializer)
     msg = DummyMessage(["foo"])
-    store.append(msg)
-    assert store.size() == 1
-    loaded = store.get_item(0)
+    await store.append(msg)
+    assert await store.size() == 1
+    loaded = await store.get_item(0)
     assert loaded.text_chunks == ["foo"]
     with pytest.raises(IndexError):
-        _ = store.get_item(999)
+        _ = await store.get_item(999)
     with pytest.raises(TypeError):
-        _ = store.get_item("bad")  # type: ignore  # Tests runtime behavior
+        _ = await store.get_item("bad")  # type: ignore  # Tests runtime behavior
 
 
-def test_sqlite_message_collection_iter(temp_db_path):
+@pytest.mark.asyncio
+async def test_sqlite_message_collection_iter(temp_db_path):
     db = SqliteStorageProvider(temp_db_path).get_db()
     serializer = DefaultSerializer(DummyMessage)
     store = SqliteMessageCollection(db, serializer)
     msgs = [DummyMessage([f"msg{i}"]) for i in range(3)]
     for m in msgs:
-        store.append(m)
-    assert [m.text_chunks[0] for m in store] == ["msg0", "msg1", "msg2"]
+        await store.append(m)
+    assert [m.text_chunks[0] async for m in store] == ["msg0", "msg1", "msg2"]
 
 
-def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path):
+@pytest.mark.asyncio
+async def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path):
     db = SqliteStorageProvider(temp_db_path).get_db()
     collection = SqliteSemanticRefCollection(db)
     ref = make_dummy_semantic_ref(123)
-    collection.append(ref)
-    assert collection.size() == 1
-    loaded = collection.get_item(123)
+    await collection.append(ref)
+    assert await collection.size() == 1
+    loaded = await collection.get_item(123)
     assert loaded.semantic_ref_ordinal == 123
     with pytest.raises(IndexError):
-        _ = collection.get_item(999)
+        _ = await collection.get_item(999)
     with pytest.raises(TypeError):
-        _ = collection.get_item("bad")  # type: ignore  # Tests runtime behavior
+        _ = await collection.get_item("bad")  # type: ignore  # Tests runtime behavior
 
 
-def test_sqlite_semantic_ref_collection_iter(temp_db_path):
+@pytest.mark.asyncio
+async def test_sqlite_semantic_ref_collection_iter(temp_db_path):
     db = SqliteStorageProvider(temp_db_path).get_db()
     collection = SqliteSemanticRefCollection(db)
     refs = [make_dummy_semantic_ref(i) for i in range(2)]
     for r in refs:
-        collection.append(r)
-    assert [r.semantic_ref_ordinal for r in collection] == [0, 1]
+        await collection.append(r)
+    assert [r.semantic_ref_ordinal async for r in collection] == [0, 1]

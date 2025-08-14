@@ -23,6 +23,7 @@ from typeagent.knowpro.interfaces import (
     MessageTextIndexData,
     TextToTextLocationIndexData,
 )
+from typeagent.knowpro.storage import MessageCollection
 from typeagent.knowpro.textlocindex import TextToTextLocationIndex
 
 from fixtures import needs_auth  # type: ignore  # It's used!
@@ -58,12 +59,13 @@ def test_message_text_index_init(needs_auth: None):
 
 
 @pytest.mark.asyncio
-async def test_add_messages(message_text_index):
+async def test_add_messages(message_text_index, needs_auth: None):
     """Test adding messages to the MessageTextIndex."""
     messages = [
         MagicMock(text_chunks=["chunk1", "chunk2"]),
         MagicMock(text_chunks=["chunk3"]),
     ]
+
     event_handler = MagicMock()
 
     result = await message_text_index.add_messages(messages, event_handler)
@@ -168,7 +170,8 @@ async def test_build_message_index(needs_auth: None):
             self.tags = []
             self.semantic_refs = None
             self.semantic_ref_index = None
-            self.messages = messages
+            # Convert plain list to MessageCollection for proper async iteration
+            self.messages = MessageCollection(messages)
             self.secondary_indexes = ConversationSecondaryIndexes()
 
     # Create test messages and conversation

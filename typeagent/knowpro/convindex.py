@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Iterable
+from collections.abc import AsyncIterable
 from typing import Callable
 
 from typechat import Failure
@@ -86,7 +86,9 @@ async def add_batch_to_semantic_ref_index[
     indexing_result = TextIndexingResult()
 
     text_batch = [
-        messages.get_item(tl.message_ordinal).text_chunks[tl.chunk_ordinal].strip()
+        (await messages.get_item(tl.message_ordinal))
+        .text_chunks[tl.chunk_ordinal]
+        .strip()
         for tl in batch
     ]
 
@@ -101,7 +103,7 @@ async def add_batch_to_semantic_ref_index[
             return indexing_result
         text_location = batch[i]
         knowledge = knowledge_result.value
-        add_knowledge_to_semantic_ref_index(
+        await add_knowledge_to_semantic_ref_index(
             conversation,
             text_location.message_ordinal,
             text_location.chunk_ordinal,
@@ -119,15 +121,15 @@ async def add_batch_to_semantic_ref_index[
     return indexing_result
 
 
-def add_entity_to_index(
+async def add_entity_to_index(
     entity: kplib.ConcreteEntity,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int = 0,
 ) -> None:
-    ref_ordinal = semantic_refs.size()
-    semantic_refs.append(
+    ref_ordinal = await semantic_refs.size()
+    await semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
             range=text_range_from_location(message_ordinal, chunk_ordinal),
@@ -164,7 +166,7 @@ def add_term_to_index(
         terms_added.add(term)
 
 
-def add_entity(
+async def add_entity(
     entity: kplib.ConcreteEntity,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
@@ -182,8 +184,8 @@ def add_entity(
         chunk_ordinal: Ordinal of the chunk within the message
         terms_added: Optional set to track terms added to the index
     """
-    semantic_ref_ordinal = semantic_refs.size()
-    semantic_refs.append(
+    semantic_ref_ordinal = await semantic_refs.size()
+    await semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
             range=text_range_from_message_chunk(message_ordinal, chunk_ordinal),
@@ -234,7 +236,7 @@ def add_facet(
         # semantic_ref_index.add_term(str(facet), ref_ordinal)
 
 
-def add_topic(
+async def add_topic(
     topic: Topic,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
@@ -252,8 +254,8 @@ def add_topic(
         chunk_ordinal: Ordinal of the chunk within the message
         terms_added: Optional set to track terms added to the index
     """
-    semantic_ref_ordinal = semantic_refs.size()
-    semantic_refs.append(
+    semantic_ref_ordinal = await semantic_refs.size()
+    await semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
             range=text_range_from_message_chunk(message_ordinal, chunk_ordinal),
@@ -270,7 +272,7 @@ def add_topic(
     )
 
 
-def add_action(
+async def add_action(
     action: kplib.Action,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
@@ -288,8 +290,8 @@ def add_action(
         chunk_ordinal: Ordinal of the chunk within the message
         terms_added: Optional set to track terms added to the index
     """
-    semantic_ref_ordinal = semantic_refs.size()
-    semantic_refs.append(
+    semantic_ref_ordinal = await semantic_refs.size()
+    await semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
             range=text_range_from_message_chunk(message_ordinal, chunk_ordinal),
@@ -365,7 +367,7 @@ def add_action(
 # TODO:L KnowledgeValidator
 
 
-def add_knowledge_to_semantic_ref_index(
+async def add_knowledge_to_semantic_ref_index(
     conversation: IConversation,
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int,
@@ -390,7 +392,7 @@ def add_knowledge_to_semantic_ref_index(
 
     for entity in knowledge.entities:
         if validate_entity(entity):
-            add_entity(
+            await add_entity(
                 entity,
                 semantic_refs,
                 semantic_ref_index,
@@ -400,7 +402,7 @@ def add_knowledge_to_semantic_ref_index(
             )
 
     for action in knowledge.actions:
-        add_action(
+        await add_action(
             action,
             semantic_refs,
             semantic_ref_index,
@@ -410,7 +412,7 @@ def add_knowledge_to_semantic_ref_index(
         )
 
     for inverse_action in knowledge.inverse_actions:
-        add_action(
+        await add_action(
             inverse_action,
             semantic_refs,
             semantic_ref_index,
@@ -421,7 +423,7 @@ def add_knowledge_to_semantic_ref_index(
 
     for topic in knowledge.topics:
         topic_obj = Topic(text=topic)
-        add_topic(
+        await add_topic(
             topic_obj,
             semantic_refs,
             semantic_ref_index,
@@ -435,7 +437,7 @@ def validate_entity(entity: kplib.ConcreteEntity) -> bool:
     return bool(entity.name)
 
 
-def add_topic_to_index(
+async def add_topic_to_index(
     topic: Topic | str,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
@@ -444,8 +446,8 @@ def add_topic_to_index(
 ) -> None:
     if isinstance(topic, str):
         topic = Topic(text=topic)
-    ref_ordinal = semantic_refs.size()
-    semantic_refs.append(
+    ref_ordinal = await semantic_refs.size()
+    await semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
             range=text_range_from_location(message_ordinal, chunk_ordinal),
@@ -456,15 +458,15 @@ def add_topic_to_index(
     semantic_ref_index.add_term(topic.text, ref_ordinal)
 
 
-def add_action_to_index(
+async def add_action_to_index(
     action: kplib.Action,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: int,
     chunk_ordinal: int = 0,
 ) -> None:
-    ref_ordinal = semantic_refs.size()
-    semantic_refs.append(
+    ref_ordinal = await semantic_refs.size()
+    await semantic_refs.append(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
             range=text_range_from_location(message_ordinal, chunk_ordinal),
@@ -490,44 +492,52 @@ def add_action_to_index(
     add_facet(action.subject_entity_facet, ref_ordinal, semantic_ref_index)
 
 
-def add_knowledge_to_index(
+async def add_knowledge_to_index(
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
     knowledge: kplib.KnowledgeResponse,
 ) -> None:
     for entity in knowledge.entities:
-        add_entity_to_index(entity, semantic_refs, semantic_ref_index, message_ordinal)
+        await add_entity_to_index(
+            entity, semantic_refs, semantic_ref_index, message_ordinal
+        )
     for action in knowledge.actions:
-        add_action_to_index(action, semantic_refs, semantic_ref_index, message_ordinal)
+        await add_action_to_index(
+            action, semantic_refs, semantic_ref_index, message_ordinal
+        )
     for inverse_action in knowledge.inverse_actions:
-        add_action_to_index(
+        await add_action_to_index(
             inverse_action, semantic_refs, semantic_ref_index, message_ordinal
         )
     for topic in knowledge.topics:
-        add_topic_to_index(topic, semantic_refs, semantic_ref_index, message_ordinal)
+        await add_topic_to_index(
+            topic, semantic_refs, semantic_ref_index, message_ordinal
+        )
 
 
-def add_metadata_to_index[TMessage: IMessage](
-    messages: Iterable[TMessage],
+async def add_metadata_to_index[TMessage: IMessage](
+    messages: AsyncIterable[TMessage],
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     knowledge_validator: KnowledgeValidator | None = None,
 ) -> None:
     if knowledge_validator is None:
         knowledge_validator = default_knowledge_validator
-    for i, msg in enumerate(messages):
+    i = 0
+    async for msg in messages:
         knowledge_response = msg.get_knowledge()
         for entity in knowledge_response.entities:
             if knowledge_validator("entity", entity):
-                add_entity_to_index(entity, semantic_refs, semantic_ref_index, i)
+                await add_entity_to_index(entity, semantic_refs, semantic_ref_index, i)
         for action in knowledge_response.actions:
             if knowledge_validator("action", action):
-                add_action_to_index(action, semantic_refs, semantic_ref_index, i)
+                await add_action_to_index(action, semantic_refs, semantic_ref_index, i)
         for topic_response in knowledge_response.topics:
             topic = Topic(text=topic_response)
             if knowledge_validator("topic", topic):
-                add_topic_to_index(topic, semantic_refs, semantic_ref_index, i)
+                await add_topic_to_index(topic, semantic_refs, semantic_ref_index, i)
+        i += 1
 
 
 class ConversationIndex(ITermToSemanticRefIndex):
@@ -694,7 +704,7 @@ def verify_has_semantic_ref_index(conversation: IConversation) -> None:
         raise ValueError("Conversation does not have an index")
 
 
-def dump(
+async def dump(
     semantic_ref_index: ConversationIndex, semantic_refs: ISemanticRefCollection
 ) -> None:
     print("semantic_ref_index = {")
@@ -702,6 +712,6 @@ def dump(
         print(f"    {k!r}: {v},")
     print("}\n")
     print("semantic_refs = []")
-    for semantic_ref in semantic_refs:
+    async for semantic_ref in semantic_refs:
         print(f"    {semantic_ref},")
     print("]\n")

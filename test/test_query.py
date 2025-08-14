@@ -188,7 +188,8 @@ class TestConversationSearchability:
 
 
 class TestTermLookup:
-    def test_lookup_term_filtered(self, searchable_conversation):
+    @pytest.mark.asyncio
+    async def test_lookup_term_filtered(self, searchable_conversation):
         """Test lookup_term_filtered function."""
         term = Term("test")
 
@@ -196,7 +197,7 @@ class TestTermLookup:
         def high_score_filter(semantic_ref, scored_ref):
             return scored_ref.score > 0.8
 
-        results = lookup_term_filtered(
+        results = await lookup_term_filtered(
             searchable_conversation.semantic_ref_index,
             term,
             searchable_conversation.semantic_refs,
@@ -208,14 +209,15 @@ class TestTermLookup:
         assert results[0].semantic_ref_ordinal == 0
         assert results[0].score == 0.9
 
-    def test_lookup_term_filtered_no_results(self, searchable_conversation):
+    @pytest.mark.asyncio
+    async def test_lookup_term_filtered_no_results(self, searchable_conversation):
         """Test lookup_term_filtered with no matching results."""
         term = Term("nonexistent")
 
         def any_filter(semantic_ref, scored_ref):
             return True
 
-        results = lookup_term_filtered(
+        results = await lookup_term_filtered(
             searchable_conversation.semantic_ref_index,
             term,
             searchable_conversation.semantic_refs,
@@ -224,11 +226,12 @@ class TestTermLookup:
 
         assert results is None
 
-    def test_lookup_term(self, searchable_conversation):
+    @pytest.mark.asyncio
+    async def test_lookup_term(self, searchable_conversation):
         """Test lookup_term function with no scope."""
         term = Term("test")
 
-        results = lookup_term(
+        results = await lookup_term(
             searchable_conversation.semantic_ref_index,
             term,
             searchable_conversation.semantic_refs,
@@ -239,7 +242,8 @@ class TestTermLookup:
         assert results[0].semantic_ref_ordinal == 0
         assert results[1].semantic_ref_ordinal == 1
 
-    def test_lookup_term_with_scope(self, searchable_conversation):
+    @pytest.mark.asyncio
+    async def test_lookup_term_with_scope(self, searchable_conversation):
         """Test lookup_term function with a scope."""
         term = Term("test")
 
@@ -249,7 +253,7 @@ class TestTermLookup:
         )
         ranges_in_scope = TextRangesInScope([range_collection])
 
-        results = lookup_term(
+        results = await lookup_term(
             searchable_conversation.semantic_ref_index,
             term,
             searchable_conversation.semantic_refs,
@@ -287,20 +291,24 @@ class TestQueryEvalContext:
         assert eval_context.semantic_refs == eval_context.conversation.semantic_refs
         assert eval_context.messages == eval_context.conversation.messages
 
-    def test_get_semantic_ref(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    @pytest.mark.asyncio
+    async def test_get_semantic_ref(self, eval_context: QueryEvalContext):
         """Test get_semantic_ref method."""
-        ref = eval_context.get_semantic_ref(0)
+        ref = await eval_context.get_semantic_ref(0)
         assert ref.semantic_ref_ordinal == 0
 
-    def test_get_message_for_ref(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_get_message_for_ref(self, eval_context: QueryEvalContext):
         """Test get_message_for_ref method."""
-        ref = eval_context.get_semantic_ref(0)
-        message = downcast(MockMessage, eval_context.get_message_for_ref(ref))
+        ref = await eval_context.get_semantic_ref(0)
+        message = downcast(MockMessage, await eval_context.get_message_for_ref(ref))
         assert message.ordinal == 0
 
-    def test_get_message(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_get_message(self, eval_context: QueryEvalContext):
         """Test get_message method."""
-        message = downcast(MockMessage, eval_context.get_message(1))
+        message = downcast(MockMessage, await eval_context.get_message(1))
         assert message.ordinal == 1
 
     def test_clear_matched_terms(self, eval_context: QueryEvalContext):
@@ -326,17 +334,19 @@ class TestMatchSearchTermExpr:
         assert expr.search_term == search_term
         assert expr.score_booster is None
 
-    def test_accumulate_matches(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_accumulate_matches(self, eval_context: QueryEvalContext):
         """Test accumulating matches for a search term."""
         search_term = SearchTerm(term=Term("test"))
         expr = MatchSearchTermExpr(search_term)
 
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches(eval_context, matches)
+        await expr.accumulate_matches(eval_context, matches)
 
         assert len(matches) == 2
 
-    def test_accumulate_matches_with_related_terms(
+    @pytest.mark.asyncio
+    async def test_accumulate_matches_with_related_terms(
         self, eval_context: QueryEvalContext
     ):
         """Test accumulating matches for a search term with related terms."""
@@ -346,12 +356,13 @@ class TestMatchSearchTermExpr:
         expr = MatchSearchTermExpr(search_term)
 
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches(eval_context, matches)
+        await expr.accumulate_matches(eval_context, matches)
 
         # Should match 'test' (2 refs) and 'first' (1 ref)
         assert len(matches) == 2
 
-    def test_score_booster(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_score_booster(self, eval_context: QueryEvalContext):
         """Test score booster function."""
 
         def boost_score(search_term, semantic_ref, scored_ref):
@@ -364,7 +375,7 @@ class TestMatchSearchTermExpr:
         expr = MatchSearchTermExpr(search_term, score_booster=boost_score)
 
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches(eval_context, matches)
+        await expr.accumulate_matches(eval_context, matches)
 
         sorted_matches = matches.get_sorted_by_score()
         assert sorted_matches[0].score == 1.8  # 0.9 * 2.0
@@ -396,17 +407,19 @@ class MockPropertyIndex(PropertyIndex):
 class TestMatchPropertySearchTermExpr:
     """Tests for the MatchPropertySearchTermExpr class."""
 
-    def test_accumulate_matches_known_prop(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_accumulate_matches_known_prop(self, eval_context: QueryEvalContext):
         """Test accumulating matches for a property search term."""
         # property_name is a string (KnowledgePropertyName); calls accumulate_matches_for_property()
         eval_context.property_index = MockPropertyIndex()
         property_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(property_search_term)
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches(eval_context, matches)
+        await expr.accumulate_matches(eval_context, matches)
         assert len(matches) == 2
 
-    def test_accumulate_matches_user_prop(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_accumulate_matches_user_prop(self, eval_context: QueryEvalContext):
         """Test accumulating matches for a property search term with SearchTerm property name."""
         # property_name is a SearchTerm(Term()); calls accumulate_matches_for_facets()
         eval_context.property_index = MockPropertyIndex()
@@ -416,31 +429,36 @@ class TestMatchPropertySearchTermExpr:
         )
         expr = MatchPropertySearchTermExpr(property_search_term)
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches(eval_context, matches)
+        await expr.accumulate_matches(eval_context, matches)
         assert len(matches) == 1
 
-    def test_accumulate_matches_for_property(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_accumulate_matches_for_property(
+        self, eval_context: QueryEvalContext
+    ):
         """Test accumulate_matches_for_property method."""
         eval_context.property_index = MockPropertyIndex()
         dummy_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(dummy_search_term)
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches_for_property(
+        await expr.accumulate_matches_for_property(
             eval_context, "name", SearchTerm(Term("test")), matches
         )
         assert len(matches) == 2
 
-    def test_accumulate_matches_for_facets(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_accumulate_matches_for_facets(self, eval_context: QueryEvalContext):
         """Test accumulate_matches_for_facets method."""
         eval_context.property_index = MockPropertyIndex()
         dummy_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(dummy_search_term)
         matches = SemanticRefAccumulator()
         st1, st2 = SearchTerm(Term("facet.name")), SearchTerm(Term("test"))
-        expr.accumulate_matches_for_facets(eval_context, st1, st2, matches)
+        await expr.accumulate_matches_for_facets(eval_context, st1, st2, matches)
         assert len(matches) == 1
 
-    def test_accumulate_matches_for_property_value(
+    @pytest.mark.asyncio
+    async def test_accumulate_matches_for_property_value(
         self, eval_context: QueryEvalContext
     ):
         """Test accumulate_matches_for_property_value method."""
@@ -450,7 +468,7 @@ class TestMatchPropertySearchTermExpr:
 
         # First call has two matches
         matches = SemanticRefAccumulator()
-        expr.accumulate_matches_for_property_value(
+        await expr.accumulate_matches_for_property_value(
             eval_context, matches, "name", Term("test")
         )
         assert len(matches) == 2
@@ -460,20 +478,21 @@ class TestMatchPropertySearchTermExpr:
 
         # Second call with same property should do nothing because it's already matched
         second_matches: SemanticRefAccumulator = SemanticRefAccumulator()
-        expr.accumulate_matches_for_property_value(
+        await expr.accumulate_matches_for_property_value(
             eval_context, second_matches, "name", Term("test")
         )
         assert len(second_matches) == 0
 
 
 class TestGetScopeExpr:
-    def test_eval(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_eval(self, eval_context: QueryEvalContext):
         """Test evaluating a scope expression."""
         text_ranges = [TextRange(TextLocation(0, 0), TextLocation(0, 10))]
         selector = TextRangeSelector(text_ranges)
         expr = GetScopeExpr(range_selectors=[selector])
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         assert isinstance(result, TextRangesInScope)
 
@@ -488,7 +507,7 @@ class TestBooleanExpressions:
                 self.term = term
                 self.matches_to_add = matches_to_add
 
-            def accumulate_matches(self, context, matches):
+            async def accumulate_matches(self, context, matches):
                 for ordinal, score in self.matches_to_add:
                     matches.add(ordinal, score)
 
@@ -496,61 +515,67 @@ class TestBooleanExpressions:
         self.expr2 = MockTermExpr("term2", [(1, 0.9), (2, 0.7)])
         self.expr3 = MockTermExpr("term3", [])  # No matches
 
-    def test_match_terms_or_expr(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_match_terms_or_expr(self, eval_context: QueryEvalContext):
         """Test OR expression."""
         expr = MatchTermsOrExpr(term_expressions=[self.expr1, self.expr2])
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         assert len(result) == 3  # Should include refs 0, 1, 2
         assert result.get_match(0) is not None
         assert result.get_match(1) is not None
         assert result.get_match(2) is not None
 
-    def test_match_terms_or_expr_no_matches(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_match_terms_or_expr_no_matches(self, eval_context: QueryEvalContext):
         """Test OR expression with no matches."""
         expr = MatchTermsOrExpr(term_expressions=[self.expr3])
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         assert len(result) == 0
 
-    def test_match_terms_or_max_expr(self, eval_context: QueryEvalContext):
+    @pytest.mark.asyncio
+    async def test_match_terms_or_max_expr(self, eval_context: QueryEvalContext):
         """Test OR MAX expression."""
         expr = MatchTermsOrMaxExpr(term_expressions=[self.expr1, self.expr2])
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         # Should select only refs that match the max hit count
         assert len(result) == 1
         assert result.get_match(1) is not None  # Only ref 1 matches both expressions
 
-    def test_match_terms_and_expr(self, eval_context):
+    @pytest.mark.asyncio
+    async def test_match_terms_and_expr(self, eval_context):
         """Test AND expression."""
         expr = MatchTermsAndExpr(term_expressions=[self.expr1, self.expr2])
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         # Should include only ref 1 which appears in both expressions
         assert len(result) == 1
         assert result.get_match(1) is not None
 
-    def test_match_terms_and_expr_no_matches(self, eval_context):
+    @pytest.mark.asyncio
+    async def test_match_terms_and_expr_no_matches(self, eval_context):
         """Test AND expression with a non-matching term."""
         expr = MatchTermsAndExpr(term_expressions=[self.expr1, self.expr3])
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         assert len(result) == 0
 
 
 class TestSelectTopNExpr:
-    def test_eval(self, eval_context):
+    @pytest.mark.asyncio
+    async def test_eval(self, eval_context):
         """Test selecting top N matches."""
 
         # Create a mock source expression
         class MockSourceExpr(QueryOpExpr[MatchAccumulator[int]]):
-            def eval(self, context):
+            async def eval(self, context):
                 matches = MatchAccumulator[int]()
                 matches.add(1, score=1.0)
                 matches.add(2, score=0.8)
@@ -560,7 +585,7 @@ class TestSelectTopNExpr:
         source_expr = MockSourceExpr()
         expr = SelectTopNExpr(source_expr=source_expr, max_matches=2)
 
-        result = expr.eval(eval_context)
+        result = await expr.eval(eval_context)
 
         assert len(result) == 2
         sorted_matches = result.get_sorted_by_score()
@@ -568,7 +593,8 @@ class TestSelectTopNExpr:
         assert sorted_matches[1].value == 2
 
 
-def test_get_text_range_for_date_range():
+@pytest.mark.asyncio
+async def test_get_text_range_for_date_range():
     from typeagent.knowpro.query import get_text_range_for_date_range
     from typeagent.knowpro.interfaces import (
         TextLocation,
@@ -584,12 +610,12 @@ def test_get_text_range_for_date_range():
         start=Datetime(2020, 1, 1, 0, 0, 0),
         end=Datetime(2020, 1, 2, 0, 0, 0),
     )
-    assert get_text_range_for_date_range(empty_conv, date_range) is None
+    assert await get_text_range_for_date_range(empty_conv, date_range) is None
 
     # Should return a TextRange for a valid date range (simulate all messages in range)
     # (Assume all messages are in the date range for this mock)
     conv = MockConversation()
-    result_with_range = get_text_range_for_date_range(conv, date_range)
+    result_with_range = await get_text_range_for_date_range(conv, date_range)
     assert isinstance(result_with_range, TextRange)
     assert result_with_range.start == TextLocation(0, 0)
     assert result_with_range.end == TextLocation(2, 0)  # End is exclusive
@@ -652,7 +678,8 @@ def test_match_entity_name_or_type():
     assert not match_entity_name_or_type(SearchTerm(term=Term("baz")), entity)
 
 
-def test_lookup_knowledge_type():
+@pytest.mark.asyncio
+async def test_lookup_knowledge_type():
     from typeagent.knowpro.query import lookup_knowledge_type
     from typeagent.knowpro.interfaces import (
         SemanticRef,
@@ -681,9 +708,9 @@ def test_lookup_knowledge_type():
         ),
     ]
     collection = SemanticRefCollection(refs)
-    result = lookup_knowledge_type(collection, "topic")
+    result = await lookup_knowledge_type(collection, "topic")
     assert isinstance(result, list)
     assert all(isinstance(r, ScoredSemanticRefOrdinal) for r in result)
     assert {r.semantic_ref_ordinal for r in result} == {0, 2}
     # Should return empty list if no match
-    assert lookup_knowledge_type(collection, "action") == []
+    assert await lookup_knowledge_type(collection, "action") == []

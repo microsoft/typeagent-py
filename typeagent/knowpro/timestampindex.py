@@ -3,7 +3,7 @@
 
 
 import bisect
-from collections.abc import Iterable
+from collections.abc import AsyncIterable, Iterable
 from typing import Any, Callable
 
 from . import convindex
@@ -92,11 +92,11 @@ def get_in_range[T, S: Any](
         return values[istart:istop]
 
 
-def build_timestamp_index(conversation: IConversation) -> ListIndexingResult:
+async def build_timestamp_index(conversation: IConversation) -> ListIndexingResult:
     if conversation.messages and conversation.secondary_indexes:
         if conversation.secondary_indexes.timestamp_index is None:
             conversation.secondary_indexes.timestamp_index = TimestampToTextRangeIndex()
-        return add_to_timestamp_index(
+        return await add_to_timestamp_index(
             conversation.secondary_indexes.timestamp_index,
             conversation.messages,
             0,
@@ -104,14 +104,16 @@ def build_timestamp_index(conversation: IConversation) -> ListIndexingResult:
     return ListIndexingResult(0)
 
 
-def add_to_timestamp_index(
+async def add_to_timestamp_index(
     timestamp_index: ITimestampToTextRangeIndex,
-    messages: Iterable[IMessage],
+    messages: AsyncIterable[IMessage],
     base_message_ordinal: int,
 ) -> ListIndexingResult:
     message_timestamps: list[tuple[int, str]] = []
-    for i, message in enumerate(messages):
+    i = 0
+    async for message in messages:
         timestamp = message.timestamp
         if timestamp:
             message_timestamps.append((base_message_ordinal + i, timestamp))
+        i += 1
     return timestamp_index.add_timestamps(message_timestamps)

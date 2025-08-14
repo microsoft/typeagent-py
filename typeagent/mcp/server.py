@@ -32,7 +32,7 @@ class ProcessingContext:
         return f"Context({', '.join(parts)})"
 
 
-def make_context() -> ProcessingContext:
+async def make_context() -> ProcessingContext:
     utils.load_dotenv()
     settings = importing.ConversationSettings()
     lang_search_options = searchlang.LanguageSearchOptions(
@@ -46,7 +46,7 @@ def make_context() -> ProcessingContext:
         entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
     )
 
-    query_context = load_podcast_index(
+    query_context = await load_podcast_index(
         "testdata/Episode_53_AdrianTchaikovsky_index", settings
     )
 
@@ -66,10 +66,10 @@ def make_context() -> ProcessingContext:
     return context
 
 
-def load_podcast_index(
+async def load_podcast_index(
     podcast_file_prefix: str, settings: importing.ConversationSettings
 ) -> query.QueryEvalContext:
-    conversation = podcast.Podcast.read_from_file(podcast_file_prefix, settings)
+    conversation = await podcast.Podcast.read_from_file(podcast_file_prefix, settings)
     assert (
         conversation is not None
     ), f"Failed to load podcast from {podcast_file_prefix!r}"
@@ -97,7 +97,7 @@ async def query_conversation(question: str) -> QuestionResponse:
         return QuestionResponse(
             success=False, answer="No question provided", time_used=dt
         )
-    context = make_context()
+    context = await make_context()
 
     # Stages 1, 2, 3 (LLM -> proto-query, compile, execute query)
     result = await searchlang.search_conversation_with_language(

@@ -118,7 +118,7 @@ async def search_conversation(
     message_query = await compiler.compile_message_query(
         knowledge_matches, options, raw_search_query
     )
-    message_matches: list[ScoredMessageOrdinal] = run_query(
+    message_matches: list[ScoredMessageOrdinal] = await run_query(
         conversation, options, message_query
     )
     return ConversationSearchResult(
@@ -142,7 +142,7 @@ async def search_conversation_knowledge(
     knowledge_query = await compiler.compile_knowledge_query(
         search_term_group, when_filter, options
     )
-    return run_query(conversation, options, knowledge_query)
+    return await run_query(conversation, options, knowledge_query)
 
 
 # TODO: search_conversation_by_text_similarity
@@ -172,7 +172,7 @@ async def run_search_query(
 # TODO: run_search_query_by_text_similarity
 
 
-def run_query[T](
+async def run_query[T](
     conversation: IConversation,
     options: SearchOptions | None,
     query: IQueryOpExpr[T],
@@ -180,7 +180,7 @@ def run_query[T](
     secondary_indexes = conversation.secondary_indexes
     if secondary_indexes is None:
         secondary_indexes = ConversationSecondaryIndexes()
-    return query.eval(
+    return await query.eval(
         QueryEvalContext(
             conversation,
             secondary_indexes.property_to_semantic_ref_index,

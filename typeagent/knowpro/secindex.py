@@ -37,7 +37,7 @@ async def build_secondary_indexes[
 ) -> SecondaryIndexingResults:
     if conversation.secondary_indexes is None:
         conversation.secondary_indexes = ConversationSecondaryIndexes()
-    result: SecondaryIndexingResults = build_transient_secondary_indexes(
+    result: SecondaryIndexingResults = await build_transient_secondary_indexes(
         conversation,
     )
     result.related_terms = await build_related_terms_index(
@@ -54,7 +54,7 @@ async def build_secondary_indexes[
     return result
 
 
-def build_transient_secondary_indexes[
+async def build_transient_secondary_indexes[
     TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
@@ -62,6 +62,6 @@ def build_transient_secondary_indexes[
     if conversation.secondary_indexes is None:
         conversation.secondary_indexes = ConversationSecondaryIndexes()
     result = SecondaryIndexingResults()
-    result.properties = build_property_index(conversation)
-    result.timestamps = build_timestamp_index(conversation)
+    result.properties = await build_property_index(conversation)
+    result.timestamps = await build_timestamp_index(conversation)
     return result

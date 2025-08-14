@@ -4,7 +4,7 @@
 
 - Get rid of `__getitem__` in favor of get_item(), get_slice(), get_multiple() [DONE]
   - Also rename `__len__` to size() [DONE]
-- Switch db API to async (even for in-memory); fix all related bugs
+- Switch db API to async (even for in-memory); fix all related bugs [DONE]
 - "Ordinals" ("ids") are sequential (ordered) but not contiguous
 - So we can use auto-increment
 - Fix all bugs related to that
@@ -14,7 +14,7 @@
   - SemanticRef index
   - Property to SemanticRef index
   - Timestamp to TextRange
-  - Terms to relatedterms
+  - Terms to related terms
 - Persist all of the above in the SQLite version
 - Keep in-memory version (with some compromises) for comparison
 
@@ -30,12 +30,90 @@
 - Always import VTT, helper to convert podcast to VTT format
 - Rename "Ordinal" to "Id"
 
+## From Meeting 8/13/2025 morning
+
+- Keep "Conversation" as the top-level name; changing it isn't worth it
+- Get rid of event handling API, move this into the front-line extractor
+  - batching is up to the extractor
+  - every batch is processed completely inside one transaction
+  - extractor gets an exception when the transaction fails or is rolled back
+- Move to a toplevel library (structured_rag or python?) and update
+  toplevel README.md to advertise that.
+- If pydantic AI doesn't pan out, vendor TypeChat
+- See images of database schema and API proposals
+- Example data types for which we ship extractors:
+  - VTT (for Teams, YouTube, podcasts); podcast examples converted by unpublished example
+  - Email (MIME messages); GMail example via adapter
+  - Markdown; HTML via Markdown conversion
+- Each of these has a textual format; it's the user's responsibility to provide that format
+- Everything else is unofficial and undocumented
+
+### Sqlite database schema details
+
+Note: `*` means a column with an index
+
+- ConversationMetadata
+  - name_tag TEXT
+  - schema_version TEXT
+  - other per-conversation stuff
+
+- Messages
+  - * msg_id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT -- whatever
+  - chunks NULL or JSON
+  - chunkuri NULL or TEXT -- exactly one of chunks, chunkuri must be not-NULL
+  - * timestamp NULL or TEXT -- in ISO format with Z timezone (rename to start_timestamp?)
+  - * end_timestamp NULL or TEXT -- ditto
+  - (no tomstone -- when deleting, save stuff in a separate Undo table)
+  - tags JSON
+  - metadata JSON
+  - extra JSON -- for extra message fields that were serialized
+
+  In-memory Message has get_chunks() method:
+  - if chunks != None: return chunks
+  - assert chunkuri
+  - retrieve chunks using chunkuri  # this is up to the extractor to customize
+  - set chunks
+  - return chunks
+
+  Creating an in-memory Message can provide both chunks and chunkuri
+  - If chunkuri is set, chunks are not stored in the db
+
+- SemanticRefs
+  - * semref_id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT -- whatever
+  - range -- not a field, split up into four
+    - * start_msg_id INTEGER FOREIGN KEY
+    - start_chunk_ord INTEGER
+    - * end_msg_id INTEGER FOREIGN KEY -- Never NULL
+    - end_chunk_ord INTEGER
+  - ktype TEXT -- Choices: entity, action, topic, tag
+  - knowledge JSON BLOB
+
+- SemanticRefIndex -- a list of (term, semref_id) pairs
+  - * term -- lowercased, not-unique/normalized
+  - semref_id -- points to semref that contains this term
+
+  To get all semrefs that mention a given term, SELECT * ... WHERE term = ?
+
+  Future research: Store terms in separate table with term_id,
+  make this table a tuple of (term_id, semref_id)?
+
+- PropertyIndex
+  - * prop_name TEXT
+  - * value_str TEXT or NULL
+  - score FLOAT
+  - semref_id INTEGER
+
+  Later add shredded columns for value_number (bool, int, float),
+  value_quantity_amount, -number; all indexed?
+
+- Timestamp is not a table, just an index on timestamp, end_timestamp in Messages
+
 # Other stuff
 
 ## Eval-based improvements
 
 - Collect eval outputs (one change at a time) **[DONE]**
-  - Baseline
+  - Baseline=(
   - Schema in reversed order (TC change)
   - null -> undefined (TC change)
   - field names -> fieldNames (local change, add alias)
