@@ -23,6 +23,7 @@ from .interfaces import (
 )
 from .kplib import ConcreteEntity
 from .messageindex import IMessageTextEmbeddingIndex
+from .searchlib import create_tag_search_term_group
 from .query import (
     BooleanOp,
     CompiledSearchTerm,
@@ -34,6 +35,7 @@ from .query import (
     IQueryOpExpr,
     IQuerySemanticRefPredicate,
     IQueryTextRangeSelector,
+    KnowledgeTypePredicate,
     MatchMessagesAndExpr,
     MatchMessagesBooleanExpr,
     MatchMessagesOrExpr,
@@ -50,11 +52,13 @@ from .query import (
     NoOpExpr,
     QueryEvalContext,
     RankMessagesBySimilarityExpr,
+    SelectMessagesInCharBudget,
     SelectTopNExpr,
     SelectTopNKnowledgeGroupExpr,
     TextRangeSelector,
     TextRangesFromMessagesSelector,
     TextRangesInDateRangeSelector,
+    ThreadSelector,
     WhereSemanticRefExpr,
     is_conversation_searchable,
     match_entity_name_or_type,

@@ -2,9 +2,9 @@
 
 # From Meeting 8/12/2025 morning
 
-- Get rid of `__getitem__` in favor of get_item(), get_slice(), get_multiple() [DONE]
-  - Also rename `__len__` to size() [DONE]
-- Switch db API to async (even for in-memory); fix all related bugs [DONE]
+- Get rid of `__getitem__` in favor of get_item(), get_slice(), get_multiple() [**DONE**]
+  - Also rename `__len__` to size() [**DONE**]
+- Switch db API to async (even for in-memory); fix all related bugs [**DONE**]
 - "Ordinals" ("ids") are sequential (ordered) but not contiguous
 - So we can use auto-increment
 - Fix all bugs related to that
@@ -20,11 +20,11 @@
 
 # From Meeting 8/12/2025 afternoon
 
-- Toss out character ordinals from TextLocation etc. [DONE]
-  - Message ordinal must exist
+- Toss out character ordinals from TextLocation etc. [**DONE**]
+  - Message ordinal must exist [**DONE**]
   - Chunk ordinal of end in range is 1 past last chunk in range
-    (== standard Python slice conventions)
-  - TextRange is a half-open interval; end points past last chunk
+    (== standard Python slice conventions) [**DONE**]
+  - TextRange is a half-open interval; end points past last chunk [**DONE**]
 - Indexing (knowledge extraction) operates chunk by chunk
 - TimeRange always points to a TextRange
 - Always import VTT, helper to convert podcast to VTT format

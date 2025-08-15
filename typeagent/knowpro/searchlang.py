@@ -33,6 +33,7 @@ from ..knowpro.search import (
     has_conversation_results,
     run_search_query,
 )
+from ..knowpro.searchlib import create_property_search_term
 
 from .date_time_schema import DateTime, DateTimeRange
 from .search_query_schema import (
@@ -708,22 +709,6 @@ def datetime_from_date_time(date_time: DateTime) -> Datetime:
         tzinfo=datetime.timezone.utc,
     )
     return dt
-
-
-def create_property_search_term(
-    name: str,
-    value: str,
-    exact_match_value: bool = False,
-) -> PropertySearchTerm:
-    property_name: KnowledgePropertyName | SearchTerm
-    if name in KnowledgePropertyName.__value__.__args__:
-        property_name = cast(KnowledgePropertyName, name)
-    else:
-        property_name = SearchTerm(Term(name))
-    property_value = SearchTerm(Term(value))
-    if exact_match_value:
-        property_value.related_terms = []
-    return PropertySearchTerm(property_name, property_value)
 
 
 # TODO: Move to searchquerytranslator.py?

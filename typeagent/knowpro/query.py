@@ -37,16 +37,19 @@ from .interfaces import (
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SearchTerm,
+    SearchTermGroup,
     SemanticRef,
     SemanticRefOrdinal,
     SemanticRefSearchResult,
     Term,
     TextLocation,
     TextRange,
+    Thread,
 )
 from .kplib import ConcreteEntity
 from .messageindex import IMessageTextEmbeddingIndex
 from .propindex import PropertyNames, lookup_property_in_property_index
+from .searchlib import create_property_search_term, create_tag_search_term_group
 
 
 # TODO: Move to compilelib.py
@@ -1079,3 +1082,46 @@ async def message_matches_from_knowledge_matches(
             message_matches = MessageAccumulator(relevant_messages)
     message_matches.smooth_scores()
     return message_matches
+
+
+# TODO: Implement proper SelectMessagesInCharBudget functionality
+@dataclass
+class SelectMessagesInCharBudget(QueryOpExpr[MessageAccumulator]):
+    """Selects messages within a character budget."""
+
+    src_expr: IQueryOpExpr[MessageAccumulator]
+    max_chars: int
+
+    async def eval(self, context: QueryEvalContext) -> MessageAccumulator:
+        matches = await self.src_expr.eval(context)
+        await matches.select_messages_in_budget(context.messages, self.max_chars)
+        return matches
+
+
+# TODO: Implement proper KnowledgeTypePredicate functionality
+@dataclass
+class KnowledgeTypePredicate(IQuerySemanticRefPredicate):
+    """Predicate to filter by knowledge type."""
+
+    knowledge_type: KnowledgeType
+
+    async def eval(self, context: QueryEvalContext, semantic_ref: SemanticRef) -> bool:
+        return semantic_ref.knowledge_type == self.knowledge_type
+
+
+# TODO: Implement proper ThreadSelector functionality
+@dataclass
+class ThreadSelector(IQueryTextRangeSelector):
+    """Selector for thread-based text ranges."""
+
+    threads: list[Thread]
+
+    async def eval(
+        self,
+        context: QueryEvalContext,
+        semantic_refs: SemanticRefAccumulator | None = None,
+    ) -> TextRangeCollection | None:
+        text_ranges = TextRangeCollection()
+        for thread in self.threads:
+            text_ranges.add_ranges(list(thread.ranges))
+        return text_ranges
