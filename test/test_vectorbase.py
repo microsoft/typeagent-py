@@ -8,7 +8,11 @@ from typeagent.aitools.vectorbase import (
     VectorBase,
     TextEmbeddingIndexSettings,
 )
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, NormalizedEmbedding
+from typeagent.aitools.embeddings import (
+    AsyncEmbeddingModel,
+    NormalizedEmbedding,
+    TEST_MODEL_NAME,
+)
 
 
 @pytest.fixture
@@ -18,7 +22,9 @@ def vector_base(scope="function") -> VectorBase:
 
 
 def make_vector_base() -> VectorBase:
-    settings = TextEmbeddingIndexSettings(AsyncEmbeddingModel(model_name="test"))
+    settings = TextEmbeddingIndexSettings(
+        AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    )
     return VectorBase(settings)
 
 

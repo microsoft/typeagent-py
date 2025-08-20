@@ -8,7 +8,7 @@ Comments that should go into the schema are in docstrings and Doc() annotations.
 """
 
 from pydantic.dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 from typing_extensions import Doc
 
 
@@ -36,6 +36,8 @@ class Facet:
 @dataclass
 class ConcreteEntity:
     """Specific, tangible people, places, institutions or things only."""
+
+    knowledge_type: ClassVar[Literal["entity"]] = "entity"
 
     name: Annotated[
         str,
@@ -80,6 +82,8 @@ type VerbTense = Literal["past", "present", "future"]
 
 @dataclass
 class Action:
+    knowledge_type: ClassVar[Literal["action"]] = "action"
+
     verbs: Annotated[list[str], Doc("Each verb is typically a word.")]
     verb_tense: VerbTense
     subject_entity_name: str | Literal["none"] = "none"

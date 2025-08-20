@@ -6,9 +6,9 @@ import json
 import os
 from typing import TypedDict, cast
 
-from ..knowpro import convindex, kplib, secindex
+from ..knowpro import semrefindex, kplib, secindex
 from ..knowpro.convthreads import ConversationThreads
-from ..knowpro.importing import ConversationSettings
+from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import (
     ConversationDataWithIndexes,
     Datetime,
@@ -20,8 +20,7 @@ from ..knowpro.interfaces import (
     IMessageCollection,
     IMessageMetadata,
     ISemanticRefCollection,
-    IndexingEventHandlers,
-    IndexingResults,
+    IStorageProvider,
     MessageOrdinal,
     SemanticRef,
     Term,
@@ -29,9 +28,12 @@ from ..knowpro.interfaces import (
 )
 from ..knowpro.messageindex import MessageTextIndex
 from ..knowpro.reltermsindex import TermToRelatedTermsMap
+from ..storage.utils import create_storage_provider
 from ..knowpro import serialization
-from ..knowpro.storage import MessageCollection, SemanticRefCollection
-from ..storage.sqlitestore import get_storage_provider
+from ..knowpro.collections import (
+    MemoryMessageCollection as MessageCollection,
+    SemanticRefCollection,
+)
 
 
 @dataclass
@@ -150,12 +152,7 @@ class PodcastData(ConversationDataWithIndexes[PodcastMessageData]):
 
 
 @dataclass
-class Podcast(
-    IConversation[
-        PodcastMessage,
-        convindex.ConversationIndex,
-    ]
-):
+class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex]):
     name_tag: str = ""
     messages: IMessageCollection[PodcastMessage] = field(
         default_factory=MessageCollection[PodcastMessage]
@@ -164,22 +161,74 @@ class Podcast(
     semantic_refs: ISemanticRefCollection | None = field(
         default_factory=SemanticRefCollection
     )
-    settings: ConversationSettings = field(default_factory=ConversationSettings)
-    semantic_ref_index: convindex.ConversationIndex = field(
-        default_factory=convindex.ConversationIndex
+    settings: ConversationSettings | None = field(default=None)
+    semantic_ref_index: semrefindex.TermToSemanticRefIndex | None = field(default=None)
+
+    secondary_indexes: IConversationSecondaryIndexes[PodcastMessage] | None = field(
+        init=False, default=None
     )
 
-    secondary_indexes: IConversationSecondaryIndexes[PodcastMessage] = field(init=False)
-
-    def __post_init__(self) -> None:
-        self.secondary_indexes = secindex.ConversationSecondaryIndexes(  # type: ignore  # TODO
-            self.settings.related_term_index_settings
+    @classmethod
+    async def create(
+        cls,
+        settings: ConversationSettings,
+        name_tag: str = "",
+        messages: IMessageCollection[PodcastMessage] | None = None,
+        tags: list[str] | None = None,
+        semantic_refs: ISemanticRefCollection | None = None,
+        semantic_ref_index: semrefindex.TermToSemanticRefIndex | None = None,
+    ) -> "Podcast":
+        """Create a fully initialized Podcast instance."""
+        # Create instance with provided or default values
+        instance = cls(
+            name_tag=name_tag,
+            messages=(
+                messages
+                if messages is not None
+                else MessageCollection[PodcastMessage]()
+            ),
+            tags=tags if tags is not None else [],
+            semantic_refs=(
+                semantic_refs if semantic_refs is not None else SemanticRefCollection()
+            ),
+            settings=settings,
         )
+
+        # Initialize async components
+        # Ensure storage provider is initialized using async factory method
+        assert (
+            instance.settings is not None
+        ), "Settings must be provided through create() method"
+        storage_provider = await instance.settings.get_storage_provider()
+
+        # Create semantic ref index using the storage provider
+        if semantic_ref_index is not None:
+            instance.semantic_ref_index = semantic_ref_index
+        else:
+            # Get index from storage provider and cast to concrete type
+            index_from_provider = await storage_provider.get_conversation_index()
+            # For now, we assume the storage provider returns ConversationIndex
+            # TODO: Update when we have proper interface-based serialization
+            instance.semantic_ref_index = cast(
+                semrefindex.TermToSemanticRefIndex, index_from_provider
+            )
+        # Create secondary indexes using the factory method
+        instance.secondary_indexes = await secindex.ConversationSecondaryIndexes.create(
+            storage_provider, instance.settings.related_term_index_settings
+        )
+        return instance
+
+    def _get_secondary_indexes(self) -> IConversationSecondaryIndexes[PodcastMessage]:
+        """Get secondary indexes, asserting they are initialized."""
+        assert (
+            self.secondary_indexes is not None
+        ), "Use await Podcast.create() to create an initialized instance"
+        return self.secondary_indexes
 
     async def add_metadata_to_index(self) -> None:
         if self.semantic_ref_index is not None:
             assert self.semantic_refs is not None
-            await convindex.add_metadata_to_index(
+            await semrefindex.add_metadata_to_index(
                 self.messages,
                 self.semantic_refs,
                 self.semantic_ref_index,
@@ -194,19 +243,18 @@ class Podcast(
 
     async def build_index(
         self,
-        event_handler: IndexingEventHandlers | None = None,
-    ) -> IndexingResults:
+    ) -> None:
         await self.add_metadata_to_index()
-        result = await convindex.build_conversation_index(
-            self, self.settings, event_handler
-        )
+        assert (
+            self.settings is not None
+        ), "Settings must be initialized before building index"
+        await semrefindex.build_conversation_index(self, self.settings)
         # build_conversation_index automatically builds standard secondary indexes.
         # Pass false here to build podcast specific secondary indexes only.
         await self._build_transient_secondary_indexes(False)
         if self.secondary_indexes is not None:
             if self.secondary_indexes.threads is not None:
                 await self.secondary_indexes.threads.build_index()  # type: ignore  # TODO
-        return result
 
     async def serialize(self) -> PodcastData:
         data = PodcastData(
@@ -220,16 +268,18 @@ class Podcast(
             ),
         )
         # Set the rest only if they aren't None.
-        if self.semantic_ref_index:
+        if self.semantic_ref_index is not None:
             data["semanticIndexData"] = self.semantic_ref_index.serialize()
-        if self.secondary_indexes.term_to_related_terms_index:
+
+        secondary_indexes = self._get_secondary_indexes()
+        if secondary_indexes.term_to_related_terms_index is not None:
             data["relatedTermsIndexData"] = (
-                self.secondary_indexes.term_to_related_terms_index.serialize()
+                secondary_indexes.term_to_related_terms_index.serialize()
             )
-        if self.secondary_indexes.threads:
-            data["threadData"] = self.secondary_indexes.threads.serialize()
-        if self.secondary_indexes.message_index:
-            data["messageIndexData"] = self.secondary_indexes.message_index.serialize()
+        if secondary_indexes.threads:
+            data["threadData"] = secondary_indexes.threads.serialize()
+        if secondary_indexes.message_index is not None:
+            data["messageIndexData"] = secondary_indexes.message_index.serialize()
         return data
 
     async def write_to_file(self, filename: str) -> None:
@@ -261,67 +311,89 @@ class Podcast(
 
         semantic_index_data = podcast_data.get("semanticIndexData")
         if semantic_index_data is not None:
-            self.semantic_ref_index = convindex.ConversationIndex(  # type: ignore  # TODO
+            # Direct construction is correct here during deserialization
+            # We're reconstructing a previously created index from saved data
+            self.semantic_ref_index = semrefindex.TermToSemanticRefIndex(  # type: ignore  # TODO
                 semantic_index_data
             )
 
         related_terms_index_data = podcast_data.get("relatedTermsIndexData")
         if related_terms_index_data is not None:
-            term_to_related_terms_index = (
-                self.secondary_indexes.term_to_related_terms_index
-            )
+            secondary_indexes = self._get_secondary_indexes()
+            term_to_related_terms_index = secondary_indexes.term_to_related_terms_index
             if term_to_related_terms_index is not None:
+                # Assert empty before deserializing
+                assert (
+                    await term_to_related_terms_index.aliases.is_empty()
+                ), "Term to related terms index must be empty before deserializing"
                 term_to_related_terms_index.deserialize(related_terms_index_data)
 
         thread_data = podcast_data.get("threadData")
         if thread_data is not None:
-            self.secondary_indexes.threads = ConversationThreads(
+            assert (
+                self.settings is not None
+            ), "Settings must be initialized for deserialization"
+            secondary_indexes = self._get_secondary_indexes()
+            secondary_indexes.threads = ConversationThreads(
                 self.settings.thread_settings
             )
-            self.secondary_indexes.threads.deserialize(thread_data)
+            secondary_indexes.threads.deserialize(thread_data)
 
         message_index_data = podcast_data.get("messageIndexData")
         if message_index_data is not None:
-            self.secondary_indexes.message_index = MessageTextIndex(
-                self.settings.message_text_index_settings
-            )
-            self.secondary_indexes.message_index.deserialize(message_index_data)
+            secondary_indexes = self._get_secondary_indexes()
+            # Assert the message index is empty before deserializing
+            assert (
+                secondary_indexes.message_index is not None
+            ), "Message index should be initialized"
+
+            if isinstance(secondary_indexes.message_index, MessageTextIndex):
+                index_size = await secondary_indexes.message_index.size()
+                assert (
+                    index_size == 0
+                ), "Message index must be empty before deserializing"
+            secondary_indexes.message_index.deserialize(message_index_data)
 
         await self._build_transient_secondary_indexes(True)
 
     @staticmethod
     async def read_from_file(
         filename_prefix: str,
-        settings: ConversationSettings | None = None,
+        settings: ConversationSettings,
         dbname: str | None = None,
-    ) -> "Podcast | None":
-        settings = settings or ConversationSettings()
+    ) -> "Podcast":
         embedding_size = settings.embedding_model.embedding_size
         data = serialization.read_conversation_data_from_file(
             filename_prefix, embedding_size
         )
-        if not data:
-            return None
-        provider = get_storage_provider(dbname)
-        msgs = provider.create_message_collection(PodcastMessage)
-        semrefs = provider.create_semantic_ref_collection()
+
+        provider = await create_storage_provider(
+            settings.message_text_index_settings,
+            settings.related_term_index_settings,
+            dbname,
+        )
+        msgs = await provider.get_message_collection(PodcastMessage)
+        semrefs = await provider.get_semantic_ref_collection()
         if await msgs.size() or await semrefs.size():
             raise RuntimeError(
                 f"Database {dbname!r} already has messages or semantic refs."
             )
-        podcast = Podcast(messages=msgs, semantic_refs=semrefs, settings=settings)
+        podcast = await Podcast.create(settings, messages=msgs, semantic_refs=semrefs)
         await podcast.deserialize(data)
         return podcast
 
     async def _build_transient_secondary_indexes(self, build_all: bool) -> None:
+        # Secondary indexes are already initialized via create() factory method
         if build_all:
             await secindex.build_transient_secondary_indexes(self)
         await self._build_participant_aliases()
         self._add_synonyms()
 
     async def _build_participant_aliases(self) -> None:
-        aliases = self.secondary_indexes.term_to_related_terms_index.aliases  # type: ignore  # TODO
-        assert aliases is not None
+        secondary_indexes = self._get_secondary_indexes()
+        term_to_related_terms_index = secondary_indexes.term_to_related_terms_index
+        assert term_to_related_terms_index is not None
+        aliases = term_to_related_terms_index.aliases
         aliases.clear()  # type: ignore  # Same issue as above.
         name_to_alias_map = await self._collect_participant_aliases()
         for name in name_to_alias_map.keys():
@@ -331,12 +403,12 @@ class Podcast(
             aliases.add_related_term(name, related_terms)  # type: ignore  # TODO: Same issue as above.
 
     def _add_synonyms(self) -> None:
-        assert self.secondary_indexes.term_to_related_terms_index is not None
+        secondary_indexes = self._get_secondary_indexes()
+        assert secondary_indexes.term_to_related_terms_index is not None
         aliases = cast(
             TermToRelatedTermsMap,
-            self.secondary_indexes.term_to_related_terms_index.aliases,
+            secondary_indexes.term_to_related_terms_index.aliases,
         )
-        assert aliases is not None
         synonym_file = os.path.join(os.path.dirname(__file__), "podcastVerbs.json")
         with open(synonym_file) as f:
             data: list[dict] = json.load(f)

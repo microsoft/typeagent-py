@@ -9,10 +9,10 @@ from .interfaces import (
     IConversation,
     IPropertyToSemanticRefIndex,
     ISemanticRefCollection,
-    ListIndexingResult,
     ScoredSemanticRefOrdinal,
     SemanticRefOrdinal,
     Tag,
+    Topic,
 )
 from . import kplib
 
@@ -30,13 +30,13 @@ class PropertyNames(enum.Enum):
     Topic = "topic"
 
 
-def add_facet(
+async def add_facet(
     facet: kplib.Facet | None,
     property_index: IPropertyToSemanticRefIndex,
     semantic_ref_ordinal: SemanticRefOrdinal,
 ) -> None:
     if facet is not None:
-        property_index.add_property(
+        await property_index.add_property(
             PropertyNames.FacetName.value,
             facet.name,
             semantic_ref_ordinal,
@@ -46,25 +46,25 @@ def add_facet(
             # If the value is a float, we use .g format store it as a string.
             if isinstance(value, float) and value:
                 value = f"{value:g}"
-            property_index.add_property(
+            await property_index.add_property(
                 PropertyNames.FacetValue.value,
                 str(value),
                 semantic_ref_ordinal,
             )
 
 
-def add_entity_properties_to_index(
+async def add_entity_properties_to_index(
     entity: kplib.ConcreteEntity,
     property_index: IPropertyToSemanticRefIndex,
     semantic_ref_ordinal: SemanticRefOrdinal,
 ) -> None:
-    property_index.add_property(
+    await property_index.add_property(
         PropertyNames.EntityName.value,
         entity.name,
         semantic_ref_ordinal,
     )
     for type in entity.type:
-        property_index.add_property(
+        await property_index.add_property(
             PropertyNames.EntityType.value,
             type,
             semantic_ref_ordinal,
@@ -72,49 +72,55 @@ def add_entity_properties_to_index(
     # Add every facet name as a separate term.
     if entity.facets:
         for facet in entity.facets:
-            add_facet(facet, property_index, semantic_ref_ordinal)
+            await add_facet(facet, property_index, semantic_ref_ordinal)
 
 
-def add_action_properties_to_index(
+async def add_action_properties_to_index(
     action: kplib.Action,
     property_index: IPropertyToSemanticRefIndex,
     semantic_ref_ordinal: SemanticRefOrdinal,
 ) -> None:
-    property_index.add_property(
+    await property_index.add_property(
         PropertyNames.Verb.value,
         " ".join(action.verbs),
         semantic_ref_ordinal,
     )
     if action.subject_entity_name != "none":
-        property_index.add_property(
+        await property_index.add_property(
             PropertyNames.Subject.value,
             action.subject_entity_name,
             semantic_ref_ordinal,
         )
     if action.object_entity_name != "none":
-        property_index.add_property(
+        await property_index.add_property(
             PropertyNames.Object.value,
             action.object_entity_name,
             semantic_ref_ordinal,
         )
     if action.indirect_object_entity_name != "none":
-        property_index.add_property(
+        await property_index.add_property(
             PropertyNames.IndirectObject.value,
             action.indirect_object_entity_name,
             semantic_ref_ordinal,
         )
 
 
-async def build_property_index(conversation: IConversation) -> ListIndexingResult:
-    return await add_to_property_index(conversation, 0)
+async def build_property_index(conversation: IConversation) -> None:
+    await add_to_property_index(conversation, 0)
 
 
 async def add_to_property_index(
     conversation: IConversation,
     start_at_ordinal: SemanticRefOrdinal,
-) -> ListIndexingResult:
+) -> None:
     """Add semantic references from a conversation to the property index starting at a specific ordinal."""
-    if (csi := conversation.secondary_indexes) and conversation.semantic_refs:
+    if (
+        csi := conversation.secondary_indexes
+    ) and conversation.semantic_refs is not None:
+        # Check if semantic_refs collection is not empty
+        if await conversation.semantic_refs.size() == 0:
+            return
+
         if (property_index := csi.property_to_semantic_ref_index) is None:
             property_index = csi.property_to_semantic_ref_index = PropertyIndex()
 
@@ -126,52 +132,40 @@ async def add_to_property_index(
             start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
-            match semantic_ref.knowledge_type:
-                case "action":
-                    assert isinstance(semantic_ref.knowledge, kplib.Action)
-                    add_action_properties_to_index(
-                        semantic_ref.knowledge, property_index, semantic_ref_ordinal
-                    )
-                case "entity":
-                    assert isinstance(semantic_ref.knowledge, kplib.ConcreteEntity)
-                    add_entity_properties_to_index(
-                        semantic_ref.knowledge, property_index, semantic_ref_ordinal
-                    )
-                case "tag":
-                    tag = semantic_ref.knowledge
-                    assert isinstance(tag, Tag)
-                    property_index.add_property(
-                        PropertyNames.Tag.value, tag.text, semantic_ref_ordinal
-                    )
-                case "topic":
-                    pass
-                case _:
-                    assert_never(semantic_ref.knowledge_type)
-
-        return ListIndexingResult(number_completed=size - start_at_ordinal)
-
-    return ListIndexingResult(number_completed=0)
+            if isinstance(semantic_ref.knowledge, kplib.Action):
+                await add_action_properties_to_index(
+                    semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                )
+            elif isinstance(semantic_ref.knowledge, kplib.ConcreteEntity):
+                await add_entity_properties_to_index(
+                    semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                )
+            elif isinstance(semantic_ref.knowledge, Tag):
+                tag = semantic_ref.knowledge
+                await property_index.add_property(
+                    PropertyNames.Tag.value, tag.text, semantic_ref_ordinal
+                )
+            elif isinstance(semantic_ref.knowledge, Topic):
+                pass
+            else:
+                assert_never(semantic_ref.knowledge)
 
 
 class PropertyIndex(IPropertyToSemanticRefIndex):
     def __init__(self):
         self._map: dict[str, list[ScoredSemanticRefOrdinal]] = {}
 
-    def __len__(self) -> int:
+    async def size(self) -> int:
         return len(self._map)
 
-    # Needed because otherwise an empty index would be falsy.
-    def __bool__(self) -> bool:
-        return True
-
-    def get_values(self) -> list[str]:
+    async def get_values(self) -> list[str]:
         terms: list[str] = []
         for key in self._map.keys():
             nv = split_property_term_text(key)
             terms.append(nv[1])
         return terms
 
-    def add_property(
+    async def add_property(
         self,
         property_name: str,
         value: str,
@@ -192,7 +186,7 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
     def clear(self) -> None:
         self._map = {}
 
-    def lookup_property(
+    async def lookup_property(
         self,
         property_name: str,
         value: str,
@@ -212,7 +206,7 @@ async def lookup_property_in_property_index(
     semantic_refs: ISemanticRefCollection,
     ranges_in_scope: TextRangesInScope | None = None,
 ) -> list[ScoredSemanticRefOrdinal] | None:
-    scored_refs = property_index.lookup_property(
+    scored_refs = await property_index.lookup_property(
         property_name,
         property_value,
     )
@@ -227,13 +221,13 @@ async def lookup_property_in_property_index(
     return scored_refs or None  # Return None if no results
 
 
-def is_known_property(
+async def is_known_property(
     property_index: IPropertyToSemanticRefIndex | None,
     property_name: PropertyNames,
     property_value: str,
 ) -> bool:
     if property_index is not None:
-        semantic_refs_with_name = property_index.lookup_property(
+        semantic_refs_with_name = await property_index.lookup_property(
             property_name.value,
             property_value,
         )

@@ -50,6 +50,8 @@
 
 ### Sqlite database schema details
 
+**THIS HAS BEEN SUPERCEDED BY THE FILES IN THE `spec/` FOLDER**
+
 Note: `*` means a column with an index
 
 - ConversationMetadata

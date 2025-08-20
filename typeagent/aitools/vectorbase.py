@@ -1,13 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Callable
 
 import numpy as np
 
-from ..aitools import utils
 from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
 
 
@@ -49,9 +47,7 @@ class VectorBase:
     _model: AsyncEmbeddingModel
     _embedding_size: int
 
-    def __init__(self, settings: TextEmbeddingIndexSettings | None = None):
-        if settings is None:
-            settings = TextEmbeddingIndexSettings()
+    def __init__(self, settings: TextEmbeddingIndexSettings):
         self.settings = settings
         self._model = settings.embedding_model
         self._embedding_size = self._model.embedding_size
@@ -179,65 +175,3 @@ class VectorBase:
             self._embedding_size,
         ]
         self._vectors = data  # TODO: Should we make a copy?
-
-
-async def main():
-    import time
-    from . import auth
-
-    epoch = time.time()
-
-    def log(*args: object, end: str = "\n"):
-        stamp = f"{time.time()-epoch:7.3f}"
-        new_args = list(args)
-        for i, arg in enumerate(new_args):
-            if isinstance(arg, str) and "\n" in arg:
-                new_args[i] = arg.replace("\n", f"\n{stamp}: ")
-        print(f"{stamp}:", *new_args, end=end)
-
-    def debugv(heading: str):
-        log(f"{heading}: bool={bool(v)}, len={len(v)}")
-
-    utils.load_dotenv()
-    v = VectorBase()
-    debugv("\nEmpty vector base")
-
-    words: list[str] = (
-        "Mostly about multi-agent frameworks, "
-        + "but also about answering questions about podcast transcripts."
-    ).split()  # type: ignore  # pyright complains about list[LiteralString] -> list[str]
-    cut = 2
-    for word in words[:cut]:
-        log("\nAdding:", word)
-        await v.add_key(word)
-        scored_ordinals = await v.fuzzy_lookup(word, max_hits=1)
-        assert (
-            round(scored_ordinals[0].score, 5) == 1.0
-        ), f"{word} scores {scored_ordinals[0]}"
-        debugv(word)
-
-    log("\nAdding remaining words")
-    await v.add_keys(words[cut:])
-    debugv("After adding all")
-
-    log("\nChecking presence")
-    for word in words:
-        scored_ordinals = await v.fuzzy_lookup(word, max_hits=1)
-        assert (
-            round(scored_ordinals[0].score, 5) == 1.0
-        ), f"{word} scores {scored_ordinals[0]}"
-    log("All words are present")
-    word = "pancakes"
-    scored_ordinals = await v.fuzzy_lookup(word, max_hits=1)
-    assert scored_ordinals[0].score < 0.7, f"{word} scores {scored_ordinals[0]}"
-
-    log("\nFuzzy lookups:")
-    for word in words + ["pancakes", "hello world", "book", "author"]:
-        neighbors = await v.fuzzy_lookup(word, max_hits=3)
-        log(f"{word}:", [(nb.item, nb.score) for nb in neighbors])
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())

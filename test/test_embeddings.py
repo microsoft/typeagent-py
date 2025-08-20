@@ -7,12 +7,7 @@ from pytest_mock import MockerFixture
 import numpy as np
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-
-
-@pytest.fixture
-def embedding_model() -> AsyncEmbeddingModel:
-    """Fixture to create an instance of AsyncEmbeddingModel."""
-    return AsyncEmbeddingModel(model_name="test")
+from fixtures import embedding_model  # type: ignore  # Yes it's used!
 
 
 @pytest.mark.asyncio

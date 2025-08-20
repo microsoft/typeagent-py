@@ -1,10 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Callable
 import copy
 from dataclasses import dataclass, replace
 import datetime
-from typing import Callable, Literal, TypeGuard, cast
+from typing import Literal, TypeGuard, cast
 
 import typechat
 

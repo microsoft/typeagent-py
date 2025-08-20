@@ -10,13 +10,12 @@ from datetime import (
 )
 from typing import (
     Any,
-    Callable,
+    ClassVar,
     Literal,
     NotRequired,
     Protocol,
     Self,
     TypedDict,
-    overload,
 )
 
 from pydantic.dataclasses import dataclass
@@ -106,19 +105,21 @@ class ScoredMessageOrdinal:
 
 
 class ITermToSemanticRefIndex(Protocol):
-    def get_terms(self) -> list[str]: ...
+    async def size(self) -> int: ...
 
-    def add_term(
+    async def get_terms(self) -> list[str]: ...
+
+    async def add_term(
         self,
         term: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> str: ...
 
-    def remove_term(
+    async def remove_term(
         self, term: str, semantic_ref_ordinal: SemanticRefOrdinal
     ) -> None: ...
 
-    def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None: ...
+    async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None: ...
 
 
 type KnowledgeType = Literal["entity", "action", "topic", "tag"]
@@ -126,11 +127,13 @@ type KnowledgeType = Literal["entity", "action", "topic", "tag"]
 
 @dataclass
 class Topic:
+    knowledge_type: ClassVar[Literal["topic"]] = "topic"
     text: str
 
 
 @dataclass
 class Tag:
+    knowledge_type: ClassVar[Literal["tag"]] = "tag"
     text: str
 
 
@@ -268,11 +271,10 @@ class SemanticRefData(TypedDict):
 class SemanticRef:
     semantic_ref_ordinal: SemanticRefOrdinal
     range: TextRange
-    knowledge_type: KnowledgeType
     knowledge: Knowledge
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.range}, {self.knowledge_type!r}, {self.knowledge})"
+        return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.range}, {self.knowledge.knowledge_type!r}, {self.knowledge})"
 
     def serialize(self) -> SemanticRefData:
         from . import serialization
@@ -280,7 +282,7 @@ class SemanticRef:
         return SemanticRefData(
             semanticRefOrdinal=self.semantic_ref_ordinal,
             range=self.range.serialize(),
-            knowledgeType=self.knowledge_type,
+            knowledgeType=self.knowledge.knowledge_type,
             knowledge=serialization.serialize_object(self.knowledge),
         )
 
@@ -288,13 +290,13 @@ class SemanticRef:
     def deserialize(data: SemanticRefData) -> "SemanticRef":
         from . import serialization
 
+        knowledge = serialization.deserialize_knowledge(
+            data["knowledgeType"], data["knowledge"]
+        )
         return SemanticRef(
             semantic_ref_ordinal=data["semanticRefOrdinal"],
             range=TextRange.deserialize(data["range"]),
-            knowledge_type=data["knowledgeType"],
-            knowledge=serialization.deserialize_knowledge(
-                data["knowledgeType"], data["knowledge"]
-            ),
+            knowledge=knowledge,
         )
 
 
@@ -336,25 +338,18 @@ class Term:
             return TermData(text=self.text, weight=self.weight)
 
 
-@dataclass
-class ScoredKnowledge:
-    knowledge_type: KnowledgeType
-    knowledge: Knowledge
-    score: float
-
-
 # Allows for faster retrieval of name, value properties
 class IPropertyToSemanticRefIndex(Protocol):
-    def get_values(self) -> list[str]: ...
+    async def get_values(self) -> list[str]: ...
 
-    def add_property(
+    async def add_property(
         self,
         property_name: str,
         value: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> None: ...
 
-    def lookup_property(
+    async def lookup_property(
         self, property_name: str, value: str
     ) -> list[ScoredSemanticRefOrdinal] | None: ...
 
@@ -367,13 +362,17 @@ class TimestampedTextRange:
 
 # Return text ranges in the given date range.
 class ITimestampToTextRangeIndex(Protocol):
+    # Contract (stable across providers):
+    # - Timestamps must be ISO-8601 strings sortable lexicographically.
+    # - lookup_range(DateRange) returns items with start <= t < end (end exclusive).
+    #   If end is None, treat as a point query with end = start + epsilon.
     def add_timestamp(
         self, message_ordinal: MessageOrdinal, timestamp: str
     ) -> bool: ...
 
     def add_timestamps(
         self, message_timestamps: list[tuple[MessageOrdinal, str]]
-    ) -> "ListIndexingResult": ...
+    ) -> None: ...
 
     def lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]: ...
 
@@ -381,11 +380,13 @@ class ITimestampToTextRangeIndex(Protocol):
 class ITermToRelatedTerms(Protocol):
     def lookup_term(self, text: str) -> list[Term] | None: ...
 
+    async def size(self) -> int: ...
+
+    async def is_empty(self) -> bool: ...
+
 
 class ITermToRelatedTermsFuzzy(Protocol):
-    async def add_terms(
-        self, texts: list[str], event_handler: "IndexingEventHandlers | None" = None
-    ) -> "ListIndexingResult": ...
+    async def add_terms(self, texts: list[str]) -> None: ...
 
     async def lookup_term(
         self,
@@ -403,8 +404,10 @@ class ITermToRelatedTermsFuzzy(Protocol):
 
 
 class ITermToRelatedTermsIndex(Protocol):
+    # Providers may implement aliases and fuzzy via separate tables, but must
+    # expose them through these properties.
     @property
-    def aliases(self) -> ITermToRelatedTerms | None: ...
+    def aliases(self) -> ITermToRelatedTerms: ...
 
     @property
     def fuzzy_index(self) -> ITermToRelatedTermsFuzzy | None: ...
@@ -469,8 +472,7 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
     async def add_messages(
         self,
         messages: Iterable[TMessage],
-        event_handler: "IndexingEventHandlers | None" = None,
-    ) -> "ListIndexingResult": ...
+    ) -> None: ...
 
     async def lookup_messages(
         self,
@@ -487,6 +489,11 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
         threshold_score: float | None = None,
     ) -> list[ScoredMessageOrdinal]: ...
 
+    # Async alternatives to __len__ and __bool__
+    async def size(self) -> int: ...
+
+    async def is_empty(self) -> bool: ...
+
     # TODO: Others?
 
     def serialize(self) -> "MessageTextIndexData": ...
@@ -500,6 +507,8 @@ class IConversationSecondaryIndexes[TMessage: IMessage](Protocol):
     term_to_related_terms_index: ITermToRelatedTermsIndex | None
     threads: IConversationThreads | None = None
     message_index: IMessageTextIndex[TMessage] | None = None
+
+    async def initialize(self) -> None: ...
 
 
 class IConversation[
@@ -707,70 +716,6 @@ class ConversationDataWithIndexes[TMessageData](ConversationData[TMessageData]):
 # --------------------------------
 
 
-# TODO: Should the callables become methods with a default implementation?
-@dataclass
-class IndexingEventHandlers:
-    on_knowledge_extracted: (
-        Callable[
-            [
-                TextLocation,  # chunk
-                kplib.KnowledgeResponse,  # knowledge_result
-            ],
-            bool,
-        ]
-        | None
-    ) = None
-    on_embeddings_created: (
-        Callable[
-            [
-                Sequence[str],  # source_texts
-                Sequence[str],  # batch
-                int,  # batch_start_at
-            ],
-            bool,
-        ]
-        | None
-    ) = None
-    on_text_indexed: (
-        Callable[
-            [
-                list[tuple[str, TextLocation]],  # text_and_locations
-                list[tuple[str, TextLocation]],  # batch
-                int,  # batch_start_at
-            ],
-            bool,
-        ]
-        | None
-    ) = None
-    on_message_started: Callable[[MessageOrdinal], bool] | None = None
-
-
-@dataclass
-class TextIndexingResult:
-    completed_upto: TextLocation | None = None  # Last message and chunk indexed
-    error: str | None = None
-
-
-@dataclass
-class ListIndexingResult:
-    number_completed: int
-    error: str | None = None
-
-
-@dataclass
-class SecondaryIndexingResults:
-    properties: ListIndexingResult | None = None
-    timestamps: ListIndexingResult | None = None
-    related_terms: ListIndexingResult | None = None
-    message: TextIndexingResult | None = None
-
-
-@dataclass
-class IndexingResults:
-    semantic_refs: TextIndexingResult | None = None
-    secondary_index_results: SecondaryIndexingResults | None = None
-
-
 # --------
 # Storage
 # --------
@@ -821,18 +766,27 @@ class JsonSerializer[T](ABC):
     def deserialize(self, data: dict[str, Any] | list[Any]) -> T: ...
 
 
-class IStorageProvider(Protocol):
-    def create_message_collection[TMessage: IMessage](
+class IStorageProvider[TMessage: IMessage](Protocol):
+    """API spec for storage providers -- maybe in-memory or persistent."""
+
+    async def get_message_collection(
         self,
-        serializer: JsonSerializer[TMessage] | type[TMessage] | None = None,
+        serializer: JsonSerializer[TMessage] | type[TMessage],
     ) -> IMessageCollection[TMessage]: ...
 
-    def create_semantic_ref_collection(self) -> ISemanticRefCollection: ...
+    async def get_semantic_ref_collection(self) -> ISemanticRefCollection: ...
 
-    def close(self) -> None: ...
+    # Index getters - ALL 6 index types for this conversation
+    async def get_conversation_index(self) -> ITermToSemanticRefIndex: ...
 
+    async def get_property_index(self) -> IPropertyToSemanticRefIndex: ...
 
-# TODO: What does this comment by Umesh mean? Who should look?
-# Also look at:
-# search.py
-# searchlang.py (SearchQueryTranslator)
+    async def get_timestamp_index(self) -> ITimestampToTextRangeIndex: ...
+
+    async def get_message_text_index(self) -> IMessageTextIndex[TMessage]: ...
+
+    async def get_related_terms_index(self) -> ITermToRelatedTermsIndex: ...
+
+    async def get_conversation_threads(self) -> IConversationThreads: ...
+
+    async def close(self) -> None: ...

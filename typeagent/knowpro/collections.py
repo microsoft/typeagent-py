@@ -7,9 +7,10 @@ from dataclasses import dataclass, field
 import heapq
 import math
 import sys
-from typing import Set, cast
+from typing import cast, Set  # Set is an alias for builtin set
 
 from .interfaces import (
+    ICollection,
     IMessage,
     IMessageCollection,
     ISemanticRefCollection,
@@ -328,11 +329,11 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
         for match in self:
             semantic_ref = await semantic_refs.get_item(match.value)
-            group = groups.get(semantic_ref.knowledge_type)
+            group = groups.get(semantic_ref.knowledge.knowledge_type)
             if group is None:
                 group = SemanticRefAccumulator()
                 group.search_term_matches = self.search_term_matches
-                groups[semantic_ref.knowledge_type] = group
+                groups[semantic_ref.knowledge.knowledge_type] = group
             group.set_match(match)
         return groups
 
@@ -756,3 +757,61 @@ async def get_count_of_messages_in_char_budget(
         total_char_count += message_char_count
         i += 1
     return i
+
+
+# Storage Collections - moved here to avoid circular imports
+class MemoryCollection[T, TOrdinal: int](ICollection[T, TOrdinal]):
+    """A generic in-memory (non-persistent) collection class."""
+
+    def __init__(self, items: list[T] | None = None):
+        self.items: list[T] = items or []
+
+    async def size(self) -> int:
+        return len(self.items)
+
+    def __aiter__(self):
+        """Return an async iterator over the collection."""
+        return self._async_iterator()
+
+    async def _async_iterator(self):
+        """Async generator that yields items from the collection."""
+        for item in self.items:
+            yield item
+
+    async def get_item(self, arg: int) -> T:
+        """Retrieve an item by its ordinal."""
+        return self.items[arg]
+
+    async def get_slice(self, start: int, stop: int) -> list[T]:
+        """Retrieve a slice of items."""
+        return self.items[start:stop]
+
+    async def get_multiple(self, arg: list[TOrdinal]) -> list[T]:
+        """Retrieve multiple items by their ordinals."""
+        return [await self.get_item(ordinal) for ordinal in arg]
+
+    @property
+    def is_persistent(self) -> bool:
+        return False
+
+    async def append(self, item: T) -> None:
+        """Append items to the collection."""
+        self.items.append(item)
+
+    async def extend(self, items: Iterable[T]) -> None:
+        """Extend the collection with multiple items."""
+        self.items.extend(items)
+
+
+class MemorySemanticRefCollection(MemoryCollection[SemanticRef, SemanticRefOrdinal]):
+    """A collection of semantic references."""
+
+
+class MemoryMessageCollection[TMessage: IMessage](
+    MemoryCollection[TMessage, MessageOrdinal]
+):
+    """A collection of messages."""
+
+
+# Alias for backward compatibility
+SemanticRefCollection = MemorySemanticRefCollection

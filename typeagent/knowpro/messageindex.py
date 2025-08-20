@@ -1,19 +1,18 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import AsyncIterable, Iterable
-from typing import Callable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbedding
-from .importing import MessageTextIndexSettings
+from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .interfaces import (
     IConversation,
     IMessage,
     IMessageTextIndex,
+    IStorageProvider,
     MessageTextIndexData,
     ITermToSemanticRefIndex,
-    IndexingEventHandlers,
-    ListIndexingResult,
     MessageOrdinal,
     ScoredMessageOrdinal,
     TextLocation,
@@ -21,28 +20,33 @@ from .interfaces import (
 from .textlocindex import ScoredTextLocation, TextToTextLocationIndex
 
 
+@dataclass
+class MessageTextIndexSettings:
+    embedding_index_settings: TextEmbeddingIndexSettings
+
+    def __init__(self, embedding_index_settings: TextEmbeddingIndexSettings):
+        self.embedding_index_settings = embedding_index_settings
+
+
 async def build_message_index[
     TMessage: IMessage,
     TTermToSemanticRefIndex: ITermToSemanticRefIndex,
 ](
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
-    settings: MessageTextIndexSettings | None = None,
-    event_handler: IndexingEventHandlers | None = None,
-) -> ListIndexingResult:
+    storage_provider: IStorageProvider[TMessage],
+) -> None:
     csi = conversation.secondary_indexes
     if csi is None:
-        return ListIndexingResult(0)
+        return
     if csi.message_index is None:
-        csi.message_index = MessageTextIndex(settings)
+        csi.message_index = await storage_provider.get_message_text_index()
     messages = conversation.messages
     # Convert collection to list for add_messages
     messages_list = [message async for message in messages]
-    return await csi.message_index.add_messages(messages_list, event_handler)
+    await csi.message_index.add_messages(messages_list)
 
 
 class IMessageTextEmbeddingIndex(IMessageTextIndex):
-    def __len__(self) -> int: ...
-
     async def generate_embedding(self, text: str) -> NormalizedEmbedding: ...
 
     def lookup_by_embedding(
@@ -63,34 +67,29 @@ class IMessageTextEmbeddingIndex(IMessageTextIndex):
 
 
 class MessageTextIndex(IMessageTextEmbeddingIndex):
-    def __init__(self, settings: MessageTextIndexSettings | None = None):
-        if settings is None:
-            settings = MessageTextIndexSettings()
+    def __init__(self, settings: MessageTextIndexSettings):
         self.settings = settings
         self.text_location_index = TextToTextLocationIndex(
             settings.embedding_index_settings
         )
 
-    def __len__(self) -> int:
-        return len(self.text_location_index)
+    async def size(self) -> int:
+        return await self.text_location_index.size()
 
-    def __bool__(self) -> bool:
-        return True
+    async def is_empty(self) -> bool:
+        return await self.text_location_index.is_empty()
 
     async def add_messages[TMessage: IMessage](
         self,
         messages: Iterable[TMessage],
-        event_handler: IndexingEventHandlers | None = None,
-    ) -> ListIndexingResult:
-        base_message_ordinal: MessageOrdinal = len(self.text_location_index)
+    ) -> None:
+        base_message_ordinal: MessageOrdinal = await self.text_location_index.size()
         all_chunks: list[tuple[str, TextLocation]] = []
         # Collect everything so we can batch efficiently.
         for message_ordinal, message in enumerate(messages, base_message_ordinal):
             for chunk_ordinal, chunk in enumerate(message.text_chunks):
                 all_chunks.append((chunk, TextLocation(message_ordinal, chunk_ordinal)))
-        return await self.text_location_index.add_text_locations(
-            all_chunks, event_handler
-        )
+        await self.text_location_index.add_text_locations(all_chunks)
 
     async def lookup_messages(
         self,

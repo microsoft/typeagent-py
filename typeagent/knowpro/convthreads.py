@@ -15,7 +15,7 @@ class ConversationThreads(IConversationThreads):
     threads: list[Thread]
     vector_base: VectorBase
 
-    def __init__(self, settings: TextEmbeddingIndexSettings | None = None):
+    def __init__(self, settings: TextEmbeddingIndexSettings):
         self.threads = []
         self.vector_base = VectorBase(settings)
 

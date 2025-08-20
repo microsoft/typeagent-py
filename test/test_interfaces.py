@@ -16,11 +16,6 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     SemanticRef,
     Thread,
-    IndexingEventHandlers,
-    TextIndexingResult,
-    ListIndexingResult,
-    SecondaryIndexingResults,
-    IndexingResults,
     WhenFilter,
 )
 from typeagent.knowpro.kplib import ConcreteEntity
@@ -334,7 +329,6 @@ def test_semantic_ref_serialization():
     semantic_ref = SemanticRef(
         semantic_ref_ordinal=42,
         range=range_obj,
-        knowledge_type=knowledge_type,
         knowledge=knowledge,
     )
 
@@ -345,7 +339,9 @@ def test_semantic_ref_serialization():
     # Assertions
     assert semantic_ref.semantic_ref_ordinal == deserialized.semantic_ref_ordinal
     assert semantic_ref.range == deserialized.range
-    assert semantic_ref.knowledge_type == deserialized.knowledge_type
+    assert (
+        semantic_ref.knowledge.knowledge_type == deserialized.knowledge.knowledge_type
+    )
     assert isinstance(deserialized.knowledge, ConcreteEntity)
     assert deserialized.knowledge.name == knowledge.name
     assert deserialized.knowledge.type == knowledge.type
@@ -374,77 +370,6 @@ def test_thread_serialization():
             {"start": {"messageOrdinal": 3}, "end": {"messageOrdinal": 4}},
         ],
     }
-
-
-def test_indexing_event_handlers():
-    """Test that IndexingEventHandlers can be initialized and invoked."""
-
-    def mock_handler(*args):
-        return True
-
-    handlers = IndexingEventHandlers(
-        on_knowledge_extracted=mock_handler,
-        on_embeddings_created=mock_handler,
-        on_text_indexed=mock_handler,
-        on_message_started=mock_handler,
-    )
-
-    assert handlers.on_knowledge_extracted is not None
-    assert handlers.on_embeddings_created is not None
-    assert handlers.on_text_indexed is not None
-    assert handlers.on_message_started is not None
-
-
-def test_text_indexing_result():
-    """Test initialization of TextIndexingResult."""
-    result = TextIndexingResult(
-        completed_upto=TextLocation(message_ordinal=1),
-        error="Test error",
-    )
-
-    assert result.completed_upto == TextLocation(message_ordinal=1)
-    assert result.error == "Test error"
-
-
-def test_list_indexing_result():
-    """Test initialization of ListIndexingResult."""
-    result = ListIndexingResult(number_completed=10, error=None)
-
-    assert result.number_completed == 10
-    assert result.error is None
-
-
-def test_secondary_indexing_results():
-    """Test initialization of SecondaryIndexingResults."""
-    properties_result = ListIndexingResult(number_completed=5, error=None)
-    timestamps_result = ListIndexingResult(number_completed=3, error="Test error")
-    secondary_results = SecondaryIndexingResults(
-        properties=properties_result,
-        timestamps=timestamps_result,
-    )
-
-    assert secondary_results.properties == properties_result
-    assert secondary_results.timestamps == timestamps_result
-    assert secondary_results.related_terms is None
-    assert secondary_results.message is None
-
-
-def test_indexing_results():
-    """Test initialization of IndexingResults."""
-    semantic_result = TextIndexingResult(
-        completed_upto=TextLocation(message_ordinal=1),
-        error=None,
-    )
-    secondary_results = SecondaryIndexingResults(
-        properties=ListIndexingResult(number_completed=5, error=None)
-    )
-    results = IndexingResults(
-        semantic_refs=semantic_result,
-        secondary_index_results=secondary_results,
-    )
-
-    assert results.semantic_refs == semantic_result
-    assert results.secondary_index_results == secondary_results
 
 
 def test_search_term():

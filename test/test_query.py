@@ -3,6 +3,8 @@
 
 import pytest
 
+from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.collections import (
     MatchAccumulator,
     SemanticRefAccumulator,
@@ -11,13 +13,17 @@ from typeagent.knowpro.collections import (
     TextRangeCollection,
     TextRangesInScope,
 )
+from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
+    DateRange,
+    Datetime,
     IConversation,
     IMessage,
+    IStorageProvider,
     ITermToSemanticRefIndex,
+    PropertySearchTerm,
     Term,
     SearchTerm,
-    PropertySearchTerm,
     SemanticRef,
     ScoredSemanticRefOrdinal,
     TextRange,
@@ -25,8 +31,13 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.messageindex import MessageTextIndexSettings
+from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
+from typeagent.storage.memorystore import MemoryStorageProvider
+from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.query import (
     TextRangeSelector,
+    get_text_range_for_date_range,
     is_conversation_searchable,
     lookup_term_filtered,
     lookup_term,
@@ -48,7 +59,12 @@ from typeagent.knowpro.query import (
     lookup_knowledge_type,
 )
 from typeagent.knowpro.propindex import PropertyIndex
-from typeagent.knowpro.storage import MessageCollection, SemanticRefCollection
+from typeagent.knowpro.collections import (
+    MemoryMessageCollection as MessageCollection,
+    SemanticRefCollection,
+)
+
+from fixtures import needs_auth
 
 
 def downcast[T](cls: type[T], obj: object) -> T:
@@ -80,7 +96,6 @@ def make_semantic_ref(ordinal: int, text_range: TextRange):
     return SemanticRef(
         semantic_ref_ordinal=ordinal,
         range=text_range,
-        knowledge_type="topic",
         knowledge=Topic("test_topic"),
     )
 
@@ -91,16 +106,19 @@ class MockTermIndex(ITermToSemanticRefIndex):
     def __init__(self, term_to_refs: dict[str, list[ScoredSemanticRefOrdinal]]):
         self.term_to_refs = term_to_refs
 
-    def get_terms(self) -> list[str]:
+    async def size(self) -> int:
+        return len(self.term_to_refs)
+
+    async def get_terms(self) -> list[str]:
         return list(self.term_to_refs.keys())
 
-    def add_term(self, term, semantic_ref_ordinal):
+    async def add_term(self, term, semantic_ref_ordinal):
         raise RuntimeError
 
-    def remove_term(self, term, semantic_ref_ordinal):
+    async def remove_term(self, term, semantic_ref_ordinal):
         raise RuntimeError
 
-    def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal]:
+    async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal]:
         return self.term_to_refs.get(term, [])
 
 
@@ -120,6 +138,16 @@ class MockConversation(IConversation[MockMessage, MockTermIndex]):
         self.semantic_refs = None
         self.semantic_ref_index = None
         self.secondary_indexes = None
+
+        # Store settings with storage provider for access via conversation.settings.storage_provider
+        # Create storage provider with test settings
+        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_settings = TextEmbeddingIndexSettings(test_model)
+        message_text_settings = MessageTextIndexSettings(embedding_settings)
+        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+        storage_provider = MemoryStorageProvider()
+        self.settings = ConversationSettings(test_model, storage_provider)
 
         # Create semantic refs
         refs = []
@@ -151,12 +179,12 @@ class MockConversation(IConversation[MockMessage, MockTermIndex]):
 
 
 @pytest.fixture
-def searchable_conversation():
+def searchable_conversation(needs_auth):
     return MockConversation(has_refs=True, has_index=True)
 
 
 @pytest.fixture
-def non_searchable_conversation():
+def non_searchable_conversation(needs_auth):
     return MockConversation(has_refs=False, has_index=False)
 
 
@@ -387,6 +415,11 @@ class MockPropertyIndex(PropertyIndex):
 
     def __init__(self):
         super().__init__()
+
+    @classmethod
+    async def create(cls):
+        """Create and initialize a MockPropertyIndex with test data."""
+        instance = cls()
         properties = {
             "name": [
                 ScoredSemanticRefOrdinal(0, 1.0),
@@ -401,7 +434,8 @@ class MockPropertyIndex(PropertyIndex):
         }
         for name, values in properties.items():
             for value in values:
-                self.add_property(name, "test", value)
+                await instance.add_property(name, "test", value)
+        return instance
 
 
 class TestMatchPropertySearchTermExpr:
@@ -411,7 +445,7 @@ class TestMatchPropertySearchTermExpr:
     async def test_accumulate_matches_known_prop(self, eval_context: QueryEvalContext):
         """Test accumulating matches for a property search term."""
         # property_name is a string (KnowledgePropertyName); calls accumulate_matches_for_property()
-        eval_context.property_index = MockPropertyIndex()
+        eval_context.property_index = await MockPropertyIndex.create()
         property_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(property_search_term)
         matches = SemanticRefAccumulator()
@@ -422,7 +456,7 @@ class TestMatchPropertySearchTermExpr:
     async def test_accumulate_matches_user_prop(self, eval_context: QueryEvalContext):
         """Test accumulating matches for a property search term with SearchTerm property name."""
         # property_name is a SearchTerm(Term()); calls accumulate_matches_for_facets()
-        eval_context.property_index = MockPropertyIndex()
+        eval_context.property_index = await MockPropertyIndex.create()
         property_search_term = PropertySearchTerm(
             SearchTerm(Term("name")),
             SearchTerm(term=Term("test")),
@@ -437,7 +471,7 @@ class TestMatchPropertySearchTermExpr:
         self, eval_context: QueryEvalContext
     ):
         """Test accumulate_matches_for_property method."""
-        eval_context.property_index = MockPropertyIndex()
+        eval_context.property_index = await MockPropertyIndex.create()
         dummy_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(dummy_search_term)
         matches = SemanticRefAccumulator()
@@ -449,7 +483,7 @@ class TestMatchPropertySearchTermExpr:
     @pytest.mark.asyncio
     async def test_accumulate_matches_for_facets(self, eval_context: QueryEvalContext):
         """Test accumulate_matches_for_facets method."""
-        eval_context.property_index = MockPropertyIndex()
+        eval_context.property_index = await MockPropertyIndex.create()
         dummy_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(dummy_search_term)
         matches = SemanticRefAccumulator()
@@ -462,7 +496,7 @@ class TestMatchPropertySearchTermExpr:
         self, eval_context: QueryEvalContext
     ):
         """Test accumulate_matches_for_property_value method."""
-        eval_context.property_index = MockPropertyIndex()
+        eval_context.property_index = await MockPropertyIndex.create()
         dummy_search_term = PropertySearchTerm("name", SearchTerm(term=Term("test")))
         expr = MatchPropertySearchTermExpr(dummy_search_term)
 
@@ -595,14 +629,6 @@ class TestSelectTopNExpr:
 
 @pytest.mark.asyncio
 async def test_get_text_range_for_date_range():
-    from typeagent.knowpro.query import get_text_range_for_date_range
-    from typeagent.knowpro.interfaces import (
-        TextLocation,
-        TextRange,
-        DateRange,
-        Datetime,
-    )
-
     # Should return None for empty input and any date range
     empty_conv = MockConversation()
     empty_conv.messages = MockMessageCollection()
@@ -688,23 +714,31 @@ async def test_lookup_knowledge_type():
         TextLocation,
         Topic,
     )
-    from typeagent.knowpro.storage import SemanticRefCollection
+    from typeagent.knowpro.kplib import ConcreteEntity
+    from typeagent.knowpro.collections import SemanticRefCollection
 
-    # Create valid TextRange and Topic objects
+    # Create valid TextRange and knowledge objects
     rng = TextRange(TextLocation(0, 0), TextLocation(0, 1))
     topic1 = Topic("foo")
+    entity1 = ConcreteEntity("test_entity", ["type1"])
     topic2 = Topic("bar")
 
-    # Use only valid knowledge_type values: 'entity', 'action', 'topic', 'tag'
+    # Use consistent knowledge_type and knowledge objects
     refs = [
         SemanticRef(
-            semantic_ref_ordinal=0, range=rng, knowledge_type="topic", knowledge=topic1
+            semantic_ref_ordinal=0,
+            range=rng,
+            knowledge=topic1,
         ),
         SemanticRef(
-            semantic_ref_ordinal=1, range=rng, knowledge_type="entity", knowledge=topic2
+            semantic_ref_ordinal=1,
+            range=rng,
+            knowledge=entity1,
         ),
         SemanticRef(
-            semantic_ref_ordinal=2, range=rng, knowledge_type="topic", knowledge=topic2
+            semantic_ref_ordinal=2,
+            range=rng,
+            knowledge=topic2,
         ),
     ]
     collection = SemanticRefCollection(refs)

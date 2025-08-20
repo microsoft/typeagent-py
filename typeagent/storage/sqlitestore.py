@@ -4,11 +4,15 @@
 import json
 import sqlite3
 import typing
-from typing import Any, AsyncIterator
 
-from ..knowpro.storage import MemoryStorageProvider
 from ..knowpro import interfaces
 from ..knowpro import serialization
+from ..knowpro.semrefindex import TermToSemanticRefIndex
+from ..knowpro.propindex import PropertyIndex
+from ..knowpro.timestampindex import TimestampToTextRangeIndex
+from ..knowpro.messageindex import MessageTextIndex, MessageTextIndexSettings
+from ..knowpro.reltermsindex import RelatedTermsIndex, RelatedTermIndexSettings
+from ..knowpro.convthreads import ConversationThreads
 
 
 MESSAGES_SCHEMA = """
@@ -30,10 +34,10 @@ class DefaultSerializer[TMessage: interfaces.IMessage](interfaces.JsonSerializer
     def __init__(self, cls: type[TMessage]):
         self.cls = cls
 
-    def serialize(self, value: TMessage) -> dict[str, Any] | list[Any]:
+    def serialize(self, value: TMessage) -> dict[str, typing.Any] | list[typing.Any]:
         return serialization.serialize_object(value)
 
-    def deserialize(self, data: dict[str, Any] | list[Any]) -> TMessage:
+    def deserialize(self, data: dict[str, typing.Any] | list[typing.Any]) -> TMessage:
         return serialization.deserialize_object(self.cls, data)
 
 
@@ -44,8 +48,8 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         self, db: sqlite3.Connection, serializer: interfaces.JsonSerializer[TMessage]
     ):
         self.db = db
-        self._deserialize = serializer.deserialize
-        self._serialize = serializer.serialize
+        self._deserialize_message = serializer.deserialize
+        self._serialize_message = serializer.serialize
 
     @property
     def is_persistent(self) -> bool:
@@ -64,7 +68,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         cursor.execute("SELECT msgdata FROM Messages")
         for row in cursor:
             json_data = json.loads(row[0])
-            yield self._deserialize(json_data)
+            yield self._deserialize_message(json_data)
             # Potentially add await asyncio.sleep(0) here to yield control
 
     async def get_item(self, arg: int) -> TMessage:
@@ -75,7 +79,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         if row:
             json_data = json.loads(row[0])
-            return self._deserialize(json_data)
+            return self._deserialize_message(json_data)
         raise IndexError("Message not found")
 
     async def get_slice(self, start: int, stop: int) -> list[TMessage]:
@@ -87,7 +91,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
             (start, stop),
         )
         rows = cursor.fetchall()
-        return [self._deserialize(json.loads(row[0])) for row in rows]
+        return [self._deserialize_message(json.loads(row[0])) for row in rows]
 
     async def get_multiple(self, arg: list[int]) -> list[TMessage]:
         results = []
@@ -97,7 +101,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
 
     async def append(self, item: TMessage) -> None:
         cursor = self.db.cursor()
-        json_obj = self._serialize(item)
+        json_obj = self._serialize_message(item)
         serialized_message = json.dumps(json_obj)
         cursor.execute(
             "INSERT INTO Messages (id, msgdata) VALUES (?, ?)",
@@ -109,7 +113,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         cursor = self.db.cursor()
         current_size = await self.size()
         for ord, item in enumerate(items, current_size):
-            json_obj = self._serialize(item)
+            json_obj = self._serialize_message(item)
             serialized_message = json.dumps(json_obj)
             cursor.execute(
                 "INSERT INTO Messages (id, msgdata) VALUES (?, ?)",
@@ -122,10 +126,10 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
     def __init__(self, db: sqlite3.Connection):
         self.db = db
 
-    def _serialize(self, sem_ref: interfaces.SemanticRef) -> dict[str, Any]:
+    def _serialize(self, sem_ref: interfaces.SemanticRef) -> dict[str, typing.Any]:
         return sem_ref.serialize()  # type: ignore[return-value]
 
-    def _deserialize(self, data: dict[str, Any]) -> interfaces.SemanticRef:
+    def _deserialize(self, data: dict[str, typing.Any]) -> interfaces.SemanticRef:
         return interfaces.SemanticRef.deserialize(data)  # type: ignore[arg-type]
 
     @property
@@ -136,13 +140,6 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         cursor = self.db.cursor()
         cursor.execute("SELECT COUNT(*) FROM SemanticRefs")
         return cursor.fetchone()[0]
-
-    def __iter__(self) -> typing.Iterator[interfaces.SemanticRef]:
-        cursor = self.db.cursor()
-        cursor.execute("SELECT srdata FROM SemanticRefs")
-        for row in cursor:
-            json_obj = json.loads(row[0])
-            yield self._deserialize(json_obj)
 
     async def __aiter__(self) -> typing.AsyncIterator[interfaces.SemanticRef]:
         cursor = self.db.cursor()
@@ -202,18 +199,50 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         self.db.commit()
 
 
-class SqliteStorageProvider(interfaces.IStorageProvider):
+class SqliteStorageProvider[TMessage: interfaces.IMessage](
+    interfaces.IStorageProvider[TMessage]
+):
     """A storage provider backed by SQLite.
 
     NOTE: You can create only one message collection
     and one semantic ref collection per provider.
+    For now, indexes are stored in memory (not persisted to SQLite).
     """
 
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.db: sqlite3.Connection | None = None
+        # In-memory indexes for now - TODO: persist to SQLite
+        self._conversation_index: TermToSemanticRefIndex | None = None
+        self._property_index: PropertyIndex | None = None
+        self._timestamp_index: TimestampToTextRangeIndex | None = None
+        self._message_text_index: interfaces.IMessageTextIndex[TMessage] | None = None
+        self._related_terms_index: RelatedTermsIndex | None = None
+        self._conversation_threads: ConversationThreads | None = None
 
-    def close(self) -> None:
+    @classmethod
+    async def create(
+        cls,
+        message_text_settings: MessageTextIndexSettings,
+        related_terms_settings: RelatedTermIndexSettings,
+        db_path: str,
+    ) -> "SqliteStorageProvider[TMessage]":
+        """Create and initialize a SqliteStorageProvider with all indexes."""
+        instance = cls(db_path)
+        # Initialize all indexes to ensure they exist in memory
+        instance._conversation_index = TermToSemanticRefIndex()
+        instance._property_index = PropertyIndex()
+        instance._timestamp_index = TimestampToTextRangeIndex()
+
+        # Use the provided settings instead of creating new ones
+        instance._message_text_index = MessageTextIndex(message_text_settings)
+        instance._related_terms_index = RelatedTermsIndex(related_terms_settings)
+        instance._conversation_threads = ConversationThreads(
+            related_terms_settings.embedding_index_settings
+        )
+        return instance
+
+    async def close(self) -> None:
         if self.db is not None:
             self.db.close()
             self.db = None
@@ -226,22 +255,50 @@ class SqliteStorageProvider(interfaces.IStorageProvider):
             self.db.commit()
         return self.db
 
-    def create_message_collection[TMessage: interfaces.IMessage](
+    async def get_message_collection(
         self,
-        serializer: interfaces.JsonSerializer[TMessage] | type[TMessage] | None = None,
+        serializer: interfaces.JsonSerializer[TMessage] | type[TMessage],
     ) -> SqliteMessageCollection[TMessage]:
-        if serializer is None:
-            raise ValueError("serializer must not be None")
         if not isinstance(serializer, interfaces.JsonSerializer):
             serializer = DefaultSerializer[TMessage](serializer)
         return SqliteMessageCollection[TMessage](self.get_db(), serializer)
 
-    def create_semantic_ref_collection(self) -> interfaces.ISemanticRefCollection:
+    async def get_semantic_ref_collection(self) -> interfaces.ISemanticRefCollection:
         return SqliteSemanticRefCollection(self.get_db())
 
+    # Index getter methods
+    async def get_conversation_index(self) -> interfaces.ITermToSemanticRefIndex:
+        assert (
+            self._conversation_index is not None
+        ), "Use SqliteStorageProvider.create() to create an initialized instance"
+        return self._conversation_index
 
-def get_storage_provider(dbname: str | None = None) -> interfaces.IStorageProvider:
-    if dbname is None:
-        return MemoryStorageProvider()
-    else:
-        return SqliteStorageProvider(dbname)
+    async def get_property_index(self) -> interfaces.IPropertyToSemanticRefIndex:
+        assert (
+            self._property_index is not None
+        ), "Use SqliteStorageProvider.create() to create an initialized instance"
+        return self._property_index
+
+    async def get_timestamp_index(self) -> interfaces.ITimestampToTextRangeIndex:
+        assert (
+            self._timestamp_index is not None
+        ), "Use SqliteStorageProvider.create() to create an initialized instance"
+        return self._timestamp_index
+
+    async def get_message_text_index(self) -> interfaces.IMessageTextIndex[TMessage]:
+        assert (
+            self._message_text_index is not None
+        ), "Use SqliteStorageProvider.create() to create an initialized instance"
+        return self._message_text_index
+
+    async def get_related_terms_index(self) -> interfaces.ITermToRelatedTermsIndex:
+        assert (
+            self._related_terms_index is not None
+        ), "Use SqliteStorageProvider.create() to create an initialized instance"
+        return self._related_terms_index
+
+    async def get_conversation_threads(self) -> interfaces.IConversationThreads:
+        assert (
+            self._conversation_threads is not None
+        ), "Use SqliteStorageProvider.create() to create an initialized instance"
+        return self._conversation_threads

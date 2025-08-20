@@ -1,9 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, TypeGuard, cast
-from xmlrpc.client import boolean
+from typing import TypeGuard, cast
 
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .interfaces import (
@@ -66,7 +66,6 @@ from .query import (
     to_required_search_term,
 )
 from .reltermsindex import resolve_related_terms
-from .secindex import ConversationSecondaryIndexes
 
 
 @dataclass
@@ -140,9 +139,10 @@ async def search_conversation_knowledge(
     options = options or SearchOptions()
     if not is_conversation_searchable(conversation):
         return None
-    compiler = QueryCompiler(
-        conversation, conversation.secondary_indexes or ConversationSecondaryIndexes()
-    )
+    assert (
+        conversation.secondary_indexes is not None
+    ), "Conversation secondary indexes must be initialized before searching"
+    compiler = QueryCompiler(conversation, conversation.secondary_indexes)
     knowledge_query = await compiler.compile_knowledge_query(
         search_term_group, when_filter, options
     )
@@ -182,8 +182,9 @@ async def run_query[T](
     query: IQueryOpExpr[T],
 ) -> T:
     secondary_indexes = conversation.secondary_indexes
-    if secondary_indexes is None:
-        secondary_indexes = ConversationSecondaryIndexes()
+    assert (
+        secondary_indexes is not None
+    ), "Conversation secondary indexes must be initialized before running queries"
     return await query.eval(
         QueryEvalContext(
             conversation,
@@ -460,7 +461,7 @@ class QueryCompiler:
         if (
             raw_query_text is not None
             and isinstance(message_index, IMessageTextEmbeddingIndex)
-            and len(message_index) > 0
+            and not await message_index.is_empty()
         ):
             embedding = await message_index.generate_embedding(raw_query_text)
             return RankMessagesBySimilarityExpr(
@@ -557,7 +558,7 @@ class QueryCompiler:
         scored_ref: ScoredSemanticRefOrdinal,
         boost_weight: float,
     ) -> ScoredSemanticRefOrdinal:
-        if sr.knowledge_type == "entity" and match_entity_name_or_type(
+        if sr.knowledge.knowledge_type == "entity" and match_entity_name_or_type(
             search_term, cast(ConcreteEntity, sr.knowledge)
         ):
             return ScoredSemanticRefOrdinal(

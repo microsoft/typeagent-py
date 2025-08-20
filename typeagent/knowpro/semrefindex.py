@@ -1,12 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import AsyncIterable
-from typing import Callable
+from __future__ import annotations
+
+from collections.abc import AsyncIterable, Callable
+from dataclasses import dataclass
 
 from typechat import Failure
 
-from . import convknowledge, importing, kplib, secindex
+from . import convknowledge, kplib, secindex
+from .collections import MemorySemanticRefCollection
+from .convknowledge import KnowledgeExtractor
+from .convsettings import ConversationSettings
 from .interfaces import (
     # Interfaces.
     IConversation,
@@ -14,8 +19,6 @@ from .interfaces import (
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
     # Other imports.
-    IndexingEventHandlers,
-    IndexingResults,
     Knowledge,
     KnowledgeType,
     MessageOrdinal,
@@ -24,16 +27,20 @@ from .interfaces import (
     SemanticRef,
     TermToSemanticRefIndexItemData,
     TermToSemanticRefIndexData,
-    TextIndexingResult,
     TextLocation,
     TextRange,
     Topic,
 )
 from .knowledge import extract_knowledge_from_text_batch
-from .storage import SemanticRefCollection
 
 
-# TODO: Doesn't exist any more? But used in timestampindex.py currently
+@dataclass
+class SemanticRefIndexSettings:
+    batch_size: int
+    auto_extract_knowledge: bool
+    knowledge_extractor: KnowledgeExtractor | None = None
+
+
 def text_range_from_message_chunk(
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int = 0,
@@ -63,27 +70,15 @@ type KnowledgeValidator = Callable[
 ]
 
 
-# TODO: Get ruid of this?
-def default_knowledge_validator(
-    knowledg_Type: KnowledgeType,
-    knowledge: Knowledge,
-) -> bool:
-    return True
-
-
 async def add_batch_to_semantic_ref_index[
     TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     batch: list[TextLocation],
     knowledge_extractor: convknowledge.KnowledgeExtractor,
-    event_handler: IndexingEventHandlers | None = None,
     terms_added: set[str] | None = None,
-) -> TextIndexingResult:
-    begin_indexing(conversation)
-
+) -> None:
     messages = conversation.messages
-    indexing_result = TextIndexingResult()
 
     text_batch = [
         (await messages.get_item(tl.message_ordinal))
@@ -99,8 +94,9 @@ async def add_batch_to_semantic_ref_index[
     )
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
-            indexing_result.error = knowledge_result.message
-            return indexing_result
+            raise RuntimeError(
+                f"Knowledge extraction failed: {knowledge_result.message}"
+            )
         text_location = batch[i]
         knowledge = knowledge_result.value
         await add_knowledge_to_semantic_ref_index(
@@ -110,15 +106,6 @@ async def add_batch_to_semantic_ref_index[
             knowledge,
             terms_added,
         )
-        indexing_result.completed_upto = text_location
-        if (
-            event_handler
-            and event_handler.on_knowledge_extracted
-            and not event_handler.on_knowledge_extracted(text_location, knowledge)
-        ):
-            break
-
-    return indexing_result
 
 
 async def add_entity_to_index(
@@ -133,21 +120,20 @@ async def add_entity_to_index(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
             range=text_range_from_location(message_ordinal, chunk_ordinal),
-            knowledge_type="entity",
             knowledge=entity,
         )
     )
-    semantic_ref_index.add_term(entity.name, ref_ordinal)
+    await semantic_ref_index.add_term(entity.name, ref_ordinal)
     # Add each type as a separate term.
     for type in entity.type:
-        semantic_ref_index.add_term(type, ref_ordinal)
+        await semantic_ref_index.add_term(type, ref_ordinal)
     # Add every facet name as a separate term.
     if entity.facets:
         for facet in entity.facets:
-            add_facet(facet, ref_ordinal, semantic_ref_index)
+            await add_facet(facet, ref_ordinal, semantic_ref_index)
 
 
-def add_term_to_index(
+async def add_term_to_index(
     index: ITermToSemanticRefIndex,
     term: str,
     semantic_ref_ordinal: SemanticRefOrdinal,
@@ -161,7 +147,7 @@ def add_term_to_index(
         semantic_ref_ordinal: Ordinal of the semantic reference
         terms_added: Optional set to track terms added to the index
     """
-    term = index.add_term(term, semantic_ref_ordinal)
+    term = await index.add_term(term, semantic_ref_ordinal)
     if terms_added is not None:
         terms_added.add(term)
 
@@ -189,11 +175,10 @@ async def add_entity(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
             range=text_range_from_message_chunk(message_ordinal, chunk_ordinal),
-            knowledge_type="entity",
             knowledge=entity,
         )
     )
-    add_term_to_index(
+    await add_term_to_index(
         semantic_ref_index,
         entity.name,
         semantic_ref_ordinal,
@@ -202,31 +187,31 @@ async def add_entity(
 
     # Add each type as a separate term
     for type_name in entity.type:
-        add_term_to_index(
+        await add_term_to_index(
             semantic_ref_index, type_name, semantic_ref_ordinal, terms_added
         )
 
     # Add every facet name as a separate term
     if entity.facets:
         for facet in entity.facets:
-            add_facet(facet, semantic_ref_ordinal, semantic_ref_index)
+            await add_facet(facet, semantic_ref_ordinal, semantic_ref_index)
 
 
-def add_facet(
+async def add_facet(
     facet: kplib.Facet | None,
     semantic_ref_ordinal: SemanticRefOrdinal,
     semantic_ref_index: ITermToSemanticRefIndex,
     terms_added: set[str] | None = None,
 ) -> None:
     if facet is not None:
-        add_term_to_index(
+        await add_term_to_index(
             semantic_ref_index,
             facet.name,
             semantic_ref_ordinal,
             terms_added,
         )
         if facet.value is not None:
-            add_term_to_index(
+            await add_term_to_index(
                 semantic_ref_index,
                 str(facet.value),
                 semantic_ref_ordinal,
@@ -259,12 +244,11 @@ async def add_topic(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
             range=text_range_from_message_chunk(message_ordinal, chunk_ordinal),
-            knowledge_type="topic",
             knowledge=topic,
         )
     )
 
-    add_term_to_index(
+    await add_term_to_index(
         semantic_ref_index,
         topic.text,
         semantic_ref_ordinal,
@@ -295,12 +279,11 @@ async def add_action(
         SemanticRef(
             semantic_ref_ordinal=semantic_ref_ordinal,
             range=text_range_from_message_chunk(message_ordinal, chunk_ordinal),
-            knowledge_type="action",
             knowledge=action,
         )
     )
 
-    add_term_to_index(
+    await add_term_to_index(
         semantic_ref_index,
         " ".join(action.verbs),
         semantic_ref_ordinal,
@@ -308,7 +291,7 @@ async def add_action(
     )
 
     if action.subject_entity_name != "none":
-        add_term_to_index(
+        await add_term_to_index(
             semantic_ref_index,
             action.subject_entity_name,
             semantic_ref_ordinal,
@@ -316,7 +299,7 @@ async def add_action(
         )
 
     if action.object_entity_name != "none":
-        add_term_to_index(
+        await add_term_to_index(
             semantic_ref_index,
             action.object_entity_name,
             semantic_ref_ordinal,
@@ -324,7 +307,7 @@ async def add_action(
         )
 
     if action.indirect_object_entity_name != "none":
-        add_term_to_index(
+        await add_term_to_index(
             semantic_ref_index,
             action.indirect_object_entity_name,
             semantic_ref_ordinal,
@@ -334,28 +317,28 @@ async def add_action(
     if action.params:
         for param in action.params:
             if isinstance(param, str):
-                add_term_to_index(
+                await add_term_to_index(
                     semantic_ref_index,
                     param,
                     semantic_ref_ordinal,
                     terms_added,
                 )
             else:
-                add_term_to_index(
+                await add_term_to_index(
                     semantic_ref_index,
                     param.name,
                     semantic_ref_ordinal,
                     terms_added,
                 )
                 if isinstance(param.value, str):
-                    add_term_to_index(
+                    await add_term_to_index(
                         semantic_ref_index,
                         param.value,
                         semantic_ref_ordinal,
                         terms_added,
                     )
 
-    add_facet(
+    await add_facet(
         action.subject_entity_facet,
         semantic_ref_ordinal,
         semantic_ref_index,
@@ -451,11 +434,10 @@ async def add_topic_to_index(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
             range=text_range_from_location(message_ordinal, chunk_ordinal),
-            knowledge_type="topic",
             knowledge=topic,
         )
     )
-    semantic_ref_index.add_term(topic.text, ref_ordinal)
+    await semantic_ref_index.add_term(topic.text, ref_ordinal)
 
 
 async def add_action_to_index(
@@ -470,26 +452,27 @@ async def add_action_to_index(
         SemanticRef(
             semantic_ref_ordinal=ref_ordinal,
             range=text_range_from_location(message_ordinal, chunk_ordinal),
-            knowledge_type="action",
             knowledge=action,
         )
     )
-    semantic_ref_index.add_term(" ".join(action.verbs), ref_ordinal)
+    await semantic_ref_index.add_term(" ".join(action.verbs), ref_ordinal)
     if action.subject_entity_name != "none":
-        semantic_ref_index.add_term(action.subject_entity_name, ref_ordinal)
+        await semantic_ref_index.add_term(action.subject_entity_name, ref_ordinal)
     if action.object_entity_name != "none":
-        semantic_ref_index.add_term(action.object_entity_name, ref_ordinal)
+        await semantic_ref_index.add_term(action.object_entity_name, ref_ordinal)
     if action.indirect_object_entity_name != "none":
-        semantic_ref_index.add_term(action.indirect_object_entity_name, ref_ordinal)
+        await semantic_ref_index.add_term(
+            action.indirect_object_entity_name, ref_ordinal
+        )
     if action.params:
         for param in action.params:
             if isinstance(param, str):
-                semantic_ref_index.add_term(param, ref_ordinal)
+                await semantic_ref_index.add_term(param, ref_ordinal)
             else:
-                semantic_ref_index.add_term(param.name, ref_ordinal)
+                await semantic_ref_index.add_term(param.name, ref_ordinal)
                 if isinstance(param.value, str):
-                    semantic_ref_index.add_term(param.value, ref_ordinal)
-    add_facet(action.subject_entity_facet, ref_ordinal, semantic_ref_index)
+                    await semantic_ref_index.add_term(param.value, ref_ordinal)
+    await add_facet(action.subject_entity_facet, ref_ordinal, semantic_ref_index)
 
 
 async def add_knowledge_to_index(
@@ -522,25 +505,23 @@ async def add_metadata_to_index[TMessage: IMessage](
     semantic_ref_index: ITermToSemanticRefIndex,
     knowledge_validator: KnowledgeValidator | None = None,
 ) -> None:
-    if knowledge_validator is None:
-        knowledge_validator = default_knowledge_validator
     i = 0
     async for msg in messages:
         knowledge_response = msg.get_knowledge()
         for entity in knowledge_response.entities:
-            if knowledge_validator("entity", entity):
+            if knowledge_validator is None or knowledge_validator("entity", entity):
                 await add_entity_to_index(entity, semantic_refs, semantic_ref_index, i)
         for action in knowledge_response.actions:
-            if knowledge_validator("action", action):
+            if knowledge_validator is None or knowledge_validator("action", action):
                 await add_action_to_index(action, semantic_refs, semantic_ref_index, i)
         for topic_response in knowledge_response.topics:
             topic = Topic(text=topic_response)
-            if knowledge_validator("topic", topic):
+            if knowledge_validator is None or knowledge_validator("topic", topic):
                 await add_topic_to_index(topic, semantic_refs, semantic_ref_index, i)
         i += 1
 
 
-class ConversationIndex(ITermToSemanticRefIndex):
+class TermToSemanticRefIndex(ITermToSemanticRefIndex):
     _map: dict[str, list[ScoredSemanticRefOrdinal]]
 
     def __init__(self, data: TermToSemanticRefIndexData | None = None):
@@ -549,20 +530,16 @@ class ConversationIndex(ITermToSemanticRefIndex):
         if data:
             self.deserialize(data)
 
-    def __len__(self) -> int:
+    async def size(self) -> int:
         return len(self._map)
 
-    # Needed because otherwise an empty index would be falsy.
-    def __bool__(self) -> bool:
-        return True
-
-    def get_terms(self) -> list[str]:
+    async def get_terms(self) -> list[str]:
         return list(self._map)
 
     def clear(self) -> None:
         self._map.clear()
 
-    def add_term(
+    async def add_term(
         self,
         term: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
@@ -579,10 +556,12 @@ class ConversationIndex(ITermToSemanticRefIndex):
             self._map[term] = [semantic_ref_ordinal]
         return term
 
-    def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
+    async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
         return self._map.get(self._prepare_term(term)) or []
 
-    def remove_term(self, term: str, semantic_ref_ordinal: SemanticRefOrdinal) -> None:
+    async def remove_term(
+        self, term: str, semantic_ref_ordinal: SemanticRefOrdinal
+    ) -> None:
         self._map.pop(self._prepare_term(term), None)
 
     def remove_term_if_empty(self, term: str) -> None:
@@ -623,53 +602,43 @@ class ConversationIndex(ITermToSemanticRefIndex):
 
 
 async def build_conversation_index[TMessage: IMessage](
-    conversation: IConversation[TMessage, ConversationIndex],
-    conversation_settings: importing.ConversationSettings,
-    event_handler: IndexingEventHandlers | None = None,
-) -> IndexingResults:
-    result = IndexingResults()
-    result.semantic_refs = await build_semantic_ref_index(
+    conversation: IConversation[TMessage, TermToSemanticRefIndex],
+    conversation_settings: ConversationSettings,
+) -> None:
+    await build_semantic_ref_index(
         conversation,
         conversation_settings.semantic_ref_index_settings,
-        event_handler,
     )
-    if (
-        result.semantic_refs
-        and not result.semantic_refs.error
-        and conversation.semantic_ref_index
-    ):
-        result.secondary_index_results = await secindex.build_secondary_indexes(
+    if conversation.semantic_ref_index is not None:
+        await secindex.build_secondary_indexes(
             conversation,
             conversation_settings,
-            event_handler,
         )
-    return result
 
 
 async def build_semantic_ref_index[TM: IMessage](
-    conversation: IConversation[TM, ConversationIndex],
-    settings: importing.SemanticRefIndexSettings,
-    event_handler: IndexingEventHandlers | None = None,
-) -> TextIndexingResult:
-    return await add_to_semantic_ref_index(conversation, settings, 0, event_handler)
+    conversation: IConversation[TM, TermToSemanticRefIndex],
+    settings: SemanticRefIndexSettings,
+) -> None:
+    await add_to_semantic_ref_index(conversation, settings, 0)
 
 
 async def add_to_semantic_ref_index[
     TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
-    settings: importing.SemanticRefIndexSettings,
+    settings: SemanticRefIndexSettings,
     message_ordinal_start_at: MessageOrdinal,
-    event_handler: IndexingEventHandlers | None = None,
     terms_added: list[str] | None = None,
-) -> TextIndexingResult:
+) -> None:
     """Add semantic references to the conversation's semantic reference index."""
-    begin_indexing(conversation)
 
-    knowledge_extractor = (
-        settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
-    )
-    indexing_result: TextIndexingResult | None = None
+    # Only create knowledge extractor if auto extraction is enabled
+    knowledge_extractor = None
+    if settings.auto_extract_knowledge:
+        knowledge_extractor = (
+            settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+        )
 
     # TODO: get_message_chunk_batch
     # for text_location_batch in get_message_chunk_batch(
@@ -677,26 +646,12 @@ async def add_to_semantic_ref_index[
     #     message_ordinal_start_at,
     #     settings.batch_size,
     # ):
-    #     indexing_result = await add_batch_to_semantic_ref_index(
+    #     await add_batch_to_semantic_ref_index(
     #         conversation,
     #         text_location_batch,
     #         knowledge_extractor,
-    #         event_handler,
     #         terms_added,
     #     )
-
-    return indexing_result or TextIndexingResult()
-
-
-def begin_indexing[
-    TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
-](
-    conversation: IConversation[TMessage, TTermToSemanticRefIndex],
-) -> None:
-    if conversation.semantic_ref_index is None:
-        conversation.semantic_ref_index = ConversationIndex()  # type: ignore  # TODO: Why doesn't pyright like this?
-    if conversation.semantic_refs is None:
-        conversation.semantic_refs = SemanticRefCollection()
 
 
 def verify_has_semantic_ref_index(conversation: IConversation) -> None:
@@ -705,7 +660,7 @@ def verify_has_semantic_ref_index(conversation: IConversation) -> None:
 
 
 async def dump(
-    semantic_ref_index: ConversationIndex, semantic_refs: ISemanticRefCollection
+    semantic_ref_index: TermToSemanticRefIndex, semantic_refs: ISemanticRefCollection
 ) -> None:
     print("semantic_ref_index = {")
     for k, v in semantic_ref_index._map.items():

@@ -1,28 +1,35 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Callable, Protocol
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Protocol
 
 from ..aitools.vectorbase import ScoredInt, TextEmbeddingIndexSettings, VectorBase
 
 from .collections import TermSet
 from .common import is_search_term_wildcard
-from .importing import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
     ITermToRelatedTerms,
     ITermToRelatedTermsFuzzy,
-    SearchTerm,
-    TermToRelatedTermsData,
     ITermToRelatedTermsIndex,
+    SearchTerm,
+    Term,
+    TermToRelatedTermsData,
     TermsToRelatedTermsDataItem,
     TermsToRelatedTermsIndexData,
     TextEmbeddingIndexData,
-    IndexingEventHandlers,
-    ListIndexingResult,
-    Term,
 )
 from .query import CompiledSearchTerm, CompiledTermGroup
+
+
+@dataclass
+class RelatedTermIndexSettings:
+    embedding_index_settings: TextEmbeddingIndexSettings
+
+    def __init__(self, embedding_index_settings: TextEmbeddingIndexSettings):
+        self.embedding_index_settings = embedding_index_settings
 
 
 class TermToRelatedTermsMap(ITermToRelatedTerms):
@@ -49,6 +56,12 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
 
     def clear(self) -> None:
         self.map.clear()
+
+    async def size(self) -> int:
+        return len(self.map)
+
+    async def is_empty(self) -> bool:
+        return len(self.map) == 0
 
     def serialize(self) -> TermToRelatedTermsData:
         related_terms: list[TermsToRelatedTermsDataItem] = []
@@ -80,23 +93,17 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
 
 async def build_related_terms_index(
     conversation: IConversation,
-    settings: ConversationSettings,
-    event_handler: IndexingEventHandlers | None = None,
-) -> ListIndexingResult:
+    settings: RelatedTermIndexSettings,
+) -> None:
     csr = conversation.semantic_ref_index
     csi = conversation.secondary_indexes
-    if csr and csi:
+    if csr is not None and csi is not None:
         if csi.term_to_related_terms_index is None:
-            csi.term_to_related_terms_index = RelatedTermsIndex(
-                settings.related_term_index_settings
-            )
+            csi.term_to_related_terms_index = RelatedTermsIndex(settings)
         fuzzy_index = csi.term_to_related_terms_index.fuzzy_index
-        all_terms = csr.get_terms()
+        all_terms = await csr.get_terms()
         if fuzzy_index and all_terms:
             await fuzzy_index.add_terms(all_terms)
-        return ListIndexingResult(len(all_terms))
-    else:
-        return ListIndexingResult(0)
 
 
 class RelatedTermsIndex(ITermToRelatedTermsIndex):
@@ -104,6 +111,14 @@ class RelatedTermsIndex(ITermToRelatedTermsIndex):
         self.settings = settings
         self._alias_map = TermToRelatedTermsMap()
         self._term_index = TermEmbeddingIndex(settings.embedding_index_settings)
+
+    # Pre-SQLite note:
+    # - In a SQLite-backed implementation, `_alias_map` would persist to a
+    #   RelatedTermsAliases table (term -> set of related-term rows), while
+    #   `_term_index` would correspond to a vector table for fuzzy lookups.
+    # - The public properties `aliases` and `fuzzy_index` define the stable
+    #   interface; storage providers can back them with DB tables without
+    #   changing call sites.
 
     @property
     def aliases(self) -> TermToRelatedTermsMap:
@@ -155,10 +170,7 @@ async def resolve_related_terms(
         searchable_terms.add_or_union(search_term.term)
         term_text = search_term.term.text
         # Resolve any specific term to related term mappings
-        if (
-            related_terms_index.aliases is not None
-            and search_term.related_terms is None
-        ):
+        if search_term.related_terms is None:
             search_term.related_terms = related_terms_index.aliases.lookup_term(
                 term_text
             )
@@ -271,12 +283,9 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
             self._texts = data.get("textItems", [])
             self._vectorbase.deserialize(data.get("embeddings"))
 
-    async def add_terms(
-        self, texts: list[str], event_handler: IndexingEventHandlers | None = None
-    ) -> ListIndexingResult:
+    async def add_terms(self, texts: list[str]) -> None:
         await self._vectorbase.add_keys(texts)
         self._texts.extend(texts)
-        return ListIndexingResult(len(texts))
 
     async def lookup_term(
         self, text: str, max_hits: int | None = None, min_score: float | None = None

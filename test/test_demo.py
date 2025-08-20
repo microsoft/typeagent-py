@@ -8,7 +8,7 @@ import textwrap
 import time
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from typeagent.knowpro.importing import ConversationSettings
+from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ScoredSemanticRefOrdinal
 from typeagent.podcasts import podcast
 
@@ -35,7 +35,8 @@ def test_main(needs_auth: None):
 
 async def main(filename_prefix: str):
     print("Create conversation settings ...")
-    settings = ConversationSettings()
+    model = AsyncEmbeddingModel()  # Use default real model
+    settings = ConversationSettings(model)
     model = settings.embedding_model
     assert model is not None
     assert isinstance(model, AsyncEmbeddingModel), f"model is {model!r}"
@@ -59,7 +60,8 @@ async def main(filename_prefix: str):
 
     term = "book"
     print(f"\nSearching {pod.name_tag!r} for term {term!r} ...")
-    results = pod.semantic_ref_index.lookup_term(term)
+    assert pod.semantic_ref_index is not None, "semantic_ref_index should not be None"
+    results = await pod.semantic_ref_index.lookup_term(term)
     assert results is not None
     assert isinstance(results, list), f"results is {results!r}"
     assert len(results) > 0, f"results is {results!r}"
@@ -74,7 +76,7 @@ async def main(filename_prefix: str):
         sref = await pod.semantic_refs.get_item(ord)
         assert sref.semantic_ref_ordinal == ord
         print(f"\n{ord}: Term {term!r} has knowledge", end=" ")
-        print(f"of type {sref.knowledge_type!r} at {sref.range}:")
+        print(f"of type {sref.knowledge.knowledge_type!r} at {sref.range}:")
         print(" ", sref.knowledge)
         # Now dig up the messages
         start_msg_ord = sref.range.start.message_ordinal
@@ -104,7 +106,11 @@ async def main(filename_prefix: str):
     assert len(ser1) > 0, f"ser1 is empty {ser1!r}"
     assert "semanticRefs" in ser1, f"'semantic_refs' is not a key in {ser1.keys()!r}"
 
-    pod2 = podcast.Podcast(settings=settings)
+    # Create a fresh settings object with a new storage provider for the second podcast
+    # to avoid conflicts with the first podcast's data
+    model2 = AsyncEmbeddingModel()  # Use same real model as the first one
+    settings2 = ConversationSettings(model2)
+    pod2 = await podcast.Podcast.create(settings2)
     assert pod2 is not None, "Failed to create podcast"
     assert isinstance(pod2, podcast.Podcast), f"pod2 is not Podcast but {type(pod2)!r}"
 

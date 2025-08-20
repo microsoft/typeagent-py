@@ -35,44 +35,18 @@ from typeagent.knowpro.interfaces import (
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SemanticRef,
+    Tag,
     Topic,
 )
 from typeagent.knowpro import answers, answer_response_schema
 from typeagent.knowpro import convknowledge
-from typeagent.knowpro import importing
+from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro import kplib
 from typeagent.knowpro import query
 from typeagent.knowpro import search, search_query_schema, searchlang
 from typeagent.knowpro import serialization
 
 from typeagent.podcasts import podcast
-
-
-### Logfire setup ###
-
-
-def setup_logfire():
-    import logfire
-
-    def scrubbing_callback(m: logfire.ScrubMatch):
-        # if m.path == ('attributes', 'http.request.header.authorization'):
-        #     return m.value
-
-        # if m.path == ('attributes', 'http.request.header.api-key'):
-        #     return m.value
-
-        if (
-            m.path == ("attributes", "http.request.body.text", "messages", 0, "content")
-            and m.pattern_match.group(0) == "secret"
-        ):
-            return m.value
-
-        # if m.path == ('attributes', 'http.response.header.azureml-model-session'):
-        #     return m.value
-
-    logfire.configure(scrubbing=logfire.ScrubbingOptions(callback=scrubbing_callback))
-    logfire.instrument_pydantic_ai()
-    logfire.instrument_httpx(capture_all=True)
 
 
 ### Classes ###
@@ -144,8 +118,11 @@ async def main():
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
     if args.logfire:
+        from typeagent.aitools.utils import setup_logfire
+
         setup_logfire()
-    settings = importing.ConversationSettings()
+    model = embeddings.AsyncEmbeddingModel()
+    settings = ConversationSettings(model)
     query_context = await load_podcast_index(args.podcast, settings, args.sqlite_db)
     ar_list, ar_index = load_index_file(args.qafile, "question", QuestionAnswerData)
     sr_list, sr_index = load_index_file(args.srfile, "searchText", SearchResultData)
@@ -565,7 +542,7 @@ def fill_in_debug_defaults(
 
 async def load_podcast_index(
     podcast_file_prefix: str,
-    settings: importing.ConversationSettings,
+    settings: ConversationSettings,
     dbname: str | None,
 ) -> query.QueryEvalContext:
     with utils.timelog(f"load podcast from {podcast_file_prefix!r}"):
@@ -646,52 +623,48 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
     knowledge = sem_ref.knowledge
     if knowledge is None:
         return f"{sem_ref.semantic_ref_ordinal}: <No knowledge>"
-    match sem_ref.knowledge_type:
-        case "entity":
-            entity = knowledge
-            assert isinstance(entity, kplib.ConcreteEntity)
-            res = [f"{entity.name} [{', '.join(entity.type)}]"]
-            if entity.facets:
-                for facet in entity.facets:
-                    value = facet.value
-                    if isinstance(value, kplib.Quantity):
-                        value = f"{value.amount} {value.units}"
-                    elif isinstance(value, float) and value.is_integer():
-                        value = int(value)
-                    res.append(f"<{facet.name}:{value}>")
-            return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
-        case "action":
-            action = knowledge
-            assert isinstance(action, kplib.Action)
-            res = []
-            res.append("/".join(repr(verb) for verb in action.verbs))
-            if action.verb_tense:
-                res.append(f"[{action.verb_tense}]")
-            if action.subject_entity_name != "none":
-                res.append(f"subj={action.subject_entity_name!r}")
-            if action.object_entity_name != "none":
-                res.append(f"obj={action.object_entity_name!r}")
-            if action.indirect_object_entity_name != "none":
-                res.append(f"ind_obj={action.indirect_object_entity_name}")
-            if action.params:
-                for param in action.params:
-                    if isinstance(param, kplib.ActionParam):
-                        res.append(f"<{param.name}:{param.value}>")
-                    else:
-                        res.append(f"<{param}>")
-            if action.subject_entity_facet is not None:
-                res.append(f"subj_facet={action.subject_entity_facet}")
-            return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
-        case "topic":
-            topic = knowledge
-            assert isinstance(topic, Topic)
-            return f"{sem_ref.semantic_ref_ordinal}: {topic.text!r}]"
-        case "tag":
-            tag = knowledge
-            assert isinstance(tag, str)
-            return f"{sem_ref.semantic_ref_ordinal}: #{tag!r}"
-        case _:
-            return f"{sem_ref.semantic_ref_ordinal}: {sem_ref.knowledge!r}"
+
+    if isinstance(knowledge, kplib.ConcreteEntity):
+        entity = knowledge
+        res = [f"{entity.name} [{', '.join(entity.type)}]"]
+        if entity.facets:
+            for facet in entity.facets:
+                value = facet.value
+                if isinstance(value, kplib.Quantity):
+                    value = f"{value.amount} {value.units}"
+                elif isinstance(value, float) and value.is_integer():
+                    value = int(value)
+                res.append(f"<{facet.name}:{value}>")
+        return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
+    elif isinstance(knowledge, kplib.Action):
+        action = knowledge
+        res = []
+        res.append("/".join(repr(verb) for verb in action.verbs))
+        if action.verb_tense:
+            res.append(f"[{action.verb_tense}]")
+        if action.subject_entity_name != "none":
+            res.append(f"subj={action.subject_entity_name!r}")
+        if action.object_entity_name != "none":
+            res.append(f"obj={action.object_entity_name!r}")
+        if action.indirect_object_entity_name != "none":
+            res.append(f"ind_obj={action.indirect_object_entity_name}")
+        if action.params:
+            for param in action.params:
+                if isinstance(param, kplib.ActionParam):
+                    res.append(f"<{param.name}:{param.value}>")
+                else:
+                    res.append(f"<{param}>")
+        if action.subject_entity_facet is not None:
+            res.append(f"subj_facet={action.subject_entity_facet}")
+        return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
+    elif isinstance(knowledge, Topic):
+        topic = knowledge
+        return f"{sem_ref.semantic_ref_ordinal}: {topic.text!r}"
+    elif isinstance(knowledge, Tag):
+        tag = knowledge
+        return f"{sem_ref.semantic_ref_ordinal}: #{tag.text!r}"
+    else:
+        return f"{sem_ref.semantic_ref_ordinal}: {sem_ref.knowledge!r}"
 
 
 def compare_results(

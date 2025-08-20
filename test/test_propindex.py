@@ -12,9 +12,9 @@ from typeagent.knowpro.interfaces import (
     ICollection,
     IConversation,
     IMessage,
+    IStorageProvider,
     ITermToSemanticRefIndex,
     SemanticRef,
-    ListIndexingResult,
     Tag,
     TextLocation,
     TextRange,
@@ -34,9 +34,42 @@ from typeagent.knowpro.propindex import (
     is_known_property,
 )
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
-from typeagent.knowpro.storage import MessageCollection, SemanticRefCollection
+from typeagent.storage.memorystore import MemoryStorageProvider
+from typeagent.knowpro.collections import (
+    MemoryMessageCollection,
+    MemorySemanticRefCollection,
+)
+from typeagent.knowpro.convsettings import ConversationSettings
 
 from fixtures import needs_auth  # type: ignore  # Yes we use it!
+
+
+class SimpleFakeConversation(IConversation):
+    """Fake conversation for testing."""
+
+    def __init__(self, semantic_refs):
+        self.name_tag = "test"
+        self.tags = []
+        self.messages = MemoryMessageCollection()
+        self.semantic_refs = MemorySemanticRefCollection(semantic_refs)
+        self.semantic_ref_index = None
+        # Create storage provider with test settings
+        from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+        from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+        from typeagent.knowpro.messageindex import MessageTextIndexSettings
+        from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
+
+        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_settings = TextEmbeddingIndexSettings(test_model)
+        message_text_settings = MessageTextIndexSettings(embedding_settings)
+        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+        storage_provider = MemoryStorageProvider()
+        self.secondary_indexes = ConversationSecondaryIndexes(
+            storage_provider, related_terms_settings
+        )
+        # Store settings with storage provider for access via conversation.settings.storage_provider
+        self.settings = ConversationSettings(test_model, storage_provider)
 
 
 @pytest.fixture
@@ -45,45 +78,56 @@ def property_index():
     return PropertyIndex()
 
 
-def test_add_facet(property_index):
+@pytest.mark.asyncio
+async def test_add_facet(property_index):
     """Test adding a facet to the property index."""
     facet = Facet(name="color", value="blue")
-    add_facet(facet, property_index, 1)
+    await add_facet(facet, property_index, 1)
 
-    result = property_index.lookup_property(PropertyNames.FacetName.value, "color")
+    result = await property_index.lookup_property(
+        PropertyNames.FacetName.value, "color"
+    )
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
-    result = property_index.lookup_property(PropertyNames.FacetValue.value, "blue")
+    result = await property_index.lookup_property(
+        PropertyNames.FacetValue.value, "blue"
+    )
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
 
-def test_add_entity_properties_to_index(property_index):
+@pytest.mark.asyncio
+async def test_add_entity_properties_to_index(property_index):
     """Test adding entity properties to the property index."""
     entity = ConcreteEntity(
         name="ExampleEntity",
         type=["object", "example"],
         facets=[Facet(name="color", value="blue")],
     )
-    add_entity_properties_to_index(entity, property_index, 1)
+    await add_entity_properties_to_index(entity, property_index, 1)
 
-    result = property_index.lookup_property(
+    result = await property_index.lookup_property(
         PropertyNames.EntityName.value, "ExampleEntity"
     )
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
-    result = property_index.lookup_property(PropertyNames.EntityType.value, "object")
+    result = await property_index.lookup_property(
+        PropertyNames.EntityType.value, "object"
+    )
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
-    result = property_index.lookup_property(PropertyNames.FacetName.value, "color")
+    result = await property_index.lookup_property(
+        PropertyNames.FacetName.value, "color"
+    )
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
 
-def test_add_action_properties_to_index(property_index):
+@pytest.mark.asyncio
+async def test_add_action_properties_to_index(property_index):
     """Test adding action properties to the property index."""
     action = Action(
         verbs=["run", "jump"],
@@ -94,17 +138,17 @@ def test_add_action_properties_to_index(property_index):
         params=None,
         subject_entity_facet=None,
     )
-    add_action_properties_to_index(action, property_index, 1)
+    await add_action_properties_to_index(action, property_index, 1)
 
-    result = property_index.lookup_property(PropertyNames.Verb.value, "run jump")
+    result = await property_index.lookup_property(PropertyNames.Verb.value, "run jump")
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
-    result = property_index.lookup_property(PropertyNames.Subject.value, "John")
+    result = await property_index.lookup_property(PropertyNames.Subject.value, "John")
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
-    result = property_index.lookup_property(PropertyNames.Object.value, "Ball")
+    result = await property_index.lookup_property(PropertyNames.Object.value, "Ball")
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 1
 
@@ -119,13 +163,18 @@ def test_make_and_split_property_term_text():
     assert value == "value"
 
 
-def test_is_known_property(property_index):
+@pytest.mark.asyncio
+async def test_is_known_property(property_index):
     """Test checking if a property is known."""
-    property_index.add_property("name", "value", 1)
+    await property_index.add_property("name", "value", 1)
 
-    assert is_known_property(property_index, PropertyNames.EntityName, "value") is True
     assert (
-        is_known_property(property_index, PropertyNames.EntityName, "unknown") is False
+        await is_known_property(property_index, PropertyNames.EntityName, "value")
+        is True
+    )
+    assert (
+        await is_known_property(property_index, PropertyNames.EntityName, "unknown")
+        is False
     )
 
 
@@ -133,44 +182,43 @@ def test_is_known_property(property_index):
 async def test_build_property_index(needs_auth):
     """Test the build_property_index function with a concrete conversation."""
     # Create a sample conversation with semantic references
+    entity1 = ConcreteEntity(
+        name="Entity1",
+        type=["type1", "type2"],
+        facets=[Facet(name="color", value="blue")],
+    )
+    action1 = Action(
+        verbs=["run", "jump"],
+        verb_tense="present",
+        subject_entity_name="Subject1",
+        object_entity_name="Object1",
+        indirect_object_entity_name="IndirectObject1",
+    )
+    tag1 = Tag(text="Tag1")
     semantic_refs = [
         SemanticRef(
             semantic_ref_ordinal=0,
-            knowledge_type="entity",
-            knowledge=ConcreteEntity(
-                name="Entity1",
-                type=["type1", "type2"],
-                facets=[Facet(name="color", value="blue")],
-            ),
+            knowledge=entity1,
             range=TextRange(start=TextLocation(0), end=TextLocation(10)),
         ),
         SemanticRef(
             semantic_ref_ordinal=1,
-            knowledge_type="action",
-            knowledge=Action(
-                verbs=["run", "jump"],
-                verb_tense="present",
-                subject_entity_name="Subject1",
-                object_entity_name="Object1",
-                indirect_object_entity_name="IndirectObject1",
-            ),
+            knowledge=action1,
             range=TextRange(start=TextLocation(10), end=TextLocation(20)),
         ),
         SemanticRef(
             semantic_ref_ordinal=2,
-            knowledge_type="tag",
-            knowledge=Tag(text="Tag1"),
+            knowledge=tag1,
             range=TextRange(start=TextLocation(20), end=TextLocation(30)),
         ),
     ]
 
-    conversation = FakeConversation(semantic_refs)
+    conversation = SimpleFakeConversation(semantic_refs)
 
     # Call the function
-    result = await build_property_index(conversation)
+    await build_property_index(conversation)
 
     # Assertions
-    assert result.number_completed == 3  # All semantic references should be processed
     assert conversation.secondary_indexes is not None
     assert isinstance(
         conversation.secondary_indexes.property_to_semantic_ref_index, PropertyIndex
@@ -178,11 +226,11 @@ async def test_build_property_index(needs_auth):
 
     # Verify the property index contents
     property_index = conversation.secondary_indexes.property_to_semantic_ref_index
-    assert len(property_index) > 0
-    assert property_index.lookup_property("name", "Entity1") is not None
-    assert property_index.lookup_property("type", "Type1") is not None
-    assert property_index.lookup_property("verb", "run jump") is not None
-    assert property_index.lookup_property("tag", "Tag1") is not None
+    assert await property_index.size() > 0
+    assert await property_index.lookup_property("name", "Entity1") is not None
+    assert await property_index.lookup_property("type", "Type1") is not None
+    assert await property_index.lookup_property("verb", "run jump") is not None
+    assert await property_index.lookup_property("tag", "Tag1") is not None
 
 
 class FakeMessage(IMessage):
@@ -255,38 +303,52 @@ class FakeConversation[
     def __init__(self, semantic_refs: list[SemanticRef] | None = None):
         self.name_tag = "test_conversation"
         self.tags = []
-        self.semantic_refs = SemanticRefCollection(semantic_refs or [])
+        self.semantic_refs = MemorySemanticRefCollection(semantic_refs or [])
         self.semantic_ref_index = None
-        self.messages: IMessageCollection[TMessage] = MessageCollection([FakeMessage(["Hello"])])  # type: ignore[assignment]
-        self.secondary_indexes = ConversationSecondaryIndexes()
+        self.messages: IMessageCollection[TMessage] = MemoryMessageCollection([FakeMessage(["Hello"])])  # type: ignore[assignment]
+        # Create storage provider with test settings
+        from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+        from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+        from typeagent.knowpro.messageindex import MessageTextIndexSettings
+        from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
+
+        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_settings = TextEmbeddingIndexSettings(test_model)
+        message_text_settings = MessageTextIndexSettings(embedding_settings)
+        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+        self._storage_provider = MemoryStorageProvider()
+        self.secondary_indexes = ConversationSecondaryIndexes(
+            self._storage_provider, related_terms_settings
+        )
+
+    @property
+    def storage_provider(self) -> "IStorageProvider":
+        return self._storage_provider
 
 
 @pytest.mark.asyncio
 async def test_add_to_property_index(needs_auth, property_index):
     """Test adding semantic references to the property index."""
+    entity = ConcreteEntity(
+        name="ExampleEntity",
+        type=["object"],
+        facets=[Facet(name="color", value="blue")],
+    )
     semantic_refs = [
         SemanticRef(
             semantic_ref_ordinal=0,
             range=TextRange(start=TextLocation(0), end=None),
-            knowledge_type="entity",
-            knowledge=ConcreteEntity(
-                name="ExampleEntity",
-                type=["object"],
-                facets=[Facet(name="color", value="blue")],
-            ),
+            knowledge=entity,
         )
     ]
     conversation = FakeConversation(semantic_refs)
-    result = await add_to_property_index(conversation, 0)
-    assert isinstance(result, ListIndexingResult)
-    assert result.number_completed == 1
+    await add_to_property_index(conversation, 0)
 
     assert conversation.secondary_indexes is not None
     assert conversation.secondary_indexes.property_to_semantic_ref_index is not None
-    lookup_result = (
-        conversation.secondary_indexes.property_to_semantic_ref_index.lookup_property(
-            "name", "ExampleEntity"
-        )
+    lookup_result = await conversation.secondary_indexes.property_to_semantic_ref_index.lookup_property(
+        "name", "ExampleEntity"
     )
     assert lookup_result is not None
     assert len(lookup_result) == 1
@@ -296,21 +358,21 @@ async def test_add_to_property_index(needs_auth, property_index):
 @pytest.mark.asyncio
 async def test_lookup_property_in_property_index(property_index):
     """Test filtering properties based on ranges_in_scope."""
-    property_index.add_property("name", "value1", 0)
-    property_index.add_property("name", "value2", 1)
+    await property_index.add_property("name", "value1", 0)
+    await property_index.add_property("name", "value2", 1)
 
+    entity0 = ConcreteEntity("name0", ["type"])
+    entity1 = ConcreteEntity("name1", ["type"])
     semantic_refs = [
         SemanticRef(
             semantic_ref_ordinal=0,
             range=TextRange(start=TextLocation(0), end=TextLocation(10)),
-            knowledge_type="entity",
-            knowledge=ConcreteEntity("name0", ["type"]),
+            knowledge=entity0,
         ),
         SemanticRef(
             semantic_ref_ordinal=1,
             range=TextRange(start=TextLocation(20), end=TextLocation(30)),
-            knowledge_type="entity",
-            knowledge=ConcreteEntity("name1", ["type"]),
+            knowledge=entity1,
         ),
     ]
     ranges_in_scope = TextRangesInScope(
@@ -321,7 +383,7 @@ async def test_lookup_property_in_property_index(property_index):
         property_index,
         "name",
         "value1",
-        SemanticRefCollection(semantic_refs),
+        MemorySemanticRefCollection(semantic_refs),
         ranges_in_scope,
     )
     assert result is not None
@@ -332,27 +394,29 @@ async def test_lookup_property_in_property_index(property_index):
         property_index,
         "name",
         "value2",
-        SemanticRefCollection(semantic_refs),
+        MemorySemanticRefCollection(semantic_refs),
         ranges_in_scope,
     )
     assert result is None
 
 
-def test_property_index_clear(property_index):
+@pytest.mark.asyncio
+async def test_property_index_clear(property_index):
     """Test clearing all properties in the PropertyIndex."""
-    property_index.add_property("name", "value", 0)
-    assert len(property_index) > 0
+    await property_index.add_property("name", "value", 0)
+    assert await property_index.size() > 0
 
     property_index.clear()
-    assert len(property_index) == 0
+    assert await property_index.size() == 0
 
 
-def test_property_index_get_values(property_index):
+@pytest.mark.asyncio
+async def test_property_index_get_values(property_index):
     """Test retrieving all property values from the PropertyIndex."""
-    property_index.add_property("name", "value1", 0)
-    property_index.add_property("name", "value2", 1)
+    await property_index.add_property("name", "value1", 0)
+    await property_index.add_property("name", "value2", 1)
 
-    values = property_index.get_values()
+    values = await property_index.get_values()
     assert len(values) == 2
     assert "value1" in values
     assert "value2" in values
@@ -365,15 +429,16 @@ def test_property_index_prepare_term_text(property_index):
     assert prepared_text == "prop.name@@value"  # Should be converted to lowercase
 
 
-def test_property_index_lookup_property_edge_cases(property_index):
+@pytest.mark.asyncio
+async def test_property_index_lookup_property_edge_cases(property_index):
     """Test edge cases for lookup_property in PropertyIndex."""
     # Case: Property does not exist
-    result = property_index.lookup_property("name", "nonexistent")
+    result = await property_index.lookup_property("name", "nonexistent")
     assert result is None
 
     # Case: Property exists
-    property_index.add_property("name", "value", 0)
-    result = property_index.lookup_property("name", "value")
+    await property_index.add_property("name", "value", 0)
+    result = await property_index.lookup_property("name", "value")
     assert result is not None
     assert len(result) == 1
     assert result[0].semantic_ref_ordinal == 0

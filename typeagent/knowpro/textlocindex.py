@@ -1,20 +1,16 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Protocol
+from typing import Protocol
 
 from ..aitools.embeddings import NormalizedEmbedding
-from ..aitools.vectorbase import VectorBase
+from ..aitools.vectorbase import TextEmbeddingIndexSettings
 
 from .fuzzyindex import ScoredInt, EmbeddingIndex
-from .importing import TextEmbeddingIndexSettings
-import asyncio
-from typing import Sequence
 from .interfaces import (
     TextToTextLocationIndexData,
-    IndexingEventHandlers,
-    ListIndexingResult,
     TextLocation,
 )
 
@@ -28,13 +24,12 @@ class ScoredTextLocation:
 class ITextToTextLocationIndex(Protocol):
     async def add_text_location(
         self, text: str, text_location: TextLocation
-    ) -> ListIndexingResult: ...
+    ) -> None: ...
 
     async def add_text_locations(
         self,
         text_and_locations: list[tuple[str, TextLocation]],
-        event_handler: IndexingEventHandlers | None = None,
-    ) -> ListIndexingResult: ...
+    ) -> None: ...
 
     async def lookup_text(
         self,
@@ -42,6 +37,10 @@ class ITextToTextLocationIndex(Protocol):
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[ScoredTextLocation]: ...
+
+    async def size(self) -> int: ...
+
+    async def is_empty(self) -> bool: ...
 
     def serialize(self) -> TextToTextLocationIndexData: ...
 
@@ -54,11 +53,11 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         self._embedding_index: EmbeddingIndex = EmbeddingIndex(settings=settings)
         self._settings = settings
 
-    def __len__(self) -> int:
-        return len(self._embedding_index)
+    async def size(self) -> int:
+        return await self._embedding_index.size()
 
-    def __bool__(self) -> bool:
-        return True
+    async def is_empty(self) -> bool:
+        return await self._embedding_index.is_empty()
 
     def get(self, pos: int, default: TextLocation | None = None) -> TextLocation | None:
         size = len(self._text_locations)
@@ -66,19 +65,15 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
             return self._text_locations[pos]
         return default
 
-    async def add_text_location(
-        self, text: str, text_location: TextLocation
-    ) -> ListIndexingResult:
-        return await self.add_text_locations([(text, text_location)])
+    async def add_text_location(self, text: str, text_location: TextLocation) -> None:
+        await self.add_text_locations([(text, text_location)])
 
     async def add_text_locations(
         self,
         text_and_locations: list[tuple[str, TextLocation]],
-        event_handler: IndexingEventHandlers | None = None,
-    ) -> ListIndexingResult:
+    ) -> None:
         await self._embedding_index.add_texts([text for text, _ in text_and_locations])
         self._text_locations.extend([loc for _, loc in text_and_locations])
-        return ListIndexingResult(number_completed=len(text_and_locations))
 
     async def lookup_text(
         self,
