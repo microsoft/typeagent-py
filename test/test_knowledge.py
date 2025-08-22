@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import pytest
+from typing import cast
 
 from typechat import Result, Failure, Success
 
@@ -16,31 +17,33 @@ from typeagent.knowpro import convknowledge, kplib
 from fixtures import needs_auth  # type: ignore  # Used!
 
 
-@pytest.fixture
-def mock_knowledge_extractor():
-    """Fixture to create a mock KnowledgeExtractor."""
-
-    class MockKnowledgeExtractor:
-        async def extract(self, text: str) -> Result[kplib.KnowledgeResponse]:
-            if text == "error":
-                return Failure("Extraction failed")
-            return Success(
-                kplib.KnowledgeResponse(
-                    entities=[], actions=[], inverse_actions=[], topics=[text]
-                )
+class MockKnowledgeExtractor:
+    async def extract(self, text: str) -> Result[kplib.KnowledgeResponse]:
+        if text == "error":
+            return Failure("Extraction failed")
+        return Success(
+            kplib.KnowledgeResponse(
+                entities=[], actions=[], inverse_actions=[], topics=[text]
             )
+        )
 
-    return MockKnowledgeExtractor()
+
+@pytest.fixture
+def mock_knowledge_extractor() -> convknowledge.KnowledgeExtractor:
+    """Fixture to create a mock KnowledgeExtractor."""
+    return MockKnowledgeExtractor()  # type: ignore
 
 
-def test_create_knowledge_extractor(needs_auth):
+def test_create_knowledge_extractor(needs_auth: None):
     """Test creating a knowledge extractor."""
     extractor = create_knowledge_extractor()
     assert isinstance(extractor, convknowledge.KnowledgeExtractor)
 
 
 @pytest.mark.asyncio
-async def test_extract_knowledge_from_text(mock_knowledge_extractor):
+async def test_extract_knowledge_from_text(
+    mock_knowledge_extractor: convknowledge.KnowledgeExtractor,
+):
     """Test extracting knowledge from a single text input."""
     result = await extract_knowledge_from_text(mock_knowledge_extractor, "test text", 3)
     assert isinstance(result, Success)
@@ -54,7 +57,9 @@ async def test_extract_knowledge_from_text(mock_knowledge_extractor):
 
 
 @pytest.mark.asyncio
-async def test_extract_knowledge_from_text_batch(mock_knowledge_extractor):
+async def test_extract_knowledge_from_text_batch(
+    mock_knowledge_extractor: convknowledge.KnowledgeExtractor,
+):
     """Test extracting knowledge from a batch of text inputs."""
     text_batch = ["text 1", "text 2", "error"]
     results = await extract_knowledge_from_text_batch(

@@ -100,38 +100,12 @@ async def build_transient_secondary_indexes[
     TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
 ](
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
-    conversation_settings: ConversationSettings | None = None,
+    settings: ConversationSettings,
 ) -> None:
     if conversation.secondary_indexes is None:
-        # Try to get storage provider from conversation.settings first, then from parameter
-        storage_provider = None
-        if hasattr(conversation, "settings"):
-            # Use getattr to avoid type checker issues
-            settings = getattr(conversation, "settings", None)
-            if settings and hasattr(settings, "get_storage_provider"):
-                storage_provider = await settings.get_storage_provider()
-            elif settings and hasattr(settings, "storage_provider"):
-                # Fallback for settings that already have initialized storage_provider
-                storage_provider = settings.storage_provider
-        if storage_provider is None and conversation_settings is not None:
-            storage_provider = await conversation_settings.get_storage_provider()
-        if storage_provider is None:
-            # Fallback - this shouldn't happen in normal usage
-            raise RuntimeError(
-                "Cannot create secondary indexes without storage provider"
-            )
-
         conversation.secondary_indexes = await ConversationSecondaryIndexes.create(
-            storage_provider,
-            (
-                conversation_settings.related_term_index_settings
-                if conversation_settings is not None
-                else RelatedTermIndexSettings(
-                    TextEmbeddingIndexSettings(
-                        AsyncEmbeddingModel()  # Uses default real model
-                    )
-                )
-            ),
+            await settings.get_storage_provider(),
+            (settings.related_term_index_settings),
         )
     await build_property_index(conversation)
     await build_timestamp_index(conversation)

@@ -92,7 +92,7 @@ class TestCreatePropertySearchTerm:
         "well_known_name",
         ["name", "type", "verb", "subject", "object", "indirectObject", "tag", "topic"],
     )
-    def test_all_well_known_property_names(self, well_known_name):
+    def test_all_well_known_property_names(self, well_known_name: str):
         """Test all well-known property names are handled correctly."""
         prop_term = create_property_search_term(well_known_name, "test_value")
         assert prop_term.property_name == well_known_name

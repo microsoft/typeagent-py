@@ -30,6 +30,7 @@ def test_text_location_serialization():
     assert location == deserialized
     assert serialized == {
         "messageOrdinal": 1,
+        "chunkOrdinal": 0,
     }
 
 
@@ -366,8 +367,14 @@ def test_thread_serialization():
     assert serialized == {
         "description": "Test Thread",
         "ranges": [
-            {"start": {"messageOrdinal": 1}, "end": {"messageOrdinal": 2}},
-            {"start": {"messageOrdinal": 3}, "end": {"messageOrdinal": 4}},
+            {
+                "start": {"messageOrdinal": 1, "chunkOrdinal": 0},
+                "end": {"messageOrdinal": 2, "chunkOrdinal": 0},
+            },
+            {
+                "start": {"messageOrdinal": 3, "chunkOrdinal": 0},
+                "end": {"messageOrdinal": 4, "chunkOrdinal": 0},
+            },
         ],
     }
 

@@ -26,7 +26,7 @@ from typeagent.knowpro.interfaces import (
     Term,
 )
 from typeagent.knowpro.kplib import Action, ConcreteEntity
-from typeagent.knowpro.collections import SemanticRefCollection
+from typeagent.knowpro.collections import MemorySemanticRefCollection
 
 
 def test_match_accumulator_add_and_get():
@@ -155,7 +155,7 @@ async def test_semantic_ref_accumulator_group_matches_by_type():
         ),
     ]
 
-    groups = await accumulator.group_matches_by_type(SemanticRefCollection(refs))
+    groups = await accumulator.group_matches_by_type(MemorySemanticRefCollection(refs))
     assert len(groups) == 2
     assert "entity" in groups
     assert "action" in groups
@@ -346,7 +346,7 @@ async def test_semantic_ref_accumulator_get_semantic_refs():
         ),
     ]
 
-    semantic_refs = SemanticRefCollection(refs)
+    semantic_refs = MemorySemanticRefCollection(refs)
 
     # Predicate to filter only "entity" knowledge type
     predicate = lambda ref: ref.knowledge.knowledge_type == "entity"
@@ -376,7 +376,7 @@ async def test_semantic_ref_accumulator_get_matches_in_scope():
         ),
     ]
 
-    semantic_refs = SemanticRefCollection(refs)
+    semantic_refs = MemorySemanticRefCollection(refs)
     ranges_in_scope = TextRangesInScope(
         [TextRangeCollection([TextRange(TextLocation(0), TextLocation(15))])]
     )

@@ -12,7 +12,7 @@ from typeagent.knowpro.semrefindex import (
 )
 from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
 from typeagent.knowpro.interfaces import Topic
-from typeagent.knowpro.collections import SemanticRefCollection
+from typeagent.knowpro.collections import MemorySemanticRefCollection
 
 
 @pytest.fixture
@@ -108,7 +108,7 @@ async def test_add_entity_to_index(semantic_ref_index: TermToSemanticRefIndex):
         type=["object", "example"],
         facets=[Facet(name="color", value="blue")],
     )
-    semantic_refs = SemanticRefCollection()
+    semantic_refs = MemorySemanticRefCollection()
     await add_entity_to_index(entity, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
@@ -135,7 +135,7 @@ async def test_add_entity_to_index(semantic_ref_index: TermToSemanticRefIndex):
 async def test_add_topic_to_index(semantic_ref_index: TermToSemanticRefIndex):
     """Test adding a topic to the index."""
     topic = "ExampleTopic"
-    semantic_refs = SemanticRefCollection()
+    semantic_refs = MemorySemanticRefCollection()
     await add_topic_to_index(topic, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
@@ -161,7 +161,7 @@ async def test_add_action_to_index(semantic_ref_index: TermToSemanticRefIndex):
         params=None,
         subject_entity_facet=None,
     )
-    semantic_refs = SemanticRefCollection()
+    semantic_refs = MemorySemanticRefCollection()
     await add_action_to_index(action, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
@@ -209,7 +209,7 @@ async def test_add_knowledge_to_index(semantic_ref_index: TermToSemanticRefIndex
         inverse_actions=[],
         topics=["ExampleTopic"],
     )
-    semantic_refs = SemanticRefCollection()
+    semantic_refs = MemorySemanticRefCollection()
     await add_knowledge_to_index(semantic_refs, semantic_ref_index, 0, knowledge)
 
     assert await semantic_refs.size() == 3  # 1 entity + 1 action + 1 topic

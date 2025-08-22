@@ -1,11 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import dataclass, field
+from dataclasses import field
 import os
 import tempfile
+from typing import Generator
 
 import pytest
+from pydantic.dataclasses import dataclass
 
 from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.interfaces import (
@@ -20,7 +22,6 @@ from typeagent.storage.sqlitestore import (
     SqliteStorageProvider,
     SqliteMessageCollection,
     SqliteSemanticRefCollection,
-    DefaultSerializer,
 )
 
 
@@ -36,19 +37,19 @@ class DummyMessage(IMessage):
 
 def make_dummy_semantic_ref(ordinal: int = 0) -> SemanticRef:
     # Minimal valid Topic for knowledge
-    topic = Topic(text="dummy_topic")  # type: ignore  # pydantic dataclass
+    topic = Topic(text="dummy_topic")
     # Minimal valid TextLocation and TextRange for range
-    location = TextLocation(message_ordinal=0)  # type: ignore  # pydantic dataclass
-    text_range = TextRange(start=location)  # type: ignore  # pydantic dataclass
-    return SemanticRef(  # type: ignore  # pydantic dataclass
-        semantic_ref_ordinal=ordinal,  # type: ignore  # pydantic dataclass
-        range=text_range,  # type: ignore  # pydantic dataclass
-        knowledge=topic,  # type: ignore  # pydantic dataclass
+    location = TextLocation(message_ordinal=0)
+    text_range = TextRange(start=location)
+    return SemanticRef(
+        semantic_ref_ordinal=ordinal,
+        range=text_range,
+        knowledge=topic,
     )
 
 
 @pytest.fixture
-def temp_db_path():
+def temp_db_path() -> Generator[str, None, None]:
     fd, path = tempfile.mkstemp(suffix=".sqlite")
     os.close(fd)
     yield path
@@ -57,7 +58,7 @@ def temp_db_path():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_storage_provider_message_collection(temp_db_path):
+async def test_sqlite_storage_provider_message_collection(temp_db_path: str):
     provider = SqliteStorageProvider(temp_db_path)
     collection = await provider.get_message_collection(DummyMessage)
     assert collection.is_persistent
@@ -90,7 +91,7 @@ async def test_sqlite_storage_provider_message_collection(temp_db_path):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
+async def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path: str):
     provider = SqliteStorageProvider(temp_db_path)
     collection = await provider.get_semantic_ref_collection()
     assert collection.is_persistent
@@ -108,21 +109,10 @@ async def test_sqlite_storage_provider_semantic_ref_collection(temp_db_path):
     assert collection_list[0].semantic_ref_ordinal == 0
 
 
-def test_default_serializer_roundtrip():
-    serializer = DefaultSerializer(DummyMessage)
-    msg = DummyMessage(["test"])
-    json_obj = serializer.serialize(msg)
-    assert isinstance(json_obj, dict)  # Should return a JSON object, not a string
-    msg2 = serializer.deserialize(json_obj)
-    assert isinstance(msg2, DummyMessage)
-    assert msg2.text_chunks == ["test"]
-
-
 @pytest.mark.asyncio
-async def test_sqlite_message_collection_append_and_get(temp_db_path):
+async def test_sqlite_message_collection_append_and_get(temp_db_path: str):
     db = SqliteStorageProvider(temp_db_path).get_db()
-    serializer = DefaultSerializer(DummyMessage)
-    store = SqliteMessageCollection(db, serializer)
+    store = SqliteMessageCollection(db, DummyMessage)
     msg = DummyMessage(["foo"])
     await store.append(msg)
     assert await store.size() == 1
@@ -135,10 +125,9 @@ async def test_sqlite_message_collection_append_and_get(temp_db_path):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_message_collection_iter(temp_db_path):
+async def test_sqlite_message_collection_iter(temp_db_path: str):
     db = SqliteStorageProvider(temp_db_path).get_db()
-    serializer = DefaultSerializer(DummyMessage)
-    store = SqliteMessageCollection(db, serializer)
+    store = SqliteMessageCollection(db, DummyMessage)
     msgs = [DummyMessage([f"msg{i}"]) for i in range(3)]
     for m in msgs:
         await store.append(m)
@@ -146,7 +135,7 @@ async def test_sqlite_message_collection_iter(temp_db_path):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path):
+async def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path: str):
     db = SqliteStorageProvider(temp_db_path).get_db()
     collection = SqliteSemanticRefCollection(db)
     ref = make_dummy_semantic_ref(123)
@@ -161,7 +150,7 @@ async def test_sqlite_semantic_ref_collection_append_and_get(temp_db_path):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_semantic_ref_collection_iter(temp_db_path):
+async def test_sqlite_semantic_ref_collection_iter(temp_db_path: str):
     db = SqliteStorageProvider(temp_db_path).get_db()
     collection = SqliteSemanticRefCollection(db)
     refs = [make_dummy_semantic_ref(i) for i in range(2)]

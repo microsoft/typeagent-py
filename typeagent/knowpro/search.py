@@ -2,10 +2,12 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import TypeGuard, cast
+from pydantic.dataclasses import dataclass
+from pydantic import Field, AliasChoices
+from typing import TypeGuard, cast, Annotated
 
 from .collections import MessageAccumulator, SemanticRefAccumulator
+from .field_helpers import CamelCaseField
 from .interfaces import (
     IConversation,
     IConversationSecondaryIndexes,
@@ -70,7 +72,9 @@ from .reltermsindex import resolve_related_terms
 
 @dataclass
 class SearchQueryExpr:
-    select_expressions: list[SearchSelectExpr]
+    select_expressions: list[SearchSelectExpr] = CamelCaseField(
+        "List of selection expressions for the search"
+    )
     raw_query: str | None = None
 
 

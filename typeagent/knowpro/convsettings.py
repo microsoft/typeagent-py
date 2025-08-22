@@ -15,12 +15,13 @@ class ConversationSettings:
 
     def __init__(
         self,
-        model: AsyncEmbeddingModel,
+        model: AsyncEmbeddingModel | None = None,
         storage_provider: IStorageProvider | None = None,
     ):
         from .semrefindex import SemanticRefIndexSettings
 
         # All settings share the same model, so they share the embedding cache.
+        model = model or AsyncEmbeddingModel()
         self.embedding_model = model
         min_score = 0.85
         self.related_term_index_settings = RelatedTermIndexSettings(

@@ -3,12 +3,13 @@
 
 import pytest
 import numpy as np
+from pathlib import Path
+from typing import Any, cast
 
+from typeagent.aitools.embeddings import NormalizedEmbeddings
 from typeagent.knowpro.serialization import (
     serialize_object,
     deserialize_object,
-    to_json,
-    to_camel,
     write_conversation_data_to_file,
     read_conversation_data_from_file,
     from_conversation_file_data,
@@ -26,8 +27,11 @@ from typeagent.knowpro.interfaces import (
 from typeagent.knowpro.kplib import Quantity, ConcreteEntity
 
 
+type SampleData = Any  # Anything more refined causes type errors
+
+
 @pytest.fixture
-def sample_conversation_data():
+def sample_conversation_data() -> SampleData:
     """Fixture to provide sample conversation data."""
     return {
         "relatedTermsIndexData": {
@@ -43,13 +47,6 @@ def sample_conversation_data():
     }
 
 
-def test_to_camel():
-    """Test the to_camel function."""
-    assert to_camel("foo_bar_baz") == "fooBarBaz"
-    assert to_camel("simple") == "simple"
-    assert to_camel("alreadyCamelCase") == "alreadyCamelCase"
-
-
 def test_serialize_object():
     """Test the serialize_object function."""
     entity = ConcreteEntity(name="ExampleEntity", type=["ExampleType"])
@@ -59,13 +56,6 @@ def test_serialize_object():
         "type": ["ExampleType"],
         "facets": None,
     }
-
-
-def test_to_json():
-    """Test the to_json function."""
-    obj = {"simple_key": "value", "nested_key": {"inner_key": 42}}
-    json_obj = to_json(obj)
-    assert json_obj == {"simpleKey": "value", "nestedKey": {"innerKey": 42}}
 
 
 def test_create_file_header():
@@ -81,7 +71,7 @@ def test_serialize_embeddings():
     assert np.array_equal(serialized, embeddings.flatten())
 
 
-def test_to_conversation_file_data(sample_conversation_data):
+def test_to_conversation_file_data(sample_conversation_data: SampleData):
     """Test the to_conversation_file_data function."""
     file_data = to_conversation_file_data(sample_conversation_data)
     assert "jsonData" in file_data
@@ -91,9 +81,8 @@ def test_to_conversation_file_data(sample_conversation_data):
     assert len(embeddings_list) == 2
 
 
-def test_from_conversation_file_data(sample_conversation_data):
+def test_from_conversation_file_data():
     """Test the from_conversation_file_data function."""
-    # Remove messageIndexData to ensure a single embeddings array
     sample_conversation_data = ConversationDataWithIndexes(
         nameTag="mock name",
         messages=[],
@@ -114,10 +103,14 @@ def test_from_conversation_file_data(sample_conversation_data):
     assert conversation_data.get("relatedTermsIndexData") is not None
 
 
-def test_write_and_read_conversation_data(tmp_path, sample_conversation_data):
+def test_write_and_read_conversation_data(
+    tmp_path: Path, sample_conversation_data: SampleData
+):
     """Test writing and reading conversation data to and from files."""
     filename = tmp_path / "conversation"
-    write_conversation_data_to_file(sample_conversation_data, str(filename))
+    write_conversation_data_to_file(
+        cast(ConversationDataWithIndexes, sample_conversation_data), str(filename)
+    )
 
     # Read back the data
     read_data = read_conversation_data_from_file(str(filename), embedding_size=2)
@@ -137,5 +130,5 @@ def test_deserialize_object():
 
 def test_deserialization_error():
     """Test that DeserializationError is raised for invalid data."""
-    with pytest.raises(DeserializationError, match="Missing required field 'amount'"):
+    with pytest.raises(DeserializationError, match="Pydantic validation failed"):
         deserialize_object(Quantity, {"invalid_key": "value"})

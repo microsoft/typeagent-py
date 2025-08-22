@@ -54,11 +54,9 @@ class ConversationThreads(IConversationThreads):
         )
 
     def serialize(self) -> ConversationThreadData[ThreadDataItem]:
-        embedding_index = self.vector_base
-
         thread_data: list[ThreadDataItem] = []
         for i, thread in enumerate(self.threads):
-            emb = embedding_index.serialize_embedding_at(i)
+            emb = self.vector_base.serialize_embedding_at(i)
             thread_data.append(
                 ThreadDataItem(
                     thread=thread.serialize(),

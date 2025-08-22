@@ -8,8 +8,11 @@ Comments that should go into the schema are in docstrings and Doc() annotations.
 """
 
 from pydantic.dataclasses import dataclass
+from pydantic import Field, AliasChoices
 from typing import Annotated, ClassVar, Literal
 from typing_extensions import Doc
+
+from .field_helpers import CamelCaseField
 
 
 @dataclass
@@ -43,29 +46,26 @@ class ConcreteEntity:
         str,
         Doc(
             "The name of the entity or thing such as 'Bach', 'Great Gatsby', "
-            + "'frog' or 'piano'."
+            "'frog' or 'piano'."
         ),
     ]
     type: Annotated[
         list[str],
         Doc(
             "The types of the entity such as 'speaker', 'person', 'artist', "
-            + "'animal', 'object', 'instrument', 'school', 'room', 'museum', 'food' etc. "
-            + "An entity can have multiple types; entity types should be single words."
+            "'animal', 'object', 'instrument', 'school', 'room', 'museum', 'food' etc. "
+            "An entity can have multiple types; entity types should be single words."
         ),
     ]
-    facets: (
-        Annotated[
-            list[Facet],
-            Doc(
-                "A specific, inherent, defining, or non-immediate facet of the entity "
-                + "such as 'blue', 'old', 'famous', 'sister', 'aunt_of', 'weight: 4 kg'. "
-                + "Trivial actions or state changes are not facets. "
-                + "Facets are concise 'properties'."
-            ),
-        ]
-        | None
-    ) = None
+    facets: Annotated[
+        list[Facet] | None,
+        Doc(
+            "A specific, inherent, defining, or non-immediate facet of the entity "
+            "such as 'blue', 'old', 'famous', 'sister', 'aunt_of', 'weight: 4 kg'. "
+            "Trivial actions or state changes are not facets. "
+            "Facets are concise 'properties'."
+        ),
+    ] = None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.name!r}, {self.type}, {self.facets})"
@@ -85,21 +85,21 @@ class Action:
     knowledge_type: ClassVar[Literal["action"]] = "action"
 
     verbs: Annotated[list[str], Doc("Each verb is typically a word.")]
-    verb_tense: VerbTense
-    subject_entity_name: str | Literal["none"] = "none"
-    object_entity_name: str | Literal["none"] = "none"
-    indirect_object_entity_name: str | Literal["none"] = "none"
+    verb_tense: VerbTense = CamelCaseField("The tense of the verb")
+    subject_entity_name: str | Literal["none"] = CamelCaseField(
+        "The name of the subject entity", default="none"
+    )
+    object_entity_name: str | Literal["none"] = CamelCaseField(
+        "The name of the object entity", default="none"
+    )
+    indirect_object_entity_name: str | Literal["none"] = CamelCaseField(
+        "The name of the indirect object entity", default="none"
+    )
     params: list[str | ActionParam] | None = None
-    subject_entity_facet: (
-        Annotated[
-            Facet,
-            Doc(
-                "If the action implies this additional facet or property of the subject entity, "
-                + "such as hobbies, activities, interests, personality."
-            ),
-        ]
-        | None
-    ) = None
+    subject_entity_facet: Facet | None = CamelCaseField(
+        "If the action implies this additional facet or property of the subject entity, such as hobbies, activities, interests, personality",
+        default=None,
+    )
 
 
 @dataclass
@@ -111,15 +111,15 @@ class KnowledgeResponse:
         list[Action],
         Doc(
             "The 'subject_entity_name' and 'object_entity_name' must correspond "
-            + "to the 'name' of an entity listed in the 'entities' array."
+            "to the 'name' of an entity listed in the 'entities' array."
         ),
     ]
     inverse_actions: Annotated[
         list[Action],
         Doc(
             "Some actions can ALSO be expressed in a reverse way... "
-            + "E.g. (A give to B) --> (B receive from A) and vice versa. "
-            + "If so, also return the reverse form of the action, full filled out."
+            "E.g. (A give to B) --> (B receive from A) and vice versa. "
+            "If so, also return the reverse form of the action, full filled out."
         ),
     ]
     topics: Annotated[list[str], Doc("Detailed, descriptive topics and keywords.")]

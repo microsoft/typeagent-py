@@ -35,8 +35,7 @@ def test_main(needs_auth: None):
 
 async def main(filename_prefix: str):
     print("Create conversation settings ...")
-    model = AsyncEmbeddingModel()  # Use default real model
-    settings = ConversationSettings(model)
+    settings = ConversationSettings()
     model = settings.embedding_model
     assert model is not None
     assert isinstance(model, AsyncEmbeddingModel), f"model is {model!r}"
@@ -107,9 +106,9 @@ async def main(filename_prefix: str):
     assert "semanticRefs" in ser1, f"'semantic_refs' is not a key in {ser1.keys()!r}"
 
     # Create a fresh settings object with a new storage provider for the second podcast
-    # to avoid conflicts with the first podcast's data
-    model2 = AsyncEmbeddingModel()  # Use same real model as the first one
-    settings2 = ConversationSettings(model2)
+    # to avoid conflicts with the first podcast's data.
+    # TODO: Solve this differently, by passing storage provider separately everywhere.
+    settings2 = ConversationSettings()
     pod2 = await podcast.Podcast.create(settings2)
     assert pod2 is not None, "Failed to create podcast"
     assert isinstance(pod2, podcast.Podcast), f"pod2 is not Podcast but {type(pod2)!r}"

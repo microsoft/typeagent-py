@@ -15,7 +15,6 @@ from ..knowpro.interfaces import (
     ITermToRelatedTermsIndex,
     ITermToSemanticRefIndex,
     ITimestampToTextRangeIndex,
-    JsonSerializer,
 )
 from ..knowpro.messageindex import MessageTextIndex
 from ..knowpro.propindex import PropertyIndex
@@ -58,7 +57,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
         return self
 
-    async def get_conversation_index(self) -> ITermToSemanticRefIndex:
+    async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex:
         return self._conversation_index
 
     async def get_property_index(self) -> IPropertyToSemanticRefIndex:
@@ -78,10 +77,8 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
     async def get_message_collection(
         self,
-        serializer: JsonSerializer[TMessage] | type[TMessage] | None = None,
+        message_type: type[TMessage] | None = None,
     ) -> MemoryMessageCollection[TMessage]:
-        if isinstance(serializer, JsonSerializer):
-            raise ValueError("MemoryStorageProvider does not use a serializer.")
         return self._message_collection
 
     async def get_semantic_ref_collection(self) -> MemorySemanticRefCollection:

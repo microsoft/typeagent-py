@@ -3,7 +3,6 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterable, Iterable, Sequence
-from dataclasses import field
 from datetime import (
     datetime as Datetime,  # For export.
     timedelta as Timedelta,  # For export.
@@ -19,9 +18,11 @@ from typing import (
 )
 
 from pydantic.dataclasses import dataclass
+from pydantic import Field, AliasChoices
 
 from ..aitools.embeddings import NormalizedEmbeddings
 from . import kplib
+from .field_helpers import CamelCaseField
 
 
 class IKnowledgeSource(Protocol):
@@ -79,23 +80,20 @@ type SemanticRefOrdinal = int
 
 @dataclass
 class ScoredSemanticRefOrdinal:
-    semantic_ref_ordinal: SemanticRefOrdinal
-    score: float
+    semantic_ref_ordinal: SemanticRefOrdinal = CamelCaseField(
+        "The ordinal of the semantic reference"
+    )
+    score: float = CamelCaseField("The relevance score")
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.score})"
 
     def serialize(self) -> "ScoredSemanticRefOrdinalData":
-        return ScoredSemanticRefOrdinalData(
-            semanticRefOrdinal=self.semantic_ref_ordinal, score=self.score
-        )
+        return self.__pydantic_serializer__.to_python(self, by_alias=True)  # type: ignore
 
     @staticmethod
     def deserialize(data: "ScoredSemanticRefOrdinalData") -> "ScoredSemanticRefOrdinal":
-        return ScoredSemanticRefOrdinal(
-            semantic_ref_ordinal=data["semanticRefOrdinal"],
-            score=data["score"],
-        )
+        return ScoredSemanticRefOrdinal.__pydantic_validator__.validate_python(data)  # type: ignore
 
 
 @dataclass
@@ -148,10 +146,13 @@ class TextLocationData(TypedDict):
 @dataclass(order=True)
 class TextLocation:
     # The ordinal of the message.
-    message_ordinal: MessageOrdinal
+    message_ordinal: MessageOrdinal = CamelCaseField("The ordinal of the message")
     # The ordinal of the chunk.
     # In the end of a TextRange, 1 + ordinal of the last chunk in the range.
-    chunk_ordinal: int = 0
+    chunk_ordinal: int = CamelCaseField(
+        "The ordinal of the chunk; in the end of a TextRange, 1 + ordinal of the last chunk in the range",
+        default=0,
+    )
 
     def __repr__(self) -> str:
         return (
@@ -159,14 +160,11 @@ class TextLocation:
         )
 
     def serialize(self) -> TextLocationData:
-        kwds = dict(messageOrdinal=self.message_ordinal)
-        if self.chunk_ordinal != 0:
-            kwds["chunkOrdinal"] = self.chunk_ordinal
-        return TextLocationData(**kwds)
+        return self.__pydantic_serializer__.to_python(self, by_alias=True)  # type: ignore
 
     @staticmethod
     def deserialize(data: TextLocationData) -> "TextLocation":
-        return TextLocation(data["messageOrdinal"], data.get("chunkOrdinal", 0))
+        return TextLocation.__pydantic_validator__.validate_python(data)  # type: ignore
 
 
 class TextRangeData(TypedDict):
@@ -236,23 +234,11 @@ class TextRange:
         return self.start <= other.start and other_end <= self_end
 
     def serialize(self) -> TextRangeData:
-        if self.end is None:
-            return TextRangeData(start=self.start.serialize())
-        else:
-            return TextRangeData(
-                start=self.start.serialize(),
-                end=self.end.serialize(),
-            )
+        return self.__pydantic_serializer__.to_python(self, by_alias=True, exclude_none=True)  # type: ignore
 
     @staticmethod
     def deserialize(data: TextRangeData) -> "TextRange":
-        start = TextLocation.deserialize(data["start"])
-        end_data = data.get("end")
-        if end_data is None:
-            return TextRange(start)
-        else:
-            end = TextLocation.deserialize(end_data)
-            return TextRange(start, end)
+        return TextRange.__pydantic_validator__.validate_python(data)  # type: ignore
 
 
 # TODO: Implement serializing KnowledgeData (or import from kplib).
@@ -269,9 +255,13 @@ class SemanticRefData(TypedDict):
 
 @dataclass
 class SemanticRef:
-    semantic_ref_ordinal: SemanticRefOrdinal
-    range: TextRange
-    knowledge: Knowledge
+    semantic_ref_ordinal: SemanticRefOrdinal = CamelCaseField(
+        "The ordinal of the semantic reference"
+    )
+    range: TextRange = CamelCaseField("The text range of the semantic reference")
+    knowledge: Knowledge = CamelCaseField(
+        "The knowledge associated with this semantic reference"
+    )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.range}, {self.knowledge.knowledge_type!r}, {self.knowledge})"
@@ -332,10 +322,7 @@ class Term:
             return f"{self.__class__.__name__}({self.text!r}, {self.weight:.4g})"
 
     def serialize(self) -> "TermData":
-        if self.weight is None:
-            return TermData(text=self.text)
-        else:
-            return TermData(text=self.text, weight=self.weight)
+        return self.__pydantic_serializer__.to_python(self, by_alias=True, exclude_none=True)  # type: ignore
 
 
 # Allows for faster retrieval of name, value properties
@@ -429,16 +416,11 @@ class Thread:
     ranges: Sequence[TextRange]
 
     def serialize(self) -> ThreadData:
-        return ThreadData(
-            description=self.description,
-            ranges=[range.serialize() for range in self.ranges],
-        )
+        return self.__pydantic_serializer__.to_python(self, by_alias=True)  # type: ignore
 
     @staticmethod
     def deserialize(data: ThreadData) -> "Thread":
-        description = data["description"]
-        ranges = [TextRange.deserialize(range_data) for range_data in data["ranges"]]
-        return Thread(description, ranges)
+        return Thread.__pydantic_validator__.validate_python(data)  # type: ignore
 
 
 type ThreadOrdinal = int
@@ -518,8 +500,8 @@ class IConversation[
     name_tag: str
     tags: list[str]
     messages: "IMessageCollection[TMessage]"
-    semantic_refs: "ISemanticRefCollection | None"
-    semantic_ref_index: TTermToSemanticRefIndex | None
+    semantic_refs: "ISemanticRefCollection"
+    semantic_ref_index: TTermToSemanticRefIndex
     secondary_indexes: IConversationSecondaryIndexes[TMessage] | None
 
 
@@ -542,7 +524,10 @@ class SearchTerm:
     """
 
     term: Term
-    related_terms: list[Term] | None = None
+    related_terms: list[Term] | None = CamelCaseField(
+        "Additional terms related to the term. These can be supplied from synonym tables and so on",
+        default=None,
+    )
 
 
 # Well-known knowledge properties.
@@ -577,17 +562,21 @@ class PropertySearchTerm:
     related terms secondary index, if one is available.
     """
 
-    property_name: KnowledgePropertyName | SearchTerm
-    property_value: SearchTerm
+    property_name: KnowledgePropertyName | SearchTerm = CamelCaseField(
+        "The property name to search for"
+    )
+    property_value: SearchTerm = CamelCaseField("The property value to search for")
 
 
 @dataclass
 class SearchTermGroup:
     """A group of search terms."""
 
-    boolean_op: Literal["and", "or", "or_max"]
-    terms: list["SearchTermGroupTypes"] = field(
-        default_factory=list["SearchTermGroupTypes"]
+    boolean_op: Literal["and", "or", "or_max"] = CamelCaseField(
+        "The boolean operation to apply to the terms"
+    )
+    terms: list["SearchTermGroupTypes"] = CamelCaseField(
+        "The list of search terms in this group", default_factory=list
     )
 
 
@@ -623,7 +612,9 @@ class WhenFilter:
 class SearchSelectExpr:
     """An expression used to select structured contents of a conversation."""
 
-    search_term_group: SearchTermGroup  # Term group that matches information
+    search_term_group: SearchTermGroup = CamelCaseField(
+        "Term group that matches information"
+    )  # Term group that matches information
     when: WhenFilter | None = None  # Filter that scopes what information to match
 
 
@@ -756,28 +747,18 @@ class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Proto
     """A collection of SemanticRefs."""
 
 
-# This is an ABC, not a Protocol, because some classes have serialize()/deserialize()
-# but with the wrong signature (using different types).
-class JsonSerializer[T](ABC):
-    @abstractmethod
-    def serialize(self, value: T) -> dict[str, Any] | list[Any]: ...
-
-    @abstractmethod
-    def deserialize(self, data: dict[str, Any] | list[Any]) -> T: ...
-
-
 class IStorageProvider[TMessage: IMessage](Protocol):
     """API spec for storage providers -- maybe in-memory or persistent."""
 
     async def get_message_collection(
         self,
-        serializer: JsonSerializer[TMessage] | type[TMessage],
+        message_type: type[TMessage],
     ) -> IMessageCollection[TMessage]: ...
 
     async def get_semantic_ref_collection(self) -> ISemanticRefCollection: ...
 
     # Index getters - ALL 6 index types for this conversation
-    async def get_conversation_index(self) -> ITermToSemanticRefIndex: ...
+    async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex: ...
 
     async def get_property_index(self) -> IPropertyToSemanticRefIndex: ...
 

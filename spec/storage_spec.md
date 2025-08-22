@@ -220,7 +220,7 @@ class IPropertyToSemanticRefIndex(Protocol):
 class IStorageProvider(Protocol):
     # Collection creation (existing)
     def create_message_collection[TMessage: IMessage](
-        self, serializer: JsonSerializer[TMessage] | type[TMessage] | None = None
+        self, message_type: type[TMessage]
     ) -> IMessageCollection[TMessage]: ...
 
     def create_semantic_ref_collection(self) -> ISemanticRefCollection: ...

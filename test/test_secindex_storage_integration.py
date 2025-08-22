@@ -13,7 +13,9 @@ from typeagent.storage.memorystore import MemoryStorageProvider
 
 
 @pytest.mark.asyncio
-async def test_secondary_indexes_use_storage_provider(memory_storage, needs_auth):
+async def test_secondary_indexes_use_storage_provider(
+    memory_storage: MemoryStorageProvider, needs_auth: None
+):
     """Test that ConversationSecondaryIndexes gets indexes from storage provider."""
     storage_provider = memory_storage
 

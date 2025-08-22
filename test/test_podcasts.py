@@ -12,10 +12,13 @@ from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
 from typeagent.podcasts import podcast_import
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
 
 @pytest.mark.asyncio
-async def test_import_podcast(needs_auth, temp_dir, embedding_model):
+async def test_import_podcast(
+    needs_auth: None, temp_dir: str, embedding_model: AsyncEmbeddingModel
+):
     # Import the podcast
     settings = ConversationSettings(embedding_model)
     pod = await podcast_import.import_podcast(

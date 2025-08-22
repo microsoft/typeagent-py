@@ -121,8 +121,8 @@ async def main():
         from typeagent.aitools.utils import setup_logfire
 
         setup_logfire()
-    model = embeddings.AsyncEmbeddingModel()
-    settings = ConversationSettings(model)
+
+    settings = ConversationSettings()
     query_context = await load_podcast_index(args.podcast, settings, args.sqlite_db)
     ar_list, ar_index = load_index_file(args.qafile, "question", QuestionAnswerData)
     sr_list, sr_index = load_index_file(args.srfile, "searchText", SearchResultData)

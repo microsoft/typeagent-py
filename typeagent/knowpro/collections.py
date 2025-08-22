@@ -811,7 +811,3 @@ class MemoryMessageCollection[TMessage: IMessage](
     MemoryCollection[TMessage, MessageOrdinal]
 ):
     """A collection of messages."""
-
-
-# Alias for backward compatibility
-SemanticRefCollection = MemorySemanticRefCollection

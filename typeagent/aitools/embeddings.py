@@ -220,24 +220,3 @@ class AsyncEmbeddingModel:
         return np.array(embeddings, dtype=np.float32).reshape(
             (len(keys), self.embedding_size)
         )
-
-
-async def main():
-    from . import utils
-
-    utils.load_dotenv()
-
-    async_model = AsyncEmbeddingModel()
-    e = await async_model.get_embeddings([])
-    print(repr(e))
-    inputs = ["Hello, world", "Foo bar baz"]
-    embeddings = await async_model.get_embeddings(inputs)
-    print(repr(embeddings))
-    for input, embedding in zip(inputs, embeddings, strict=True):
-        print(f"{input}: {len(embedding)} {embedding[:5]}...{embedding[-5:]}")
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())

@@ -15,8 +15,8 @@ from typeagent.aitools.embeddings import (
 )
 
 
-@pytest.fixture
-def vector_base(scope="function") -> VectorBase:
+@pytest.fixture(scope="function")
+def vector_base() -> VectorBase:
     """Fixture to create a VectorBase instance with default settings."""
     return make_vector_base()
 

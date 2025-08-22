@@ -4,9 +4,11 @@
 # TODO: Move this file into knowpro.
 
 from pydantic.dataclasses import dataclass
-from typing import Literal, Annotated
+from pydantic import Field
+from typing import Annotated, Literal
 from typing_extensions import Doc
 
+from .field_helpers import CamelCaseField
 from .date_time_schema import DateTimeRange
 
 
@@ -44,7 +46,7 @@ class EntityTerm:
             "'*' means match any entity name."
         ),
     ]
-    is_name_pronoun: bool | None
+    is_name_pronoun: bool
     type: Annotated[
         list[str] | None,
         Doc(
@@ -66,20 +68,32 @@ class EntityTerm:
 @dataclass
 class VerbsTerm:
     words: Annotated[list[str], Doc("Individual words in single or compound verb.")]
-    tense: Literal["Past", "Present", "Future"]
+    tense: Literal["Past", "Present", "Future"] = "Present"
 
 
 @dataclass
 class ActionTerm:
-    action_verbs: Annotated[
-        VerbsTerm | None, Doc("Action verbs describing the interaction.")
-    ] = None
     actor_entities: Annotated[
         list[EntityTerm] | Literal["*"],
         Doc(
             "The origin of the action or information, typically the entity performing the action."
         ),
-    ] = "*"
+    ]
+    is_informational: Annotated[
+        bool,
+        Doc(
+            "Is the intent of the phrase translated to this ActionTerm "
+            "to actually get information about specific entities?\n"
+            "Examples:\n"
+            "True: if asking for specific information about an entity, "
+            "such as 'What is Mia's phone number?' or 'Where did Jane study?\n"
+            "False: if involves actions and interactions between entities, "
+            "such as 'What phone number did Mia mention in her note to Jane?'"
+        ),
+    ]
+    action_verbs: Annotated[
+        VerbsTerm | None, Doc("Action verbs describing the interaction.")
+    ] = None
     target_entities: Annotated[
         list[EntityTerm] | None,
         Doc(
@@ -98,18 +112,6 @@ class ActionTerm:
             "'Bach' would be the additional entity."
         ),
     ] = None
-    is_informational: Annotated[
-        bool,
-        Doc(
-            "Is the intent of the phrase translated to this ActionTerm "
-            "to actually get information about specific entities?\n"
-            "Examples:\n"
-            "True: if asking for specific information about an entity, "
-            "such as 'What is Mia's phone number?' or 'Where did Jane study?\n"
-            "False: if involves actions and interactions between entities, "
-            "such as 'What phone number did Mia mention in her note to Jane?'"
-        ),
-    ] = False
 
 
 @dataclass
@@ -144,8 +146,12 @@ class SearchFilter:
 
 @dataclass
 class SearchExpr:
-    rewritten_query: str
-    filters: list[SearchFilter]
+    rewritten_query: Annotated[
+        str,
+        Doc("The rewritten search query"),
+        CamelCaseField(field_name="rewritten_query"),
+    ]
+    filters: Annotated[list[SearchFilter], Doc("List of search filters")]
 
 
 @dataclass
@@ -153,8 +159,7 @@ class SearchQuery:
     search_expressions: Annotated[
         list[SearchExpr],
         Doc(
-            "One expression for each search required by user request.\n"
-            "Each SearchExpr runs independently, so make them standalone by resolving "
-            "references like 'it', 'that', 'them' etc."
+            "One expression for each search required by user request. Each SearchExpr runs independently, so make them standalone by resolving references like 'it', 'that', 'them' etc."
         ),
+        CamelCaseField(field_name="search_expressions"),
     ]
