@@ -168,7 +168,7 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
         return cls(
             settings,
             name_tag or "",
-            messages or await storage_provider.get_message_collection(PodcastMessage),
+            messages or await storage_provider.get_message_collection(),
             semantic_refs or await storage_provider.get_semantic_ref_collection(),
             tags if tags is not None else [],
             semantic_ref_index or await storage_provider.get_semantic_ref_index(),  # type: ignore
@@ -234,7 +234,7 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
         secondary_indexes = self._get_secondary_indexes()
         if secondary_indexes.term_to_related_terms_index is not None:
             data["relatedTermsIndexData"] = (
-                secondary_indexes.term_to_related_terms_index.serialize()
+                await secondary_indexes.term_to_related_terms_index.serialize()
             )
         if secondary_indexes.threads:
             data["threadData"] = secondary_indexes.threads.serialize()
@@ -271,11 +271,14 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
 
         semantic_index_data = podcast_data.get("semanticIndexData")
         if semantic_index_data is not None:
-            # Direct construction is correct here during deserialization
-            # We're reconstructing a previously created index from saved data
-            self.semantic_ref_index = semrefindex.TermToSemanticRefIndex(  # type: ignore  # TODO
-                semantic_index_data
-            )
+            if self.semantic_ref_index is not None:
+                # Use the existing index and deserialize into it (for persistent storage)
+                self.semantic_ref_index.deserialize(semantic_index_data)
+            else:
+                # Direct construction for in-memory storage
+                self.semantic_ref_index = semrefindex.TermToSemanticRefIndex(  # type: ignore  # TODO
+                    semantic_index_data
+                )
 
         related_terms_index_data = podcast_data.get("relatedTermsIndexData")
         if related_terms_index_data is not None:
@@ -286,7 +289,7 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
                 assert (
                     await term_to_related_terms_index.aliases.is_empty()
                 ), "Term to related terms index must be empty before deserializing"
-                term_to_related_terms_index.deserialize(related_terms_index_data)
+                await term_to_related_terms_index.deserialize(related_terms_index_data)
 
         thread_data = podcast_data.get("threadData")
         if thread_data is not None:
@@ -327,12 +330,8 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
             filename_prefix, embedding_size
         )
 
-        provider = await create_storage_provider(
-            settings.message_text_index_settings,
-            settings.related_term_index_settings,
-            dbname,
-        )
-        msgs = await provider.get_message_collection(PodcastMessage)
+        provider = await settings.get_storage_provider()
+        msgs = await provider.get_message_collection()
         semrefs = await provider.get_semantic_ref_collection()
         if await msgs.size() or await semrefs.size():
             raise RuntimeError(
@@ -347,22 +346,22 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
         if build_all:
             await secindex.build_transient_secondary_indexes(self, self.settings)
         await self._build_participant_aliases()
-        self._add_synonyms()
+        await self._add_synonyms()
 
     async def _build_participant_aliases(self) -> None:
         secondary_indexes = self._get_secondary_indexes()
         term_to_related_terms_index = secondary_indexes.term_to_related_terms_index
         assert term_to_related_terms_index is not None
         aliases = term_to_related_terms_index.aliases
-        aliases.clear()  # type: ignore  # Same issue as above.
+        await aliases.clear()
         name_to_alias_map = await self._collect_participant_aliases()
         for name in name_to_alias_map.keys():
             related_terms: list[Term] = [
                 Term(text=alias) for alias in name_to_alias_map[name]
             ]
-            aliases.add_related_term(name, related_terms)  # type: ignore  # TODO: Same issue as above.
+            await aliases.add_related_term(name, related_terms)
 
-    def _add_synonyms(self) -> None:
+    async def _add_synonyms(self) -> None:
         secondary_indexes = self._get_secondary_indexes()
         assert secondary_indexes.term_to_related_terms_index is not None
         aliases = cast(
@@ -379,7 +378,7 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
                 if text and synonyms:
                     related_term = Term(text=text.lower())
                     for synonym in synonyms:
-                        aliases.add_related_term(
+                        await aliases.add_related_term(
                             synonym.lower(),
                             related_term,
                         )

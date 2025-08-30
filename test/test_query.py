@@ -115,8 +115,16 @@ def create_searchable_conversation(
             ],
         }
 
+    # Create storage provider
+    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    embedding_index_settings = TextEmbeddingIndexSettings(embedding_model)
+    message_text_settings = MessageTextIndexSettings(embedding_index_settings)
+    related_terms_settings = RelatedTermIndexSettings(embedding_index_settings)
+    storage_provider = MemoryStorageProvider(
+        message_text_settings, related_terms_settings
+    )
+
     # Create conversation
-    storage_provider = MemoryStorageProvider()
     conv = FakeConversation(
         name_tag="MockConversation",
         messages=messages,

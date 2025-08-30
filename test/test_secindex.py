@@ -15,16 +15,7 @@ from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.messageindex import MessageTextIndexSettings
 from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
-from typeagent.knowpro.interfaces import (
-    DeletionInfo,
-    IConversation,
-    IConversationSecondaryIndexes,
-    IMessage,
-    IMessageCollection,
-    ISemanticRefCollection,
-    ITermToSemanticRefIndex,
-)
-from typeagent.knowpro import kplib
+from typeagent.knowpro.timestampindex import TimestampToTextRangeIndex
 from typeagent.storage.memorystore import MemoryStorageProvider
 from typeagent.knowpro.secindex import (
     ConversationSecondaryIndexes,
@@ -80,6 +71,8 @@ async def test_build_secondary_indexes(
     """Test building secondary indexes asynchronously."""
     # Ensure the conversation is properly initialized
     await simple_conversation.ensure_initialized()
+    assert simple_conversation.secondary_indexes is not None
+    simple_conversation.secondary_indexes.timestamp_index = TimestampToTextRangeIndex()
 
     # Add some dummy data to the conversation
     await simple_conversation.messages.append(FakeMessage("Message 1"))
@@ -98,6 +91,8 @@ async def test_build_transient_secondary_indexes(
     """Test building transient secondary indexes."""
     # Ensure the conversation is properly initialized
     await simple_conversation.ensure_initialized()
+    assert simple_conversation.secondary_indexes is not None
+    simple_conversation.secondary_indexes.timestamp_index = TimestampToTextRangeIndex()
 
     # Add some dummy data to the conversation
     await simple_conversation.messages.append(FakeMessage("Message 1"))

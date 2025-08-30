@@ -210,7 +210,7 @@ async def test_build_message_index(needs_auth: None):
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-    storage_provider = await MemoryStorageProvider.create(
+    storage_provider = MemoryStorageProvider(
         message_text_settings, related_terms_settings
     )
     conversation = FakeConversation(

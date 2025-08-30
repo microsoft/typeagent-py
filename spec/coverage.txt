@@ -1,0 +1,57 @@
+
+## Test coverage
+
+## Analysis of Uncovered Code in semrefindex.py
+Based on the coverage report, here are the main areas of semrefindex.py that are currently uncovered:
+
+🔍 Major Uncovered Areas:
+Knowledge Extraction Pipeline (lines 81-102)
+
+process_semantic_refs_batch() function
+Batch processing of text through knowledge extractor
+Error handling for knowledge extraction failures
+Entity Processing (lines 173-197)
+
+add_entity() function - detailed entity processing
+Adding entity types and facets as separate terms
+add_facet() function for processing entity facets
+Action Processing (lines 277-341)
+
+add_action() function - comprehensive action processing
+Handling verbs, subject/object entities, parameters
+Complex parameter processing (string vs object params)
+Subject entity facet processing
+Knowledge Integration (lines 369-409)
+
+add_knowledge_to_semantic_ref_index() function
+Validation and integration of entities, actions, topics
+Inverse action processing
+Serialization/Deserialization (lines 508-521, 579, 616-621)
+
+TermToSemanticRefIndex serialization methods
+Data persistence functionality
+Advanced Index Operations (lines 468-474, 531, 551)
+
+Complex term preparation and scoring
+Advanced term lookup and removal operations
+Conversation Building (lines 631, 645-647)
+
+build_conversation_index() function
+build_semantic_ref_index() function
+Auto knowledge extraction settings
+Utility Functions (lines 673-680)
+
+dump() function for debugging/inspection
+🎯 Coverage Improvement Opportunities:
+To increase coverage, we would need tests that:
+
+Test knowledge extraction pipeline with actual knowledge extractor
+Test complex entity processing with facets and multiple types
+Test action processing with all parameter types and edge cases
+Test serialization/deserialization of populated indexes
+Test conversation building end-to-end scenarios
+Test error handling in knowledge extraction failures
+Test utility functions like dump()
+The current 55% coverage suggests that while we have good basic functionality testing, we're missing tests for the more complex, real-world usage scenarios that involve knowledge extraction, complex data structures, and full conversation processing workflows.
+
+(ACTUALLY it's 64%, still low)

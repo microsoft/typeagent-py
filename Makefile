@@ -16,7 +16,12 @@ check: venv
 
 .PHONY: test
 test: venv
+	.venv/bin/pytest test -n 2
+
+.PHONY: coverage
+coverage: venv
 	.venv/bin/python -m coverage run --source=typeagent -m pytest test
+	coverage report
 
 .PHONY: demo
 demo: venv
@@ -70,6 +75,7 @@ help:
 	@echo "make format      # Run black"
 	@echo "make check       # Run pyright"
 	@echo "make test        # Run pytest (tests are in test/)"
+	@echo "make coverage    # Run tests with coverage"
 	@echo "make build       # Build the wheel (under dist/)"
 	@echo "make demo        # python tools/utools.py (interactive)"
 	@echo "make compare     # python tools/utools.py --batch"

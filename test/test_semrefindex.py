@@ -1,8 +1,24 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+# Third-party imports
 import pytest
-from typing import cast
+import pytest_asyncio
+from typing import cast, Dict, AsyncGenerator
+
+# TypeAgent imports
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.collections import MemorySemanticRefCollection
+from typeagent.knowpro.interfaces import (
+    Topic,
+    IMessage,
+    ITermToSemanticRefIndex,
+    ISemanticRefCollection,
+)
+from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
+from typeagent.knowpro.messageindex import MessageTextIndexSettings
+from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
 from typeagent.knowpro.semrefindex import (
     TermToSemanticRefIndex,
     add_entity_to_index,
@@ -10,21 +26,105 @@ from typeagent.knowpro.semrefindex import (
     add_action_to_index,
     add_knowledge_to_index,
 )
-from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
-from typeagent.knowpro.interfaces import Topic
-from typeagent.knowpro.collections import MemorySemanticRefCollection
+from typeagent.storage.memorystore import MemoryStorageProvider
+from typeagent.storage.sqlitestore import SqliteStorageProvider
+
+# Test fixtures
+from fixtures import needs_auth, embedding_model, temp_db_path
+
+
+@pytest_asyncio.fixture(params=["memory", "sqlite"])
+async def semantic_ref_index(
+    request: pytest.FixtureRequest,
+    embedding_model: AsyncEmbeddingModel,
+    temp_db_path: str,
+) -> AsyncGenerator[ITermToSemanticRefIndex, None]:
+    """Unified fixture to create a semantic ref index for both memory and SQLite providers."""
+
+    class DummyTestMessage(IMessage):
+        text_chunks: list[str]
+        tags: list[str] = []
+
+        def get_knowledge(self):
+            return KnowledgeResponse(
+                entities=[], actions=[], inverse_actions=[], topics=[]
+            )
+
+    embedding_settings = TextEmbeddingIndexSettings(embedding_model)
+    message_text_settings = MessageTextIndexSettings(embedding_settings)
+    related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+    if request.param == "memory":
+        provider = MemoryStorageProvider(
+            message_text_settings=message_text_settings,
+            related_terms_settings=related_terms_settings,
+        )
+        index = await provider.get_semantic_ref_index()
+        yield index
+    else:
+        provider = await SqliteStorageProvider.create(
+            message_text_settings,
+            related_terms_settings,
+            temp_db_path,
+            DummyTestMessage,
+        )
+        index = await provider.get_semantic_ref_index()
+        yield index
+        await provider.close()
+
+
+@pytest_asyncio.fixture(params=["memory", "sqlite"])
+async def semantic_ref_setup(
+    request: pytest.FixtureRequest,
+    embedding_model: AsyncEmbeddingModel,
+    temp_db_path: str,
+) -> AsyncGenerator[Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection], None]:
+    """Unified fixture that provides both semantic ref index and collection for testing helper functions."""
+
+    class DummyTestMessage(IMessage):
+        text_chunks: list[str]
+        tags: list[str] = []
+
+        def get_knowledge(self):
+            return KnowledgeResponse(
+                entities=[], actions=[], inverse_actions=[], topics=[]
+            )
+
+    embedding_settings = TextEmbeddingIndexSettings(embedding_model)
+    message_text_settings = MessageTextIndexSettings(embedding_settings)
+    related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+    if request.param == "memory":
+        provider = MemoryStorageProvider(
+            message_text_settings=message_text_settings,
+            related_terms_settings=related_terms_settings,
+        )
+        index = await provider.get_semantic_ref_index()
+        collection = await provider.get_semantic_ref_collection()
+        yield {"index": index, "collection": collection}
+    else:
+        provider = await SqliteStorageProvider.create(
+            message_text_settings,
+            related_terms_settings,
+            temp_db_path,
+            DummyTestMessage,
+        )
+        index = await provider.get_semantic_ref_index()
+        collection = await provider.get_semantic_ref_collection()
+        yield {"index": index, "collection": collection}
+        await provider.close()
 
 
 @pytest.fixture
-def semantic_ref_index() -> TermToSemanticRefIndex:
-    """Fixture to create a TermToSemanticRefIndex instance."""
+def legacy_semantic_ref_index() -> TermToSemanticRefIndex:
+    """Legacy fixture for tests that specifically need TermToSemanticRefIndex instance."""
     return TermToSemanticRefIndex()
 
 
 @pytest.mark.asyncio
 async def test_semantic_ref_index_add_and_lookup(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test adding and looking up terms in the TermToSemanticRefIndex."""
     await semantic_ref_index.add_term("example", 1)
     await semantic_ref_index.add_term("example", 2)
@@ -47,8 +147,8 @@ async def test_semantic_ref_index_add_and_lookup(
 
 @pytest.mark.asyncio
 async def test_term_to_semantic_ref_index_remove_term(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test removing terms from the TermToSemanticRefIndex."""
     await semantic_ref_index.add_term("example", 1)
     await semantic_ref_index.add_term("example", 2)
@@ -56,30 +156,19 @@ async def test_term_to_semantic_ref_index_remove_term(
     await semantic_ref_index.remove_term("example", 1)
     result = await semantic_ref_index.lookup_term("example")
     assert result is not None
-    assert len(result) == 0
-
-
-@pytest.mark.asyncio
-async def test_conversation_index_remove_term_if_empty(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
-    """Test removing terms if they are empty."""
-    await semantic_ref_index.add_term("example", 1)
-    await semantic_ref_index.remove_term("example", 1)
-    semantic_ref_index.remove_term_if_empty("example")
-
-    assert await semantic_ref_index.size() == 0
+    assert len(result) == 1
+    assert result[0].semantic_ref_ordinal == 2
 
 
 @pytest.mark.asyncio
 async def test_conversation_index_serialize_and_deserialize(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
+    legacy_semantic_ref_index: TermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test serialization and deserialization of the TermToSemanticRefIndex."""
-    await semantic_ref_index.add_term("example", 1)
-    await semantic_ref_index.add_term("test", 2)
+    await legacy_semantic_ref_index.add_term("example", 1)
+    await legacy_semantic_ref_index.add_term("test", 2)
 
-    serialized = semantic_ref_index.serialize()
+    serialized = legacy_semantic_ref_index.serialize()
     assert "items" in serialized
     assert len(serialized["items"]) == 2
 
@@ -101,14 +190,19 @@ async def test_conversation_index_serialize_and_deserialize(
 
 
 @pytest.mark.asyncio
-async def test_add_entity_to_index(semantic_ref_index: TermToSemanticRefIndex):
+async def test_add_entity_to_index(
+    semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
+    needs_auth: None,
+) -> None:
     """Test adding an entity to the index."""
+    semantic_ref_index: ITermToSemanticRefIndex = semantic_ref_setup["index"]  # type: ignore
+    semantic_refs: ISemanticRefCollection = semantic_ref_setup["collection"]  # type: ignore
+
     entity = ConcreteEntity(
         name="ExampleEntity",
         type=["object", "example"],
         facets=[Facet(name="color", value="blue")],
     )
-    semantic_refs = MemorySemanticRefCollection()
     await add_entity_to_index(entity, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
@@ -132,10 +226,15 @@ async def test_add_entity_to_index(semantic_ref_index: TermToSemanticRefIndex):
 
 
 @pytest.mark.asyncio
-async def test_add_topic_to_index(semantic_ref_index: TermToSemanticRefIndex):
+async def test_add_topic_to_index(
+    semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
+    needs_auth: None,
+) -> None:
     """Test adding a topic to the index."""
+    semantic_ref_index: ITermToSemanticRefIndex = semantic_ref_setup["index"]  # type: ignore
+    semantic_refs: ISemanticRefCollection = semantic_ref_setup["collection"]  # type: ignore
+
     topic = "ExampleTopic"
-    semantic_refs = MemorySemanticRefCollection()
     await add_topic_to_index(topic, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
@@ -150,8 +249,14 @@ async def test_add_topic_to_index(semantic_ref_index: TermToSemanticRefIndex):
 
 
 @pytest.mark.asyncio
-async def test_add_action_to_index(semantic_ref_index: TermToSemanticRefIndex):
+async def test_add_action_to_index(
+    semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
+    needs_auth: None,
+) -> None:
     """Test adding an action to the index."""
+    semantic_ref_index: ITermToSemanticRefIndex = semantic_ref_setup["index"]  # type: ignore
+    semantic_refs: ISemanticRefCollection = semantic_ref_setup["collection"]  # type: ignore
+
     action = Action(
         verbs=["run", "jump"],
         verb_tense="present",
@@ -161,7 +266,6 @@ async def test_add_action_to_index(semantic_ref_index: TermToSemanticRefIndex):
         params=None,
         subject_entity_facet=None,
     )
-    semantic_refs = MemorySemanticRefCollection()
     await add_action_to_index(action, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
@@ -185,8 +289,14 @@ async def test_add_action_to_index(semantic_ref_index: TermToSemanticRefIndex):
 
 
 @pytest.mark.asyncio
-async def test_add_knowledge_to_index(semantic_ref_index: TermToSemanticRefIndex):
+async def test_add_knowledge_to_index(
+    semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
+    needs_auth: None,
+) -> None:
     """Test adding knowledge to the index."""
+    semantic_ref_index: ITermToSemanticRefIndex = semantic_ref_setup["index"]  # type: ignore
+    semantic_refs: ISemanticRefCollection = semantic_ref_setup["collection"]  # type: ignore
+
     knowledge = KnowledgeResponse(
         entities=[
             ConcreteEntity(
@@ -209,7 +319,6 @@ async def test_add_knowledge_to_index(semantic_ref_index: TermToSemanticRefIndex
         inverse_actions=[],
         topics=["ExampleTopic"],
     )
-    semantic_refs = MemorySemanticRefCollection()
     await add_knowledge_to_index(semantic_refs, semantic_ref_index, 0, knowledge)
 
     assert await semantic_refs.size() == 3  # 1 entity + 1 action + 1 topic
@@ -229,8 +338,8 @@ async def test_add_knowledge_to_index(semantic_ref_index: TermToSemanticRefIndex
 
 @pytest.mark.asyncio
 async def test_conversation_index_size_and_get_terms(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test size() and get_terms method."""
     assert await semantic_ref_index.size() == 0
     await semantic_ref_index.add_term("foo", 1)
@@ -242,7 +351,9 @@ async def test_conversation_index_size_and_get_terms(
 
 
 @pytest.mark.asyncio
-async def test_conversation_index_contains(semantic_ref_index: TermToSemanticRefIndex):
+async def test_conversation_index_contains(
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test presence of a term using lookup_term."""
     await semantic_ref_index.add_term("foo", 1)
     assert await semantic_ref_index.lookup_term("foo") != []
@@ -250,32 +361,29 @@ async def test_conversation_index_contains(semantic_ref_index: TermToSemanticRef
 
 
 @pytest.mark.asyncio
-async def test_conversation_index_clear(semantic_ref_index: TermToSemanticRefIndex):
+async def test_conversation_index_clear(
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test clear method."""
     await semantic_ref_index.add_term("foo", 1)
     await semantic_ref_index.add_term("bar", 2)
-    semantic_ref_index.clear()
+    await semantic_ref_index.clear()
     assert await semantic_ref_index.size() == 0
     assert await semantic_ref_index.lookup_term("foo") == []
 
 
 @pytest.mark.asyncio
 async def test_conversation_index_remove_term_nonexistent(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
     """Test removing a term that does not exist does not raise."""
     await semantic_ref_index.remove_term("nonexistent", 123)  # Should not raise
 
 
-def test_conversation_index_remove_term_if_empty_nonexistent(
-    semantic_ref_index: TermToSemanticRefIndex,
-):
-    """Test remove_term_if_empty on a term that does not exist."""
-    semantic_ref_index.remove_term_if_empty("nonexistent")  # Should not raise
-
-
-def test_conversation_index_serialize_empty(semantic_ref_index: TermToSemanticRefIndex):
+def test_conversation_index_serialize_empty(
+    legacy_semantic_ref_index: TermToSemanticRefIndex,
+) -> None:
     """Test serialize on an empty index."""
-    serialized = semantic_ref_index.serialize()
+    serialized = legacy_semantic_ref_index.serialize()
     assert "items" in serialized
     assert serialized["items"] == []

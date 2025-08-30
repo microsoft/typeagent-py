@@ -45,8 +45,12 @@ from typeagent.knowpro import kplib
 from typeagent.knowpro import query
 from typeagent.knowpro import search, search_query_schema, searchlang
 from typeagent.knowpro import serialization
+from typeagent.knowpro import timestampindex
 
 from typeagent.podcasts import podcast
+
+from typeagent.storage import sqlitestore
+from typeagent.storage.utils import create_storage_provider
 
 
 ### Classes ###
@@ -117,13 +121,19 @@ async def main():
     parser = make_arg_parser("TypeAgent Query Tool")
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
+
     if args.logfire:
-        from typeagent.aitools.utils import setup_logfire
+        utils.setup_logfire()
 
-        setup_logfire()
-
-    settings = ConversationSettings()
+    settings = ConversationSettings()  # Has no storage provider yet
+    settings.storage_provider = await create_storage_provider(
+        settings.message_text_index_settings,
+        settings.related_term_index_settings,
+        args.sqlite_db,
+        podcast.PodcastMessage,
+    )
     query_context = await load_podcast_index(args.podcast, settings, args.sqlite_db)
+
     ar_list, ar_index = load_index_file(args.qafile, "question", QuestionAnswerData)
     sr_list, sr_index = load_index_file(args.srfile, "searchText", SearchResultData)
 
@@ -177,6 +187,58 @@ async def main():
     else:
         print(Fore.YELLOW + "Running in interactive mode." + Fore.RESET)
         await interactive_loop(context)
+
+
+async def print_conversation_stats(c: IConversation) -> None:
+    print(f"{await c.messages.size()} messages loaded.")
+    print(f"{await c.semantic_refs.size()} semantic refs loaded.")
+    print(f"{await c.semantic_ref_index.size()} sem_ref index entries.")
+    s = c.secondary_indexes
+    if s is None:
+        print("NO SECONDARY INDEXES")
+    else:
+        if s.property_to_semantic_ref_index is None:
+            print("NO PROPERTY TO SEMANTIC REF INDEX")
+        else:
+            print(
+                f"{len(await s.property_to_semantic_ref_index.get_values())} property to semantic ref index entries."
+            )
+
+        if s.timestamp_index is None:
+            print("NO TIMESTAMP INDEX")
+        else:
+            if isinstance(s.timestamp_index, timestampindex.TimestampToTextRangeIndex):
+                print(f"{await s.timestamp_index.size()} timestamp index entries.")
+            elif isinstance(
+                s.timestamp_index, sqlitestore.SqliteTimestampToTextRangeIndex
+            ):
+                print(f"{await s.timestamp_index.size()} timestamp index entries.")
+            else:
+                print(
+                    f"Unrecognized timestamp index of type {type(s.timestamp_index).__name__}"
+                )
+
+        if s.term_to_related_terms_index is None:
+            print("NO TERM TO RELATED TERMS INDEX")
+        else:
+            print(
+                f"{await s.term_to_related_terms_index.aliases.size()} alias entries."
+            )
+            f = s.term_to_related_terms_index.fuzzy_index
+            if f is None:
+                print("NO FUZZY RELATED TERMS INDEX")
+            else:
+                print(f"{await f.size()} term entries.")
+
+        if s.threads is None:
+            print("NO THREADS INDEX")
+        else:
+            print(f"{len(s.threads.threads)} threads index entries.")
+
+        if s.message_index is None:
+            print("NO MESSAGE INDEX")
+        else:
+            print(f"{await s.message_index.size()} message index entries.")
 
 
 async def batch_loop(context: ProcessingContext, offset: int, limit: int) -> None:
@@ -545,13 +607,49 @@ async def load_podcast_index(
     settings: ConversationSettings,
     dbname: str | None,
 ) -> query.QueryEvalContext:
+    if dbname:
+        provider = await settings.get_storage_provider()
+        msgs = await provider.get_message_collection()
+        size = await msgs.size()
+        if size > 0:
+            print(f"Reusing existing conversation in {dbname!r} with {size} messages.")
+            conversation = await podcast.Podcast.create(settings)
+            # Only rebuild indexes if they're empty
+            if conversation.secondary_indexes:
+                # Rebuild property index if empty
+                if (
+                    conversation.secondary_indexes.property_to_semantic_ref_index
+                    and await conversation.secondary_indexes.property_to_semantic_ref_index.size()
+                    == 0
+                ):
+                    from typeagent.knowpro.propindex import build_property_index
+
+                    await build_property_index(conversation)
+
+                # Rebuild related terms fuzzy index if empty
+                if (
+                    conversation.secondary_indexes.term_to_related_terms_index
+                    and conversation.secondary_indexes.term_to_related_terms_index.fuzzy_index
+                    and await conversation.secondary_indexes.term_to_related_terms_index.fuzzy_index.size()
+                    == 0
+                ):
+                    from typeagent.knowpro.reltermsindex import (
+                        build_related_terms_index,
+                    )
+
+                    await build_related_terms_index(
+                        conversation, settings.related_term_index_settings
+                    )
+            await print_conversation_stats(conversation)
+            return query.QueryEvalContext(conversation)
+
     with utils.timelog(f"load podcast from {podcast_file_prefix!r}"):
         conversation = await podcast.Podcast.read_from_file(
             podcast_file_prefix, settings, dbname
         )
-    assert (
-        conversation is not None
-    ), f"Failed to load podcast from {podcast_file_prefix!r}"
+
+    await print_conversation_stats(conversation)
+
     return query.QueryEvalContext(conversation)
 
 
@@ -768,25 +866,29 @@ async def compare_answers(
             f"Expected success: {Fore.RED}{expected_success}{Fore.RESET}; "
             f"actual: {Fore.GREEN}{actual_success}{Fore.RESET}"
         )
+        score = 0.000 if expected_success else 0.001  # 0.001 == Answer not expected
 
     elif not actual_success:
         print(Fore.GREEN + f"Both failed" + Fore.RESET)
-        return 1.001
+        score = 1.001
 
     elif expected_text == actual_text:
         print(Fore.GREEN + f"Both equal" + Fore.RESET)
-        return 1.000
+        score = 1.000
+
+    else:
+        score = await equality_score(context, expected_text, actual_text)
 
     if len(expected_text.splitlines()) <= 100 and len(actual_text.splitlines()) <= 100:
         n = 100
     else:
         n = 2
-    print_diff(expected_text, actual_text, n=n)
-
-    if expected_success != actual_success:
-        return 0.000 if expected_success else 0.001  # 0.001 == Answer not expected
+    if score == 1.0:
+        print(actual_text)
     else:
-        return await equality_score(context, expected_text, actual_text)
+        print_diff(expected_text, actual_text, n=n)
+
+    return score
 
 
 def print_diff(a: str, b: str, n: int) -> None:

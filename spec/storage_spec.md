@@ -15,15 +15,30 @@ This specification defines the updated storage provider interface and SQLite sch
 ### ConversationMetadata Table
 ```sql
 CREATE TABLE ConversationMetadata (
-    name_tag TEXT PRIMARY KEY,
+    name_tag TEXT NOT NULL,
     schema_version TEXT NOT NULL,
     created_at TEXT NULL,         -- ISO format with Z timezone
     updated_at TEXT NULL,         -- ISO format with Z timezone
+    tags JSON NULL,               -- JSON array of conversation tags
     extra JSON NULL               -- Other per-conversation metadata
 );
 ```
 
-### Messages Table
+#### Conversation Metadata Behavior
+- **Single Row Storage**: Contains exactly one row with all conversation metadata
+- **Schema Version**: Enforced to match `CONVERSATION_SCHEMA_VERSION` constant (default: "0.1")
+  - Validated at provider creation time - raises error if existing DB has incompatible version
+- **Non-null Constraints**: All fields are never None/null:
+  - `name_tag`: Can be empty string but never None
+  - `tags`: Always a list (empty if no tags), never None
+  - `extra`: Always a dict (empty if no extra data), never None
+  - `created_at`, `updated_at`: Always datetime objects, default to current time UTC
+- **Smart Timestamps**:
+  - `updated_at`: Always set to current time when metadata is modified (unless explicitly overridden)
+  - `created_at`: Preserved from existing metadata, or set to current time for new conversations
+- **Timezone Handling**: All datetime inputs converted to UTC for storage, returned as UTC datetime objects
+- **Auto-initialization**: If no metadata row exists, `get_conversation_metadata()` creates one with defaults
+- **Selective Updates**: Only specified fields are updated, others retain existing values or baseline defaults### Messages Table
 ```sql
 CREATE TABLE Messages (
     msg_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -234,13 +249,63 @@ class IStorageProvider(Protocol):
     # Note: EmbeddingIndex is used internally by RelatedTermsIndex and MessageTextIndex
     # Note: Timestamp queries handled directly on Messages table using start_timestamp/end_timestamp columns
 
-    # Conversation metadata (new)
-    async def get_conversation_metadata(self, name_tag: str) -> dict[str, Any] | None: ...
-    async def set_conversation_metadata(self, name_tag: str, metadata: dict[str, Any]) -> None: ...
-    async def list_conversations(self) -> list[str]: ...
+    # Conversation metadata (new) - single row storage with smart defaults
+    async def get_conversation_metadata(self) -> ConversationMetadata: ...
+    async def set_conversation_metadata(
+        self,
+        *,
+        name_tag: str | None = None,
+        schema_version: str | None = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+        tags: list[str] | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> None: ...
 
     # Resource management
     async def close(self) -> None: ...
+```
+
+#### Conversation Metadata Usage Examples
+```python
+# Get metadata (always returns a valid object, creates defaults if needed)
+metadata = await provider.get_conversation_metadata()
+print(f"Name: {metadata.name_tag}")  # Never None, could be empty string
+print(f"Tags: {metadata.tags}")      # Never None, could be empty list []
+print(f"Extra: {metadata.extra}")    # Never None, could be empty dict {}
+
+# Create new conversation with defaults (timestamps auto-set to now UTC)
+await provider.set_conversation_metadata(name_tag="my_conversation")
+
+# Update just the tags, timestamp gets updated automatically
+await provider.set_conversation_metadata(tags=["important", "work"])
+
+# Update timestamp only (equivalent to refresh/touch)
+await provider.set_conversation_metadata()
+
+# Override everything explicitly with timezone handling
+from datetime import datetime, timezone
+await provider.set_conversation_metadata(
+    name_tag="conversation",
+    created_at=datetime(2025, 1, 1, 12, 0, 0),      # Assumes local TZ, converted to UTC
+    updated_at=datetime.now(timezone.utc),          # Explicit UTC
+    tags=["tag1", "tag2"],                          # Never None
+    extra={"custom_field": "value"}                 # Never None
+)
+
+# Schema version validation (raises ValueError if mismatch)
+try:
+    await provider.set_conversation_metadata(schema_version="1.0")  # Would raise error
+except ValueError as e:
+    print(f"Schema mismatch: {e}")
+
+# Baseline behavior - use None to keep existing values
+await provider.set_conversation_metadata(
+    name_tag="new_name",     # Update name
+    tags=None,               # Keep existing tags from baseline
+    extra=None,              # Keep existing extra from baseline
+    # created_at not specified -> keeps existing, updated_at -> current time
+)
 ```
 
 ## Related Documents

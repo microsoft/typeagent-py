@@ -183,7 +183,7 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
         else:
             self._map[term_text] = [semantic_ref_ordinal]
 
-    def clear(self) -> None:
+    async def clear(self) -> None:
         self._map = {}
 
     async def lookup_property(
@@ -193,6 +193,47 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
     ) -> list[ScoredSemanticRefOrdinal] | None:
         term_text = make_property_term_text(property_name, value)
         return self._map.get(self._prepare_term_text(term_text))
+
+    async def remove_property(self, prop_name: str, semref_id: int) -> None:
+        """Remove all properties for a specific property name and semantic ref."""
+        # Find and remove entries matching both property name and semref_id
+        keys_to_remove = []
+        for term_text, scored_refs in self._map.items():
+            prop_name_from_term, _ = split_property_term_text(term_text)
+            # Remove "prop." prefix
+            if prop_name_from_term.startswith("prop."):
+                prop_name_from_term = prop_name_from_term[5:]
+
+            if prop_name_from_term == prop_name:
+                # Filter out entries with matching semref_id
+                filtered_refs = [
+                    ref for ref in scored_refs if ref.semantic_ref_ordinal != semref_id
+                ]
+                if filtered_refs:
+                    self._map[term_text] = filtered_refs
+                else:
+                    keys_to_remove.append(term_text)
+
+        # Remove empty entries
+        for key in keys_to_remove:
+            del self._map[key]
+
+    async def remove_all_for_semref(self, semref_id: int) -> None:
+        """Remove all properties for a specific semantic ref."""
+        keys_to_remove = []
+        for term_text, scored_refs in self._map.items():
+            # Filter out entries with matching semref_id
+            filtered_refs = [
+                ref for ref in scored_refs if ref.semantic_ref_ordinal != semref_id
+            ]
+            if filtered_refs:
+                self._map[term_text] = filtered_refs
+            else:
+                keys_to_remove.append(term_text)
+
+        # Remove empty entries
+        for key in keys_to_remove:
+            del self._map[key]
 
     def _prepare_term_text(self, term_text: str) -> str:
         """Do any pre-processing of the term."""

@@ -1,5 +1,49 @@
 # TODO for the Python knowpro port
 
+## TODOs for fully implementing persistence through SQLite
+
+## Temporarily
+
+- Speed up filling indexes
+
+## Eventually
+
+- Improve test coverage
+- Make (de)serialize methods async since they execute SQL statements
+- Write a function that does the following:
+  - Add a given list of messages to the end of the message collection
+  - Extracts knowledge for all
+  - Add to the semantic ref collection
+  - Add to the semantic ref index
+  - Update all the other indexes
+- Write a function that adds a list of messages *and* a list of corresponding
+  semantic refs, and then updates everything. This is somewhat complicated
+  because we won't know the message ordinals/ids until they have been
+  inserted, and ditto for the semantic refs.
+  (Why do semantic refs contain their own ord/id anyway?)
+
+## Maybe
+
+- Flatten secondary indexes into Conversation (they are no longer optional)
+- Split related terms index in two (aliases and fuzzy_index)
+- Make the collection/index accessors in StorageProvider synchronous
+  (the async work is all done in create())
+- Replace the storage accessors with readonly @property functions
+- Refactor memory and sqlite indexes to share more code
+  (e.g. population and query logic)
+- Store embeddings in message_index
+
+## Lower priority
+
+- Rename remaining uses of conversation index (any spelling) to semantic ref index
+
+- Rework pyproject to separate build-time from runtime deps
+  - Make some runtime deps optional (e.g. logfire, mcp)
+  - Comment out pydantic-ai until we resume that work
+
+- Try to avoid so many inline imports.
+  Break cycles by moving things to their own file if necessary
+
 # From Meeting 8/12/2025 morning
 
 - Get rid of `__getitem__` in favor of get_item(), get_slice(), get_multiple() [**DONE**]
@@ -50,7 +94,7 @@
 
 ### Sqlite database schema details
 
-**THIS HAS BEEN SUPERCEDED BY THE FILES IN THE `spec/` FOLDER**
+**THIS HAS BEEN SUPERSEDED BY THE FILES IN THE `spec/` FOLDER**
 
 Note: `*` means a column with an index
 

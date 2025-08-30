@@ -15,6 +15,7 @@ from typing import (
     Protocol,
     Self,
     TypedDict,
+    runtime_checkable,
 )
 
 from pydantic.dataclasses import dataclass
@@ -118,6 +119,8 @@ class ITermToSemanticRefIndex(Protocol):
     ) -> None: ...
 
     async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None: ...
+
+    async def clear(self) -> None: ...
 
 
 type KnowledgeType = Literal["entity", "action", "topic", "tag"]
@@ -326,7 +329,10 @@ class Term:
 
 
 # Allows for faster retrieval of name, value properties
+@runtime_checkable
 class IPropertyToSemanticRefIndex(Protocol):
+    async def size(self) -> int: ...
+
     async def get_values(self) -> list[str]: ...
 
     async def add_property(
@@ -339,6 +345,12 @@ class IPropertyToSemanticRefIndex(Protocol):
     async def lookup_property(
         self, property_name: str, value: str
     ) -> list[ScoredSemanticRefOrdinal] | None: ...
+
+    async def clear(self) -> None: ...
+
+    async def remove_property(self, prop_name: str, semref_id: int) -> None: ...
+
+    async def remove_all_for_semref(self, semref_id: int) -> None: ...
 
 
 @dataclass
@@ -353,26 +365,44 @@ class ITimestampToTextRangeIndex(Protocol):
     # - Timestamps must be ISO-8601 strings sortable lexicographically.
     # - lookup_range(DateRange) returns items with start <= t < end (end exclusive).
     #   If end is None, treat as a point query with end = start + epsilon.
-    def add_timestamp(
+    async def size(self) -> int: ...
+
+    async def add_timestamp(
         self, message_ordinal: MessageOrdinal, timestamp: str
     ) -> bool: ...
 
-    def add_timestamps(
+    async def add_timestamps(
         self, message_timestamps: list[tuple[MessageOrdinal, str]]
     ) -> None: ...
 
-    def lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]: ...
+    async def lookup_range(
+        self, date_range: DateRange
+    ) -> list[TimestampedTextRange]: ...
 
 
 class ITermToRelatedTerms(Protocol):
-    def lookup_term(self, text: str) -> list[Term] | None: ...
+    async def lookup_term(self, text: str) -> list[Term] | None: ...
 
     async def size(self) -> int: ...
 
     async def is_empty(self) -> bool: ...
 
+    async def clear(self) -> None: ...
+
+    async def add_related_term(
+        self, text: str, related_terms: Term | list[Term]
+    ) -> None: ...
+
+    async def remove_term(self, text: str) -> None: ...
+
+    async def serialize(self) -> "TermToRelatedTermsData": ...
+
+    async def deserialize(self, data: "TermToRelatedTermsData | None") -> None: ...
+
 
 class ITermToRelatedTermsFuzzy(Protocol):
+    async def size(self) -> int: ...
+
     async def add_terms(self, texts: list[str]) -> None: ...
 
     async def lookup_term(
@@ -399,9 +429,9 @@ class ITermToRelatedTermsIndex(Protocol):
     @property
     def fuzzy_index(self) -> ITermToRelatedTermsFuzzy | None: ...
 
-    def serialize(self) -> "TermsToRelatedTermsIndexData": ...
+    async def serialize(self) -> "TermsToRelatedTermsIndexData": ...
 
-    def deserialize(self, data: "TermsToRelatedTermsIndexData") -> None: ...
+    async def deserialize(self, data: "TermsToRelatedTermsIndexData") -> None: ...
 
 
 class ThreadData(TypedDict):
@@ -449,6 +479,7 @@ class IConversationThreads(Protocol):
     def deserialize(self, data: "ConversationThreadData[ThreadDataItem]") -> None: ...
 
 
+@runtime_checkable
 class IMessageTextIndex[TMessage: IMessage](Protocol):
 
     async def add_messages(
@@ -489,8 +520,6 @@ class IConversationSecondaryIndexes[TMessage: IMessage](Protocol):
     term_to_related_terms_index: ITermToRelatedTermsIndex | None
     threads: IConversationThreads | None = None
     message_index: IMessageTextIndex[TMessage] | None = None
-
-    async def initialize(self) -> None: ...
 
 
 class IConversation[
@@ -750,10 +779,7 @@ class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Proto
 class IStorageProvider[TMessage: IMessage](Protocol):
     """API spec for storage providers -- maybe in-memory or persistent."""
 
-    async def get_message_collection(
-        self,
-        message_type: type[TMessage],
-    ) -> IMessageCollection[TMessage]: ...
+    async def get_message_collection(self) -> IMessageCollection[TMessage]: ...
 
     async def get_semantic_ref_collection(self) -> ISemanticRefCollection: ...
 

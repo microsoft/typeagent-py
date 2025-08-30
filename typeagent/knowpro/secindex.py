@@ -43,32 +43,18 @@ class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
         settings: RelatedTermIndexSettings,
     ) -> "ConversationSecondaryIndexes":
         """Create and initialize a ConversationSecondaryIndexes with all indexes."""
-        instance = cls(storage_provider, settings)
+        self = cls(storage_provider, settings)
         # Initialize all indexes from storage provider
-        instance.property_to_semantic_ref_index = (
+        self.property_to_semantic_ref_index = (
             await storage_provider.get_property_index()
         )
-        instance.timestamp_index = await storage_provider.get_timestamp_index()
-        instance.term_to_related_terms_index = (
+        self.timestamp_index = await storage_provider.get_timestamp_index()
+        self.term_to_related_terms_index = (
             await storage_provider.get_related_terms_index()
         )
-        instance.threads = await storage_provider.get_conversation_threads()
-        instance.message_index = await storage_provider.get_message_text_index()
-        return instance
-
-    async def initialize(self) -> None:
-        """Initialize all indexes from storage provider (for backward compatibility)."""
-        if self.property_to_semantic_ref_index is not None:
-            return  # Already initialized
-        self.property_to_semantic_ref_index = (
-            await self._storage_provider.get_property_index()
-        )
-        self.timestamp_index = await self._storage_provider.get_timestamp_index()
-        self.term_to_related_terms_index = (
-            await self._storage_provider.get_related_terms_index()
-        )
-        self.threads = await self._storage_provider.get_conversation_threads()
-        self.message_index = await self._storage_provider.get_message_text_index()
+        self.threads = await storage_provider.get_conversation_threads()
+        self.message_index = await storage_provider.get_message_text_index()
+        return self
 
 
 async def build_secondary_indexes[

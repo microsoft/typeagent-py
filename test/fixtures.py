@@ -12,7 +12,6 @@ import pytest_asyncio
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import kplib
 from typeagent.knowpro.collections import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
@@ -20,7 +19,6 @@ from typeagent.knowpro.collections import (
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     DeletionInfo,
-    ICollection,
     IConversation,
     IConversationSecondaryIndexes,
     IMessage,
@@ -31,7 +29,6 @@ from typeagent.knowpro.interfaces import (
     SemanticRef,
     ScoredSemanticRefOrdinal,
     TextLocation,
-    TextRange,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.messageindex import MessageTextIndexSettings
@@ -75,54 +72,10 @@ async def memory_storage(embedding_model: AsyncEmbeddingModel) -> MemoryStorageP
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-    return await MemoryStorageProvider.create(
+    return MemoryStorageProvider(
         message_text_settings=message_text_settings,
         related_terms_settings=related_terms_settings,
     )
-
-
-@pytest_asyncio.fixture
-async def sqlite_storage(
-    temp_db_path: str, embedding_model: AsyncEmbeddingModel
-) -> AsyncGenerator[SqliteStorageProvider, None]:
-    """Create a SqliteStorageProvider for testing."""
-    embedding_settings = TextEmbeddingIndexSettings(embedding_model)
-    message_text_settings = MessageTextIndexSettings(embedding_settings)
-    related_terms_settings = RelatedTermIndexSettings(embedding_settings)
-
-    provider = await SqliteStorageProvider.create(
-        message_text_settings, related_terms_settings, temp_db_path
-    )
-    yield provider
-    await provider.close()
-
-
-@pytest_asyncio.fixture(params=["memory", "sqlite"])
-async def storage_provider_type(
-    request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
-    temp_db_path: str,
-) -> AsyncGenerator[tuple[IStorageProvider, str], None]:
-    """Parameterized fixture that provides both memory and sqlite storage providers."""
-    embedding_settings = TextEmbeddingIndexSettings(embedding_model)
-    message_text_settings = MessageTextIndexSettings(embedding_settings)
-    related_terms_settings = RelatedTermIndexSettings(embedding_settings)
-
-    match request.param:
-        case "memory":
-            provider = await MemoryStorageProvider.create(
-                message_text_settings=message_text_settings,
-                related_terms_settings=related_terms_settings,
-            )
-            yield provider, request.param
-        case "sqlite":
-            provider = await SqliteStorageProvider.create(
-                message_text_settings, related_terms_settings, temp_db_path
-            )
-            yield provider, request.param
-            await provider.close()
-        case _:
-            assert_never(request.param)
 
 
 # Unified fake message and conversation classes for testing
@@ -163,6 +116,22 @@ class FakeMessage(IMessage):
 
     def get_text_location(self) -> TextLocation:
         return self.text_location
+
+
+@pytest_asyncio.fixture
+async def sqlite_storage(
+    temp_db_path: str, embedding_model: AsyncEmbeddingModel
+) -> AsyncGenerator[SqliteStorageProvider[FakeMessage], None]:
+    """Create a SqliteStorageProvider for testing."""
+    embedding_settings = TextEmbeddingIndexSettings(embedding_model)
+    message_text_settings = MessageTextIndexSettings(embedding_settings)
+    related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+    provider = await SqliteStorageProvider.create(
+        message_text_settings, related_terms_settings, temp_db_path, FakeMessage
+    )
+    yield provider
+    await provider.close()
 
 
 class FakeMessageCollection(MemoryMessageCollection[FakeMessage]):
@@ -208,6 +177,10 @@ class FakeTermIndex(ITermToSemanticRefIndex):
             ]
             if not self.term_to_refs[term]:
                 del self.term_to_refs[term]
+
+    async def clear(self) -> None:
+        """Clear all terms from the index."""
+        self.term_to_refs.clear()
 
     async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
         return self.term_to_refs.get(term)

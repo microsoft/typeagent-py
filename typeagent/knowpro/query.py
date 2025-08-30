@@ -800,7 +800,7 @@ class TextRangesInDateRangeSelector(IQueryTextRangeSelector):
         text_ranges_in_scope = TextRangeCollection()
 
         if context.timestamp_index is not None:
-            text_ranges = context.timestamp_index.lookup_range(
+            text_ranges = await context.timestamp_index.lookup_range(
                 self.date_range_in_scope,
             )
             for time_range in text_ranges:

@@ -46,7 +46,16 @@ class TimestampToTextRangeIndex(ITimestampToTextRangeIndex):
     def __init__(self):
         self._ranges: list[TimestampedTextRange] = []
 
-    def lookup_range(self, date_range: DateRange):
+    async def size(self) -> int:
+        return self._size()
+
+    def _size(self) -> int:
+        return len(self._ranges)
+
+    async def lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]:
+        return self._lookup_range(date_range)
+
+    def _lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]:
         start_at = date_range.start.isoformat()
         stop_at = None if date_range.end is None else date_range.end.isoformat()
         return get_in_range(
@@ -56,14 +65,27 @@ class TimestampToTextRangeIndex(ITimestampToTextRangeIndex):
             key=lambda x: x.timestamp,
         )
 
-    def add_timestamp(
+    async def add_timestamp(
+        self,
+        message_ordinal: MessageOrdinal,
+        timestamp: str,
+    ) -> bool:
+        return self._add_timestamp(message_ordinal, timestamp)
+
+    def _add_timestamp(
         self,
         message_ordinal: MessageOrdinal,
         timestamp: str,
     ) -> bool:
         return self._insert_timestamp(message_ordinal, timestamp, True)
 
-    def add_timestamps(
+    async def add_timestamps(
+        self,
+        message_timestamps: list[tuple[MessageOrdinal, str]],
+    ) -> None:
+        self._add_timestamps(message_timestamps)
+
+    def _add_timestamps(
         self,
         message_timestamps: list[tuple[MessageOrdinal, str]],
     ) -> None:
@@ -120,20 +142,23 @@ def get_in_range[T, S: Any](
 
 async def build_timestamp_index(conversation: IConversation) -> None:
     if conversation.messages is not None and conversation.secondary_indexes is not None:
-        # Check if messages collection is not empty
+        # There's nothing to do if there are no messages
         if await conversation.messages.size() == 0:
             return
 
-        if conversation.secondary_indexes.timestamp_index is None:
-            conversation.secondary_indexes.timestamp_index = TimestampToTextRangeIndex()
+        # There's nothing to do for persistent collections; the timestamp index
+        # is created implicitly (as an index over the message collection)
+        if conversation.messages.is_persistent:
+            return
+
+        # Caller must have established the timestamp index
+        assert conversation.secondary_indexes.timestamp_index is not None
+
         await add_to_timestamp_index(
             conversation.secondary_indexes.timestamp_index,
             conversation.messages,
             0,
         )
-    # SQLite note: when backed by SQLite, explicit "building" should be unnecessary
-    # as timestamps are persisted incrementally with messages. This function remains
-    # a no-op for that provider while preserving the call graph during migration.
 
 
 async def add_to_timestamp_index(
@@ -148,4 +173,4 @@ async def add_to_timestamp_index(
         if timestamp:
             message_timestamps.append((base_message_ordinal + i, timestamp))
         i += 1
-    timestamp_index.add_timestamps(message_timestamps)
+    await timestamp_index.add_timestamps(message_timestamps)

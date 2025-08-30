@@ -536,7 +536,10 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
     async def get_terms(self) -> list[str]:
         return list(self._map)
 
-    def clear(self) -> None:
+    async def clear(self) -> None:
+        self._clear()
+
+    def _clear(self) -> None:
         self._map.clear()
 
     async def add_term(
@@ -562,13 +565,18 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
     async def remove_term(
         self, term: str, semantic_ref_ordinal: SemanticRefOrdinal
     ) -> None:
-        self._map.pop(self._prepare_term(term), None)
-
-    def remove_term_if_empty(self, term: str) -> None:
-        """Clean up a term if it has lost its last semantic reference."""
         term = self._prepare_term(term)
-        if term in self._map and len(self._map[term]) == 0:
-            self._map.pop(term)
+        if term in self._map:
+            # Remove only the specific semantic ref ordinal, not the entire term
+            scored_refs = self._map[term]
+            self._map[term] = [
+                ref
+                for ref in scored_refs
+                if ref.semantic_ref_ordinal != semantic_ref_ordinal
+            ]
+            # Clean up empty terms
+            if not self._map[term]:
+                del self._map[term]
 
     def serialize(self) -> TermToSemanticRefIndexData:
         items: list[TermToSemanticRefIndexItemData] = []
@@ -584,7 +592,7 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
         return TermToSemanticRefIndexData(items=items)
 
     def deserialize(self, data: TermToSemanticRefIndexData) -> None:
-        self.clear()
+        self._clear()
         for index_item_data in data["items"]:
             term = index_item_data.get("term")
             term = self._prepare_term(term)

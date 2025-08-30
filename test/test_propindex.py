@@ -285,7 +285,7 @@ async def test_property_index_clear(property_index: PropertyIndex):
     await property_index.add_property("name", "value", 0)
     assert await property_index.size() > 0
 
-    property_index.clear()
+    await property_index.clear()
     assert await property_index.size() == 0
 
 
