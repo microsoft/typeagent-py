@@ -3,11 +3,34 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from ..aitools.embeddings import AsyncEmbeddingModel
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
-from .interfaces import IStorageProvider
-from .messageindex import MessageTextIndexSettings
-from .reltermsindex import RelatedTermIndexSettings
+from .interfaces import IKnowledgeExtractor, IStorageProvider
+
+
+@dataclass
+class MessageTextIndexSettings:
+    embedding_index_settings: TextEmbeddingIndexSettings
+
+    def __init__(self, embedding_index_settings: TextEmbeddingIndexSettings):
+        self.embedding_index_settings = embedding_index_settings
+
+
+@dataclass
+class RelatedTermIndexSettings:
+    embedding_index_settings: TextEmbeddingIndexSettings
+
+    def __init__(self, embedding_index_settings: TextEmbeddingIndexSettings):
+        self.embedding_index_settings = embedding_index_settings
+
+
+@dataclass
+class SemanticRefIndexSettings:
+    batch_size: int
+    auto_extract_knowledge: bool
+    knowledge_extractor: IKnowledgeExtractor | None = None
 
 
 class ConversationSettings:
@@ -18,8 +41,6 @@ class ConversationSettings:
         model: AsyncEmbeddingModel | None = None,
         storage_provider: IStorageProvider | None = None,
     ):
-        from .semrefindex import SemanticRefIndexSettings
-
         # All settings share the same model, so they share the embedding cache.
         model = model or AsyncEmbeddingModel()
         self.embedding_model = model
@@ -60,7 +81,7 @@ class ConversationSettings:
     async def get_storage_provider(self) -> IStorageProvider:
         """Get or create the storage provider asynchronously."""
         if not self._storage_provider_created:
-            from ..storage.memorystore import MemoryStorageProvider
+            from ..storage.memory import MemoryStorageProvider
 
             self._storage_provider = MemoryStorageProvider(
                 message_text_settings=self.message_text_index_settings,

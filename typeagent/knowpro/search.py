@@ -24,7 +24,7 @@ from .interfaces import (
     WhenFilter,
 )
 from .kplib import ConcreteEntity
-from .messageindex import IMessageTextEmbeddingIndex
+from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
 from .searchlib import create_tag_search_term_group
 from .query import (
     BooleanOp,
@@ -67,7 +67,7 @@ from .query import (
     to_non_required_search_term,
     to_required_search_term,
 )
-from .reltermsindex import resolve_related_terms
+from ..storage.memory.reltermsindex import resolve_related_terms
 
 
 @dataclass

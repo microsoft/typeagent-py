@@ -4,14 +4,17 @@
 from dataclasses import dataclass
 import json
 import os
-from typing import TypedDict, cast
+from typing import TypedDict, cast, Any
 
+import numpy as np
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from pydantic import Field, AliasChoices
 
-from ..knowpro import semrefindex, kplib, secindex
+from ..aitools.embeddings import NormalizedEmbeddings
+from ..storage.memory import semrefindex
+from ..knowpro import kplib, secindex
 from ..knowpro.field_helpers import CamelCaseField
-from ..knowpro.convthreads import ConversationThreads
+from ..storage.memory.convthreads import ConversationThreads
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import (
     ConversationDataWithIndexes,
@@ -30,11 +33,11 @@ from ..knowpro.interfaces import (
     Term,
     Timedelta,
 )
-from ..knowpro.messageindex import MessageTextIndex
-from ..knowpro.reltermsindex import TermToRelatedTermsMap
+from ..storage.memory.messageindex import MessageTextIndex
+from ..storage.memory.reltermsindex import TermToRelatedTermsMap
 from ..storage.utils import create_storage_provider
 from ..knowpro import serialization
-from ..knowpro.collections import (
+from ..storage.memory.collections import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
@@ -208,8 +211,8 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
         assert (
             self.settings is not None
         ), "Settings must be initialized before building index"
-        await semrefindex.build_conversation_index(self, self.settings)
-        # build_conversation_index automatically builds standard secondary indexes.
+        await semrefindex.build_semantic_ref(self, self.settings)
+        # build_semantic_ref automatically builds standard secondary indexes.
         # Pass false here to build podcast specific secondary indexes only.
         await self._build_transient_secondary_indexes(False)
         if self.secondary_indexes is not None:
@@ -320,13 +323,44 @@ class Podcast(IConversation[PodcastMessage, semrefindex.TermToSemanticRefIndex])
         await self._build_transient_secondary_indexes(True)
 
     @staticmethod
+    def _read_conversation_data_from_file(
+        filename_prefix: str, embedding_size: int
+    ) -> ConversationDataWithIndexes[Any]:
+        """Read podcast conversation data from files. No exceptions are caught; they just bubble out."""
+        with open(filename_prefix + "_data.json", "r", encoding="utf-8") as f:
+            json_data: serialization.ConversationJsonData[PodcastMessageData] = (
+                json.load(f)
+            )
+        embeddings_list: list[NormalizedEmbeddings] | None = None
+        if embedding_size:
+            with open(filename_prefix + "_embeddings.bin", "rb") as f:
+                embeddings = np.fromfile(f, dtype=np.float32).reshape(
+                    (-1, embedding_size)
+                )
+                embeddings_list = [embeddings]
+        else:
+            print(
+                "Warning: not reading embeddings file because size is {embedding_size}"
+            )
+            embeddings_list = None
+        file_data = serialization.ConversationFileData(
+            jsonData=json_data,
+            binaryData=serialization.ConversationBinaryData(
+                embeddingsList=embeddings_list
+            ),
+        )
+        if json_data.get("fileHeader") is None:
+            json_data["fileHeader"] = serialization.create_file_header()
+        return serialization.from_conversation_file_data(file_data)
+
+    @staticmethod
     async def read_from_file(
         filename_prefix: str,
         settings: ConversationSettings,
         dbname: str | None = None,
     ) -> "Podcast":
         embedding_size = settings.embedding_model.embedding_size
-        data = serialization.read_conversation_data_from_file(
+        data = Podcast._read_conversation_data_from_file(
             filename_prefix, embedding_size
         )
 

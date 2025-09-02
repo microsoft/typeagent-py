@@ -4,9 +4,10 @@
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
-from ..aitools.embeddings import NormalizedEmbedding
-from ..aitools.vectorbase import TextEmbeddingIndexSettings
-from .interfaces import (
+from ...aitools.embeddings import NormalizedEmbedding
+from ...aitools.vectorbase import TextEmbeddingIndexSettings
+from ...knowpro.convsettings import MessageTextIndexSettings
+from ...knowpro.interfaces import (
     IConversation,
     IMessage,
     IMessageTextIndex,
@@ -17,15 +18,7 @@ from .interfaces import (
     ScoredMessageOrdinal,
     TextLocation,
 )
-from .textlocindex import ScoredTextLocation, TextToTextLocationIndex
-
-
-@dataclass
-class MessageTextIndexSettings:
-    embedding_index_settings: TextEmbeddingIndexSettings
-
-    def __init__(self, embedding_index_settings: TextEmbeddingIndexSettings):
-        self.embedding_index_settings = embedding_index_settings
+from ...knowpro.textlocindex import ScoredTextLocation, TextToTextLocationIndex
 
 
 async def build_message_index[

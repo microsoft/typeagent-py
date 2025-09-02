@@ -19,7 +19,7 @@ from .interfaces import (
     SemanticRef,
     Term,
 )
-from .propindex import PropertyNames
+from ..storage.memory.propindex import PropertyNames
 
 
 def create_search_term(

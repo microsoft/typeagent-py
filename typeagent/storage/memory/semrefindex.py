@@ -4,15 +4,13 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterable, Callable
-from dataclasses import dataclass
 
 from typechat import Failure
 
-from . import convknowledge, kplib, secindex
-from .collections import MemorySemanticRefCollection
-from .convknowledge import KnowledgeExtractor
-from .convsettings import ConversationSettings
-from .interfaces import (
+from ...knowpro import convknowledge, kplib, secindex
+from ...knowpro.convsettings import ConversationSettings
+from ...knowpro.convsettings import SemanticRefIndexSettings
+from ...knowpro.interfaces import (
     # Interfaces.
     IConversation,
     IMessage,
@@ -31,24 +29,8 @@ from .interfaces import (
     TextRange,
     Topic,
 )
-from .knowledge import extract_knowledge_from_text_batch
-
-
-@dataclass
-class SemanticRefIndexSettings:
-    batch_size: int
-    auto_extract_knowledge: bool
-    knowledge_extractor: KnowledgeExtractor | None = None
-
-
-def text_range_from_message_chunk(
-    message_ordinal: MessageOrdinal,
-    chunk_ordinal: int = 0,
-) -> TextRange:
-    return TextRange(
-        start=TextLocation(message_ordinal, chunk_ordinal),
-        end=None,
-    )
+from ...knowpro.utils import text_range_from_message_chunk
+from ...knowpro.knowledge import extract_knowledge_from_text_batch
 
 
 def text_range_from_location(
@@ -609,7 +591,7 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
 # ...
 
 
-async def build_conversation_index[TMessage: IMessage](
+async def build_semantic_ref[TMessage: IMessage](
     conversation: IConversation[TMessage, TermToSemanticRefIndex],
     conversation_settings: ConversationSettings,
 ) -> None:

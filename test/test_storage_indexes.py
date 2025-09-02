@@ -6,9 +6,9 @@ import pytest
 from fixtures import needs_auth, memory_storage, embedding_model  # type: ignore  # It's used!
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
-from typeagent.storage.memorystore import MemoryStorageProvider
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
+from typeagent.knowpro.convsettings import RelatedTermIndexSettings
+from typeagent.storage.memory import MemoryStorageProvider
 
 
 @pytest.mark.asyncio
@@ -64,8 +64,14 @@ async def test_indexes_work_independently(needs_auth):
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-    storage1 = MemoryStorageProvider(message_text_settings, related_terms_settings)
-    storage2 = MemoryStorageProvider(message_text_settings, related_terms_settings)
+    storage1 = MemoryStorageProvider(
+        message_text_settings=message_text_settings,
+        related_terms_settings=related_terms_settings,
+    )
+    storage2 = MemoryStorageProvider(
+        message_text_settings=message_text_settings,
+        related_terms_settings=related_terms_settings,
+    )
 
     # Get indexes from both storage providers
     index1 = await storage1.get_semantic_ref_index()
@@ -86,7 +92,10 @@ async def test_indexes_available_after_create(needs_auth):
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
     # Use the async factory method
-    storage = MemoryStorageProvider(message_text_settings, related_terms_settings)
+    storage = MemoryStorageProvider(
+        message_text_settings=message_text_settings,
+        related_terms_settings=related_terms_settings,
+    )
 
     # Should work immediately after create
     conv_index = await storage.get_semantic_ref_index()
@@ -102,7 +111,10 @@ async def test_storage_provider_collections_still_work(needs_auth):
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-    storage = MemoryStorageProvider(message_text_settings, related_terms_settings)
+    storage = MemoryStorageProvider(
+        message_text_settings=message_text_settings,
+        related_terms_settings=related_terms_settings,
+    )
 
     # Test message collection creation
     msg_collection = await storage.get_message_collection()

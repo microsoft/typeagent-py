@@ -45,11 +45,10 @@ from typeagent.knowpro import kplib
 from typeagent.knowpro import query
 from typeagent.knowpro import search, search_query_schema, searchlang
 from typeagent.knowpro import serialization
-from typeagent.knowpro import timestampindex
+from typeagent.storage.memory import timestampindex
 
 from typeagent.podcasts import podcast
 
-from typeagent.storage import sqlitestore
 from typeagent.storage.utils import create_storage_provider
 
 
@@ -196,49 +195,39 @@ async def print_conversation_stats(c: IConversation) -> None:
     s = c.secondary_indexes
     if s is None:
         print("NO SECONDARY INDEXES")
+        return
+
+    if s.property_to_semantic_ref_index is None:
+        print("NO PROPERTY TO SEMANTIC REF INDEX")
     else:
-        if s.property_to_semantic_ref_index is None:
-            print("NO PROPERTY TO SEMANTIC REF INDEX")
-        else:
-            print(
-                f"{len(await s.property_to_semantic_ref_index.get_values())} property to semantic ref index entries."
-            )
+        n = await s.property_to_semantic_ref_index.size()
+        print(f"{n} property to semantic ref index entries.")
 
-        if s.timestamp_index is None:
-            print("NO TIMESTAMP INDEX")
-        else:
-            if isinstance(s.timestamp_index, timestampindex.TimestampToTextRangeIndex):
-                print(f"{await s.timestamp_index.size()} timestamp index entries.")
-            elif isinstance(
-                s.timestamp_index, sqlitestore.SqliteTimestampToTextRangeIndex
-            ):
-                print(f"{await s.timestamp_index.size()} timestamp index entries.")
-            else:
-                print(
-                    f"Unrecognized timestamp index of type {type(s.timestamp_index).__name__}"
-                )
+    if s.timestamp_index is None:
+        print("NO TIMESTAMP INDEX")
+    else:
+        print(f"{await s.timestamp_index.size()} timestamp index entries.")
 
-        if s.term_to_related_terms_index is None:
-            print("NO TERM TO RELATED TERMS INDEX")
+    if s.term_to_related_terms_index is None:
+        print("NO TERM TO RELATED TERMS INDEX")
+    else:
+        aliases = s.term_to_related_terms_index.aliases
+        print(f"{await aliases.size()} alias entries.")
+        f = s.term_to_related_terms_index.fuzzy_index
+        if f is None:
+            print("NO FUZZY RELATED TERMS INDEX")
         else:
-            print(
-                f"{await s.term_to_related_terms_index.aliases.size()} alias entries."
-            )
-            f = s.term_to_related_terms_index.fuzzy_index
-            if f is None:
-                print("NO FUZZY RELATED TERMS INDEX")
-            else:
-                print(f"{await f.size()} term entries.")
+            print(f"{await f.size()} term entries.")
 
-        if s.threads is None:
-            print("NO THREADS INDEX")
-        else:
-            print(f"{len(s.threads.threads)} threads index entries.")
+    if s.threads is None:
+        print("NO THREADS INDEX")
+    else:
+        print(f"{len(s.threads.threads)} threads index entries.")
 
-        if s.message_index is None:
-            print("NO MESSAGE INDEX")
-        else:
-            print(f"{await s.message_index.size()} message index entries.")
+    if s.message_index is None:
+        print("NO MESSAGE INDEX")
+    else:
+        print(f"{await s.message_index.size()} message index entries.")
 
 
 async def batch_loop(context: ProcessingContext, offset: int, limit: int) -> None:
@@ -622,7 +611,7 @@ async def load_podcast_index(
                     and await conversation.secondary_indexes.property_to_semantic_ref_index.size()
                     == 0
                 ):
-                    from typeagent.knowpro.propindex import build_property_index
+                    from typeagent.storage.memory.propindex import build_property_index
 
                     await build_property_index(conversation)
 
@@ -633,7 +622,7 @@ async def load_podcast_index(
                     and await conversation.secondary_indexes.term_to_related_terms_index.fuzzy_index.size()
                     == 0
                 ):
-                    from typeagent.knowpro.reltermsindex import (
+                    from typeagent.storage.memory.reltermsindex import (
                         build_related_terms_index,
                     )
 

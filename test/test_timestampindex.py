@@ -3,7 +3,7 @@
 
 import pytest
 
-from typeagent.knowpro.timestampindex import TimestampToTextRangeIndex
+from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
 from typeagent.knowpro.interfaces import DateRange, Datetime, TextLocation, TextRange
 
 

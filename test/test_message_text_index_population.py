@@ -8,10 +8,10 @@ import asyncio
 import tempfile
 import os
 import pytest
-from typeagent.storage.sqlitestore import SqliteStorageProvider
-from typeagent.knowpro.messageindex import MessageTextIndex
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
+from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory.messageindex import MessageTextIndex
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
+from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
@@ -33,11 +33,11 @@ async def test_message_text_index_population_from_database():
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
         # Create and populate database
-        storage1 = await SqliteStorageProvider.create(
-            message_text_settings,
-            related_terms_settings,
-            temp_db_path,
-            PodcastMessage,
+        storage1 = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=PodcastMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
         )
 
         # Add test messages
@@ -68,11 +68,11 @@ async def test_message_text_index_population_from_database():
         await storage1.close()
 
         # Reopen database and verify message text index
-        storage2 = await SqliteStorageProvider.create(
-            message_text_settings,
-            related_terms_settings,
-            temp_db_path,
-            PodcastMessage,
+        storage2 = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=PodcastMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
         )
 
         # Check message collection size
@@ -123,7 +123,3 @@ async def test_message_text_index_population_from_database():
     finally:
         if os.path.exists(temp_db_path):
             os.remove(temp_db_path)
-
-
-if __name__ == "__main__":
-    asyncio.run(test_message_text_index_population_from_database())

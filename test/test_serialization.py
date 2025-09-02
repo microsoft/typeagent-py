@@ -11,7 +11,6 @@ from typeagent.knowpro.serialization import (
     serialize_object,
     deserialize_object,
     write_conversation_data_to_file,
-    read_conversation_data_from_file,
     from_conversation_file_data,
     to_conversation_file_data,
     create_file_header,
@@ -25,6 +24,7 @@ from typeagent.knowpro.interfaces import (
     TextToTextLocationIndexData,
 )
 from typeagent.knowpro.kplib import Quantity, ConcreteEntity
+from typeagent.podcasts.podcast import Podcast
 
 
 type SampleData = Any  # Anything more refined causes type errors
@@ -113,7 +113,9 @@ def test_write_and_read_conversation_data(
     )
 
     # Read back the data
-    read_data = read_conversation_data_from_file(str(filename), embedding_size=2)
+    read_data = Podcast._read_conversation_data_from_file(
+        str(filename), embedding_size=2
+    )
     assert read_data is not None
     assert read_data.get("relatedTermsIndexData") is not None
     assert read_data.get("messageIndexData") is not None

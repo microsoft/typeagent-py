@@ -14,7 +14,7 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
     TextRange,
 )
-from typeagent.knowpro.propindex import PropertyNames
+from typeagent.storage.memory.propindex import PropertyNames
 from typeagent.knowpro.searchlib import (
     create_and_term_group,
     create_entity_search_term_group,

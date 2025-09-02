@@ -15,11 +15,11 @@ from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.utils import load_dotenv
 from typeagent.knowpro.interfaces import Tag, SemanticRef, TextRange, TextLocation
 from typeagent.knowpro import kplib
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
+from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.podcasts.podcast import PodcastMessage
-from typeagent.storage.sqlitestore import SqliteStorageProvider
+from typeagent.storage import SqliteStorageProvider
 
 
 class MockEmbeddingModel(AsyncEmbeddingModel):
@@ -45,11 +45,11 @@ async def test_property_index_population_from_database():
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
         # Create and populate database
-        storage1 = await SqliteStorageProvider.create(
-            message_text_settings,
-            related_terms_settings,
-            temp_db_path,
-            PodcastMessage,
+        storage1 = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=PodcastMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
         )
 
         # Add test semantic refs with all knowledge types
@@ -100,17 +100,17 @@ async def test_property_index_population_from_database():
         message_text_settings2 = MessageTextIndexSettings(embedding_settings2)
         related_terms_settings2 = RelatedTermIndexSettings(embedding_settings2)
 
-        storage2 = await SqliteStorageProvider.create(
-            message_text_settings2,
-            related_terms_settings2,
-            temp_db_path,
-            PodcastMessage,
+        storage2 = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=PodcastMessage,
+            message_text_index_settings=message_text_settings2,
+            related_term_index_settings=related_terms_settings2,
         )
 
         # Create a test conversation and build property index
         from typeagent.podcasts.podcast import Podcast
         from typeagent.knowpro.convsettings import ConversationSettings
-        from typeagent.knowpro.propindex import build_property_index
+        from typeagent.storage.memory.propindex import build_property_index
 
         settings2 = ConversationSettings()
         settings2.storage_provider = storage2
@@ -183,7 +183,3 @@ async def test_property_index_population_from_database():
     finally:
         if os.path.exists(temp_db_path):
             os.remove(temp_db_path)
-
-
-if __name__ == "__main__":
-    asyncio.run(test_property_index_population_from_database())

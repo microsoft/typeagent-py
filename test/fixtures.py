@@ -12,7 +12,7 @@ import pytest_asyncio
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.collections import (
+from typeagent.storage.memory.collections import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
@@ -31,11 +31,13 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
-from typeagent.storage.memorystore import MemoryStorageProvider
-from typeagent.storage.sqlitestore import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage import SqliteStorageProvider
 
 
 @pytest.fixture(scope="session")
@@ -65,13 +67,18 @@ def temp_db_path() -> Iterator[str]:
         os.remove(path)
 
 
-@pytest_asyncio.fixture
-async def memory_storage(embedding_model: AsyncEmbeddingModel) -> MemoryStorageProvider:
-    """Create a MemoryStorageProvider for testing."""
-    embedding_settings = TextEmbeddingIndexSettings(embedding_model)
-    message_text_settings = MessageTextIndexSettings(embedding_settings)
-    related_terms_settings = RelatedTermIndexSettings(embedding_settings)
-
+@pytest.fixture
+def memory_storage(
+    embedding_model: AsyncEmbeddingModel,
+) -> MemoryStorageProvider:
+    """Create a memory storage provider with settings."""
+    embedding_settings = TextEmbeddingIndexSettings(embedding_model=embedding_model)
+    message_text_settings = MessageTextIndexSettings(
+        embedding_index_settings=embedding_settings
+    )
+    related_terms_settings = RelatedTermIndexSettings(
+        embedding_index_settings=embedding_settings
+    )
     return MemoryStorageProvider(
         message_text_settings=message_text_settings,
         related_terms_settings=related_terms_settings,
@@ -127,8 +134,11 @@ async def sqlite_storage(
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-    provider = await SqliteStorageProvider.create(
-        message_text_settings, related_terms_settings, temp_db_path, FakeMessage
+    provider = SqliteStorageProvider(
+        db_path=temp_db_path,
+        message_type=FakeMessage,
+        message_text_index_settings=message_text_settings,
+        related_term_index_settings=related_terms_settings,
     )
     yield provider
     await provider.close()

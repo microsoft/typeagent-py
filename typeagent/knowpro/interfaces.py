@@ -18,6 +18,7 @@ from typing import (
     runtime_checkable,
 )
 
+import typechat
 from pydantic.dataclasses import dataclass
 from pydantic import Field, AliasChoices
 
@@ -31,6 +32,14 @@ class IKnowledgeSource(Protocol):
 
     def get_knowledge(self) -> kplib.KnowledgeResponse:
         """Retrieves knowledge from the source."""
+        ...
+
+
+class IKnowledgeExtractor(Protocol):
+    """Interface for extracting knowledge from messages."""
+
+    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+        """Extract knowledge from a message."""
         ...
 
 

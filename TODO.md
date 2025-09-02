@@ -35,8 +35,6 @@
 
 ## Lower priority
 
-- Rename remaining uses of conversation index (any spelling) to semantic ref index
-
 - Rework pyproject to separate build-time from runtime deps
   - Make some runtime deps optional (e.g. logfire, mcp)
   - Comment out pydantic-ai until we resume that work

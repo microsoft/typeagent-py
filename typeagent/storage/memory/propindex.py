@@ -4,8 +4,8 @@
 import enum
 from typing import assert_never
 
-from .collections import TextRangesInScope
-from .interfaces import (
+from ...knowpro.collections import TextRangesInScope
+from ...knowpro.interfaces import (
     IConversation,
     IPropertyToSemanticRefIndex,
     ISemanticRefCollection,
@@ -14,7 +14,7 @@ from .interfaces import (
     Tag,
     Topic,
 )
-from . import kplib
+from ...knowpro import kplib
 
 
 class PropertyNames(enum.Enum):

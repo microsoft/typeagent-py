@@ -1,14 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from .interfaces import (
+from ...knowpro.interfaces import (
     ConversationThreadData,
     IConversationThreads,
     ThreadDataItem,
     ScoredThreadOrdinal,
     Thread,
 )
-from ..aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
+from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
 
 class ConversationThreads(IConversationThreads):

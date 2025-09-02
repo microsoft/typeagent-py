@@ -14,10 +14,13 @@ from typeagent.aitools.utils import load_dotenv
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.interfaces import SemanticRef, TextRange, TextLocation
 from typeagent.knowpro import kplib
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings, RelatedTermsIndex
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
+from typeagent.storage.memory.reltermsindex import RelatedTermsIndex
 from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
-from typeagent.storage.sqlitestore import SqliteStorageProvider
+from typeagent.storage import SqliteStorageProvider
 
 
 @pytest.mark.asyncio
@@ -34,11 +37,11 @@ async def test_related_terms_index_population_from_database():
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
         # Create and populate database
-        storage1 = await SqliteStorageProvider.create(
-            message_text_settings,
-            related_terms_settings,
-            temp_db_path,
-            PodcastMessage,
+        storage1 = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=PodcastMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
         )
 
         # Add test messages
@@ -107,11 +110,11 @@ async def test_related_terms_index_population_from_database():
         await storage1.close()
 
         # Reopen database and verify related terms index
-        storage2 = await SqliteStorageProvider.create(
-            message_text_settings,
-            related_terms_settings,
-            temp_db_path,
-            PodcastMessage,
+        storage2 = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=PodcastMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
         )
 
         # Check message collection size
@@ -133,8 +136,8 @@ async def test_related_terms_index_population_from_database():
         # Create a test conversation and build related terms index
         from typeagent.podcasts.podcast import Podcast
         from typeagent.knowpro.convsettings import ConversationSettings
-        from typeagent.knowpro.reltermsindex import build_related_terms_index
-        from typeagent.storage.sqlitestore import SqliteRelatedTermsIndex
+        from typeagent.storage.memory.reltermsindex import build_related_terms_index
+        from typeagent.storage.sqlite.indexes import SqliteRelatedTermsIndex
 
         settings2 = ConversationSettings()
         settings2.storage_provider = storage2
@@ -154,7 +157,7 @@ async def test_related_terms_index_population_from_database():
         fuzzy_index_size = await fuzzy_index.size()
         print(f"Related terms fuzzy index size: {fuzzy_index_size}")
 
-        # The fuzzy index should have entries for all the terms that were added to the conversation index
+        # The fuzzy index should have entries for all the terms that were added to the semantic ref index
         # This includes entity names and their types
         assert (
             fuzzy_index_size > 0
@@ -179,7 +182,3 @@ async def test_related_terms_index_population_from_database():
     finally:
         if os.path.exists(temp_db_path):
             os.remove(temp_db_path)
-
-
-if __name__ == "__main__":
-    asyncio.run(test_related_terms_index_population_from_database())

@@ -25,7 +25,7 @@ from ..knowpro.interfaces import (
     Term,
     WhenFilter,
 )
-from ..knowpro.propindex import PropertyNames
+from ..storage.memory.propindex import PropertyNames
 from ..knowpro.search import (
     ConversationSearchResult,
     SearchOptions,

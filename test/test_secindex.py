@@ -13,16 +13,16 @@ from fixtures import (
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
-from typeagent.knowpro.timestampindex import TimestampToTextRangeIndex
-from typeagent.storage.memorystore import MemoryStorageProvider
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
+from typeagent.knowpro.convsettings import RelatedTermIndexSettings
+from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
+from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.knowpro.secindex import (
     ConversationSecondaryIndexes,
     build_secondary_indexes,
     build_transient_secondary_indexes,
 )
-from typeagent.knowpro.collections import (
+from typeagent.storage.memory import (
     MemoryMessageCollection as MemoryMessageCollection,
     MemorySemanticRefCollection,
 )

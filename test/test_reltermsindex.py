@@ -11,17 +11,19 @@ from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.interfaces import Term, IMessage, ITermToRelatedTermsIndex
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
-from typeagent.knowpro.reltermsindex import (
+from typeagent.storage.memory.reltermsindex import (
     TermToRelatedTermsMap,
     RelatedTermsIndex,
-    RelatedTermIndexSettings,
     dedupe_related_terms,
     resolve_related_terms,
 )
-from typeagent.storage.memorystore import MemoryStorageProvider
-from typeagent.storage.sqlitestore import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage import SqliteStorageProvider
 
 # Test fixtures
 from fixtures import needs_auth, embedding_model, temp_db_path
@@ -46,18 +48,18 @@ async def related_terms_index(
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
     if request.param == "memory":
-        provider = MemoryStorageProvider(
+        storage_provider = MemoryStorageProvider(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await provider.get_related_terms_index()
+        index = await storage_provider.get_related_terms_index()
         yield index
     else:
-        provider = await SqliteStorageProvider.create(
-            message_text_settings,
-            related_terms_settings,
-            temp_db_path,
-            DummyTestMessage,
+        provider = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=DummyTestMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
         )
         index = await provider.get_related_terms_index()
         yield index

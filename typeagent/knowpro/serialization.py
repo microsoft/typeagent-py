@@ -24,11 +24,10 @@ import numpy as np
 from pydantic.alias_generators import to_camel
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from ..podcasts import podcast
 
-from .searchlang import SearchTermGroupTypes
 from .interfaces import (
     ConversationDataWithIndexes,
+    SearchTermGroupTypes,
     Tag,
     Topic,
 )
@@ -171,29 +170,6 @@ def serialize_object(arg: Any) -> Any | None:
 # ----------------
 # Deserialization
 # -----------------
-
-
-# No exceptions are caught; they just bubble out.
-def read_conversation_data_from_file(
-    filename_prefix: str, embedding_size: int
-) -> ConversationDataWithIndexes[Any]:
-    with open(filename_prefix + DATA_FILE_SUFFIX, "r", encoding="utf-8") as f:
-        json_data: ConversationJsonData[podcast.PodcastMessageData] = json.load(f)
-    embeddings_list: list[NormalizedEmbeddings] | None = None
-    if embedding_size:
-        with open(filename_prefix + EMBEDDING_FILE_SUFFIX, "rb") as f:
-            embeddings = np.fromfile(f, dtype=np.float32).reshape((-1, embedding_size))
-            embeddings_list = [embeddings]
-    else:
-        print("Warning: not reading embeddings file because size is {embedding_size}")
-        embeddings_list = None
-    file_data = ConversationFileData(
-        jsonData=json_data,
-        binaryData=ConversationBinaryData(embeddingsList=embeddings_list),
-    )
-    if json_data.get("fileHeader") is None:
-        json_data["fileHeader"] = create_file_header()
-    return from_conversation_file_data(file_data)
 
 
 def from_conversation_file_data(

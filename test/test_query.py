@@ -32,9 +32,9 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.messageindex import MessageTextIndexSettings
-from typeagent.knowpro.reltermsindex import RelatedTermIndexSettings
-from typeagent.storage.memorystore import MemoryStorageProvider
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
+from typeagent.knowpro.convsettings import RelatedTermIndexSettings
+from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.query import (
     TextRangeSelector,
@@ -59,8 +59,8 @@ from typeagent.knowpro.query import (
     match_entity_name_or_type,
     lookup_knowledge_type,
 )
-from typeagent.knowpro.propindex import PropertyIndex
-from typeagent.knowpro.collections import (
+from typeagent.storage.memory.propindex import PropertyIndex
+from typeagent.storage.memory import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
@@ -75,10 +75,6 @@ def downcast[T](cls: type[T], obj: object) -> T:
 
 
 from fixtures import needs_auth  # type: ignore
-from typeagent.knowpro.collections import (
-    MemoryMessageCollection,
-    MemorySemanticRefCollection,
-)
 
 
 def make_semantic_ref(ordinal: int, text_range: TextRange):
@@ -115,21 +111,12 @@ def create_searchable_conversation(
             ],
         }
 
-    # Create storage provider
-    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
-    embedding_index_settings = TextEmbeddingIndexSettings(embedding_model)
-    message_text_settings = MessageTextIndexSettings(embedding_index_settings)
-    related_terms_settings = RelatedTermIndexSettings(embedding_index_settings)
-    storage_provider = MemoryStorageProvider(
-        message_text_settings, related_terms_settings
-    )
-
-    # Create conversation
+    # Create conversation (using None storage provider for simplicity in non-async context)
     conv = FakeConversation(
         name_tag="MockConversation",
         messages=messages,
         semantic_refs=refs,
-        storage_provider=storage_provider,
+        storage_provider=None,
         has_secondary_indexes=False,
     )
 

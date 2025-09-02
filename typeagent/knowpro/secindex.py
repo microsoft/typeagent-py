@@ -12,14 +12,17 @@ from .interfaces import (
     ITermToSemanticRefIndex,
     TextLocation,
 )
-from .messageindex import build_message_index
-from .propindex import PropertyIndex, build_property_index
-from .reltermsindex import (
+from ..storage.memory.messageindex import build_message_index
+from ..storage.memory.propindex import PropertyIndex, build_property_index
+from ..storage.memory.reltermsindex import (
     RelatedTermsIndex,
-    RelatedTermIndexSettings,
     build_related_terms_index,
 )
-from .timestampindex import TimestampToTextRangeIndex, build_timestamp_index
+from .convsettings import RelatedTermIndexSettings
+from ..storage.memory.timestampindex import (
+    TimestampToTextRangeIndex,
+    build_timestamp_index,
+)
 
 
 class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
