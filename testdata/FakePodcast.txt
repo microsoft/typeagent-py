@@ -1,0 +1,11 @@
+GUIDO: Welcome to my podcast, Steve and Umesh.
+UMESH: What are we going to talk about?
+STEVE: Mostly about multi-agent frameworks,
+but also about answering questions about podcast transcripts.
+
+Do you have additional topics you'd like to propose?
+
+ GUIDO VAN ROSSUM : Can we also talk about code searching?
+
+UMESH:
+I'd like to at least briefly mention email indexing and querying.

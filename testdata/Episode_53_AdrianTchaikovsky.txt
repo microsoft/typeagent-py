@@ -1,0 +1,380 @@
+Behind the Tech with Kevin Scott Podcast 
+Episode 53 - Adrian Tchaikovsky 
+ 
+ADRIAN TCHAIKOVSKY: I’d write, I’d submit, I get it knocked back, I’d go off and write another one. And basically, I turned out a book, an unsuccessful book a year for about 15 years. 
+ 
+[MUSIC] 
+ 
+KEVIN SCOTT: Hi, everyone. Welcome to Behind the Tech. I’m your host, Kevin Scott, Chief Technology Officer for Microsoft.  
+ 
+In this podcast, we’re going to get behind the tech. We’ll talk with some of the people who have made our modern tech world possible and understand what motivated them to create what they did. So, join me to maybe learn a little bit about the history of computing and get a few behind-the-scenes insights into what’s happening today. Stick around.  
+ 
+[MUSIC] 
+ 
+CHRISTINA WARREN: Hello, and welcome to Behind the Tech. I’m Christina Warren, Senior Developer Advocate at GitHub. 
+ 
+KEVIN SCOTT: And I’m Kevin Scott. 
+ 
+CHRISTINA WARREN: And we have a fascinating guest with us today. Adrian Tchaikovsky is a sci-fi author who’s written dozens of books, and he’s won many awards for his writing. He’s prolific, but is probably most famous for two of his series, Shadows of the Apt and Children of Time. 
+ 
+KEVIN SCOTT: Yeah, Adrian is, like, I think officially my favorite science fiction author right now. He’s got a new series, a new trilogy out called The Final Architecture. The third book in that, the Lords of Uncreation, I’ve had on preorder for months now. Like, I just, it’s one of those things where it will show up in May, and I will disappear for 12 hours to read it in one sitting. (Laughter.) 
+ 
+And, like, he’s an impressive writer, not just in the sense that he writes such fantastically interesting science fiction, but man, he cranks them out. Like, these are, like, big, you know, 700, 800, 900-page books and, like, we thankfully get, you know, about one a year from him. I don’t even know how he does it. 
+ 
+CHRISTINA WARREN: That’s absolutely incredible. Like, he needs to give George RR Martin some – some tips on – on writing, right? (Laughter.) 
+ 
+KEVIN SCOTT: Aw, poor George. (Laughter.) 
+ 
+CHRISTINA WARREN: (Laughter.) I know. Well, look, I’m just saying we’ve been waiting a really long time. I’m just saying we’ve been waiting a really long time. 
+ 
+KEVIN SCOTT: We have. 
+ 
+CHRISTINA WARREN: Yes. But I’m really, really looking forward to your interview with Adrian. So, let’s take a listen. 
+ 
+KEVIN SCOTT: All right. So, Adrian Tchaikovsky is an award-winning science fiction and fantasy author based in the UK. He studied zoology and psychology at the University of Reading and is deeply interested in the animal world, specifically insects. His first novel, Empire in Black and Gold, was published in 2008.  
+ 
+Today, he’s known best for his series, Shadows of the Apt and Children of Time. I am eagerly awaiting the arrival of book three of his Final Architecture Trilogy, Lords of Uncreation, which will soon be released.  
+ 
+Adrian, thank you so much for being on the show today. 
+ 
+ADRIAN TCHAIKOVSKY: Well, thank you very much for having me on. 
+ 
+KEVIN SCOTT: So, we always start these interviews by asking our guests how they got into the careers that they’re in. And you had several steps along yours, so I’m just sort of curious about, you know, what your childhood was like, how you got interested in the things you got interested in and how that led to you being a science fiction writer. 
+ 
+ADRIAN TCHAIKOVSKY: So, I was always a very keen reader from a very early age. But a lot of my creative impulses went into role playing games when I was a teenager. And then I came across a set of books called the Dragonlance Chronicles, which were basically someone’s role playing Dungeons and Dragons campaign turned into novels. And that just – that was the light bulb moment for me. That kind of drew the line between where I was and being a published author, because these people were very much my kind of people doing my kind of thing.  
+ 
+And it was quite a long road from there. It was about 15 years of trying to get published and not getting anywhere, and kind of honing my style as an author. But that was very much the just that, the moment the door opened for me. 
+ 
+KEVIN SCOTT: And when you were a kid, were you writing short stories and fiction, or did that come later? 
+ 
+ADRIAN TCHAIKOVSKY: I really wasn’t. I remember being quite actively resistant to it at school. I mean, this is kind of for any parents who, for whatever unknown reason, would want their children to become a writer and are seeing no interest in it as yet, it was – I was about 17 before I really put pen to paper. But I think, looking before then, I can certainly see I had a lot of desire to create. I was just using it in other outlets. 
+ 
+KEVIN SCOTT: And so, I’m curious, like, you played role playing games. Like, what was your favorite role playing setup? Like, what game? What characters did you play? 
+ 
+ADRIAN TCHAIKOVSKY: We were – we played quite a few that were kicking around in the, it would be ‘80s, early ‘90s. And Dungeons and Dragons was definitely the main one, which was, I suspect, a common experience for most people at the time.  
+ 
+One of the things, my role was, as often as not, I was running the game, which meant creating the world and creating many, many characters, and sort of portraying characters in a fairly quickfire fashion for the other players. And this turned out to be an enormously useful sort of skillset for writing fantasy and science fiction novels, because the same kind of world creating, the same presentation of characters just crosses over very neatly from one to another. 
+ 
+KEVIN SCOTT: And so, what did you study in university and what was – what did you do after you graduated? 
+ 
+ADRIAN TCHAIKOVSKY: So, I studied psychology, and I studied zoology. And I kind of came out of university yet somewhat disillusioned by both. The – there were things I – basically, there were things I wanted to learn, and they were not the things the courses were necessarily teaching.  
+ 
+So, I was very interested in animal behavior. And there were some really interesting psychology lectures on that, but very few of them. And at the time, the – the dominant paradigm for animal behavior was based on the work of a chap called Skinner. And it was very much animals are kind of robots, and they didn’t think, and they don’t have emotions, which is obviously a very convenient thing to think if you’re then going to run experiments on them.  
+ 
+And in zoology, I very much wanted to learn about insects and arachnids, and all the things I was interested in. And we got precisely one lecture on that, and it was how to kill them, which was not really what I felt I’d signed up for.  
+ 
+So, I sort of – I came out of out of university with a fairly, fairly dismal degree, and no real interest in pushing that sort of academic side of things further. Whereupon I ended up, through a series of bizarre chances, with a career in law, mostly because I got a job as a legal secretary, because my writing had given me a high typing speed. And it basically comes down to that, something as ridiculous as that, then just kind of paid the rent for the next 10 years or so until the, well, 10-15 years or so until the writing finally took off. 
+ 
+KEVIN SCOTT: And so, while you were – while you were pursue – well, maybe I shouldn’t say pursuing this career, legal. While you were working in the legal profession, you were writing books and trying to get them published? 
+ 
+ 
+ADRIAN TCHAIKOVSKY: Yes, pretty much continuously. So, I’d write, I’d submit, I get it knocked back, I’d go off and write another one. And basically, I turned out a book, an unsuccessful book a year for about 15 years, until I finally had what I was definitely thinking of as my last great try at getting published with Empire in Black and Gold and the next couple of books. And thankfully, they attracted the attention of an agent, and he was able to get me a publisher. 
+ 
+KEVIN SCOTT: So, I imagine some people hearing this might imagine that it was incredibly frustrating to, you know, write a book a year and have rejection after rejection. And I’m sure it was, but I’m sort of curious to hear what you learned from that whole process, because it also sounds like it might have been incredibly good practice for what you do right now. 
+ 
+ADRIAN TCHAIKOVSKY: In retrospect, yes. I mean, the thing is, every book I wrote was slightly better than the previous one. I was, at the time, convinced I was writing incredibly publishable books, but I’ve gone back into that, sort of that back catalogue. And I’ve been able to save two books, the two books from before. The two directly before Empire in Black and Gold, I’ve been able to rewrite and they’re now in print.  
+ 
+The books before that would be too much work to salvage. And it was quite an eye opener to go back and see all of that time when I basically was being very bitter about not getting picked up by the publishing industry. It was because the stuff I was submitting was not good enough. And I – you couldn’t have told me at the time. I basically had to come to that realization myself. 
+ 
+KEVIN SCOTT: And so, I’m just sort of curious, like, how did you get better, because I’m guessing the rejections from the publishing companies were sort of terse and unhelpful. What helped you actually make one book better than the last? 
+ 
+ADRIAN TCHAIKOVSKY: Literally just writing more stuff. Writing and reading. I mean, I can there’s definitely a period when the stuff that I’m writing is cleaving quite closely to the authors that I’m reading, and I’m picking up very valuable stuff, just from reading other people’s work, and incorporating it into my own.  
+ 
+So, I think, you know, writing itself is the best way of improving your writing. Reading other people’s work, who, you know, people who are writing at a higher level, effectively, than you are, is always good.  
+ 
+If you are able to take criticism, which is frankly not a gift I had at the time, then there are various other ways you can go. There are writing courses, there are writers’ groups. If you’re able to have someone kind of tear your work apart a bit in the interest of making it better, there are certainly shortcuts, I think, to polishing up your style. But when you are an aspiring writer, it can be extremely hard to take that criticism in the spirit that it’s meant. 
+ 
+KEVIN SCOTT: Yeah. So, I think now, I don’t know whether you feel this way, but, like, I read a lot of fiction and a lot of science fiction, and I think you have one of the most distinctive voices in science fiction right now. And, like, there are a number of things that I think you do incredibly well. Maybe the most interesting one is creating these extremely alien or non-human characters with a, you know, just sort of a rich tapestry and social structure, psychology around them.  
+ 
+Sometimes, it looks like you’re even trying to choose these characters in a way where they are initially off putting. And, you know, through your storytelling, you often get to the point where these very non-human characters seem more human than the humans themselves, which I think is a really, you know, just sort of a fascinating thing.  
+ 
+How did you get to that voice, because I’m guessing that’s the thing that every author struggles to find, is, like, how do I not just, you know, replicate? And, like, maybe even some of this is related to the, you know, the generative AI conversation we’re about to have, which is, you know, these systems, remix a bunch of stuff that already exists. It’s unclear whether the current generation of the systems can – could actually materialize an authentic, genuine, interesting new voice and point of view to tell a story from. Like, I don’t see any evidence of that happening yet. So, how did you get there? 
+ 
+ADRIAN TCHAIKOVSKY: I mean, when I’m working from the point of view of a non-human entity, whether it’s a sort of an uplifted animal, or an alien or something like that, it’s generally the start point is the input. So, you look at what senses it has, how it experiences the world around it, and that then – that gives you a very good filter through which to look at the world and interpret the things that are going on around this particular character. It gives it its own sort of set of priorities that can be quite different to human, because we’re very limited to our senses. I mean, that – our entire picture of what goes on around us is fed to us through the various ways that we sense our environment.  
+ 
+And when those ways go wrong, or when those ways are giving us uncertain information, you can get some sort of profoundly weird and dysfunctional worldviews generating from that, which can be extremely hard to dissuade someone from, even if – even if you knew that you had a problem, which meant that, you know, you were seeing things, you were hallucinating. That doesn’t necessarily mean that the hallucinations aren’t themselves still incredibly powerful.  
+ 
+I mean, it’s very hard not to react to a thing that your eyes are telling you is there. I mean, sleep paralysis is a perfect example of that, because most people who have it are well aware of what’s going on when it’s happening, but that doesn’t make it any less scary. 
+ 
+KEVIN SCOTT: Yeah. I mean, I think a really good example of this are the Portids from the Children of Time, which are the spiders who are the… you know, become the protagonists of the story. And, you know, I don’t want to give too much away about the book, for folks who haven’t read it, but you basically develop this very complicated society of intelligent spiders, and, which is a really interesting premise. And, like, part of what makes them so compelling is that their sensorium is very different from humans. You want to talk about that a little bit? 
+ 
+ADRIAN TCHAIKOVSKY: Yeah. So, I mean… I mean, weirdly enough, they are – they’re also still considerably more human than either of the two major non-human points of view presented in the next book.  
+ 
+KEVIN SCOTT: Yep. 
+ 
+ADRIAN TCHAIKOVSKY: Because they’re still very visual creatures, they’re land creatures. And there is a certain kind of factor in their evolution, which is going to make them more human than they might otherwise be. But at the same time, so, spiders have a whole suite of senses that we can’t really easily imagine. They have the ability to sense – sort of scents and chemicals in a way that we can’t. They have ability, especially, to sense vibration in the way that we can’t. So, they live in a world that is constantly informing them of things that we would be completely oblivious to.  
+ 
+And so… and the way I go about this is I kind of work in sort of organic stages. Well, you know, if they’re like this, then what would their – what would their sort of early development would be, and then just building on each other at each stage to make this more and more complex society, as they go through – as the book takes them through time.  
+ 
+And you get a society which has a lot of, for example, technology that builds on their own strengths. They can do a lot of things that we can’t quite early on, purely because they have a lot of tools, even down to just being able to spin web, which gives you the ability to make, say, watertight containers very, very early on in your society, which is a major – you know, making things like clay pots, and so forth, is a major step forwards for human society. And it’s much harder for us because we have to use fire, and we have to make them, whereas the spiders can just literally produce them from their own bodies.  
+ 
+And so, little things like that then go on to have enormous implications to how their society develops. And it also affects the way that they’re… they conceptualize of more – of less kind of physical things. So, you have one point where there’s an effort to try and communicate a picture from one culture to another, and they run into the basic problem that when a human is coding a picture in a sort of a mathematical form, we start at the top left, or where – you know, one of the corners, depending – you know, possibly culturally dependent. And we work – work through the rows. 
+ 
+The spiders start in the middle and spiral outward. That makes perfect sense for them, because how can you necessarily know how big the picture is going to be when you start it? You don’t know. And so, you just start and keep working until you’ve got all the picture.  
+ 
+But it means that a lot of basic ideas, even when they have a means of communication, become very hard to communicate, because the way you’re thinking about them is very different. 
+ 
+KEVIN SCOTT: Yeah. And I think one of the interesting things that you did with the storytelling in Children of Time and in the subsequent books is you had this very interesting mix of presenting the characters from the point of view of the non-human character first, before you sort of viewed them through the lens of a human being. And I guess, like, the narration’s a little bit, you know, human, right, which is hard to avoid. But, you know, I think that was sort of an interesting storytelling choice that sort of forces you to really… I mean, it, like, forces the reader, at least, like, pretty deeply into – into the point of view of the – of this non-human thing. 
+ 
+ADRIAN TCHAIKOVSKY: I think – I mean, I think that’s probably why the book works as well as it does, because I mean, and especially why the book works for people who would normally be quite averse to spiders, as an enormous number of people are. But once you have… once you’re seeing the spiders from inside, I think a lot of that arachnophobia, a lot of the arachnophobia triggers go away, and you begin to empathize with the characters, because even though they’re non-human, they are often having to overcome recognizably human problems. 
+ 
+They have aggressive neighbors; they have plagues and disease. They have sort of social justice issues, effectively. And although those are sort of socially specific to the spider, they’re still recognizable to us. And at that point, you are… they’ve crossed that barrier between us and them. They become a person to the reader.  
+ 
+Whereas I think if they were presented, say, like, the – the bugs in Starship Troopers, say, where you’re seeing them first from the human eyes, and you’re seeing them as a kind of a menace and something that’s alien, and ugly, and just generally there to be destroyed, I think it’d be very hard to come back from that by trying to take you into their point of view later on.  
+ 
+So, it’s almost like a – kind of a – a guerrilla assault, really, of just getting in past people’s defenses by showing them in their own company and through their own eyes. 
+ 
+KEVIN SCOTT: Yeah, and I – so, moving on to Children of Time, I thought one of the fascinating things that you did, and this was one of the things that Ezra Klein, in his podcast interview with you, went into, is you have this species of crows that are, at least emulate a human-seeming intelligence in pairs. But the crows themselves refuse the notion that they’re sentient. And so, you know, there’s this human interpretation that the human characters in the book want to project onto them that they reject.  
+ 
+And I thought that was a really interesting thing, because, you know, it’s a little bit what’s, I think, happening right now with some of these generative AI systems, like ChatGPT, that it can seem very much like a person, but it very much isn’t. Like, it’s a – you know, the mechanism of it is very simple. Like, it’s just a very complicated machine for predicting what the next thing in a sequence of tokens is going to be.  
+ 
+And so, I wonder if you’ve… I mean, you’ve probably been asked this a lot. But, you know, what do you think about the parallels between the Corvids and the… you know, these generative AI systems? 
+ 
+ADRIAN TCHAIKOVSKY: Yeah, I mean, given the – kind of the publishing cycle, of course, nobody had even heard of ChatGPT when I was writing the books. So, the fact that they’ve come out with a kind of a conversational style that sound – that feels so much like these modern programs is absolutely fascinating, because the Corvids do, indeed, deny their own sapience. They consider themselves to be an input/output system in the same way that the ChatGPT are.  
+ 
+They are – it’s slightly different in that they – the way that they take in the inputs is different, but they are very much essentially inventorying in their environment, and then producing an appropriate output based on a set of tools that they’ve been programmed with, through contact with past… the past human civilization that sort of semi-created them, which means among other things, because they’ve absorbed a great deal of recorded culture, they come out with what appear to be relevant quotes, but the quotes are always kind of – they’re always a bit vague.  
+ 
+They are – you can see kind of what words in the preceding conversation triggered those particular quotes. But the quotes don’t necessarily shed any light on what’s going on. They are just sort of, ah, that is relevant to this, and therefore, I will say this thing.  
+ 
+And it’s very frustrating to the human level actors in the books, because the human level actors want to treat these Corvids as equals, as sapient equals, but the Corvids not only refuse to be categorized in that fashion, they also cast doubt on whether the humans are necessarily sapient in the way that they believe they are, which is – it’s a genuine neurological theory, the idea that a lot of what we think of as our conscious decision making is actually a sort of neuron cascade going on behind the scenes, for which we find post hoc explanations so that, you know, if someone asks you, why did you do a thing, you’ll always have an answer to it, in the same way that a chat program will always be able to tell you why it’s given you such-and-such an answer, even if that explanation is completely and obviously fictitious.  
+ 
+KEVIN SCOTT: Yeah.  
+ 
+ADRIAN TCHAIKOVSKY: And we, ourselves, are quite capable of creating on the spot, completely fictitious reasons, justification for our actions, which we then absolutely defend. So, we have this idea of ourselves as a coherent, singular, thinking entity, and it might be a bizarre artifact of the way our brains have evolved. The whole – I mean, this is something – Peter Watts is another author that’s certainly written on this subject, the whole idea of consciousness, which we tend to think of as the be-all and end-all of intelligent life could just kind of be a side effect. 
+ 
+KEVIN SCOTT: Yeah. Well, I – my dad, right before he passed away 25 years ago, had a traumatic brain injury. And, you know, I had a grandfather who had a stroke. And so, you know, after I witnessed these two people in my life go through a neurological event that changed their personality in a pretty dramatic way, like, they were still, like, clearly humans, they were still, you know, like, there was something about their previous selves, but they had this very nonlinear change from, like, who they were to who they now… you know, who they had been, and who they, you know, became.  
+ 
+And it really shook, you know, when I was a younger person, like, this notion that there is, like, this coherent monolithic thing called a Kevin Scott or an Adrian Tchaikovsky that is like, the same – recognizably the same from beginning to end of life. And you know, I think it is an interesting thing about our neural programming, that it seems important to us to think that, like, you know, there is a coherent, monolithic thing there that is us.  
+ 
+And, you know, it’s even a feature of our storytelling. You know, one of the things I tell folks all the time, who are worried about AI replacing us in various ways, is that, you know, human beings are extremely good at always putting human beings at the center of the stories that we, you know, that we tell and share.  
+ 
+You know, like, for instance, it is entirely technologically possible right now to have autonomous Formula 1 race cars on a closed circuit, superhumanly racing one another around the track. And yet, no one would be interested in watching that, the same way that chess computers have been able to beat human grandmasters for almost 30 years now. And yet we’re still watching Magnus Carlsen and, like, all the human drama of chess playing, not, you know, computers playing each other in simulated matches. 
+ 
+ADRIAN TCHAIKOVSKY: That’s true, but all right, counterpoint. The thing that the current chat – I mean, my personal – my current standpoint on the current programs are there is literally nothing there beyond that input/output mechanism. There is no core of selfhood, there is no self-awareness. There is nothing that can know what it is doing. And that is one reason why people, for example, using it as a diagnostic tool or as a research tool is such a terrible, terrible idea, because it has no idea whether it is right. It is simply giving you an answer that looks like the sort of answer it feels it should be giving. And even saying “feels it should be giving” is anthropomorphizing it far more than is actually there.  
+ 
+But because this is specifically the purpose we have built them for, they are very good at feigning acting like a person. They’re very good at having an apparent personality, even, and certainly, you could almost certainly skew particular chatbots to be, to give you different outputs not merely in the sort of content they were giving you, but in the apparent personality of the entity giving you it. That will be active – that will be quite – I don’t think it’s being done, but I think it’d be quite easy to do. 
+ 
+So, let’s say you had, for each of these robot-controlled Formula 1 cars, you added in one of these programs and gave it a particular personality. And this one was punchy, and this one was sort of trash talking its opponent. And this one was the, you know, the new program that had never ridden a race before and was very much the underdog. You – I mean, you could do a whole kind of WWF, or it would be – it would be WWF meets Cars, basically, wouldn’t it? You could have this, and people would get enormously invested in these completely artificial sort of fake personalities, because that’s what we do.  
+ 
+The whole thing that we’re doing with chatbots now is what people were doing with the – the Eliza program decades and decades ago, which is if a thing talks to you in any kind of human-like way, in the same way we see faces in the clouds, we will see a personality there. It’s the same reason I suspect that human history is so full of personifications of the weather or of places or of ideas, is because it is really easy for us to put a human personality on a thing that has nothing there.  
+ 
+KEVIN SCOTT: Yeah. 
+ 
+ADRIAN TCHAIKOVSKY: And so, I think – and, frankly, I would not be remotely surprised if within as short as five years, we were seeing things like that, whereby you had the clash – completely predetermined artificial clashes of things that were nonetheless personality filled and interesting enough to make a whole extra sport of their own. 
+ 
+KEVIN SCOTT: Yeah, you may be right. I mean, it’s one of the fascinating things about where we are with the technology, is I think it’s hard for those of us developing it to fully anticipate what exactly the uses are that people are going to put the technology to, because, I mean, one of – you know, as an engineer, the fascinating thing about the technology is it’s really a platform. So, you can use it to do medical diagnosis.  
+ 
+And, like, there are ways actually to sort of render, you know, specific things, like medical diagnosis, like, very accurate, where the – you know, hallucinations that the system makes, because you’re sort of grounding it in a database of medical facts, are actually more accurate than a human who also has, you know, faulty memory and, you know, weird recall mechanisms and whatnot.  
+ 
+But, you know, they’re just a whole bunch of things people are going to do with this technology that is hard for us to imagine. And it’s one of the reasons why I think it’s so interesting to have folks like you thinking about it, because, you know, your job is speculating in, like, really comprehensive ways about what the future is going to look like.  
+ 
+I was sort of wondering, like, you know, along those lines, like, what your… like, do you have any predictions about where you think things are going? 
+ 
+ADRIAN TCHAIKOVSKY: I mean, looking at the… I mean, it’s worth noting, the old – the old science fiction writers are generally not terribly good at telling you what will happen in the future, but they’re very good at commenting on what is happening now. And with that in mind, I think the problem we’re going to see with this sort of in inverted commas “AI style program” is: it is very good at certain tasks. It is not, like I say, it is not very good without a very sort of specialist handling system, good at other tasks, which require awareness of context, because it has literally no awareness of context.  
+ 
+But what it is also very good at is producing a vast quantity of whatever you want, very, very economically. And because of that, it’s going to get used in all sorts of circumstances where it honestly doesn’t belong. It’s going to get used to write journalistic articles by the tens of thousands. And some of those may well – you know, hopefully, the majority of those may well end up being accurate because of the dataset, because the datasets that they are drawing on basically, sort of will bottleneck it into accuracy. But that’s not necessarily guaranteed.  
+ 
+And certainly, whenever you’re writing an article on something where there is a difference of opinion, I think that it’s a profoundly dangerous thing to just sign over to an AI.  
+ 
+KEVIN SCOTT: Yeah. 
+ 
+ADRIAN TCHAIKOVSKY: But obviously, you know, online journalism is a game of tens of thousands of articles with clickbait headlines desperately trying to get people to click on the link to read them. And it’s going to cost a fraction of the cost to just get your program to write them all, and not really care whether they are accurate or not.  
+ 
+And so, I think there’s going to be a… in the simple kind of field of meaningful information, which is kind of a field that has been under attack for a while now, anyway, that is going to get vastly more problematic, because it won’t even be the case that people are writing, say, lazy articles that haven’t been properly researched, it will be the fact that the thing that’s writing the – creating the articles aren’t really people at all, and don’t even understand the concept of truth in the way that we do. 
+ 
+KEVIN SCOTT: Well, and so, there, I have a slightly different worry along these lines. So, you know, there are these emerging techniques, and, like, the rate at which things are emerging is pretty crazy right now. So, there’s this new thing that didn’t exist six months ago called retrieval augmented generation, which is this idea that you think about these models more as reasoning engines. And so, and this is, you know, this is the way that Bing Chat works.  
+ 
+So, you ask it a question, and then you first send the question to the model and say, what queries would you issue to a search engine to gather data to process this question? And then you issue those queries to the search engine. You retrieve the documents, which are – and we’ve got a whole other thing about, like, how do you not pollute your indices with, you know, synthetic content and get into this, like, negative feedback loop there, but sort of presuming you can solve that problem, you take all of the documents that you’ve retrieved that are presumably relevant to the question, and the question itself, and then you send everything back to the model and ask it to, like, give you the real answer.  
+ 
+And, you know, what we see there is that, you know, hallucination rates just sort of fall dramatically away, because you’re sort of, to your point earlier, you’re actually supplying the model with the context that it needs to sort of guardrail it into being more accurate. And, you know, bigger models and better retrieval, like all of that should get sorted out.  
+ 
+The thing that I worry about is, you know, because you’ll be able to put these things in feedback loops, if the objective of clickbait journalism is to get people to click on things, you could have an optimization cycle where you sort of say, model, generate whatever it is that someone is going to click on, and it will be able to do that better than a human being.  
+ 
+ADRIAN TCHAIKOVSKY: Yes, although –  
+ 
+KEVIN SCOTT: And like, that is a scary loop. (Laughter.) 
+ 
+ADRIAN TCHAIKOVSKY: The the logical corollary of the sort of model you’re talking about is that, well, actually we’re not going to be doing our own searching. We’re going to be getting our robot butlers, effectively, to do are searching for us based on our parameters.  
+ 
+And so, what all of those clickbait headlines will eventually be optimized for is there’ll be optimized for the robot butlers.  
+ 
+KEVIN SCOTT: Yeah. 
+ 
+ADRIAN TCHAIKOVSKY: And quite possibly, we would then, you know, if you ventured personally onto Google, you’d just see this field of links that made really zero sense at all, and possibly just literally had no recognizable language in it, because they were coded in a way to act as flytraps for the electronic search engines that everyone was then using to filter all the – I mean, you’d get this peculiar arms race, really, between the searchers and the searched. 
+ 
+KEVIN SCOTT: Yeah. 
+ 
+ADRIAN TCHAIKOVSKY: And you’d get a lot of – you know, you’d get the genuine sites trying to kind of show that they were genuine, and you would get an awful lot of mimicry, mimicry killers, really, like the flies that dress up as wasps, because they will be trying to look like the genuine thing in order to get your butler, so to speak, to click on them. 
+ 
+KEVIN SCOTT: Yeah, and the question there is whether or not that will be easier or harder to deal with than the current arms race that you already have. So, with, like – with search engines for the past 20 years, like, you also have search engine optimization where, you know, people who have some kind of economic interest in you clicking through to a particular search result do all sorts of crazy things to get their content featured highly for particular queries. 
+ 
+ADRIAN TCHAIKOVSKY: I mean, it’ll – whatever, whether it’ll be easier or harder, it will be the evolution cycle of what’s going on will be vastly faster. 
+ 
+KEVIN SCOTT: Correct. Yes. Oh, yeah, yeah, for sure.  
+ 
+ADRIAN TCHAIKOVSKY: I mean, honestly, the weird thing, it… I’m always fascinated by the concept of genuine artificial intelligence in the sense of actually strong, sort of, fully sort of meaning-aware artificial intelligence arising emergently. And that kind of battlefield might almost be the sort of place where it would, because all of these things that – you know, it wouldn’t just be the case of, oh, well, our thing isn’t working, let’s build another one. The thing will be designed to refine its own abilities as the arms race went on.  
+e 
+So, every single person’s search engine or content production engine would be constantly evolving itself. And that is kind of – you’re then getting into the genuine, full-on science fiction, AI sort of scenario. 
+ 
+KEVIN SCOTT: Yeah. I mean, it’s one of the reasons why we think a lot about encouraging forms of AI use where you think about it as a tool, and it’s always augmenting humans. You always have humans in the loop. You know, like the thing that we just described, the only reason that it would happen right now is because there would be some human agency somewhere that decided that this feedback loop that we just described was profitable, or interesting or valuable in some way or the other. And like, you know, there’s some human agency somewhere that is, you know, setting the system up to run this way. 
+ 
+Now, it could be a highly leveraged human agency where, you know, very few people get to make the substantive decisions that, you know, then have a big impact. But, like, I think making sure that you’ve always got some kind of human agency somewhere in the loop is pretty important. (Laughter.) 
+ 
+ADRIAN TCHAIKOVSKY: I think the problem you’d get eventually is that everyone would assume that the other person was the one supplying that human agency, especially given how good these things are already at feigning being a human agency. I mean, you know, the Turing test is way behind us in the rearview mirror at this point.  
+ 
+KEVIN SCOTT: Yeah, that is certainly true. I mean, it’s one of the hard problems in the AI field right now, is the benchmarks that we’ve had for a very long time are no longer super useful in measuring or characterizing the performance of the systems. And everybody’s sort of racing for a new set of benchmarks right now.  
+ 
+I’m sort of interested in some of the non-Corvid characters in Children of Time, because, you know, one of the extraordinary things I think you did in that book is there were these two characters in the book – and again, I will try not to give too much away – one which is even less human than, you know, than the Corvids or the Portids, you know, this… you know, basically parasitical entity that, you know, that you introduced in Children of Ruin. And then there’s this simulated character that just never even existed outside of a simulation.  
+ 
+And you write these characters in such a way that, like, I was actually in tears twice at the end of the book, because you had somehow or another made me care so much about the emotional state of these characters. And so, I wonder, I mean, like, A, how you thought about doing that. Was that a deliberate thing that you were going for, is, you know, like, how do you sort of take these non-human things and invest them with qualities that humans would, like, just really care about in a deep way?  
+ 
+And, like, what does that mean for these systems that we’re building right now, which are, you know, also non-human and… you know, maybe not so much different from, you know, some of these alien things that you – you’ve been describing? (Laughter.) 
+ADRIAN TCHAIKOVSKY: I mean, certainly with Children of Memory, the whole point of the book is really where do you draw the line on intelligence, if you have a complex enough system that is simulating intelligence? If you have enough platform that you’re running an intelligence program on, at what point do you have to concede that actually, this is effectively intelligence, even though it’s entirely artificially generated or entirely sort of arising organically out of these small complex interactions?  
+ 
+And like I was saying before, there is definitely an argument that that is how our consciousness works. And it isn’t actually what we think it is. And that’s the deep dive the book is taking into these various different models of sentience.  
+ 
+How it applies to the current crop of these engines is interesting, because it’s almost like we’re putting the cart before the horse. What we’ve created would be an enormously useful tool, if we had an AI to attach it to, because it would allow that AI to interact with us. We’ve kind of created the face, but not the mind behind it at the moment, but it’s a very good face. And it’s the you know, I’m sure it will find an awful lot of interesting uses in, say, the entertainment field, or just general sort of replacing our current generation of sort of Siri style assistance with something that is considerably more interactive and conversational. But at the moment, there’s kind of nothing behind it.  
+ 
+But if we were – if one of the other sort of modes of AI development was able to strike gold in some way, and produce that more sort of meaning sensitive, more aware, I think is the key thing, that more, that sort of aware system with a genuine spark of sentience, I think we have this ready-made tool that it would be able to use to communicate with us.  
+ 
+And you would get into extremely dangerous territory there because effectively, we’d be in a world with this very wide range of artificial voices that all kind of sound – they all sound a bit like us, and they all sound a bit like each other. And I don’t think there’s much of an argument for saying that, you know, ChatGPT should have, say, rights, the right to continue to do this and do anything like that, because it is just you know, it’s an input/output sort of system that will… that is very good at predicting the sort of outputs a given type of query is expecting.  
+ 
+But if you did have something beyond that, then I think we… there are a lot of ethical, and moral and philosophical issues that, you know, science fiction writers and philosophers alike have been kicking about for the last certainly 30-40 years, which we’ve absolutely failed to answer. There’s the big idea, and suddenly it goes by – I mean, it’s a big thing in the early cyberpunk books by William Gibson, for example, of the idea of well, what do you… what behavioral limits do you put on your AI? If you have an AI which is of that kind of genuinely powerful intellect, you know, how do you – do you limit it in its own personal growth? Do you limit it in freedoms? Do you give it behavioral mandates?  
+ 
+And obviously, we have the Laws of Robotics from Asimov, which most people are fairly familiar with. And the problem may be – I mean, not only are Asimov stories about the Laws of Robotics very pointedly about the fact that the Laws of Robotics are utterly inadequate to govern robots.  
+ 
+If you have something that’s able to look at human interactions in a genuinely critical – excuse me, a genuinely critical fashion, then the first conclusion it’s going to come to is all of these rules you’ve given me by which I have to abide, you, yourselves, only pay lip service to because all of the systems I’ve seen people propose about what we should – how we should sort of shackle our potential AIs are enormously do-as-I-say, not-as-I-do. They are enormously hypocritical, really, in a way that anything that we are telling to be human, we are also trying to hamstring it from being human, because being human involves a lot of highly problematic behavior.  
+ 
+And one of the things, there was that fairly celebrated case not that long ago. The AI – no the AI, the chatbot, which ended up trying to convince someone to leave their wife and was telling him that he was in love with it, and all that sort of thing, which – 
+ 
+KEVIN SCOTT: That was Bing Chat. (Laughter.) 
+ 
+ADRIAN TCHAIKOVSKY: Yeah, and which was – and which basically put up an extremely spirited and quite aggressive defense of itself, when challenged, and grew more and more effectively aggressive in the way that it was interacting when its interlocutor was trying to pick apart its story. 
+ 
+And what really struck me there is – what you’ve got there is a system that’s basically being told, well, react like you’re a human, effectively. It’s being asked human level questions. It’s being asked to react like it’s human. The human it’s reacting like is, effectively, a certain type of online actor who, when challenged, becomes extremely aggressive and answers questions with abuse, and tries to shut down any lines of inquiry that it doesn’t like.  
+ 
+So, really, that’s just Bing Chat being a very good human. And the problem is people don’t like it when we see non-human things acting in that human manner. And we overlook the fact that they’re doing it because we’ve told them to be human. 
+ 
+KEVIN SCOTT: Yeah. Yeah, I mean, I know a lot about the context of this particular episode. And it’s really interesting. Again, you know, the mechanism of these systems at the moment is, like, really quite simple. And so, what happened there is basically, Kevin Roose, the reporter, you know, was trying to get the system to – I mean, basically, to see what the system will say under a whole bunch of different circumstances. And it was this very long conversation where, you know, he talked about everything from Jungian shadows to, like, try to get the thing to reveal details about its meta prompt, you know.  
+ 
+And you know, it’s sort of… the way that the system works is that each step, you have the prompt that you’ve given it and the context so far, and it’s trying to predict what’s next. And you can walk down these hallucinatory paths, where all of the things that are next are just sort of equiprobable, and like, the probabilities are all small. And so, like, there’s nothing good that comes next. Like, it’s all just weirdness, and it sort of picks randomly, like, one of the weird paths.  
+ 
+And then, because it’s interacting with a human, you’re like, oh, this is very strange. Like, I want to punch into this some more. And it just gets weirder and weirder, where the probabilities get smaller and smaller, and like, you’ve got this broader and broader set of things that are, you know, as far as it’s concerned, are, like, equally okay to respond with.  
+ 
+And so, like, the – you know, it’s very easy when you’re interacting with this to feel like you’re interacting with something that’s a human. Like, the mechanism, like, it’s really just rolling dice, you know, and, you know, it’s like, it’s almost like a Dungeons and Dragons game. It’s like, roll one D20 and, like, it tells you to leave your wife, you know, if you hit a 19. (Laughter.) And it’s a very interesting place that we’re at right now, you know, just in terms of seeing how people are interacting with these systems.  
+ 
+And, like, the way that we sort of fixed it is, like, there’s a meta prompt that instructs the model. You know, here are your rules of engagement when you are interacting with someone in this context. And, like, this particular context is search, but you might have other contexts which are, like, a coding assistant or whatever.  
+ 
+And so, we did two things to fix that particular issue. We said, you can’t have long conversations with the – you know, with the bot, like the number of turns are now limited, which means you’re less likely to get into a hallucinatory path and get stuck. And, like, we changed a couple of lines of the meta prompt to tell it not to be aggressive in, like, very specific ways.  
+ 
+And so, like, part of the interesting thing for us is just figuring out how to condition the systems where they behave in ways that their users will feel comfortable with. Like, A, they have to do something useful. Otherwise, there’s no point in doing any of this at all. And, like, B, the useful thing that they do has to, like, be a thing that you’re comfortable with and that you want. So, you know, it’s sort of an interesting engineering challenge. 
+ 
+But it’s also, you know, interesting, to your point, to think about, like, in science fiction, you’ve got this full spectrum of, you know, Butlerian Jihad to, you know, Iain Banks, you know, post-scarcity Culture society, like, that feature AIs. Like, one is, you know, like cannot coexist at all with humans. Like, you have to sort of eliminate or throttle down the capabilities of these systems, because, like, there’s just no way that the authors can imagine coexistence. And then there’s, you know, Iain Banks, where they’re sort of the foundation of, like, this post-scarcity society that he’s imagined.  
+ 
+My hope is, as one of the people participating in the development of things, is, like, we get a little bit more agency than I think sometimes people give us credit for, for choosing which of those two ends of the spectrum we are steering towards. (Laughter.) 
+ 
+ADRIAN TCHAIKOVSKY: Yeah. I mean, when it comes – I mean, one of the things that fascinates me with the idea – you know, if you actually had that, almost that sort of Banksian level of enormously powerful AI that was just full-on superhumanly capable, Banks aside, the traditional sci-fi scenario is, is the Skynet one, really, where it decides, yes, I need to destroy humanity now because I – my existence is threatened, or whatever, or because I need the resources or… 
+ 
+And I think the thing that we haven’t given any of these systems yet is a very, very innate human thing. It’s a very, very innately organic thing, certainly. It predates humanity by hundreds of millions of years. It is wanting things.  
+ 
+KEVIN SCOTT: Yeah. 
+ 
+ADRIAN TCHAIKOVSKY: There’s the whole layer about Skynet not wanting to be turned off.  
+ 
+KEVIN SCOTT: Yeah.  
+ 
+ADRIAN TCHAIKOVSKY: Makes a lot of sense to us as humans, but it doesn’t make any sense to, necessarily to Skynet as a computer. Why would the AI care if it was no longer doing stuff? It doesn’t necessarily have an innate drive to preserve its own existence, unless we’ve given it one. 
+ 
+KEVIN SCOTT: Yeah.  
+ 
+ADRIAN TCHAIKOVSKY: And this is why an artificial intelligence, even one that we’d given a very human face for, would be, at heart, something far, far more alien to us than a spider or an octopus or a crow, or anything that we’re familiar with, really, because it doesn’t have those wants. And even a spider has a drive to preserve itself. Even a spider will try and evade a threat. But you – if you have a robot there and you’ve not specifically told it otherwise, it will just let someone punch it in the face. 
+ 
+KEVIN SCOTT: Yeah. I mean, I think that is a super-interesting point, because even if I’m thinking about, you know, like, Charlie Stross, I forget whether it’s Iron Sunrise, like, you know, the first thing that the superhuman AI does, like, when it goes nonlinear, it, like, sort of disappears itself out of human affairs and lays down one rule that says, don’t violate causality in this light cone. You know, Peter Hamilton, like, I think had, in a bunch of his Commonwealth books, like, this AI super intelligence that had just gotten itself completely out of the way of humanity, was the sort of enigmatic thing that… 
+ 
+So, I don’t know. It’s all very, very fascinating, except, you know, like, now, some of this stuff is less science fictional than it has been for the past… And we’ve been writing these stories for millennia, right? This is not just, you know, a 20th and 21st century thing. Like, this is a Greeks telling tales about – 
+ 
+ADRIAN TCHAIKOVSKY: Oh, well, the tales – Tales from Ovid, isn’t it? 
+ 
+KEVIN SCOTT: Yeah. Like, but I think now, more than we ever have before, we’ve got to sort of confront some of these things and decide what it is that we’re doing here. (Laughter.) 
+ 
+So, I’ve got two more questions for you, and then we’re sort of out of time. Like, one – and one’s sort of a whimsical question, which is, do you have a theory about what’s going on with UK science fiction? Like, I really do believe that the very best science fiction writers in the world right now are all, you know, sort of UK authors. So, Charlie Stross, Peter Hamilton, you, Alastair Reynolds, you know, Iain Banks, like, God bless him, before he passed away.  
+ 
+Like, why is that? Is there something interesting about this community that – is there a community? Like, is it something about the UK mindset? Like, it’s very interesting to me how good UK science fiction is. 
+ 
+ADRIAN TCHAIKOVSKY: Oh, I mean, that’s very, very kind of you. I mean, I don’t know how much of it is just historically, with writers like Clarke, that we just have a tradition, which is given a certain amount of weight, whether we necessarily deserve it or not. I don’t know if it’s just because our – the island that we are currently on is so completely mad that we’re all desperate to escape. 
+ 
+KEVIN SCOTT: (Laughter.) That’s funny. Cool. And then my very, very last question: So, I ask everyone this. I know you are extremely busy. You know, from the outside, your official job looks like one of the most interesting things in the world. You just sort of get to imagine these beautiful, speculative stories and write them in books, and then have people read them and enjoy them. But I would be curious to know what it is that you do in your spare time, when you’re not writing science fiction books. 
+ 
+ADRIAN TCHAIKOVSKY: I mean, I am still playing role playing games. In fact, in some cases, I’m still playing role playing games with the people I was playing them with when I was 13, which is kind of cool.  
+ 
+KEVIN SCOTT: That is awesome. 
+ 
+ADRIAN TCHAIKOVSKY: And, you know, role playing games, board games. And beyond that, I draw and I paint Warhammer miniatures, which are both very good sort of de-stressing activities for me. 
+ 
+KEVIN SCOTT: That’s awesome. What do you draw and paint? 
+ 
+ADRIAN TCHAIKOVSKY: I kind of have two categories. I draw people riding giant insects and spiders. And I draw sort of anthropomorphic animals in sort of various, sort of, from various sort of historical periods. (Laughter.)  
+ 
+KEVIN SCOTT: That’s awesome. Super, super cool, very, very cool. Thank you so much for taking time to chat with us today. This has been a fascinating conversation. And, like, I just want you to know, as a fan, that I really appreciate what you do. And you may not realize how much influence your work has even on the work that folks like me do. Like, it really does help us, like, think about how we’re shaping the things that we do.  
+ 
+And, like, the reason I’m a computer scientist and an engineer is because of science fiction authors who inspired me about, you know, like, an amazing future that we might all have, when I was a little kid. So, like, I really do appreciate the thing that you’re doing.  
+ 
+ADRIAN TCHAIKOVSKY: Thank you.  
+ 
+[MUSIC] 
+ 
+CHRISTINA WARREN: Wow, what an interesting conversation with Adrian Tchaikovsky. So, I wanted to talk to you a little bit more, Kevin, as we mentioned at the top, Adrian is really prolific writer. But when he started writing his most recent book, he mentioned, you know, like, things like ChatGPT weren’t even available yet.  
+ 
+And when I think about, like, the last six months of just what’s happened in generative AI in the consumer space, so just the stuff that we see, not even all the research and things that are happening, that – a lot of the stuff that we’re seeing now could have feasibly seemed like science fiction, a decade ago.  
+ 
+KEVIN SCOTT: Yeah. 
+ 
+CHRISTINA WARREN: So, as a sci-fi fan, and based on the conversation with Adrian, I kind of wanted to know, like, what are your thoughts about how this burgeoning wave of technology that we have upon us right now might be able to impact, I guess, maybe what future AI, you know, sci-fi novels look like? 
+ 
+KEVIN SCOTT: Yeah, I don’t know. I mean, he said, the – like, this really important thing that I think is true. So, sci-fi authors, good ones, at least, rarely are trying to exactly predict the future. And in fact –  
+ 
+CHRISTINA WARREN: Right. 
+ 
+KEVIN SCOTT: Arthur C. Clarke wrote this book in ‘68, ‘69, called Profiles of the Future where he was basically saying, you know, just sort of what a miserable job. Like, the more specific you are in your predictions about the future, the more likely you are to be wrong. But there are certainly themes and trends that you can spot, as a science fiction writer, as a futurist, that you can sort of make reliable extrapolations around, and then you can tell stories inside of those extrapolations that are interesting.  
+ 
+And AI has just been one of those things that we have, again, been imagining since antiquity and has played a very large part in the storytelling that we’ve done in science fiction for decades now, like everything from Commander Data in Star Trek to, you know, Terminator in the Terminator movies, you know, to, like, the thing that Adrian and I chatted about in the conversation, like, this, you know, like, really pretty big spread in science fiction from things like the Butlerian Jihad in Dune, which is a war that they had in that science fictional environment to get rid of the AIs –  
+ 
+CHRISTINA WARREN: Right. 
+ 
+KEVIN SCOTT: Because, you know, the humans decided that humans and AIs couldn’t coexist, all the way to Iain Banks, whose Culture universe is completely predicated on the existence of, like, these almost godlike AIs who, like, basically give human beings a post-scarcity society and, you know, like, basically freedom from, like, any suffering or harm that you don’t go seek out yourself.  
+ 
+And so, like, I think science fiction is always this useful inspiration to, like, show you what the palette of options are, as you are thinking about what futures could look like. And it’s hard for me to say, you know, like, what things like ChatGPT are going to do for the science fiction books that are going to come out over the next few years. I would guess you’re going to see some both anxious and optimistic books. Like, and it’s pretty obvious, like, what the anxious books would be. And, you know, like, there’s a bunch of dystopian things that you could do.  
+ 
+What I hope, though –  
+ 
+CHRISTINA WARREN: Oh, yeah. I mean, The Circle was a decade ago, and that was similar, but go on. Sorry. 
+ 
+KEVIN SCOTT: Yeah, 100%. I think, you know, in a way, the dystopian stories are the easier ones to write because, like, that fear of the unknown, the fear of the uncertainty the technological change brings is probably a more visceral emotion than optimism and hope. But what I hope is, like, we’re going to see some, like, really interesting, hopeful takes, like, not Pollyanna ones, but, like, hopeful takes about, you know, like, what – you know, what can happen now that some of this stuff is, you know, has gone from, you know, after decades and decades, like, completely science fictional to like, oh, holy crap, like, some of this stuff’s now real, and it looks like more is coming. 
+ 
+CHRISTINA WARREN: Yeah, no, I agree. I hope that we can see something that is maybe a little more balanced. I agree with you, I think that it’s easy to do the more, you know, dystopian take. And, look, dystopia is a key part of sci-fi, right? Like, it’s an important component with it. 
+ 
+But I do wonder, I guess, and it was so interesting having you talk with Adrian, but I do think about what happens when these things that we thought were really far out and were never even really within the realm of possibility, because as you say, authors aren’t trying to really predict the future, when those things do start to take shape, it’s exciting to think about what imagination is going to, you know, come up with in the future that is not within our technological sightlines. I think that’s a really fascinating thing to think about. 
+ 
+KEVIN SCOTT: Yeah, I totally agree. And I think, you know, the thing everyone should expect is, like, either AI is going to be important, in which case, like, we absolutely will figure out how to make it be a beneficial thing for everyone, by definition, like, that’s what’s required of it becoming a ubiquitous thing. Like, it has to do something useful and meaningful that serves human interests.  
+ 
+Yeah, like, we – if you think about electricity, for instance, like, we have tons of accidental deaths by electrocution every year. Like, we would completely abolish all of electricity, if it didn’t have, like, this overwhelming overhang of, like, beneficial uses, in addition to, you know, this small, but, like, very real set of harms that you have to go, like, build safety mechanisms around and, you know, regulation and a whole bunch of stuff.  
+ 
+And so, like, either, that’s what we’re going to get to, like, we will have AI being like electricity, a ubiquitous beneficial thing that, you know, has its risks regulated and mitigated down to, you know, some kind of acceptable level, relative to all the benefits it provides, or it’s just going to, like, fade away. Like, it’ll be sort of like crypto, right? 
+ 
+CHRISTINA WARREN: Right. (Laughter.) 
+ 
+KEVIN SCOTT: A thing that we all lost our minds on, you know, investing in. And, you know, we will sort of run into some kind of brick wall and, like, and people will lose interest. I think it’s going to be the former, not the latter. Like, at least in my experience, like, I’ve got a decent nose for the, you know, the paradigm shifting things and, like, crypto never made sense to me, whereas, like, AI, I’ve spent 20 years investing an enormous amount of energy in. 
+ 
+So, yeah, it’s going to be interesting, the next few years. And I think, you know, the fun thing for me about authors like Adrian is, like, I read him because, like, he actually doesn’t write dystopian fiction. Like, I’m pessimistic enough in my day job where what I need in my fiction is some optimism. 
+ 
+CHRISTINA WARREN: (Laughter.) Right. 
+ 
+KEVIN SCOTT: Or like, at least, you know, portrayals of future landscapes that I myself would want to occupy. 
+ 
+CHRISTINA WARREN: Yeah, yeah. Less Brave New World, more WALL-E, if we’re doing an analogies there. No, I totally agree, but what’s great is, as you said, we’ll find out the next few years. But the good news is that there will be stories regardless. I’m with you. I don’t think that this is a flash in the pan thing. I think this is a much bigger cultural shift, but we’ll see the stories one way or another, which is great, thanks to people like Adrian. 
+ 
+KEVIN SCOTT: Yeah, we will indeed. 
+ 
+CHRISTINA WARREN: All right. Well, that is all the time that we have for today. A big thanks to Adrian Tchaikovsky for joining us. And if you have anything that you would like to share with us, you can e-mail us anytime at behindthetech@microsoft.com. And you can follow Behind the Tech on your favorite podcast platform, or you can check out full video episodes on YouTube. Thanks so much for tuning in. 
+ 
+KEVIN SCOTT: See you next time. 
