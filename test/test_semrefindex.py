@@ -190,12 +190,12 @@ async def test_semantic_ref_index_serialize_and_deserialize(
     await legacy_semantic_ref_index.add_term("example", 1)
     await legacy_semantic_ref_index.add_term("test", 2)
 
-    serialized = legacy_semantic_ref_index.serialize()
+    serialized = await legacy_semantic_ref_index.serialize()
     assert "items" in serialized
     assert len(serialized["items"]) == 2
 
     new_index = TermToSemanticRefIndex()
-    new_index.deserialize(serialized)
+    await new_index.deserialize(serialized)
 
     # Test that the new index has the correct size
     assert await new_index.size() == 2
@@ -402,10 +402,11 @@ async def test_semantic_ref_index_remove_term_nonexistent(
     await semantic_ref_index.remove_term("nonexistent", 123)  # Should not raise
 
 
-def test_semantic_ref_index_serialize_empty(
+@pytest.mark.asyncio
+async def test_semantic_ref_index_serialize_empty(
     legacy_semantic_ref_index: TermToSemanticRefIndex,
 ) -> None:
     """Test serialize on an empty index."""
-    serialized = legacy_semantic_ref_index.serialize()
+    serialized = await legacy_semantic_ref_index.serialize()
     assert "items" in serialized
     assert serialized["items"] == []

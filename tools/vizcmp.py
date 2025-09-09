@@ -65,17 +65,21 @@ def main():
 
         table[file] = scores
 
-    # Print header
     all_files = list(table.keys())
     print_header(all_files)
+
+    good_counters: list[int] = []  # Counters where all columns score >= 0.97
 
     # Print data
     all_counters = sorted(
         {counter for data in table.values() for counter in data.keys()},
-        key=lambda x: statistics.mean(table[file].get(x, 0.0) for file in all_files),
+        key=lambda x: statistics.mean(
+            table[file].get(x) for file in all_files if table[file].get(x) is not None
+        ),
         reverse=True,
     )
     for counter in all_counters:
+        all_good = True
         print(f"{counter:>3}:", end="")
         for file in all_files:
             score = table[file].get(counter, None)
@@ -89,17 +93,22 @@ def main():
                     output = Fore.GREEN + output + Fore.RESET
                     if score >= 0.999:
                         output = Style.BRIGHT + output + Style.RESET_ALL
-                elif score >= 0.9:
-                    output = Fore.BLUE + output + Fore.RESET
                 else:
-                    output = Fore.RED + output + Fore.RESET
-                    if score == 0.0:
-                        output = Style.BRIGHT + output + Style.RESET_ALL
+                    all_good = False
+                    if score >= 0.9:
+                        output = Fore.BLUE + output + Fore.RESET
+                    else:
+                        output = Fore.RED + output + Fore.RESET
+                        if score == 0.0:
+                            output = Style.BRIGHT + output + Style.RESET_ALL
             print(output, end="")
         print(f" {questions.get(counter)}")
+        if all_good:
+            good_counters.append(counter)
 
-    # Print header again
     print_footer(all_files)
+    good_counters.sort()
+    print(f"--skip-counters={','.join(str(x) for x in good_counters)}")
 
 
 def print_header(all_files):

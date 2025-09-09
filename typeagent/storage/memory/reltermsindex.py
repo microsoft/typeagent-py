@@ -120,14 +120,6 @@ class RelatedTermsIndex(ITermToRelatedTermsIndex):
         self._alias_map = TermToRelatedTermsMap()
         self._term_index = TermEmbeddingIndex(settings.embedding_index_settings)
 
-    # Pre-SQLite note:
-    # - In a SQLite-backed implementation, `_alias_map` would persist to a
-    #   RelatedTermsAliases table (term -> set of related-term rows), while
-    #   `_term_index` would correspond to a vector table for fuzzy lookups.
-    # - The public properties `aliases` and `fuzzy_index` define the stable
-    #   interface; storage providers can back them with DB tables without
-    #   changing call sites.
-
     @property
     def aliases(self) -> TermToRelatedTermsMap:
         return self._alias_map

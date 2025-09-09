@@ -79,7 +79,7 @@ class VectorBase:
     ) -> None:
         if isinstance(embedding, list):
             embedding = np.array(embedding, dtype=np.float32)
-        embeddings = embedding.reshape(1, -1)  # Make it 2D
+        embeddings = embedding.reshape(1, -1)  # Make it 2D: 1xN
         self._vectors = np.append(self._vectors, embeddings, axis=0)
         if key is not None:
             self._model.add_embedding(key, embedding)

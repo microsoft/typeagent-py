@@ -7,7 +7,7 @@ name = "typeagent"
 version = "0.1.0"
 description = "TypeAgent implements an agentic memory framework."
 authors = [
-  { name = "Guido van Rossum", email = "gvanrossum@gmail.com" },
+  { name = "Guido van Rossum", email = "gvanrossum@microsoft.com" },
   { name = "Steven Lucco" },
   { name = "Umesh Madan" },
   { name = "Guido van Rossum" },
@@ -26,14 +26,16 @@ dependencies = [
   "opentelemetry-instrumentation-httpx>=0.57b0",
   "pydantic>=2.11.4",
   "pydantic-ai-slim[openai]>=0.5.0",
-  "pyright==1.1.404",
+  "pyright>=1.1.405",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",
-  "pytest-xdist>=3.8.0",
   "python-dotenv>=1.1.0",
   "typechat",
 ]
+
+[project.urls]
+Homepage = "https://github.com/microsoft/TypeAgent/tree/main/python/ta"
 
 [tool.setuptools]
 # Needed so setuptools doesn't complain about testdata.
@@ -41,7 +43,11 @@ packages = [
     "typeagent",
     "typeagent.aitools",
     "typeagent.knowpro",
+    "typeagent.mcp",
     "typeagent.podcasts",
+    "typeagent.storage",
+    "typeagent.storage.memory",
+    "typeagent.storage.sqlite",
 ]
 
 [tool.pytest.ini_options]

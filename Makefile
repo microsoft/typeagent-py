@@ -16,12 +16,12 @@ check: venv
 
 .PHONY: test
 test: venv
-	.venv/bin/pytest test -n 2 $(FLAGS)
+	.venv/bin/pytest test $(FLAGS)
 
 .PHONY: coverage
 coverage: venv
 	.venv/bin/python -m coverage run --source=typeagent -m pytest test $(FLAGS)
-	coverage report
+	coverage report --sort=cover
 
 .PHONY: demo
 demo: venv

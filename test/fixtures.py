@@ -4,7 +4,7 @@
 from collections.abc import AsyncGenerator, Iterator
 import os
 import tempfile
-from typing import assert_never
+from typing import Any, assert_never
 
 import pytest
 import pytest_asyncio
@@ -194,6 +194,12 @@ class FakeTermIndex(ITermToSemanticRefIndex):
 
     async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
         return self.term_to_refs.get(term)
+
+    async def serialize(self) -> Any:
+        raise RuntimeError
+
+    async def deserialize(self, data: Any) -> None:
+        raise RuntimeError
 
 
 class FakeConversation(IConversation[FakeMessage, FakeTermIndex]):

@@ -137,7 +137,7 @@ async def test_related_terms_index_population_from_database():
         from typeagent.podcasts.podcast import Podcast
         from typeagent.knowpro.convsettings import ConversationSettings
         from typeagent.storage.memory.reltermsindex import build_related_terms_index
-        from typeagent.storage.sqlite.indexes import SqliteRelatedTermsIndex
+        from typeagent.storage.sqlite.reltermsindex import SqliteRelatedTermsIndex
 
         settings2 = ConversationSettings()
         settings2.storage_provider = storage2

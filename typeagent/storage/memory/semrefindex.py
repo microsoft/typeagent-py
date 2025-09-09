@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from __future__ import annotations
+from __future__ import annotations  # TODO: Avoid
 
 from collections.abc import AsyncIterable, Callable
 
@@ -506,11 +506,9 @@ async def add_metadata_to_index[TMessage: IMessage](
 class TermToSemanticRefIndex(ITermToSemanticRefIndex):
     _map: dict[str, list[ScoredSemanticRefOrdinal]]
 
-    def __init__(self, data: TermToSemanticRefIndexData | None = None):
+    def __init__(self):
         super().__init__()
         self._map = {}
-        if data:
-            self.deserialize(data)
 
     async def size(self) -> int:
         return len(self._map)
@@ -560,7 +558,7 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
             if not self._map[term]:
                 del self._map[term]
 
-    def serialize(self) -> TermToSemanticRefIndexData:
+    async def serialize(self) -> TermToSemanticRefIndexData:
         items: list[TermToSemanticRefIndexItemData] = []
         for term, scored_semantic_ref_ordinals in self._map.items():
             items.append(
@@ -573,7 +571,7 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
             )
         return TermToSemanticRefIndexData(items=items)
 
-    def deserialize(self, data: TermToSemanticRefIndexData) -> None:
+    async def deserialize(self, data: TermToSemanticRefIndexData) -> None:
         self._clear()
         for index_item_data in data["items"]:
             term = index_item_data.get("term")
@@ -592,7 +590,7 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
 
 
 async def build_semantic_ref[TMessage: IMessage](
-    conversation: IConversation[TMessage, TermToSemanticRefIndex],
+    conversation: IConversation[TMessage, ITermToSemanticRefIndex],
     conversation_settings: ConversationSettings,
 ) -> None:
     await build_semantic_ref_index(
@@ -607,7 +605,7 @@ async def build_semantic_ref[TMessage: IMessage](
 
 
 async def build_semantic_ref_index[TM: IMessage](
-    conversation: IConversation[TM, TermToSemanticRefIndex],
+    conversation: IConversation[TM, ITermToSemanticRefIndex],
     settings: SemanticRefIndexSettings,
 ) -> None:
     await add_to_semantic_ref_index(conversation, settings, 0)

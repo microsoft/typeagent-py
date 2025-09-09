@@ -4,13 +4,11 @@
 """SQLite-based storage implementations."""
 
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
-from .indexes import (
-    SqliteMessageTextIndex,
-    SqlitePropertyIndex,
-    SqliteRelatedTermsIndex,
-    SqliteTermToSemanticRefIndex,
-    SqliteTimestampToTextRangeIndex,
-)
+from .messageindex import SqliteMessageTextIndex
+from .propindex import SqlitePropertyIndex
+from .reltermsindex import SqliteRelatedTermsIndex
+from .semrefindex import SqliteTermToSemanticRefIndex
+from .timestampindex import SqliteTimestampToTextRangeIndex
 from .provider import SqliteStorageProvider
 from .schema import (
     ConversationMetadata,

@@ -7,6 +7,9 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import typing
+import numpy as np
+
+from ...aitools.embeddings import NormalizedEmbedding
 
 # Constants
 CONVERSATION_SCHEMA_VERSION = "0.1"
@@ -71,6 +74,8 @@ MESSAGE_TEXT_INDEX_SCHEMA = """
 CREATE TABLE IF NOT EXISTS MessageTextIndex (
     msg_id INTEGER NOT NULL,
     chunk_ordinal INTEGER NOT NULL,
+    embedding BLOB NOT NULL,        -- Serialized embedding (numpy array as bytes)
+    index_position INTEGER,         -- Position in VectorBase index for fast lookup
 
     PRIMARY KEY (msg_id, chunk_ordinal),
     FOREIGN KEY (msg_id) REFERENCES Messages(msg_id) ON DELETE CASCADE
@@ -79,6 +84,10 @@ CREATE TABLE IF NOT EXISTS MessageTextIndex (
 
 MESSAGE_TEXT_INDEX_MESSAGE_INDEX = """
 CREATE INDEX IF NOT EXISTS idx_message_text_index_message ON MessageTextIndex(msg_id, chunk_ordinal);
+"""
+
+MESSAGE_TEXT_INDEX_POSITION_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_message_text_index_position ON MessageTextIndex(index_position);
 """
 
 PROPERTY_INDEX_SCHEMA = """
@@ -126,6 +135,7 @@ CREATE TABLE IF NOT EXISTS RelatedTermsFuzzy (
     term TEXT NOT NULL,
     related_term TEXT NOT NULL,
     score REAL NOT NULL DEFAULT 1.0,
+    term_embedding BLOB NULL,             -- Serialized embedding for the term
 
     PRIMARY KEY (term, related_term)
 );
@@ -151,7 +161,7 @@ type ShreddedSemanticRef = tuple[int, str, str, str]
 type ShreddedMessageText = tuple[int, int, str, bytes | None]
 type ShreddedPropertyIndex = tuple[str, str, float, int]
 type ShreddedRelatedTermsAlias = tuple[str, str]
-type ShreddedRelatedTermsFuzzy = tuple[str, str, float]
+type ShreddedRelatedTermsFuzzy = tuple[str, str, float, bytes | None, bytes | None]
 
 
 @dataclass
@@ -166,17 +176,34 @@ class ConversationMetadata:
     extra: dict[str, typing.Any]
 
 
-def _datetime_to_utc_string(dt: datetime) -> str:
-    """Convert datetime to UTC ISO string. Assumes local timezone if naive."""
-    if dt.tzinfo is None:
-        # Assume local timezone
-        dt = dt.replace(tzinfo=datetime.now().astimezone().tzinfo)
-    return dt.astimezone(timezone.utc).isoformat()
+@typing.overload
+def serialize_embedding(embedding: NormalizedEmbedding) -> bytes: ...
 
 
-def _string_to_utc_datetime(s: str) -> datetime:
-    """Convert ISO string to UTC datetime."""
-    return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
+@typing.overload
+def serialize_embedding(embedding: None) -> None: ...
+
+
+def serialize_embedding(embedding: NormalizedEmbedding | None) -> bytes | None:
+    """Serialize a numpy embedding array to bytes for SQLite storage."""
+    if embedding is None:
+        return None
+    return embedding.tobytes()
+
+
+@typing.overload
+def deserialize_embedding(blob: bytes) -> NormalizedEmbedding: ...
+
+
+@typing.overload
+def deserialize_embedding(blob: None) -> None: ...
+
+
+def deserialize_embedding(blob: bytes | None) -> NormalizedEmbedding | None:
+    """Deserialize bytes back to numpy embedding array."""
+    if blob is None:
+        return None
+    return np.frombuffer(blob, dtype=np.float32)
 
 
 def _create_default_metadata() -> ConversationMetadata:
@@ -194,19 +221,23 @@ def _create_default_metadata() -> ConversationMetadata:
 
 def init_db_schema(db: sqlite3.Connection) -> None:
     """Initialize the database schema with all required tables."""
-    with db:
-        cursor = db.cursor()
+    cursor = db.cursor()
 
-        # Create all tables
-        cursor.execute(CONVERSATION_METADATA_SCHEMA)
-        cursor.execute(MESSAGES_SCHEMA)
-        cursor.execute(SEMANTIC_REFS_SCHEMA)
-        cursor.execute(SEMANTIC_REF_INDEX_SCHEMA)
-        cursor.execute(MESSAGE_TEXT_INDEX_SCHEMA)
-        cursor.execute(PROPERTY_INDEX_SCHEMA)
-        cursor.execute(RELATED_TERMS_ALIASES_SCHEMA)
-        cursor.execute(RELATED_TERMS_FUZZY_SCHEMA)
-        cursor.execute(TIMESTAMP_INDEX_SCHEMA)
+    # Create all tables
+    cursor.execute(CONVERSATION_METADATA_SCHEMA)
+    cursor.execute(MESSAGES_SCHEMA)
+    cursor.execute(SEMANTIC_REFS_SCHEMA)
+    cursor.execute(SEMANTIC_REF_INDEX_SCHEMA)
+    cursor.execute(MESSAGE_TEXT_INDEX_SCHEMA)
+    cursor.execute(PROPERTY_INDEX_SCHEMA)
+    cursor.execute(RELATED_TERMS_ALIASES_SCHEMA)
+    cursor.execute(RELATED_TERMS_FUZZY_SCHEMA)
+    cursor.execute(TIMESTAMP_INDEX_SCHEMA)
+
+    # Create additional indexes
+    cursor.execute(SEMANTIC_REF_INDEX_TERM_INDEX)
+    cursor.execute(MESSAGE_TEXT_INDEX_MESSAGE_INDEX)
+    cursor.execute(MESSAGE_TEXT_INDEX_POSITION_INDEX)
 
 
 def get_db_schema_version(db: sqlite3.Connection) -> str:

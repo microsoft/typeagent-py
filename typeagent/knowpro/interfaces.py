@@ -18,9 +18,9 @@ from typing import (
     runtime_checkable,
 )
 
-import typechat
 from pydantic.dataclasses import dataclass
 from pydantic import Field, AliasChoices
+import typechat
 
 from ..aitools.embeddings import NormalizedEmbeddings
 from . import kplib
@@ -130,6 +130,10 @@ class ITermToSemanticRefIndex(Protocol):
     async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None: ...
 
     async def clear(self) -> None: ...
+
+    async def serialize(self) -> Any: ...
+
+    async def deserialize(self, data: Any) -> None: ...
 
 
 type KnowledgeType = Literal["entity", "action", "topic", "tag"]
@@ -496,6 +500,12 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
         messages: Iterable[TMessage],
     ) -> None: ...
 
+    async def add_messages_starting_at(
+        self,
+        start_message_ordinal: int,
+        messages: list[TMessage],
+    ) -> None: ...
+
     async def lookup_messages(
         self,
         message_text: str,
@@ -518,9 +528,9 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
 
     # TODO: Others?
 
-    def serialize(self) -> "MessageTextIndexData": ...
+    async def serialize(self) -> "MessageTextIndexData": ...
 
-    def deserialize(self, data: "MessageTextIndexData") -> None: ...
+    async def deserialize(self, data: "MessageTextIndexData") -> None: ...
 
 
 class IConversationSecondaryIndexes[TMessage: IMessage](Protocol):

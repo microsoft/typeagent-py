@@ -3,19 +3,17 @@
 
 """SQLite storage provider implementation."""
 
+import json
 import sqlite3
-import typing
 
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
-from .indexes import (
-    SqliteMessageTextIndex,
-    SqlitePropertyIndex,
-    SqliteRelatedTermsIndex,
-    SqliteTermToSemanticRefIndex,
-    SqliteTimestampToTextRangeIndex,
-)
+from .messageindex import SqliteMessageTextIndex
+from .propindex import SqlitePropertyIndex
+from .reltermsindex import SqliteRelatedTermsIndex
+from .semrefindex import SqliteTermToSemanticRefIndex
+from .timestampindex import SqliteTimestampToTextRangeIndex
 from .schema import (
     CONVERSATIONS_SCHEMA,
     MESSAGE_TEXT_INDEX_SCHEMA,
@@ -55,10 +53,10 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self.conversation_index_settings = conversation_index_settings or {}
         if message_text_index_settings is None:
             # Create default embedding settings if not provided
-            from ...aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+            from ...aitools.embeddings import AsyncEmbeddingModel
             from ...aitools.vectorbase import TextEmbeddingIndexSettings
 
-            model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+            model = AsyncEmbeddingModel()
             embedding_settings = TextEmbeddingIndexSettings(model)
             message_text_index_settings = MessageTextIndexSettings(embedding_settings)
         self.message_text_index_settings = message_text_index_settings
@@ -71,12 +69,23 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         # Initialize database connection
         self.db = sqlite3.connect(db_path)
+
+        # Configure SQLite for optimal bulk insertion performance
         self.db.execute("PRAGMA foreign_keys = ON")
+        # Improve write performance for bulk operations
+        self.db.execute("PRAGMA synchronous = NORMAL")  # Faster than FULL, still safe
+        self.db.execute(
+            "PRAGMA journal_mode = WAL"
+        )  # Write-Ahead Logging for better concurrency
+        self.db.execute("PRAGMA cache_size = -64000")  # 64MB cache (negative = KB)
+        self.db.execute("PRAGMA temp_store = MEMORY")  # Store temp tables in memory
+        self.db.execute("PRAGMA mmap_size = 268435456")  # 256MB memory-mapped I/O
 
         # Initialize schema
         init_db_schema(self.db)
 
         # Initialize collections
+        # Initialize message collection first
         self._message_collection = SqliteMessageCollection(self.db, self.message_type)
         self._semantic_ref_collection = SqliteSemanticRefCollection(self.db)
 
@@ -85,20 +94,33 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self._property_index = SqlitePropertyIndex(self.db)
         self._timestamp_index = SqliteTimestampToTextRangeIndex(self.db)
         self._message_text_index = SqliteMessageTextIndex(
-            self.db, self.message_text_index_settings
+            self.db,
+            self.message_text_index_settings,
+            self._message_collection,
         )
-        self._related_terms_index = SqliteRelatedTermsIndex(self.db)
+        # Initialize related terms index with embedding model for persistent embeddings
+        embedding_model = (
+            self.related_term_index_settings.embedding_index_settings.embedding_model
+        )
+        self._related_terms_index = SqliteRelatedTermsIndex(self.db, embedding_model)
+
+        # Connect message collection to message text index for automatic indexing
+        self._message_collection.set_message_text_index(self._message_text_index)
 
     async def close(self) -> None:
-        """Close the database connection."""
+        """Close the database connection. COMMITS."""
         if hasattr(self, "db"):
+            self.db.commit()
             self.db.close()
+            del self.db
 
     def __del__(self) -> None:
-        """Ensure database is closed when object is deleted."""
+        """Ensure database is closed when object is deleted. ROLLS BACK."""
         # Can't use async in __del__, so close directly
         if hasattr(self, "db"):
+            self.db.rollback()
             self.db.close()
+            del self.db
 
     @property
     def messages(self) -> SqliteMessageCollection[TMessage]:
@@ -171,17 +193,16 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
     async def clear(self) -> None:
         """Clear all data from the storage provider."""
-        with self.db:
-            cursor = self.db.cursor()
-            # Clear in reverse dependency order
-            cursor.execute("DELETE FROM RelatedTermsFuzzy")
-            cursor.execute("DELETE FROM RelatedTermsAliases")
-            cursor.execute("DELETE FROM MessageTextIndex")
-            cursor.execute("DELETE FROM PropertyIndex")
-            cursor.execute("DELETE FROM SemanticRefIndex")
-            cursor.execute("DELETE FROM SemanticRefs")
-            cursor.execute("DELETE FROM Messages")
-            cursor.execute("DELETE FROM Conversations")
+        cursor = self.db.cursor()
+        # Clear in reverse dependency order
+        cursor.execute("DELETE FROM RelatedTermsFuzzy")
+        cursor.execute("DELETE FROM RelatedTermsAliases")
+        cursor.execute("DELETE FROM MessageTextIndex")
+        cursor.execute("DELETE FROM PropertyIndex")
+        cursor.execute("DELETE FROM SemanticRefIndex")
+        cursor.execute("DELETE FROM SemanticRefs")
+        cursor.execute("DELETE FROM Messages")
+        cursor.execute("DELETE FROM ConversationMetadata")
 
         # Clear in-memory indexes
         await self._message_text_index.clear()
@@ -197,7 +218,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """Deserialize storage provider data."""
         # Deserialize term to semantic ref index
         if data.get("termToSemanticRefIndexData"):
-            self._term_to_semantic_ref_index.deserialize(
+            await self._term_to_semantic_ref_index.deserialize(
                 data["termToSemanticRefIndexData"]
             )
 
@@ -205,22 +226,25 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         if data.get("relatedTermsIndexData"):
             await self._related_terms_index.deserialize(data["relatedTermsIndexData"])
 
+        # Deserialize message text index
+        if data.get("messageIndexData"):
+            await self._message_text_index.deserialize(data["messageIndexData"])
+
     def get_conversation_metadata(self) -> ConversationMetadata | None:
         """Get conversation metadata."""
         cursor = self.db.cursor()
         cursor.execute(
-            "SELECT created_at, updated_at FROM Conversations WHERE conversation_id = ?",
-            (self.conversation_id,),
+            "SELECT name_tag, schema_version, created_at, updated_at, tags, extra FROM ConversationMetadata LIMIT 1"
         )
         row = cursor.fetchone()
         if row:
             return ConversationMetadata(
-                name_tag=f"conversation_{self.conversation_id}",
-                schema_version="1.0",
-                created_at=row[0],
-                updated_at=row[1],
-                tags=[],
-                extra={},
+                name_tag=row[0],
+                schema_version=row[1],
+                created_at=row[2],
+                updated_at=row[3],
+                tags=json.loads(row[4]) if row[4] else [],
+                extra=json.loads(row[5]) if row[5] else {},
             )
         return None
 
@@ -228,38 +252,38 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self, created_at: str | None = None, updated_at: str | None = None
     ) -> None:
         """Update conversation metadata."""
-        with self.db:
-            cursor = self.db.cursor()
+        cursor = self.db.cursor()
 
-            # Check if conversation exists
-            cursor.execute(
-                "SELECT 1 FROM Conversations WHERE conversation_id = ?",
-                (self.conversation_id,),
-            )
+        # Check if conversation metadata exists
+        cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")
 
-            if cursor.fetchone():
-                # Update existing
-                updates = []
-                params = []
-                if created_at is not None:
-                    updates.append("created_at = ?")
-                    params.append(created_at)
-                if updated_at is not None:
-                    updates.append("updated_at = ?")
-                    params.append(updated_at)
+        if cursor.fetchone():
+            # Update existing
+            updates = []
+            params = []
+            if created_at is not None:
+                updates.append("created_at = ?")
+                params.append(created_at)
+            if updated_at is not None:
+                updates.append("updated_at = ?")
+                params.append(updated_at)
 
-                if updates:
-                    params.append(self.conversation_id)
-                    cursor.execute(
-                        f"UPDATE Conversations SET {', '.join(updates)} WHERE conversation_id = ?",
-                        params,
-                    )
-            else:
-                # Insert new
+            if updates:
                 cursor.execute(
-                    "INSERT INTO Conversations (conversation_id, created_at, updated_at) VALUES (?, ?, ?)",
-                    (self.conversation_id, created_at, updated_at),
+                    f"UPDATE ConversationMetadata SET {', '.join(updates)}",
+                    params,
                 )
+        else:
+            # Insert new with default values
+            name_tag = f"conversation_{self.conversation_id}"
+            schema_version = "1.0"
+            tags = json.dumps([])
+            extra = json.dumps({})
+
+            cursor.execute(
+                "INSERT INTO ConversationMetadata (name_tag, schema_version, created_at, updated_at, tags, extra) VALUES (?, ?, ?, ?, ?, ?)",
+                (name_tag, schema_version, created_at, updated_at, tags, extra),
+            )
 
     def get_db_version(self) -> int:
         """Get the database schema version."""

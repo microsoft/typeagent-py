@@ -150,7 +150,14 @@ class AsyncEmbeddingModel:
             extra_args["dimensions"] = self.embedding_size
         if self.async_client is None:
             # Compute a random embedding for testing purposes.
-            # It's based on hashing.
+
+            def hashish(s: str) -> int:
+                # Primitive deterministic hash function (hash() varies per run)
+                h = 0
+                for ch in s:
+                    h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+                return h
+
             prime = 1961
             fake_data: list[NormalizedEmbedding] = []
             for item in input:
@@ -161,7 +168,7 @@ class AsyncEmbeddingModel:
                 for i in range(self.embedding_size):
                     cut = i % length
                     scrambled = item[cut:] + item[:cut]
-                    hashed = hash(scrambled)
+                    hashed = hashish(scrambled)
                     reduced = (hashed % prime) / prime
                     floats.append(reduced)
                 array = np.array(floats, dtype=np.float64)
@@ -175,6 +182,8 @@ class AsyncEmbeddingModel:
             result = np.array(fake_data, dtype=np.float32)
             return result
         else:
+            # TODO: Split in batches of 2048 inputs if too long;
+            # or smaller if inputs are large.
             data = (
                 await self.async_client.embeddings.create(
                     input=input,

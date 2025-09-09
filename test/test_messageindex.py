@@ -165,9 +165,10 @@ async def test_generate_embedding(message_text_index: IMessageTextEmbeddingIndex
     mock_text_loc_index._vector_base.get_embedding.assert_awaited_once()
 
 
-def test_serialize(message_text_index: IMessageTextEmbeddingIndex):
+@pytest.mark.asyncio
+async def test_serialize(message_text_index: IMessageTextEmbeddingIndex):
     """Test serialization of the MessageTextIndex."""
-    serialized = message_text_index.serialize()
+    serialized = await message_text_index.serialize()
     assert serialized.get("indexData") == {"mock": "data"}
     mock_text_loc_index = cast(
         MagicMock, cast(MessageTextIndex, message_text_index).text_location_index
@@ -175,12 +176,13 @@ def test_serialize(message_text_index: IMessageTextEmbeddingIndex):
     mock_text_loc_index.serialize.assert_called_once()
 
 
-def test_deserialize(message_text_index: IMessageTextEmbeddingIndex):
+@pytest.mark.asyncio
+async def test_deserialize(message_text_index: IMessageTextEmbeddingIndex):
     """Test deserialization of the MessageTextIndex."""
     data = MessageTextIndexData(
         indexData=TextToTextLocationIndexData(textLocations=[], embeddings=None)
     )
-    message_text_index.deserialize(data)
+    await message_text_index.deserialize(data)
     mock_text_loc_index = cast(
         MagicMock, cast(MessageTextIndex, message_text_index).text_location_index
     )

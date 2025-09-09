@@ -2,20 +2,31 @@
 
 ## TODOs for fully implementing persistence through SQLite
 
-## Temporarily
+## Now
 
-- Speed up filling indexes
+- **The "optimizations" have really screwed things up. Need to roll back some and start over.
+  I will do this manually rather than asking the agent to optimize my code.**
+- Speed up loading indexes and collections from serialized (JSON-ish) data.
+- Speed up loading indexes when populating fresh db from JSON
+- Review the new storage code more carefully, adding notes here
+- Conversation id in conversation metadata table feels wrong
+- Conversation metadata isn't written -- needs a separate call
+- Improve test coverage for search, searchlang, query
+- Reduce code size
+- Make coding style more uniform (e.g. docstrings)
+- Document the highest-level API
 
-## Eventually
+## Also
 
-- Improve test coverage
-- Make (de)serialize methods async since they execute SQL statements
+- Make (de)serialize methods async in interfaces.py if they might execute SQL statements
+
+## Knowledge extraction pipeline
+
 - Write a function that does the following:
   - Add a given list of messages to the end of the message collection
   - Extracts knowledge for all
-  - Add to the semantic ref collection
-  - Add to the semantic ref index
-  - Update all the other indexes
+  - Call the next function
+
 - Write a function that adds a list of messages *and* a list of corresponding
   semantic refs, and then updates everything. This is somewhat complicated
   because we won't know the message ordinals/ids until they have been

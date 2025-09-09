@@ -57,17 +57,12 @@ async def test_message_text_index_population_from_database():
         ]
 
         msg_collection = await storage1.get_message_collection()
-        for message in test_messages:
-            await msg_collection.append(message)
-
-        # Also add messages to the message text index explicitly
-        # This is what higher-level code (podcasts, knowledge extraction, etc.) does
-        msg_text_index = await storage1.get_message_text_index()
-        await msg_text_index.add_messages(test_messages)
+        await msg_collection.extend(test_messages)
+        assert await msg_collection.size() == len(test_messages)
 
         await storage1.close()
 
-        # Reopen database and verify message text index
+        # Reopen datawase and verify message text index
         storage2 = SqliteStorageProvider(
             db_path=temp_db_path,
             message_type=PodcastMessage,

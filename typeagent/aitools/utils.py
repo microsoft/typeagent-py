@@ -21,16 +21,19 @@ cap = min  # More readable name for capping a value at some limit.
 
 
 @contextmanager
-def timelog(label: str):
-    """Context manager to log the time taken by a block of code."""
+def timelog(label: str, verbose: bool = True):
+    """Context manager to log the time taken by a block of code.
+
+    With verbose=False it prints nothing."""
     start_time = time.time()
     try:
         yield
     finally:
         elapsed_time = time.time() - start_time
-        print(
-            f"{colorama.Style.DIM}{elapsed_time:.3f}s -- {label}{colorama.Style.RESET_ALL}"
-        )
+        if verbose:
+            dim = colorama.Style.DIM
+            reset = colorama.Style.RESET_ALL
+            print(f"{dim}{elapsed_time:.3f}s -- {label}{reset}")
 
 
 def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
