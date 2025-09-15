@@ -71,14 +71,31 @@ def reindent(text: str) -> str:
 
 def load_dotenv() -> None:
     """Load environment variables from '<repo_root>/ta/.env'."""
-    dn = os.path.dirname
-    repo_root = dn(dn(dn(dn(dn(__file__)))))  # python/ta/typeagent/aitools/utils.py
-    env_path = os.path.join(repo_root, "ts", ".env")
-    dotenv.load_dotenv(env_path)
-    # for k, v in os.environ.items():
-    #     if "KEY" in k:
-    #         print(f"{k}={v!r}")
-    # print(f"Loaded {env_path}")
+    paths = []
+    # Look for <repo_root>/ts/.env first.
+    repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
+    if repo_root:
+        env_path = os.path.join(repo_root, "ts", ".env")
+        if os.path.exists(env_path):
+            paths.append(env_path)
+
+    # Also look in current directory and going up.
+    cur_dir = os.path.abspath(os.getcwd())
+    while True:
+        paths.append(os.path.join(cur_dir, ".env"))
+        parent_dir = os.path.dirname(cur_dir)
+        if parent_dir == cur_dir:
+            break  # Reached filesystem root ('/').
+        cur_dir = parent_dir
+
+    env_path = None
+    for path in paths:
+        # Filter out non-existing paths.
+        if os.path.exists(path):
+            env_path = path
+            break
+    if env_path:
+        dotenv.load_dotenv(env_path)
 
 
 def create_translator[T](

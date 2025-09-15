@@ -24,7 +24,7 @@ from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.sqlite.schema import ConversationMetadata
 
-from fixtures import embedding_model
+from fixtures import embedding_model, temp_db_path
 
 
 # Dummy IMessage for testing
@@ -36,16 +36,6 @@ class DummyMessage(IMessage):
 
     def get_knowledge(self) -> KnowledgeResponse:
         raise NotImplementedError("Should not be called")
-
-
-@pytest.fixture
-def temp_db_path() -> Generator[str, None, None]:
-    """Create a temporary database file for testing."""
-    fd, path = tempfile.mkstemp(suffix=".sqlite")
-    os.close(fd)
-    yield path
-    if os.path.exists(path):
-        os.remove(path)
 
 
 @pytest_asyncio.fixture

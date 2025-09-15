@@ -90,9 +90,7 @@ class VectorBase:
         self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
 
     async def add_key(self, key: str, cache: bool = True) -> None:
-        embeddings = (await self.get_embedding(key, cache=cache)).reshape(
-            1, -1
-        )  # Make it 2D
+        embeddings = (await self.get_embedding(key, cache=cache)).reshape(1, -1)
         self._vectors = np.append(self._vectors, embeddings, axis=0)
 
     async def add_keys(self, keys: list[str], cache: bool = True) -> None:
@@ -120,7 +118,7 @@ class VectorBase:
         scored_ordinals.sort(key=lambda x: x.score, reverse=True)
         return scored_ordinals[:max_hits]
 
-    # TODO: Make this and fizzy_lookup_embedding() more similar.
+    # TODO: Make this and fuzzy_lookup_embedding() more similar.
     def fuzzy_lookup_embedding_in_subset(
         self,
         embedding: NormalizedEmbedding,

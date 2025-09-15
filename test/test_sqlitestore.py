@@ -25,7 +25,7 @@ from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage import SqliteStorageProvider
 
-from fixtures import embedding_model, FakeMessage
+from fixtures import embedding_model, FakeMessage, temp_db_path
 
 
 # Dummy IMessage for testing
@@ -69,15 +69,6 @@ def make_dummy_semantic_ref(ordinal: int = 0) -> SemanticRef:
         range=text_range,
         knowledge=topic,
     )
-
-
-@pytest.fixture
-def temp_db_path() -> Generator[str, None, None]:
-    fd, path = tempfile.mkstemp(suffix=".sqlite")
-    os.close(fd)
-    yield path
-    if os.path.exists(path):
-        os.remove(path)
 
 
 @pytest.mark.asyncio

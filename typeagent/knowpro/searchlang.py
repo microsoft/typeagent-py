@@ -482,8 +482,6 @@ class SearchQueryCompiler:
     def compile_subject_and_verb(self, action_term: ActionTerm) -> SearchTermGroup:
         term_group = SearchTermGroup("and")
         self.add_subject_to_group(action_term, term_group)
-        term_group = SearchTermGroup("and")
-        self.add_subject_to_group(action_term, term_group)
         if action_term.action_verbs is not None:
             self.add_verbs_to_group(action_term.action_verbs, term_group)
         return term_group

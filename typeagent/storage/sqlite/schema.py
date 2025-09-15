@@ -132,12 +132,8 @@ CREATE INDEX IF NOT EXISTS idx_related_aliases_alias ON RelatedTermsAliases(alia
 
 RELATED_TERMS_FUZZY_SCHEMA = """
 CREATE TABLE IF NOT EXISTS RelatedTermsFuzzy (
-    term TEXT NOT NULL,
-    related_term TEXT NOT NULL,
-    score REAL NOT NULL DEFAULT 1.0,
-    term_embedding BLOB NULL,             -- Serialized embedding for the term
-
-    PRIMARY KEY (term, related_term)
+    term TEXT NOT NULL PRIMARY KEY,
+    term_embedding BLOB NOT NULL    -- Serialized embedding for the term
 );
 """
 
@@ -145,23 +141,16 @@ RELATED_TERMS_FUZZY_TERM_INDEX = """
 CREATE INDEX IF NOT EXISTS idx_related_fuzzy_term ON RelatedTermsFuzzy(term);
 """
 
-RELATED_TERMS_FUZZY_RELATED_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_related_fuzzy_related ON RelatedTermsFuzzy(related_term);
-"""
-
-RELATED_TERMS_FUZZY_SCORE_INDEX = """
-CREATE INDEX IF NOT EXISTS idx_related_fuzzy_score ON RelatedTermsFuzzy(score);
-"""
-
 # Type aliases for database row tuples
 type ShreddedMessage = tuple[
     str | None, str | None, str | None, str | None, str | None, str | None
 ]
 type ShreddedSemanticRef = tuple[int, str, str, str]
+
 type ShreddedMessageText = tuple[int, int, str, bytes | None]
 type ShreddedPropertyIndex = tuple[str, str, float, int]
 type ShreddedRelatedTermsAlias = tuple[str, str]
-type ShreddedRelatedTermsFuzzy = tuple[str, str, float, bytes | None, bytes | None]
+type ShreddedRelatedTermsFuzzy = tuple[str, float, bytes]
 
 
 @dataclass
@@ -238,6 +227,9 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(SEMANTIC_REF_INDEX_TERM_INDEX)
     cursor.execute(MESSAGE_TEXT_INDEX_MESSAGE_INDEX)
     cursor.execute(MESSAGE_TEXT_INDEX_POSITION_INDEX)
+    cursor.execute(RELATED_TERMS_ALIASES_TERM_INDEX)
+    cursor.execute(RELATED_TERMS_ALIASES_ALIAS_INDEX)
+    cursor.execute(RELATED_TERMS_FUZZY_TERM_INDEX)
 
 
 def get_db_schema_version(db: sqlite3.Connection) -> str:
