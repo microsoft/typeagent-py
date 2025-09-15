@@ -98,11 +98,10 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             self.message_text_index_settings,
             self._message_collection,
         )
-        # Initialize related terms index with embedding model for persistent embeddings
-        embedding_model = (
-            self.related_term_index_settings.embedding_index_settings.embedding_model
+        # Initialize related terms index
+        self._related_terms_index = SqliteRelatedTermsIndex(
+            self.db, self.related_term_index_settings.embedding_index_settings
         )
-        self._related_terms_index = SqliteRelatedTermsIndex(self.db, embedding_model)
 
         # Connect message collection to message text index for automatic indexing
         self._message_collection.set_message_text_index(self._message_text_index)

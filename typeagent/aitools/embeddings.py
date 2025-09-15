@@ -10,6 +10,7 @@ from numpy.typing import NDArray
 from openai import AsyncOpenAI, AsyncAzureOpenAI, OpenAIError
 
 from .auth import get_shared_token_provider, AzureTokenProvider
+from .utils import timelog
 
 type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
@@ -76,11 +77,11 @@ class AsyncEmbeddingModel:
             openai_key_name = "OPENAI_API_KEY"
             azure_key_name = "AZURE_OPENAI_API_KEY"
             if os.getenv(openai_key_name):
-                print(f"Using OpenAI")
-                self.async_client = AsyncOpenAI()
+                with timelog(f"Using OpenAI"):
+                    self.async_client = AsyncOpenAI()
             elif azure_api_key := os.getenv(azure_key_name):
-                print("Using Azure OpenAI")
-                self._setup_azure(azure_api_key)
+                with timelog("Using Azure OpenAI"):
+                    self._setup_azure(azure_api_key)
             else:
                 raise ValueError(
                     f"Neither {openai_key_name} nor {azure_key_name} found in environment."
@@ -130,7 +131,7 @@ class AsyncEmbeddingModel:
     def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
         existing = self._embedding_cache.get(key)
         if existing is not None:
-            assert existing == embedding
+            assert np.array_equal(existing, embedding)
         else:
             self._embedding_cache[key] = embedding
 
