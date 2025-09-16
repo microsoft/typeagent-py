@@ -36,7 +36,9 @@ from fixtures import needs_auth, embedding_model, temp_db_path
 
 
 @pytest.fixture
-def embedding_settings(embedding_model: AsyncEmbeddingModel) -> TextEmbeddingIndexSettings:
+def embedding_settings(
+    embedding_model: AsyncEmbeddingModel,
+) -> TextEmbeddingIndexSettings:
     """Create TextEmbeddingIndexSettings for testing."""
     return TextEmbeddingIndexSettings(embedding_model)
 
@@ -601,7 +603,9 @@ class TestSqliteIndexesEdgeCases:
     ):
         """Test basic operations of message text index."""
         # Create settings
-        embedding_settings_local = TextEmbeddingIndexSettings(embedding_settings.embedding_model)
+        embedding_settings_local = TextEmbeddingIndexSettings(
+            embedding_settings.embedding_model
+        )
         settings = MessageTextIndexSettings(embedding_settings_local)
 
         index = SqliteMessageTextIndex(sqlite_db, settings)
@@ -667,3 +671,121 @@ class TestSqliteIndexesEdgeCases:
         # await fuzzy_index.remove_term("remove_me")
         # results = await fuzzy_index.lookup_term("remove_me")
         # assert results == []
+
+    @pytest.mark.asyncio
+    async def test_term_normalization_whitespace(self, sqlite_db: sqlite3.Connection):
+        """Test whitespace normalization in _prepare_term()."""
+        index = SqliteTermToSemanticRefIndex(sqlite_db)
+
+        # Test that whitespace variations normalize to the same term
+        whitespace_variants = [
+            "hello world",  # baseline
+            "  hello world  ",  # leading/trailing spaces
+            "hello\tworld",  # tab instead of space
+            "hello\nworld",  # newline instead of space
+            "hello   world",  # multiple spaces
+            "hello \t world",  # mixed whitespace
+        ]
+
+        # Add all variants - they should normalize to the same internal form
+        for i, variant in enumerate(whitespace_variants):
+            await index.add_term(variant, i + 1)
+
+        # All variants should find the same normalized term
+        for i, variant in enumerate(whitespace_variants):
+            results = await index.lookup_term(variant)
+            assert results is not None, f"Should find results for '{variant}'"
+            assert len(results) == len(
+                whitespace_variants
+            ), f"Expected {len(whitespace_variants)} results for '{variant}', got {len(results)}"
+            # All should map to the same normalized form, so should find all semantic refs
+            expected_semrefs = set(range(1, len(whitespace_variants) + 1))
+            actual_semrefs = {r.semantic_ref_ordinal for r in results}
+            assert actual_semrefs == expected_semrefs
+
+    @pytest.mark.asyncio
+    async def test_term_normalization_unicode(self, sqlite_db: sqlite3.Connection):
+        """Test Unicode normalization and roundtripping."""
+        index = SqliteTermToSemanticRefIndex(sqlite_db)
+
+        # Test Unicode normalization - these should be equivalent after NFC normalization
+        unicode_variants = [
+            "café",  # NFC form (single é character)
+            "cafe\u0301",  # NFD form (e + combining acute accent)
+        ]
+
+        # Test higher Unicode planes
+        high_plane_terms = [
+            "test🏠house",  # Emoji (U+1F3E0)
+            "math𝑨𝑩𝑪",  # Mathematical symbols (U+1D400 range)
+            "ancient𓀀𓀁",  # Egyptian hieroglyphs (U+13000 range)
+        ]
+
+        # Add Unicode variants
+        for i, variant in enumerate(unicode_variants):
+            await index.add_term(variant, 100 + i)
+
+        # Both variants should resolve to the same normalized form
+        results1 = await index.lookup_term(unicode_variants[0])
+        results2 = await index.lookup_term(unicode_variants[1])
+        assert (
+            results1 is not None and results2 is not None
+        ), "Both Unicode forms should return results"
+        assert len(results1) == len(
+            results2
+        ), "NFC and NFD forms should normalize to same term"
+        assert len(results1) == 2, f"Expected 2 results, got {len(results1)}"
+
+        # Test higher plane Unicode roundtripping
+        for i, term in enumerate(high_plane_terms):
+            await index.add_term(term, 200 + i)
+            results = await index.lookup_term(term)
+            assert (
+                results is not None
+            ), f"Should find results for higher plane Unicode: '{term}'"
+            assert len(results) == 1, f"Should roundtrip higher plane Unicode: '{term}'"
+            assert results[0].semantic_ref_ordinal == 200 + i
+
+    @pytest.mark.asyncio
+    async def test_term_case_sensitivity(self, sqlite_db: sqlite3.Connection):
+        """Test case normalization in _prepare_term()."""
+        index = SqliteTermToSemanticRefIndex(sqlite_db)
+
+        # Test case variations
+        case_variants = [
+            "Hello",
+            "HELLO",
+            "hello",
+            "HeLLo",
+        ]
+
+        # Add all case variants
+        for i, variant in enumerate(case_variants):
+            await index.add_term(variant, 300 + i)
+
+        # All should normalize to same lowercase form
+        for variant in case_variants:
+            results = await index.lookup_term(variant)
+            assert (
+                results is not None
+            ), f"Should find results for case variant '{variant}'"
+            assert len(results) == len(
+                case_variants
+            ), f"Case variant '{variant}' should find all normalized forms"
+            expected_semrefs = set(range(300, 300 + len(case_variants)))
+            actual_semrefs = {r.semantic_ref_ordinal for r in results}
+            assert actual_semrefs == expected_semrefs
+
+        # Test Unicode case sensitivity
+        unicode_cases = ["Café", "CAFÉ", "café"]
+        for i, variant in enumerate(unicode_cases):
+            await index.add_term(variant, 400 + i)
+
+        for variant in unicode_cases:
+            results = await index.lookup_term(variant)
+            assert (
+                results is not None
+            ), f"Should find results for Unicode case variant '{variant}'"
+            assert len(results) == len(
+                unicode_cases
+            ), f"Unicode case variant '{variant}' should find all forms"
