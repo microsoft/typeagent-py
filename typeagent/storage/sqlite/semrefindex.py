@@ -3,7 +3,9 @@
 
 """SQLite-based semantic reference index implementation."""
 
+import re
 import sqlite3
+import unicodedata
 
 from ...knowpro import interfaces
 from ...knowpro.interfaces import ScoredSemanticRefOrdinal
@@ -140,5 +142,15 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
             )
 
     def _prepare_term(self, term: str) -> str:
-        """Normalize term by converting to lowercase."""
+        """Normalize term by converting to lowercase, stripping whitespace, and normalizing Unicode."""
+        # Strip leading/trailing whitespace
+        term = term.strip()
+
+        # Normalize Unicode to NFC form (canonical composition)
+        term = unicodedata.normalize("NFC", term)
+
+        # Collapse multiple whitespace characters to single space
+        term = re.sub(r"\s+", " ", term)
+
+        # Convert to lowercase
         return term.lower()
