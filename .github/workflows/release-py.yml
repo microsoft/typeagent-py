@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 name: Release (PyPI via Trusted Publishing + uv)
 
 on:
