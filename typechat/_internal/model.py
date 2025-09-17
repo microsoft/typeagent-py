@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 import asyncio
 from types import TracebackType
 from typing_extensions import AsyncContextManager, Literal, Protocol, Self, TypedDict, cast, override
