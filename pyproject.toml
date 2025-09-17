@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "typeagent-py"
-version = "0.1.5"
+version = "0.1.6"
 description = "TypeAgent implements an agentic memory framework."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
