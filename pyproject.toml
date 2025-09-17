@@ -48,6 +48,9 @@ packages = [
     "typeagent.storage",
     "typeagent.storage.memory",
     "typeagent.storage.sqlite",
+    "typechat",
+    "typechat._internal",
+    "typechat._internal.ts_conversion",
 ]
 
 [tool.pytest.ini_options]
