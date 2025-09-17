@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from dataclasses import dataclass
 from typing_extensions import Generic, TypeAlias, TypeVar
 
