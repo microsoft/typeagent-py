@@ -1,0 +1,62 @@
+name: Release (PyPI via Trusted Publishing + uv)
+
+on:
+  push:
+    tags: [ "v*" ]      # tag to publish
+  workflow_dispatch:     # manual run
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: python/ta     # your project subdir
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Create .venv and install deps
+        run: uv sync
+
+      - name: Build sdist + wheel (via make)
+        run: make build                   # runs `uv build`, outputs to dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: python/ta/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/<your-project-name>   # optional, UI nicety
+    permissions:
+      id-token: write     # REQUIRED for Trusted Publishing (no tokens!)
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # For TestPyPI first, add:
+        # with:
+        #   repository-url: https://test.pypi.org/legacy/
