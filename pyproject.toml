@@ -54,6 +54,9 @@ packages = [
     "typechat._internal.ts_conversion",
 ]
 
+[tool.setuptools.package-data]
+"typeagent.podcasts" = ["*.json"]
+
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 
