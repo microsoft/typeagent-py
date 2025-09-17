@@ -45,7 +45,7 @@ scaling: venv
 
 .PHONY: build
 build: venv
-	.venv/bin/python -m build --wheel
+	uv build
 
 .PHONY: venv
 venv: .venv
