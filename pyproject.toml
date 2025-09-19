@@ -49,9 +49,6 @@ packages = [
     "typeagent.storage",
     "typeagent.storage.memory",
     "typeagent.storage.sqlite",
-    "typechat",
-    "typechat._internal",
-    "typechat._internal.ts_conversion",
 ]
 
 [tool.setuptools.package-data]
@@ -59,6 +56,3 @@ packages = [
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
-
-[tool.uv.sources]
-typechat = { git = "https://github.com/microsoft/TypeChat", subdirectory = "python" }

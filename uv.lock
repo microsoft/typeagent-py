@@ -1222,7 +1222,7 @@ wheels = [
 
 [[package]]
 name = "typeagent-py"
-version = "0.1.5"
+version = "0.1.6"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
@@ -1264,18 +1264,22 @@ requires-dist = [
     { name = "pytest-asyncio", specifier = ">=0.26.0" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
-    { name = "typechat", git = "https://github.com/microsoft/TypeChat?subdirectory=python" },
+    { name = "typechat" },
 ]
 
 [[package]]
 name = "typechat"
 version = "0.0.2"
-source = { git = "https://github.com/microsoft/TypeChat?subdirectory=python#02e0a748b4a3f9cfad13db2ecba8d9616b0754a6" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-core" },
     { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c8/e6/d9bbba98c9637671829946343dfb7bd6a9d08b0e3b8afc0d47f03c9e890b/typechat-0.0.2.tar.gz", hash = "sha256:97ab844d17c02e564ae45bb2a13e57f30ce46daa29063e34c4fcff16f529c10d", size = 51157, upload-time = "2025-09-19T18:53:57.541Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/92/fa975315a8b23073e5f66f369fbd4f27e310de34c67c64b525327f81f363/typechat-0.0.2-py3-none-any.whl", hash = "sha256:bebc41fac6036950987050c8921ded51a55a027ba9935a9c8d98bd55e0d8c479", size = 18955, upload-time = "2025-09-19T18:53:56.259Z" },
 ]
 
 [[package]]
