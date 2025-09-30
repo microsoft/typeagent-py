@@ -1222,7 +1222,7 @@ wheels = [
 
 [[package]]
 name = "typeagent-py"
-version = "0.1.6"
+version = "0.1.7"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
@@ -1243,6 +1243,7 @@ dependencies = [
     { name = "pytest-mock" },
     { name = "python-dotenv" },
     { name = "typechat" },
+    { name = "webvtt-py" },
 ]
 
 [package.metadata]
@@ -1265,6 +1266,7 @@ requires-dist = [
     { name = "pytest-mock", specifier = ">=3.14.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "typechat" },
+    { name = "webvtt-py", specifier = ">=0.5.1" },
 ]
 
 [[package]]
@@ -1338,6 +1340,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5e/42/e0e305207bb88c6b8d3061399c6a961ffe5fbb7e2aa63c9234df7259e9cd/uvicorn-0.35.0.tar.gz", hash = "sha256:bc662f087f7cf2ce11a1d7fd70b90c9f98ef2e2831556dd078d131b96cc94a01", size = 78473, upload-time = "2025-06-28T16:15:46.058Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/e2/dc81b1bd1dcfe91735810265e9d26bc8ec5da45b4c0f6237e286819194c3/uvicorn-0.35.0-py3-none-any.whl", hash = "sha256:197535216b25ff9b785e29a0b79199f55222193d47f820816e7da751e9bc8d4a", size = 66406, upload-time = "2025-06-28T16:15:44.816Z" },
+]
+
+[[package]]
+name = "webvtt-py"
+version = "0.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/f6/7c9c964681fb148e0293e6860108d378e09ccab2218f9063fd3eb87f840a/webvtt-py-0.5.1.tar.gz", hash = "sha256:2040dd325277ddadc1e0c6cc66cbc4a1d9b6b49b24c57a0c3364374c3e8a3dc1", size = 55128, upload-time = "2024-05-30T13:40:17.189Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/ed/aad7e0f5a462d679f7b4d2e0d8502c3096740c883b5bbed5103146480937/webvtt_py-0.5.1-py3-none-any.whl", hash = "sha256:9d517d286cfe7fc7825e9d4e2079647ce32f5678eb58e39ef544ffbb932610b7", size = 19802, upload-time = "2024-05-30T13:40:14.661Z" },
 ]
 
 [[package]]
