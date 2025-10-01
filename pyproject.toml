@@ -32,7 +32,7 @@ dependencies = [
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",
   "python-dotenv>=1.1.0",
-  "typechat",
+  "typechat>=0.0.4",
   "webvtt-py>=0.5.1",
 ]
 
