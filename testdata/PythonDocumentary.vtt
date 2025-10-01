@@ -1,0 +1,3037 @@
+WEBVTT
+Kind: captions
+Language: en
+
+00:00:00.800 --> 00:00:04.901
+Did you think Python was going to get 
+popular&nbsp;from the beginning or?
+
+00:00:05.520 --> 00:00:08.956
+[Music]
+
+00:00:14.533 --> 00:00:21.280
+Python has contributed to making critical thinking a&nbsp;
+little more approachable by more people.&nbsp;&nbsp;
+
+00:00:21.280 --> 00:00:23.478
+You can spend one to two hours,
+
+00:00:23.478 --> 00:00:25.520
+learning programming&nbsp;fundamentals
+
+00:00:25.520 --> 00:00:28.120
+and then you can write like 
+10 to 20 line of code
+
+00:00:28.120 --> 00:00:29.353
+that do something interesting.
+
+00:00:29.353 --> 00:00:32.400
+The language, the community, the ecosystem,
+
+00:00:32.400 --> 00:00:37.464
+the market, the whole thing has had such an&nbsp;
+impact on humanity.&nbsp;
+
+00:00:37.464 --> 00:00:40.575
+Today, I think it's safe to say that almost
+anywhere there's a computer,
+
+00:00:40.575 --> 00:00:42.200
+there's probably some Python. 
+
+00:00:42.200 --> 00:00:44.360
+It's literally on Mars.
+
+00:00:45.306 --> 00:00:49.056
+The impact of AI, I think we're still&nbsp;
+seeing what that's going to be. 
+
+00:00:49.056 --> 00:00:51.240
+Python is incredibly important for that.
+
+00:00:52.147 --> 00:00:56.880
+To fully understand&nbsp;how Python got 
+so big, we have to go back in time.
+
+00:01:00.000 --> 00:01:01.600
+Maybe not that far back.
+
+00:01:02.746 --> 00:01:05.240
+Everything&nbsp;started back in Amsterdam in the 80s
+
+00:01:05.240 --> 00:01:08.920
+during my time at CWI, a Dutch research facility.
+
+00:01:11.440 --> 00:01:17.263
+The CWI had been behind a lot of major
+programming&nbsp;language developments.
+
+00:01:17.520 --> 00:01:20.503
+Algol 60 and Algol 68 for instance.
+
+00:01:20.880 --> 00:01:25.748
+And Lambert Meertens had tried 
+teaching&nbsp;programming to artists
+
+00:01:25.748 --> 00:01:28.240
+and discovered things about
+
+00:01:28.240 --> 00:01:34.720
+programming that are easy, if you're a scientist&nbsp;
+or a geek. But for somebody like an artist,&nbsp;&nbsp;
+
+00:01:34.720 --> 00:01:39.732
+those things weren't obvious because you had to&nbsp;
+know something about the computer. 
+
+00:01:39.732 --> 00:01:44.240
+The cause of&nbsp;the frustration was the low level 
+of the languages&nbsp;that were available. 
+
+00:01:44.240 --> 00:01:48.466
+The computers were immensely&nbsp;
+expensive and compared with that
+
+00:01:48.466 --> 00:01:51.361
+a programmer was&nbsp;really really cheap
+
+00:01:51.361 --> 00:01:53.680
+and so programming languages
+
+00:01:53.680 --> 00:01:57.223
+were designed with that 
+economic relationship in&nbsp;mind.
+
+00:01:57.579 --> 00:02:00.168
+It didn't matter if it took a long time to
+
+00:02:00.168 --> 00:02:06.880
+program as long as it didn't demand too much of&nbsp;
+the computer because that's where the cost was.&nbsp;&nbsp;
+
+00:02:06.880 --> 00:02:11.440
+We looked at each other and said, can't we do a&nbsp;
+better job? Can't we design a language that is&nbsp;&nbsp;
+
+00:02:11.440 --> 00:02:15.600
+easy to learn, easy to teach, 
+but also easy to use.
+
+00:02:15.600 --> 00:02:18.400
+So that beginners could 
+understand how to program
+
+00:02:18.400 --> 00:02:22.348
+without having to go into all 
+those messy hardware&nbsp;details.
+
+00:02:22.348 --> 00:02:25.320
+And that's how the ABC project was born.
+
+00:02:27.920 --> 00:02:31.652
+One of the members of the team&nbsp;
+was Guido van Rossum.
+
+00:02:31.652 --> 00:02:37.496
+[Music]
+
+00:02:39.680 --> 00:02:46.320
+I was hired to work on ABC for which&nbsp;
+there was a small prototype but every&nbsp;&nbsp;
+
+00:02:46.320 --> 00:02:52.560
+part of the prototype had to be expanded&nbsp;
+to fully working according to the spec.
+
+00:02:54.160 --> 00:03:01.840
+In 1985, we made the release of ABC. And&nbsp;
+then we hit the problem: how to make the&nbsp;&nbsp;
+
+00:03:01.840 --> 00:03:05.120
+world know that there was ABC?
+
+00:03:05.120 --> 00:03:11.080
+We did not&nbsp;have a good way of 
+reaching our intended audience. 
+
+00:03:11.080 --> 00:03:12.840
+The web did not exist.
+
+00:03:12.840 --> 00:03:17.560
+Most people&nbsp;had never heard of 
+a computer or even seen one.
+
+00:03:17.600 --> 00:03:23.182
+If anybody wanted a copy, they had to send us&nbsp;
+a letter and we'd send them a floppy disc.
+
+00:03:24.300 --> 00:03:30.640
+So I'm afraid ABC reached very few people and&nbsp;
+at some point the directors for reason, that&nbsp;&nbsp;
+
+00:03:30.640 --> 00:03:33.960
+I still don't understand, killed that project.
+
+00:03:33.960 --> 00:03:38.720
+I&nbsp;had spent, well, 3 and 1/2 years of hard work
+
+00:03:39.202 --> 00:03:44.481
+on this language and the implementation 
+to make it&nbsp;as as good as we could.
+
+00:03:44.481 --> 00:03:45.812
+So it was disappointing.
+
+00:03:46.320 --> 00:03:49.594
+[Music]
+
+00:03:49.594 --> 00:03:55.280
+Guido was transferred to another&nbsp;
+project on a distributed operating system,
+
+00:03:55.280 --> 00:03:56.680
+the amoeba system.
+
+00:03:58.763 --> 00:04:03.360
+One of my jobs at that&nbsp;project as 
+the programmer, not the researcher,
+
+00:04:03.360 --> 00:04:09.569
+was to write, or help write, a large 
+number of&nbsp;user applications.
+
+00:04:09.920 --> 00:04:12.169
+And I didn't actually think
+
+00:04:12.169 --> 00:04:16.860
+that for many of those utilities C was a&nbsp;
+very good language.
+
+00:04:18.181 --> 00:04:19.992
+And I thought, well,
+
+00:04:19.992 --> 00:04:27.120
+oh man, if we just could program ABC instead of&nbsp;
+C, each of those utilities would be like half a&nbsp;&nbsp;
+
+00:04:27.120 --> 00:04:32.960
+page of code and I could write the entire suite&nbsp;
+of utilities in a couple of weeks instead of the&nbsp;&nbsp;
+
+00:04:32.960 --> 00:04:35.800
+years that it looked like it 
+was going to take&nbsp;us.
+
+00:04:35.800 --> 00:04:40.840
+Except that ABC was so high and abstract,
+
+00:04:40.880 --> 00:04:49.120
+it wasn't a good language to talk to servers&nbsp;
+and file systems and processes and it sort of&nbsp;&nbsp;
+
+00:04:49.120 --> 00:04:56.080
+the whole operating system thing was abstracted&nbsp;
+away from ABC. So I thought, well, there really&nbsp;&nbsp;
+
+00:04:56.080 --> 00:05:03.040
+ought to be a language that sort of bridges the&nbsp;
+gap between C and shell. And we looked at Perl and&nbsp;&nbsp;
+
+00:05:03.040 --> 00:05:11.120
+we didn't think it was any good as a programming&nbsp;
+language. It was about as bad as as Basic,&nbsp;&nbsp;
+
+00:05:11.120 --> 00:05:18.880
+although in different ways. So, Python was also&nbsp;
+in a part built as an alternative to Perl. That's&nbsp;&nbsp;
+
+00:05:18.880 --> 00:05:24.120
+where I decided, oh well, I'm going to see if&nbsp;
+I can make my own programming language.
+
+00:05:24.120 --> 00:05:27.602
+[Music]
+
+00:05:28.720 --> 00:05:34.800
+One Christmas holiday, I believe, he decided&nbsp;
+to spend his time designing and building a&nbsp;&nbsp;
+
+00:05:34.800 --> 00:05:39.360
+new programming language for the operating&nbsp;
+system based on the principles that he'd&nbsp;&nbsp;
+
+00:05:39.360 --> 00:05:40.808
+learned while on the ABC project.
+
+00:05:41.773 --> 00:05:46.080
+It was&nbsp;logical that I would 
+start with ABC as an example.
+
+00:05:46.080 --> 00:05:51.840
+The most prominent feature that&nbsp;
+Python borrowed from ABC is actually the use&nbsp;&nbsp;
+
+00:05:51.840 --> 00:05:59.040
+of indentation for statement grouping. But it&nbsp;
+was also logical that I sort of dropped the&nbsp;&nbsp;
+
+00:05:59.040 --> 00:06:04.632
+things from ABC that I didn't particularly&nbsp;
+like. That's how we ended up with Python.
+
+00:06:10.000 --> 00:06:18.720
+Okay. I finally was confident enough of&nbsp;
+the interpreter was complete enough that&nbsp;&nbsp;
+
+00:06:18.720 --> 00:06:24.800
+I showed it to Lambert. He showed me a&nbsp;
+language he had developed stealthily,&nbsp;&nbsp;
+
+00:06:24.800 --> 00:06:31.120
+which he called Python, named after Monty&nbsp;
+Python. I said look what I made. It was&nbsp;&nbsp;
+
+00:06:31.120 --> 00:06:36.320
+clear to me that it had some resemblance&nbsp;
+to ABC. The command line prompt is even&nbsp;&nbsp;
+
+00:06:36.320 --> 00:06:43.920
+the same. So Lambert watched me type a few&nbsp;
+things and.. Guido was excited about it and he&nbsp;&nbsp;
+
+00:06:43.920 --> 00:06:48.240
+apparently thought I would be excited as well.&nbsp;
+At some point he had seen enough and he said,&nbsp;&nbsp;
+
+00:06:48.240 --> 00:06:54.827
+"Can I try something?" And he types one very&nbsp;
+short line of code and it crashes the interpreter.
+
+00:06:56.960 --> 00:07:02.640
+And he knew that that it would. The point&nbsp;
+escaped me. I didn't know why he thought&nbsp;&nbsp;
+
+00:07:02.640 --> 00:07:08.400
+this was better than ABC and why he had&nbsp;
+done this whole project. I went back and&nbsp;&nbsp;
+
+00:07:08.400 --> 00:07:15.120
+the next day I had a fix for it. But it was&nbsp;
+a pretty crushing experience to be honest.
+
+00:07:28.480 --> 00:07:32.720
+It must have been at least half a year&nbsp;
+later, that I first got acquainted with&nbsp;&nbsp;
+
+00:07:32.720 --> 00:07:40.240
+Python. So this is the office where Guido&nbsp;
+and I were holed up when he created Python.&nbsp;&nbsp;
+
+00:07:40.240 --> 00:07:47.360
+There were two important users. Sjoerd was&nbsp;
+one of them and the other was Jack Jansen.
+
+00:07:47.360 --> 00:07:54.720
+Guido was sitting over there and I was sitting&nbsp;
+over there. If you want to prototype a program,&nbsp;&nbsp;
+
+00:07:54.720 --> 00:08:01.280
+you sort of write the outlines of the program,&nbsp;
+but it doesn't actually work. When you do this&nbsp;&nbsp;
+
+00:08:01.280 --> 00:08:07.920
+in Python, it actually works. It's readable.&nbsp;
+It's very easy to program and the indentation&nbsp;&nbsp;
+
+00:08:07.920 --> 00:08:13.680
+is totally natural as far as I'm concerned&nbsp;
+anyway. Sjoerd and Jack were the most active&nbsp;&nbsp;
+
+00:08:13.680 --> 00:08:18.960
+in using Python. You find bugs, you find the&nbsp;
+things that you want to extend and then telling&nbsp;&nbsp;
+
+00:08:18.960 --> 00:08:26.000
+me about it because all they had to do was say,&nbsp;
+"Hey, Guido." It was the first real interactive&nbsp;&nbsp;
+
+00:08:26.640 --> 00:08:30.960
+systems programming language. So, you could just&nbsp;
+sit and write and run it immediately without any&nbsp;&nbsp;
+
+00:08:30.960 --> 00:08:39.040
+compilation. So, it was much more fun to use&nbsp;
+than the old programming languages, but slower.
+
+00:08:39.040 --> 00:08:43.440
+I think it was mostly Jack's idea in&nbsp;
+the end, while we all worked on it,&nbsp;&nbsp;
+
+00:08:43.440 --> 00:08:50.880
+to make an open-source release. CWI allowed&nbsp;
+Guido to distribute Python to the world as&nbsp;&nbsp;
+
+00:08:50.880 --> 00:08:55.760
+long as its copyright notice was there. They&nbsp;
+would have held back if they had known it&nbsp;&nbsp;
+
+00:08:55.760 --> 00:09:00.560
+would be such an incredible success, which&nbsp;
+is good that they didn't know. Nobody knew.&nbsp;&nbsp;
+
+00:09:00.560 --> 00:09:07.200
+I didn't either. Because if they had held back,&nbsp;
+it would never have become an incredible success.
+
+00:09:08.720 --> 00:09:13.200
+Then we had to actually physically do&nbsp;
+the release which turned out to be an&nbsp;&nbsp;
+
+00:09:13.200 --> 00:09:22.640
+incredible pain because Usenet was&nbsp;
+the only thing we had to release it.
+
+00:09:22.640 --> 00:09:30.400
+Usenet was a network of, you could say, bulletin&nbsp;
+boards. People would write messages. They would&nbsp;&nbsp;
+
+00:09:30.400 --> 00:09:35.600
+get distributed over the world and then there&nbsp;
+were the groups for all the different computer&nbsp;&nbsp;
+
+00:09:35.600 --> 00:09:44.800
+languages. Usenet had a very strict limit on&nbsp;
+the size of a single post. First put your entire&nbsp;&nbsp;
+
+00:09:44.800 --> 00:09:52.080
+source tree in a tarball. Then compress it and you&nbsp;
+have to do another step where you turn the binary&nbsp;&nbsp;
+
+00:09:52.080 --> 00:10:01.360
+data into ASCII encoding. So you have this huge&nbsp;
+file with gobblygook, but it's at least printable&nbsp;&nbsp;
+
+00:10:01.360 --> 00:10:09.040
+gobblygook. And then you apply another tool that&nbsp;
+snips it into pieces. Then there is a script where&nbsp;&nbsp;
+
+00:10:09.040 --> 00:10:16.400
+if you have downloaded all 21 parts, you can&nbsp;
+undo all those operations in reverse. That was&nbsp;&nbsp;
+
+00:10:16.400 --> 00:10:22.400
+what people put up with. So we did all the work on&nbsp;
+our side and plenty of people did all the work on&nbsp;&nbsp;
+
+00:10:22.400 --> 00:10:31.920
+their side to unpack this because I had apparently&nbsp;
+written a very good teaser about what this was.
+
+00:10:34.920 --> 00:10:42.240
+[Music] Very quickly I started getting feedback&nbsp;
+via email or Usenet from people who had done&nbsp;&nbsp;
+
+00:10:42.240 --> 00:10:50.960
+something exciting with it or who had&nbsp;
+found a bug and that just kept coming.
+
+00:10:50.960 --> 00:10:57.760
+We worked at Johnson Space Center. So our interest&nbsp;
+was putting together flight simulations and tools&nbsp;&nbsp;
+
+00:10:57.760 --> 00:11:05.680
+for the design engineers that would be used&nbsp;
+for the shuttle program at the time. I remember&nbsp;&nbsp;
+
+00:11:05.680 --> 00:11:14.960
+needing a scripting language to control a C++&nbsp;
+library project we were working on at the time.&nbsp;&nbsp;
+
+00:11:14.960 --> 00:11:21.760
+Not too long into that search, I found Guido's&nbsp;
+Python distribution at CWI. I was able to FTP&nbsp;&nbsp;
+
+00:11:21.760 --> 00:11:33.840
+that down, unpack it, compile it, and run it in&nbsp;
+a matter of 10 minutes or so. That was my first&nbsp;&nbsp;
+
+00:11:33.840 --> 00:11:41.120
+impressive experience with Python. 20 years ago, a&nbsp;
+computer that cost a million dollars and filled an&nbsp;&nbsp;
+
+00:11:41.120 --> 00:11:48.240
+entire room had less capability than an 11 pounds&nbsp;
+desktop computer today. With costs going down and&nbsp;&nbsp;
+
+00:11:48.240 --> 00:11:53.600
+capabilities going up, the computer has entered&nbsp;
+our lives quickly and unobtrusively. There were&nbsp;&nbsp;
+
+00:11:53.600 --> 00:11:59.520
+lots of things changing in a major way that made&nbsp;
+computing particularly exciting to be in. At that&nbsp;&nbsp;
+
+00:11:59.520 --> 00:12:04.720
+time, computers suddenly were coming out of the&nbsp;
+machine room and landing up on your desk. And&nbsp;&nbsp;
+
+00:12:04.720 --> 00:12:10.480
+then of course the web happened. Then it all&nbsp;
+exploded. After the internet came to Europe,&nbsp;&nbsp;
+
+00:12:10.480 --> 00:12:17.920
+it was much easier for software to be distributed.&nbsp;
+Python very slowly took off. Then there was&nbsp;&nbsp;
+
+00:12:17.920 --> 00:12:30.240
+a growing Python community which was very&nbsp;
+supportive like a big family you could almost say.
+
+00:12:30.240 --> 00:12:37.520
+Part of the benefit of this is that I don't..&nbsp;
+I'm like, there's no strain on my body at all.&nbsp;&nbsp;
+
+00:12:37.520 --> 00:12:45.920
+I was working on developing a kind of distributed&nbsp;
+equipment database and a colleague at the lab,&nbsp;&nbsp;
+
+00:12:45.920 --> 00:12:51.440
+Michael McLay, knew that I was looking for&nbsp;
+what was called a scripting language that was&nbsp;&nbsp;
+
+00:12:51.440 --> 00:12:57.200
+also sophisticated that would enable you to build&nbsp;
+substantial things and not get bogged down in the&nbsp;&nbsp;
+
+00:12:57.200 --> 00:13:04.240
+ragged edges. Scripting languages were designed&nbsp;
+to glue things together, to connect things that&nbsp;&nbsp;
+
+00:13:04.240 --> 00:13:10.320
+already worked, that already existed. Immediately&nbsp;
+on trying it, I was just amazed and thought this&nbsp;&nbsp;
+
+00:13:10.320 --> 00:13:18.960
+can't be as good as it is. And it was. Mike was&nbsp;
+interested in bringing Guido over and Guido was&nbsp;&nbsp;
+
+00:13:18.960 --> 00:13:26.320
+interested in coming over. 99% of the people that&nbsp;
+I got in touch with were in the United States.&nbsp;&nbsp;
+
+00:13:26.320 --> 00:13:33.600
+So Guido ended up coming and then Mike and Guido&nbsp;
+and I wanted to arrange a workshop so people who&nbsp;&nbsp;
+
+00:13:33.600 --> 00:13:38.800
+were interested in Python could gather and talk&nbsp;
+about what they were working on and what they&nbsp;&nbsp;
+
+00:13:38.800 --> 00:13:47.280
+felt was needed. This is the t-shirt for the first&nbsp;
+conference. And so this yeah that that was just&nbsp;&nbsp;
+
+00:13:47.280 --> 00:13:55.920
+sort of flowy writing and on the on the back it&nbsp;
+gave the date of the conference. Spam, spam, spam,&nbsp;&nbsp;
+
+00:13:55.920 --> 00:14:02.880
+spam. It's such a fantastic song. That workshop&nbsp;
+really is for me the beginning of the Python&nbsp;&nbsp;
+
+00:14:02.880 --> 00:14:09.280
+community. November 1994, Gaithersburg, Maryland&nbsp;
+in this windowless government office building at&nbsp;&nbsp;
+
+00:14:09.280 --> 00:14:15.200
+NIST. That was a great experience. It was about&nbsp;
+two days. We had 20 people. I still have the&nbsp;&nbsp;
+
+00:14:15.200 --> 00:14:20.960
+t-shirt from that workshop. There was just kind&nbsp;
+of this feel of, hey, there's something happening.&nbsp;&nbsp;
+
+00:14:20.960 --> 00:14:26.480
+This will be fun to hang out with the people&nbsp;
+that I chat with online, to actually see Guido&nbsp;&nbsp;
+
+00:14:26.480 --> 00:14:31.840
+in person and actually make decisions. And we knew&nbsp;
+that if you impressed him with the feature and it&nbsp;&nbsp;
+
+00:14:31.840 --> 00:14:35.840
+was an easy thing to install, he would add it to&nbsp;
+the language right there so that we can at least&nbsp;&nbsp;
+
+00:14:35.840 --> 00:14:39.840
+try it out in beta form. There was like a whole&nbsp;
+room of people who knew what you were talking&nbsp;&nbsp;
+
+00:14:39.840 --> 00:14:51.680
+about because they had all studied Python deeply&nbsp;
+or almost all. One of the people was Barry Warsaw.
+
+00:14:51.680 --> 00:15:01.840
+[Music] Around 1994, I joined a company, CNRI,&nbsp;
+Corporation for National Research Initiatives,&nbsp;&nbsp;
+
+00:15:01.840 --> 00:15:07.840
+and we were building these software agents,&nbsp;
+little programs that can move around to&nbsp;&nbsp;
+
+00:15:07.840 --> 00:15:12.400
+different computers on a network, and they pickle&nbsp;
+themselves up and move around to another place and&nbsp;&nbsp;
+
+00:15:12.400 --> 00:15:18.960
+reconstitute themselves and do some more work.&nbsp;
+A friend of mine from NIST sent me an email and&nbsp;&nbsp;
+
+00:15:18.960 --> 00:15:22.880
+said, "Hey, we've got this guy coming over from&nbsp;
+the Netherlands and he's going to talk about his&nbsp;&nbsp;
+
+00:15:22.880 --> 00:15:28.320
+language. Do you want to come?" And so we went&nbsp;
+to the workshop and just absolutely fell in love&nbsp;&nbsp;
+
+00:15:28.320 --> 00:15:36.400
+with of course Python and of course Guido. Even&nbsp;
+then, it had the feeling that there was a there&nbsp;&nbsp;
+
+00:15:36.400 --> 00:15:42.080
+there was something that was going to happen&nbsp;
+that there was potential. I remember coming&nbsp;&nbsp;
+
+00:15:42.080 --> 00:15:48.080
+back to CNRI saying, "Oh, this is great. we're&nbsp;
+going to use Python for sure in our project. And&nbsp;&nbsp;
+
+00:15:48.080 --> 00:16:04.480
+one of our colleagues at CNRI said, "Well, what&nbsp;
+do you think? Why don't we just hire Guido?"
+
+00:16:04.480 --> 00:16:11.040
+CNRI was set up to sort of promote information&nbsp;
+infrastructure and foster research, help build&nbsp;&nbsp;
+
+00:16:11.040 --> 00:16:16.800
+pilot projects, take the results and put&nbsp;
+them out into the public so that others&nbsp;&nbsp;
+
+00:16:16.800 --> 00:16:22.160
+could then leverage it. Part of CNRI's mission&nbsp;
+was to cultivate internet based things. That's&nbsp;&nbsp;
+
+00:16:22.160 --> 00:16:30.560
+why our name Corporation for National Research&nbsp;
+Initiatives has the word "initiatives" in there.
+
+00:16:32.720 --> 00:16:40.880
+We had a need for a language that would be easier&nbsp;
+for people to deal with than any other traditional&nbsp;&nbsp;
+
+00:16:40.880 --> 00:16:46.960
+languages that were around at the time. I ran&nbsp;
+across a photograph. There was a party at CNRI,&nbsp;&nbsp;
+
+00:16:46.960 --> 00:16:56.640
+years ago. It was probably I think 1996.&nbsp;
+And it's it's a Guido. Yeah. I used to say&nbsp;&nbsp;
+
+00:16:56.640 --> 00:17:02.560
+Guido. Many people say Guido, but I said Guido&nbsp;
+and I'm sure I don't pronounce it right. Oh,&nbsp;&nbsp;
+
+00:17:02.560 --> 00:17:07.840
+he was a very stylish person and he was a very&nbsp;
+strong fellow. Got introduced to him and it just&nbsp;&nbsp;
+
+00:17:07.840 --> 00:17:13.760
+seemed like it was a good fit and so I made the&nbsp;
+job offer. For me, it was fantastic. There is no&nbsp;&nbsp;
+
+00:17:13.760 --> 00:17:18.800
+doubt about that. One of the things he insists on&nbsp;
+if you want to get him to work for you is that he&nbsp;&nbsp;
+
+00:17:18.800 --> 00:17:25.360
+has some fraction of his time, preferably as much&nbsp;
+as halftime if not more, to work on the language&nbsp;&nbsp;
+
+00:17:25.360 --> 00:17:31.600
+itself. the fact that they could work full-time&nbsp;
+on Python because it turned out that the Knowbots&nbsp;&nbsp;
+
+00:17:31.600 --> 00:17:38.880
+project was almost more an excuse to to hire&nbsp;
+me than I did much for that. I kind of feel&nbsp;&nbsp;
+
+00:17:38.880 --> 00:17:44.880
+like our work on Python was a little subversive.&nbsp;
+You know, we tended to spend a lot more time on&nbsp;&nbsp;
+
+00:17:44.880 --> 00:17:50.640
+Python than maybe we should have. I went to&nbsp;
+CNRI and since I had been a systems person,&nbsp;&nbsp;
+
+00:17:50.640 --> 00:17:56.800
+I was responsible for setting up python.org. We&nbsp;
+should have also grabbed python.com even though&nbsp;&nbsp;
+
+00:17:56.800 --> 00:18:01.760
+we didn't think of Python as a commercial&nbsp;
+enterprise because someone else got it and&nbsp;&nbsp;
+
+00:18:01.760 --> 00:18:13.680
+uh used it to host a stupid porn site. For years&nbsp;
+we had to warn people go to python.org, not .com.
+
+00:18:13.680 --> 00:18:18.960
+It really was the perfect home, I think, for doing&nbsp;
+all of that early Python development - and develop&nbsp;&nbsp;
+
+00:18:18.960 --> 00:18:24.320
+a lot of the infrastructure around Python. We&nbsp;
+had a meeting discussing making some kind of user&nbsp;&nbsp;
+
+00:18:24.320 --> 00:18:30.640
+group or software organization where the Python&nbsp;
+software activity was proposed. We need a little&nbsp;&nbsp;
+
+00:18:30.640 --> 00:18:35.360
+bit of governance, a little bit of organization,&nbsp;
+but we don't want too much because I don't think&nbsp;&nbsp;
+
+00:18:35.360 --> 00:18:40.880
+any of us really liked bureaucracy. And then the&nbsp;
+question came up about what we should call Guido&nbsp;&nbsp;
+
+00:18:40.880 --> 00:18:48.400
+as part of that. I think it was me who suggested&nbsp;
+that Guido be called the Benevolent Dictator and&nbsp;&nbsp;
+
+00:18:48.400 --> 00:18:55.600
+then Barry suggested Benevolent Dictator for Life&nbsp;
+and that became an internet meme or actually a&nbsp;&nbsp;
+
+00:18:55.600 --> 00:19:05.440
+software meme. Benevolent Dictator for Life was..&nbsp;
+you can find it on Wikipedia. Ultimately, you&nbsp;&nbsp;
+
+00:19:05.440 --> 00:19:11.440
+know, Guido was the inventor of the language and&nbsp;
+the final decider about yes, this is going to make&nbsp;&nbsp;
+
+00:19:11.440 --> 00:19:19.360
+it in or this is not going to make it in. I think&nbsp;
+I developed my own style during those first years.&nbsp;&nbsp;
+
+00:19:19.360 --> 00:19:27.520
+All ideas are welcome, but I will choose which&nbsp;
+ideas I believe are right to add to the language.&nbsp;&nbsp;
+
+00:19:27.520 --> 00:19:36.960
+There's dozens and dozens of aspects of&nbsp;
+Python today where somebody had a vision for,&nbsp;&nbsp;
+
+00:19:36.960 --> 00:19:45.160
+if you just add this to Python, look at&nbsp;
+all these amazing things that I can do.
+
+00:19:45.160 --> 00:19:48.560
+[Music]
+
+00:19:48.560 --> 00:19:53.040
+I'm one of the many people that came to Python,&nbsp;
+not as a programmer, but as a scientist. Python&nbsp;&nbsp;
+
+00:19:53.040 --> 00:19:57.920
+wasn't the first language I used for science. I&nbsp;
+was doing satellite data processing and I used&nbsp;&nbsp;
+
+00:19:57.920 --> 00:20:01.600
+Perl to do it and then a year later I would come&nbsp;
+back and try to figure out what I'd done and I&nbsp;&nbsp;
+
+00:20:01.600 --> 00:20:07.840
+had no idea. Python had the opposite experience. I&nbsp;
+first started using Python in 1997. I just used it&nbsp;&nbsp;
+
+00:20:07.840 --> 00:20:12.480
+to do some scripting, do some data processing with&nbsp;
+some medical imaging data and I was like this is&nbsp;&nbsp;
+
+00:20:12.480 --> 00:20:18.480
+nice. This is pretty cool. A year later, so 1998,&nbsp;
+I came back to look at the code I'd written and I&nbsp;&nbsp;
+
+00:20:18.480 --> 00:20:23.040
+could read it. I understood what I did. And that&nbsp;
+was kind of for me the convincing data that said,&nbsp;&nbsp;
+
+00:20:23.040 --> 00:20:28.240
+"Oh, I need to dig in on this language."&nbsp;
+And there were a few really key people at&nbsp;&nbsp;
+
+00:20:28.240 --> 00:20:32.640
+that time who were publishing or talking about&nbsp;
+how to use Python for science. Not very many,&nbsp;&nbsp;
+
+00:20:32.640 --> 00:20:38.640
+but a few. Konrad Hinsen was one of them, I&nbsp;
+remember, and David Ascher and Jim Hugunin.&nbsp;&nbsp;
+
+00:20:38.640 --> 00:20:45.840
+There's been a number of stages in the life&nbsp;
+cycle of Python, when it just grew from a a core&nbsp;&nbsp;
+
+00:20:45.840 --> 00:20:52.080
+language capability to a platform with a number of&nbsp;
+different specialty modules and packages that made&nbsp;&nbsp;
+
+00:20:52.080 --> 00:20:59.120
+it very very useful for certain user communities.&nbsp;
+The first one was probably the numeric community,&nbsp;&nbsp;
+
+00:20:59.120 --> 00:21:04.320
+the science and engineering folks that wanted&nbsp;
+high performance matrix operations to be done.&nbsp;&nbsp;
+
+00:21:04.320 --> 00:21:09.040
+Even though Guido wasn't a scientist himself,&nbsp;
+wasn't necessarily deeply concerned with the&nbsp;&nbsp;
+
+00:21:09.040 --> 00:21:16.480
+same things that we were concerned with as&nbsp;
+scientists, he was open to the suggestions.
+
+00:21:16.480 --> 00:21:19.840
+I think one of the things that people don't&nbsp;
+appreciate about the Python language as much&nbsp;&nbsp;
+
+00:21:19.840 --> 00:21:25.360
+now that it's so popular and mainstream&nbsp;
+is how important it was that Guido was&nbsp;&nbsp;
+
+00:21:25.360 --> 00:21:31.840
+open to new ideas and open to the needs of&nbsp;
+people who are not traditional programmers.&nbsp;&nbsp;
+
+00:21:32.640 --> 00:21:41.120
+I think he had a very clear-eyed quiet focus&nbsp;
+on understanding some things about the future&nbsp;&nbsp;
+
+00:21:41.120 --> 00:21:46.560
+that he built into the language. It was uniquely&nbsp;
+suited to its environment. One of the reasons I&nbsp;&nbsp;
+
+00:21:46.560 --> 00:21:50.640
+used Python and I think a lot of people used&nbsp;
+Python at the time is that in the early 2000s,&nbsp;&nbsp;
+
+00:21:50.640 --> 00:21:55.360
+the world was almost divided into here's an&nbsp;
+open source ecosystem or you can go and use&nbsp;&nbsp;
+
+00:21:55.360 --> 00:22:00.000
+Java which is actually a paid thing. I&nbsp;
+was using MATLAB. I really didn't like&nbsp;&nbsp;
+
+00:22:00.000 --> 00:22:02.880
+the fact that when I wrote code and I&nbsp;
+wanted to share that code with others,&nbsp;&nbsp;
+
+00:22:02.880 --> 00:22:07.440
+I was essentially telling people they had to go&nbsp;
+buy a license for a software package before they&nbsp;&nbsp;
+
+00:22:07.440 --> 00:22:10.320
+could even look at my or use my code. You&nbsp;
+know, these are the days where you have to&nbsp;&nbsp;
+
+00:22:10.320 --> 00:22:16.720
+like buy the developer tools or spend a couple&nbsp;
+hundred bucks to get Visual Studio 6.0 and then&nbsp;&nbsp;
+
+00:22:16.720 --> 00:22:21.120
+Python and then all of these libraries were open&nbsp;
+source and then could be adapted, could be used&nbsp;&nbsp;
+
+00:22:21.120 --> 00:22:27.120
+in a commercial project. I was sort of early&nbsp;
+on convinced by community members that Python&nbsp;&nbsp;
+
+00:22:27.120 --> 00:22:33.440
+being open- source and the particular way it was&nbsp;
+open source was very important so that people&nbsp;&nbsp;
+
+00:22:33.440 --> 00:22:48.000
+would feel comfortable using Python to make great&nbsp;
+things that they would then be able to to sell.
+
+00:22:51.320 --> 00:22:58.080
+[Music] In 1998, Blender was published on&nbsp;
+the internet. The software was free and&nbsp;&nbsp;
+
+00:22:58.080 --> 00:23:04.080
+then you could buy some things around it.&nbsp;
+We were restricted to use open source. So,&nbsp;&nbsp;
+
+00:23:04.080 --> 00:23:10.880
+you didn't have a lot of options. We were doing a&nbsp;
+call on our website like what is the most popular&nbsp;&nbsp;
+
+00:23:10.880 --> 00:23:18.400
+scripting language that we should add in Blender?&nbsp;
+Perl was really big and Python was upcoming and&nbsp;&nbsp;
+
+00:23:18.400 --> 00:23:24.640
+there were some others. And it was interesting&nbsp;
+to see that everybody who was advising us to&nbsp;&nbsp;
+
+00:23:24.640 --> 00:23:32.960
+use Perl as scripting language but they only&nbsp;
+advertised how great Perl is. And the people&nbsp;&nbsp;
+
+00:23:32.960 --> 00:23:38.880
+who came more from the Python background who&nbsp;
+said well I think Python is a better choice.&nbsp;&nbsp;
+
+00:23:38.880 --> 00:23:43.280
+They came with a balanced opinion. And they&nbsp;
+said okay Perl will give you this and this&nbsp;&nbsp;
+
+00:23:43.280 --> 00:23:49.760
+and this and Python will give you other things&nbsp;
+and balancing all of it I would recommend you to&nbsp;&nbsp;
+
+00:23:49.760 --> 00:24:04.320
+do Python and only for that reason I picked&nbsp;
+Python just because the people were nicer.
+
+00:24:04.320 --> 00:24:09.360
+It was honestly just a lot of enthusiasts. It was&nbsp;
+a lot of people who just enjoyed the language,&nbsp;&nbsp;
+
+00:24:09.360 --> 00:24:12.560
+enjoyed the people involved with the&nbsp;
+language and it would just happen&nbsp;&nbsp;
+
+00:24:12.560 --> 00:24:16.000
+to be typically motivating enough for&nbsp;
+people to want to help out. Ultimately,&nbsp;&nbsp;
+
+00:24:16.000 --> 00:24:21.680
+there's a sense of fun that comes across&nbsp;
+and Guido coded that into the name of the&nbsp;&nbsp;
+
+00:24:21.680 --> 00:24:30.640
+language influenced by Monty Python. It creates&nbsp;
+a sense of community to have your little jokes.
+
+00:24:30.640 --> 00:24:37.600
+Tim Peters is a famous early example of blending&nbsp;
+both like the aesthetics of Python and humor. Tim&nbsp;&nbsp;
+
+00:24:37.600 --> 00:24:45.360
+Peters was this mythical feature.. creature in&nbsp;
+the world of Python, and no one had met him. He&nbsp;&nbsp;
+
+00:24:45.360 --> 00:24:51.760
+was out there in the ether as a wise one to give&nbsp;
+us advice on what to do with numerical processing.&nbsp;&nbsp;
+
+00:24:51.760 --> 00:24:58.400
+Steve Majewski sent me some email telling me about&nbsp;
+Python. So I started a email correspondence with&nbsp;&nbsp;
+
+00:24:58.400 --> 00:25:03.120
+Guido about the language and about the design&nbsp;
+and I got some of the pre-release code and played&nbsp;&nbsp;
+
+00:25:03.120 --> 00:25:10.880
+with it and talked to him about design decisions&nbsp;
+and liked it very much. Tim Peters was a Python&nbsp;&nbsp;
+
+00:25:10.880 --> 00:25:18.560
+contributor and community member and mentor&nbsp;
+to me from very early on. Tim was a channeler&nbsp;&nbsp;
+
+00:25:18.560 --> 00:25:24.560
+of Guido. He had a really unique way of saying: I&nbsp;
+think Guido's going to like this or I don't think&nbsp;&nbsp;
+
+00:25:24.560 --> 00:25:30.240
+Guido is going to like that. There's a poem called&nbsp;
+the Zen of Python which is a partially humorous,&nbsp;&nbsp;
+
+00:25:30.240 --> 00:25:39.600
+partially serious poem about the the aesthetics of&nbsp;
+of Python. I'm actually looking at the Usenet post&nbsp;&nbsp;
+
+00:25:39.600 --> 00:25:47.840
+where Tim posted his first version of the Zen of&nbsp;
+Python, although he called it the Way of Python.&nbsp;&nbsp;
+
+00:25:47.840 --> 00:25:54.160
+And it was in response to some discussion&nbsp;
+where people were complaining that they&nbsp;&nbsp;
+
+00:25:54.160 --> 00:25:59.680
+didn't understand what was Python's philosophy.&nbsp;
+They couldn't figure me out. And Tim had figured&nbsp;&nbsp;
+
+00:25:59.680 --> 00:26:09.280
+me out and he put it basically in poetry. Here&nbsp;
+is the Way of Python by Tim Peters from 1999.&nbsp;&nbsp;
+
+00:26:09.280 --> 00:26:15.920
+Beautiful is better than ugly. Duh. Explicit&nbsp;
+is better than implicit. Simple is better than&nbsp;&nbsp;
+
+00:26:15.920 --> 00:26:23.280
+complex. Complex is better than complicated. And I&nbsp;
+love that distinction. Flat is better than nested.&nbsp;&nbsp;
+
+00:26:23.280 --> 00:26:29.920
+Sparse is better than dense. Readability counts. I&nbsp;
+will say it counts for a lot. Special cases aren't&nbsp;&nbsp;
+
+00:26:29.920 --> 00:26:36.400
+special enough to break the rules. Although&nbsp;
+practicality beats purity. Errors should never&nbsp;&nbsp;
+
+00:26:36.400 --> 00:26:43.760
+pass silently unless explicitly silenced. In the&nbsp;
+face of ambiguity, refuse the temptation to guess.&nbsp;&nbsp;
+
+00:26:43.760 --> 00:26:51.520
+I did not follow that in a very key piece of NumPy&nbsp;
+and it's still a mess. There should be one and&nbsp;&nbsp;
+
+00:26:51.520 --> 00:26:59.280
+preferably only one obvious way to do it. That's&nbsp;
+a direct reference to Perl's motto of there's&nbsp;&nbsp;
+
+00:26:59.280 --> 00:27:03.680
+more than one way to do it by the way. Although&nbsp;
+that may not be obvious at first, unless you're&nbsp;&nbsp;
+
+00:27:03.680 --> 00:27:09.760
+Dutch. Now is better than never. Although never is&nbsp;
+often better than right now. If the implementation&nbsp;&nbsp;
+
+00:27:09.760 --> 00:27:15.520
+is hard to explain, it's a bad idea. That's a&nbsp;
+really good one. If the implementation is easy&nbsp;&nbsp;
+
+00:27:15.520 --> 00:27:21.840
+to explain, it may be a good idea. Name spaces&nbsp;
+are one honking great idea. Let's do more of&nbsp;&nbsp;
+
+00:27:21.840 --> 00:27:31.360
+those. This is so Tim. Normally 'import this',&nbsp;
+imports some useful library, which is very serious&nbsp;&nbsp;
+
+00:27:31.360 --> 00:27:38.000
+business. Having an 'import this' that was just&nbsp;
+a joke was a bit of lightness that we liked to&nbsp;&nbsp;
+
+00:27:38.000 --> 00:27:43.120
+add. This is from a small hobbyist community,&nbsp;
+right? Because if you're a corporate behemoth&nbsp;&nbsp;
+
+00:27:43.120 --> 00:27:47.120
+making a a programming language, like someone's&nbsp;
+probably going to tell you that you can't put a&nbsp;&nbsp;
+
+00:27:47.120 --> 00:27:52.720
+silly poem in your in your programming language,&nbsp;
+but Python's just made by dogs on the internet,&nbsp;&nbsp;
+
+00:27:52.720 --> 00:28:00.240
+so they can put poems in their software. [Music]&nbsp;
+The different ways to make money on the internet&nbsp;&nbsp;
+
+00:28:00.240 --> 00:28:05.440
+are just beginning to emerge. Entrepreneurs are&nbsp;
+putting their faith in a new medium to deliver&nbsp;&nbsp;
+
+00:28:05.440 --> 00:28:11.200
+the big payoff. It's the dot-com bubble, all&nbsp;
+this money pumping into Silicon Valley software&nbsp;&nbsp;
+
+00:28:11.200 --> 00:28:19.600
+and internet stuff. Early 2000, I decided to&nbsp;
+leave CNRI and with a few co-workers joined&nbsp;&nbsp;
+
+00:28:19.600 --> 00:28:27.120
+little startup named BeOpen. While CNRI, I think,&nbsp;
+was an amazing home for Python in the early days,&nbsp;&nbsp;
+
+00:28:27.120 --> 00:28:31.760
+everything changes and everything evolves and&nbsp;
+thinking, well if we're going to strike out on our&nbsp;&nbsp;
+
+00:28:31.760 --> 00:28:38.480
+own this is probably the right time to do that.&nbsp;
+That didn't work out. I'd say within maybe a year&nbsp;&nbsp;
+
+00:28:38.480 --> 00:28:45.200
+or something. BeOpen was completely incompetent.&nbsp;
+We spent the summer in blissful ignorance working&nbsp;&nbsp;
+
+00:28:45.200 --> 00:28:53.120
+full-time on Python. We built and released Python&nbsp;
+2 and within 5 months it was over. We were paid&nbsp;&nbsp;
+
+00:28:53.120 --> 00:29:02.400
+our salaries every 2 weeks, and then suddenly in&nbsp;
+late October we weren't. [Music] It was a moment&nbsp;&nbsp;
+
+00:29:02.400 --> 00:29:08.400
+where the [&nbsp;__&nbsp;] could have hit the fan. If all&nbsp;
+the Python guys went their separate ways... Python&nbsp;&nbsp;
+
+00:29:08.400 --> 00:29:14.880
+wasn't big enough to survive that at the time.&nbsp;
+That was when I had a company Digital Creations&nbsp;&nbsp;
+
+00:29:14.880 --> 00:29:19.840
+that later became Zope, which is an application&nbsp;
+server, database server, index server, web server,&nbsp;&nbsp;
+
+00:29:19.840 --> 00:29:26.240
+etc. Very large scale commercial quality&nbsp;
+application written in Python. And if Python died,&nbsp;&nbsp;
+
+00:29:26.240 --> 00:29:32.560
+you know who else would die? We'd die. The whole&nbsp;
+platform was built on Python. So they were Python&nbsp;&nbsp;
+
+00:29:32.560 --> 00:29:40.560
+experts. We need to go and make sure that Python&nbsp;
+is secure for the future and that the team stays&nbsp;&nbsp;
+
+00:29:40.560 --> 00:29:49.520
+together. So we negotiated an agreement with them&nbsp;
+to join my company. That was an incredibly lucky&nbsp;&nbsp;
+
+00:29:49.520 --> 00:29:53.760
+rescue. We felt like we really trusted them&nbsp;
+and we believed in what they were doing and&nbsp;&nbsp;
+
+00:29:53.760 --> 00:30:00.320
+what they wanted to do with Python and for Python.&nbsp;
+This is a place that I'm proud of. In hindsight,&nbsp;&nbsp;
+
+00:30:00.320 --> 00:30:06.160
+it was a really critical point in Python's life.&nbsp;
+I think if we had chosen wrong or tried to say,&nbsp;&nbsp;
+
+00:30:06.160 --> 00:30:11.040
+"Oh, well, we'll just strike out on our&nbsp;
+own anyway." You never know. But I'm not&nbsp;&nbsp;
+
+00:30:11.040 --> 00:30:33.913
+so sure that Python would have survived&nbsp;
+that juncture in its life. Yeah. [Music]
+
+00:30:33.913 --> 00:30:33.920
+[Music]
+
+00:30:33.920 --> 00:30:40.000
+Python just kept sort of growing and&nbsp;
+the community kept self-organizing.&nbsp;&nbsp;
+
+00:30:40.000 --> 00:30:48.400
+One of the I think underlying themes of Python,&nbsp;
+if you take it in its totality, is this sense of&nbsp;&nbsp;
+
+00:30:48.400 --> 00:30:56.720
+grassroots movements. Things grow from the bottom&nbsp;
+up and evolve to the point where everybody sort of&nbsp;&nbsp;
+
+00:30:56.720 --> 00:31:02.880
+realizes, oh, we need a little bit more structure.&nbsp;
+Oh, the Python Software Foundation. In my opinion,&nbsp;&nbsp;
+
+00:31:02.880 --> 00:31:10.000
+the PSF, that damn thing was a success from day&nbsp;
+one. That came out of one of the concerns we had&nbsp;&nbsp;
+
+00:31:10.000 --> 00:31:19.280
+had with BeOpen actually. So CNRI had written&nbsp;
+a license for Python and put its name on it and&nbsp;&nbsp;
+
+00:31:19.280 --> 00:31:26.000
+BeOpen had copied a version of that license&nbsp;
+and put the BeOpen name on it. There was a&nbsp;&nbsp;
+
+00:31:26.000 --> 00:31:32.400
+concern that at some point I might accidentally&nbsp;
+end up working for a company that tried to grab&nbsp;&nbsp;
+
+00:31:32.400 --> 00:31:39.040
+ownership of Python. We realized that we really&nbsp;
+need an organization that will be independent,&nbsp;&nbsp;
+
+00:31:39.040 --> 00:31:47.760
+will not be beholden to any company and their&nbsp;
+whims and their lawyers and will really keep&nbsp;&nbsp;
+
+00:31:47.760 --> 00:31:59.840
+Python users as their first and foremost customer,&nbsp;
+so to speak, in mind. [Music] And then the magic&nbsp;&nbsp;
+
+00:31:59.840 --> 00:32:17.920
+happened when we got into PyCon, which is maybe&nbsp;
+the third stool of the miracle of Python. [Music]
+
+00:32:17.920 --> 00:32:24.160
+What has been your take away from PyCon US this&nbsp;
+year? It feels like people are still willing to&nbsp;&nbsp;
+
+00:32:24.160 --> 00:32:29.440
+go do hard things, work on things together, you&nbsp;
+know. Wow. They still do have the passion to be&nbsp;&nbsp;
+
+00:32:29.440 --> 00:32:35.280
+honest. So, what was it for you? Uh, for me most&nbsp;
+definitely like meeting people I haven't met in&nbsp;&nbsp;
+
+00:32:35.280 --> 00:32:40.640
+a while. That's cool. Yeah. And just pretty&nbsp;
+much hanging out with them. You try to walk,&nbsp;&nbsp;
+
+00:32:40.640 --> 00:32:45.040
+Yeah, to the other side. There's like 10&nbsp;
+people that you want to see in between like&nbsp;&nbsp;
+
+00:32:45.040 --> 00:32:52.080
+stop. I want to talk to you. Oh, I know. Pablo&nbsp;
+and Yuri presented as bananas and then Lukasz&nbsp;&nbsp;
+
+00:32:52.080 --> 00:32:56.480
+asked the question dressed as a banana.&nbsp;
+And then Guido came in just as a banana&nbsp;&nbsp;
+
+00:32:56.480 --> 00:33:01.760
+as well. Thank you for what you do for the&nbsp;
+PSF. Please don't step down. Just keep doing&nbsp;&nbsp;
+
+00:33:01.760 --> 00:33:08.080
+it forever. Raise your hand if you love the&nbsp;
+web. Just raise your hand. Raise your hand&nbsp;&nbsp;
+
+00:33:08.080 --> 00:33:17.360
+if you have done React front-ends. Raise your&nbsp;
+hand if you would like to come back. To React?
+
+00:33:17.360 --> 00:33:24.320
+No, come back to Python. All right. Good. For&nbsp;
+the record, 100%. I begged my mother to take&nbsp;&nbsp;
+
+00:33:24.320 --> 00:33:33.280
+me to PyCon and I met all my online heroes. He&nbsp;
+was this distant Benevolent Dictator for life&nbsp;&nbsp;
+
+00:33:33.280 --> 00:33:38.240
+who I'd been talking to over the internet, but&nbsp;
+here he was in person and so I was thrilled to&nbsp;&nbsp;
+
+00:33:38.240 --> 00:33:43.040
+be able to finally meet him. Then I&nbsp;
+think everyone was aware that he was&nbsp;&nbsp;
+
+00:33:43.040 --> 00:33:49.520
+a 15-year-old kid on the other end of the&nbsp;
+terminal. When PyCon was held in Montreal,&nbsp;&nbsp;
+
+00:33:49.520 --> 00:33:55.680
+the organizer asked me if I'd be willing to&nbsp;
+give an opening address to the conference. Well,&nbsp;&nbsp;
+
+00:33:55.680 --> 00:34:02.160
+I'm a slightly fast talker and I had some spare&nbsp;
+time and I just used it as an opportunity to say&nbsp;&nbsp;
+
+00:34:02.160 --> 00:34:06.160
+thank you. "I like to think of it as I came for&nbsp;
+the language, but I stayed for the community. So,&nbsp;&nbsp;
+
+00:34:06.160 --> 00:34:10.480
+I want to personally thank all of you for&nbsp;
+making this such a wonderful place to be&nbsp;&nbsp;
+
+00:34:10.480 --> 00:34:15.120
+and such a wonderful group of people to be&nbsp;
+around. So, thank you". Luckily, it came&nbsp;&nbsp;
+
+00:34:15.120 --> 00:34:21.520
+off well because people still quote it. I think&nbsp;
+it kind of speaks to the core ethos of Python.&nbsp;&nbsp;
+
+00:34:21.520 --> 00:34:28.880
+We try to develop this tool that people can use&nbsp;
+for their needs to get their work done. But the&nbsp;&nbsp;
+
+00:34:28.880 --> 00:34:36.520
+community is the true strength of Python. It's&nbsp;
+not just the language, right? It's the people.
+
+00:34:36.520 --> 00:34:43.840
+[Music] It was steadily growing every single&nbsp;
+year. It was getting more and more downloads,&nbsp;&nbsp;
+
+00:34:43.840 --> 00:34:50.160
+more and more people making use of it. It&nbsp;
+became a more sophisticated language that was&nbsp;&nbsp;
+
+00:34:50.160 --> 00:34:57.760
+fit for purpose for this new emerging programming&nbsp;
+paradigm where the the web itself is the platform.&nbsp;&nbsp;
+
+00:34:57.760 --> 00:35:04.640
+He told me an interesting number that that made me&nbsp;
+realize that the Python user community was already&nbsp;&nbsp;
+
+00:35:04.640 --> 00:35:10.960
+much bigger than I had estimated because&nbsp;
+he said, "Guido, you don't know the sales&nbsp;&nbsp;
+
+00:35:10.960 --> 00:35:17.600
+numbers for Python books, but I am Tim O'Reilly.&nbsp;
+I published the two most important ones and I do&nbsp;&nbsp;
+
+00:35:17.600 --> 00:35:23.920
+know the sales numbers and they are fantastic."&nbsp;
+I don't know if he had that much enthusiasm in&nbsp;&nbsp;
+
+00:35:23.920 --> 00:35:30.880
+his voice then, but he was sharing this new&nbsp;
+to me important fact which made me realize,&nbsp;&nbsp;
+
+00:35:30.880 --> 00:35:38.720
+oh my gosh! Python tends to get spikes when&nbsp;
+certain specialties, I guess you could say,&nbsp;&nbsp;
+
+00:35:38.720 --> 00:35:44.080
+pick the language up and decide that this is&nbsp;
+a thing that they want to use in their area.&nbsp;&nbsp;
+
+00:35:44.080 --> 00:35:49.600
+Everybody wanted to to do things with the&nbsp;
+worldwide web and Python actually became&nbsp;&nbsp;
+
+00:35:49.600 --> 00:35:57.200
+a really powerful platform for for doing not&nbsp;
+just web pages but web servers and services and&nbsp;&nbsp;
+
+00:35:57.200 --> 00:36:07.680
+suddenly we had an increase of people coming in&nbsp;
+from the web world. [Music] I think Dropbox was&nbsp;&nbsp;
+
+00:36:07.680 --> 00:36:12.960
+one of the early companies to start building&nbsp;
+in Python and reaching millions of users.&nbsp;&nbsp;
+
+00:36:14.080 --> 00:36:18.480
+My name's Drew and I'll be showing you a quick&nbsp;
+tour of Dropbox, which is a new way to store and&nbsp;&nbsp;
+
+00:36:18.480 --> 00:36:24.000
+share files online. Python had been largely viewed&nbsp;
+as scripting language you run on the back end or&nbsp;&nbsp;
+
+00:36:24.000 --> 00:36:29.040
+maybe in an academic setting or in a scientific&nbsp;
+setting, but not really for like production&nbsp;&nbsp;
+
+00:36:29.040 --> 00:36:33.760
+desktop software that you ship to millions of&nbsp;
+people. But I just started writing in Python&nbsp;&nbsp;
+
+00:36:33.760 --> 00:36:38.000
+and hoping that none of the roadblocks would&nbsp;
+completely blow me up. You can develop programs&nbsp;&nbsp;
+
+00:36:38.000 --> 00:36:43.520
+much faster in Python because it's a higher level&nbsp;
+language and it's a very clean easy language and&nbsp;&nbsp;
+
+00:36:43.520 --> 00:36:48.960
+so we could we could be a lot more competitive&nbsp;
+than other companies who were writing with Java&nbsp;&nbsp;
+
+00:36:48.960 --> 00:36:54.960
+or C++ or Perl. Even back then we were competing&nbsp;
+against the Google's and Microsofts of the world&nbsp;&nbsp;
+
+00:36:54.960 --> 00:37:00.720
+and you know our odds didn't seem very good. So&nbsp;
+we needed all the help we can get. Google had this&nbsp;&nbsp;
+
+00:37:00.720 --> 00:37:06.400
+big team like a hundred people, C++ programmers,&nbsp;
+trying to do a video hosting site and they could&nbsp;&nbsp;
+
+00:37:06.400 --> 00:37:10.880
+never keep up with this little thing over there&nbsp;
+called YouTube and they went and looked and it was&nbsp;&nbsp;
+
+00:37:10.880 --> 00:37:16.480
+just a couple of people writing Python. Python&nbsp;
+ended up being a big force multiplier on our&nbsp;&nbsp;
+
+00:37:16.480 --> 00:37:25.200
+effort and no other language that we considered&nbsp;
+had anything close to that kind of capability.
+
+00:37:27.160 --> 00:37:28.160
+[Music]
+
+00:37:28.160 --> 00:37:32.080
+The fact that data science suddenly&nbsp;
+became a thing that you had to do,&nbsp;&nbsp;
+
+00:37:32.080 --> 00:37:39.200
+combined with the fact that Python was sort&nbsp;
+of well positioned to do data science stuff&nbsp;&nbsp;
+
+00:37:39.200 --> 00:37:50.080
+meant a huge amount of new Python users flowed in.
+
+00:37:50.080 --> 00:37:56.800
+What was starting to happen in the 2009-2010&nbsp;
+time frame, we were seeing more and more of&nbsp;&nbsp;
+
+00:37:56.800 --> 00:38:03.360
+our consulting deals tied to using Python not as&nbsp;
+really a replacement for MATLAB or engineering&nbsp;&nbsp;
+
+00:38:03.360 --> 00:38:09.680
+type things, but using Python for doing data&nbsp;
+processing. We didn't call it data science at the&nbsp;&nbsp;
+
+00:38:09.680 --> 00:38:13.360
+time, but it was that kind of work, right? It was&nbsp;
+modeling, predictive analytics, things like that.&nbsp;&nbsp;
+
+00:38:13.360 --> 00:38:18.320
+This is the time of Hadoop, the time of big data,&nbsp;
+the time of Spark, and people were doing Java at&nbsp;&nbsp;
+
+00:38:18.320 --> 00:38:24.160
+scale. We were starting to do much more consulting&nbsp;
+work in the financial industry and we'd walk into&nbsp;&nbsp;
+
+00:38:24.160 --> 00:38:28.880
+these large very well-capitalized firms and they&nbsp;
+were using Python to do business data processing.&nbsp;&nbsp;
+
+00:38:28.880 --> 00:38:33.200
+I realized okay if it's a research group over&nbsp;
+here doing some science research and they don't&nbsp;&nbsp;
+
+00:38:33.200 --> 00:38:38.640
+have money and they use an open source thing&nbsp;
+I get it but if you have JP Morgan right which&nbsp;&nbsp;
+
+00:38:38.640 --> 00:38:43.120
+has a lot of money and they're picking up and&nbsp;
+using these scientific tools and they're loving&nbsp;&nbsp;
+
+00:38:43.120 --> 00:38:48.800
+it. I realized that we didn't just have a cheap&nbsp;
+free alternative. We actually had something that&nbsp;&nbsp;
+
+00:38:48.800 --> 00:38:54.480
+was innovative and that was doing something fairly&nbsp;
+unique. Peter and I ended up leaving Enthought and&nbsp;&nbsp;
+
+00:38:55.120 --> 00:39:02.160
+starting another company. We started as Continuum&nbsp;
+Analytics actually and its vision was to scale&nbsp;&nbsp;
+
+00:39:02.160 --> 00:39:08.640
+NumPy and Pandas to large data sets and large&nbsp;
+clusters. We quickly ran into a simple problem,&nbsp;&nbsp;
+
+00:39:08.640 --> 00:39:12.880
+very quickly in, but a very annoying problem.&nbsp;
+Yes. people just couldn't even install the&nbsp;&nbsp;
+
+00:39:12.880 --> 00:39:19.200
+software needed to run all this Python stuff. The&nbsp;
+thing about the Python scientific and data stack&nbsp;&nbsp;
+
+00:39:19.200 --> 00:39:23.680
+is that all of these different libraries, they're&nbsp;
+very different than the web development libraries&nbsp;&nbsp;
+
+00:39:23.680 --> 00:39:28.320
+because these data libraries are often backed&nbsp;
+by a very large amount of complex C++, Fortran,&nbsp;&nbsp;
+
+00:39:28.320 --> 00:39:34.000
+other kinds of software modules. And to build&nbsp;
+those correctly takes some work. To build them&nbsp;&nbsp;
+
+00:39:34.000 --> 00:39:38.880
+correctly on every operating system takes even&nbsp;
+more work. And then to build them so that they&nbsp;&nbsp;
+
+00:39:38.880 --> 00:39:44.640
+can actually be connected together, that requires&nbsp;
+you to have this entire build system rationalized.&nbsp;&nbsp;
+
+00:39:44.640 --> 00:39:48.640
+And so the very first thing we did was like make&nbsp;
+a distribution of Python to make it easy to get&nbsp;&nbsp;
+
+00:39:48.640 --> 00:39:52.800
+that installed. A lot of the data science Python&nbsp;
+people, they didn't even use normal Python. They&nbsp;&nbsp;
+
+00:39:52.800 --> 00:39:56.720
+used this Anaconda Python distribution. Sort of&nbsp;
+a dumb joke that I came up with at one point.&nbsp;&nbsp;
+
+00:39:56.720 --> 00:40:03.360
+It was basically Python for big data. So it's a&nbsp;
+big snake. So Anaconda. After like a few years,&nbsp;&nbsp;
+
+00:40:03.360 --> 00:40:07.520
+we kept going to conferences and going&nbsp;
+to places and people wouldn't know who we&nbsp;&nbsp;
+
+00:40:07.520 --> 00:40:11.200
+were. But the instant that we mentioned that&nbsp;
+we make Anaconda, they would say, "Oh, yeah,&nbsp;&nbsp;
+
+00:40:11.200 --> 00:40:14.880
+of course. I love Anaconda. I use it all the&nbsp;
+time." Right? So, after that happened like the&nbsp;&nbsp;
+
+00:40:14.880 --> 00:40:19.280
+thousandth time, we said, "Okay, maybe we should&nbsp;
+rename the company Anaconda." Data engineering&nbsp;&nbsp;
+
+00:40:19.280 --> 00:40:26.560
+became a discipline where Python was incredibly&nbsp;
+entrenched. It was Python and R. And over time,&nbsp;&nbsp;
+
+00:40:26.560 --> 00:40:31.200
+Python's data analysis libraries caught up and&nbsp;
+plotting libraries and stuff started to catch up&nbsp;&nbsp;
+
+00:40:31.200 --> 00:40:36.720
+to what R had. And then people realized, oh well,&nbsp;
+with Python, I can work end to end with my data&nbsp;&nbsp;
+
+00:40:36.720 --> 00:40:42.240
+versus R being very good at data analysis, but&nbsp;
+not necessarily like the data collection stage&nbsp;&nbsp;
+
+00:40:42.240 --> 00:40:46.960
+and various other stages. I remember going to&nbsp;
+a Python conference at one point. I was like,&nbsp;&nbsp;
+
+00:40:46.960 --> 00:40:52.160
+there's so many sciency people here like where&nbsp;
+are all the web developers? This is all data data&nbsp;&nbsp;
+
+00:40:52.160 --> 00:40:55.440
+pipelines and stuff. I don't want to be immodest&nbsp;
+about this because it was a collective effort for&nbsp;&nbsp;
+
+00:40:55.440 --> 00:40:59.840
+the whole community, but I think that what we&nbsp;
+did at Anaconda, not only making the software&nbsp;&nbsp;
+
+00:40:59.840 --> 00:41:04.640
+installer that made it one click for people to&nbsp;
+just run, but also shephering the conferences&nbsp;&nbsp;
+
+00:41:04.640 --> 00:41:09.680
+and building that community and and whatnot&nbsp;
+was really critical. They were incredibly&nbsp;&nbsp;
+
+00:41:09.680 --> 00:41:20.120
+important contributions. I think we actually made&nbsp;
+Python super popular. I I think we did. [Music]&nbsp;&nbsp;
+
+00:41:24.480 --> 00:41:28.960
+Well, I remember hearing from a friend of&nbsp;
+mine that Guido van Rossum was just working&nbsp;&nbsp;
+
+00:41:28.960 --> 00:41:34.560
+at Google. And that when I thought about&nbsp;
+it, I'm like, wait, yeah, Guido, I guess,&nbsp;&nbsp;
+
+00:41:34.560 --> 00:41:41.120
+works at a normal company and I can't remember&nbsp;
+the exact circumstances, but I think either&nbsp;&nbsp;
+
+00:41:41.120 --> 00:41:45.920
+I got an introduction to him or I just maybe I&nbsp;
+think maybe just send him an email saying, "Hey,&nbsp;&nbsp;
+
+00:41:45.920 --> 00:41:52.720
+um, big fan of your work." you know, it's like fan&nbsp;
+mail basically. And he responded and we got lunch.&nbsp;&nbsp;
+
+00:41:52.720 --> 00:41:58.400
+I mean, he's a hero of mine and he was totally&nbsp;
+friendly and approachable. And at that talk,&nbsp;&nbsp;
+
+00:41:58.400 --> 00:42:04.480
+it was revealed that Dropbox was entirely written&nbsp;
+in Python, both the client and the server,&nbsp;&nbsp;
+
+00:42:04.480 --> 00:42:08.640
+and that was exciting. He was interested in&nbsp;
+what we were doing with Python. And I think&nbsp;&nbsp;
+
+00:42:08.640 --> 00:42:15.040
+we were stretching the language and the runtime in&nbsp;
+interesting ways. He approached me again and said,&nbsp;&nbsp;
+
+00:42:15.040 --> 00:42:21.520
+"Hey, we would really like you to work for us."&nbsp;
+And then to my surprise and delight, he ended up&nbsp;&nbsp;
+
+00:42:21.520 --> 00:42:28.400
+joining the Dropbox team, which was super exciting&nbsp;
+for all of us. I stayed there for 7 years. We did&nbsp;&nbsp;
+
+00:42:28.400 --> 00:42:35.280
+more important stuff for Python than I did during&nbsp;
+7 years at Google I think. I think he had a big&nbsp;&nbsp;
+
+00:42:35.280 --> 00:42:39.680
+impact on the rest of the team. You know, here's&nbsp;
+someone who's one of the icons of computing,&nbsp;&nbsp;
+
+00:42:39.680 --> 00:42:45.360
+but you would never know it just from his, you&nbsp;
+know, how he badges in to the office every day&nbsp;&nbsp;
+
+00:42:45.360 --> 00:42:52.720
+and I think set a really great example in terms&nbsp;
+of being super humble and curious and friendly.&nbsp;&nbsp;
+
+00:42:52.720 --> 00:43:00.320
+You know, it's hard for me to think of someone&nbsp;
+who has had more impact with lower ego. Uh,&nbsp;&nbsp;
+
+00:43:00.320 --> 00:43:08.400
+let's start with the first Python license&nbsp;
+plate. Sorry, that was my car when we lived in&nbsp;&nbsp;
+
+00:43:08.400 --> 00:43:17.040
+Virginia. And there was a box on the application&nbsp;
+- sorry, just grabbing the other one, too - uh,&nbsp;&nbsp;
+
+00:43:17.040 --> 00:43:23.040
+do you want a custom license plate? So, I managed&nbsp;
+to get Python in Virginia and in California,&nbsp;&nbsp;
+
+00:43:23.040 --> 00:43:30.800
+Python was long taken. Like someone in Silicon&nbsp;
+Valley probably has a Python license plate&nbsp;&nbsp;
+
+00:43:30.800 --> 00:43:40.160
+somewhere. So, the best I could get was PY3K,&nbsp;
+which I thought was pretty pretty cute anyway.
+
+00:43:40.160 --> 00:43:46.320
+It became ever more popular and people&nbsp;
+started thinking about flaws in the&nbsp;&nbsp;
+
+00:43:46.320 --> 00:43:51.360
+language. There were a lot of ideas floating&nbsp;
+around the core development community,&nbsp;&nbsp;
+
+00:43:51.360 --> 00:43:54.640
+changes you could make to the language that&nbsp;
+people thought would be major improvements.&nbsp;&nbsp;
+
+00:43:54.640 --> 00:44:00.160
+The only problem with them was that they would&nbsp;
+break old Python code that currently existed.&nbsp;&nbsp;
+
+00:44:00.160 --> 00:44:06.560
+Some of that probably got away&nbsp;
+from us a little bit in hindsight.
+
+00:44:06.560 --> 00:44:15.200
+We released Python 3.0 in December of&nbsp;
+2007. I remember because I was actually&nbsp;&nbsp;
+
+00:44:15.200 --> 00:44:20.640
+interning under Guido at the time. We were&nbsp;
+giving people roughly 5 years, I think,&nbsp;&nbsp;
+
+00:44:20.640 --> 00:44:25.280
+to do the transition. And everyone thought&nbsp;
+that was just extraordinarily generous. The&nbsp;&nbsp;
+
+00:44:25.280 --> 00:44:30.560
+world would totally be on Python 3 in just a few&nbsp;
+years. This is best for the language long term.&nbsp;&nbsp;
+
+00:44:30.560 --> 00:44:33.600
+We're going to make these changes. The community&nbsp;
+has always come along with us. We think they'll&nbsp;&nbsp;
+
+00:44:33.600 --> 00:44:43.280
+come along this journey as well. We were very&nbsp;
+naive about that and they they made us know it.
+
+00:44:43.280 --> 00:44:47.200
+The community said, "No, not worth&nbsp;
+it. Kill it. Don't do it. It's not&nbsp;&nbsp;
+
+00:44:47.200 --> 00:44:55.440
+going to work." This included some very&nbsp;
+notable individuals in the community.
+
+00:45:03.680 --> 00:45:09.280
+So, please welcome our next speaker.
+
+00:45:09.280 --> 00:45:14.400
+Hi, my name is Armin. You might be familiar with&nbsp;
+some of the Python libraries that I wrote and&nbsp;&nbsp;
+
+00:45:14.400 --> 00:45:19.520
+you might even maybe use some of them. The&nbsp;
+Python 2 to Python 3 transition. Initially,&nbsp;&nbsp;
+
+00:45:19.520 --> 00:45:24.000
+it happened very gradually over many years. There&nbsp;
+was the version that everybody used and there was&nbsp;&nbsp;
+
+00:45:24.000 --> 00:45:27.920
+sort of the version on the side that was built&nbsp;
+that nobody used. People didn't want to put in the&nbsp;&nbsp;
+
+00:45:27.920 --> 00:45:37.760
+effort because their code worked, you know, why&nbsp;
+rewrite it. It's very hard to mix Python 2 and 3.
+
+00:45:37.760 --> 00:45:41.760
+It's uh it's a it's a headache.&nbsp;
+So I just didn't move and a lot&nbsp;&nbsp;
+
+00:45:41.760 --> 00:45:46.400
+of people didn't move. It felt there's a&nbsp;
+likelihood that it will not go anywhere.&nbsp;&nbsp;
+
+00:45:46.400 --> 00:45:53.360
+It felt much more like a top-down decision than&nbsp;
+any of the things in the past. And that top- down&nbsp;&nbsp;
+
+00:45:53.360 --> 00:46:00.800
+decision, I think for some people felt like it&nbsp;
+was not inclusive of the real pains of people who&nbsp;&nbsp;
+
+00:46:00.800 --> 00:46:08.800
+had a long tale of use cases. I think I severely&nbsp;
+underestimated how successful Python already was.&nbsp;&nbsp;
+
+00:46:08.800 --> 00:46:16.720
+How many people had written so much code in&nbsp;
+Python 2 that it would be hard for them to&nbsp;&nbsp;
+
+00:46:16.720 --> 00:46:23.120
+sort of put the effort into translate to Python&nbsp;
+3. I thought the most controversial thing by far&nbsp;&nbsp;
+
+00:46:23.120 --> 00:46:28.160
+was that we wanted to change the way Unicode&nbsp;
+was handled. A way to say these things are&nbsp;&nbsp;
+
+00:46:28.160 --> 00:46:32.800
+strings and they're human consumable. They're&nbsp;
+words that people want to read and write and&nbsp;&nbsp;
+
+00:46:32.800 --> 00:46:37.360
+these things are bytes. These are things&nbsp;
+that computers want to read and write.
+
+00:46:39.360 --> 00:46:46.080
+We basically made all strings Unicode and we made&nbsp;
+you use a new prefix 'b' for bytes. And this was&nbsp;&nbsp;
+
+00:46:46.080 --> 00:46:50.640
+incredibly disturbing. I was implementing&nbsp;
+a WSGI library at the time and one of the&nbsp;&nbsp;
+
+00:46:50.640 --> 00:46:54.800
+things that you do when you implement WSGI,&nbsp;
+is that you have to parse HTTP data. You have&nbsp;&nbsp;
+
+00:46:54.800 --> 00:46:59.680
+to parse cookie data. And there there was&nbsp;
+always a mixture of bytes and Unicode. And&nbsp;&nbsp;
+
+00:46:59.680 --> 00:47:04.400
+it was very easy to work with on Python 2. And&nbsp;
+it was incredibly annoying to work on Python 3,&nbsp;&nbsp;
+
+00:47:04.400 --> 00:47:10.320
+at least initially. There really wasn't&nbsp;
+a way to convert your Python 2 code to&nbsp;&nbsp;
+
+00:47:10.320 --> 00:47:14.880
+Python 3. The tools didn't exist. I&nbsp;
+started writing blog posts about it.&nbsp;&nbsp;
+
+00:47:14.880 --> 00:47:31.600
+Why I think that in the way which Python 3&nbsp;
+works right now, I just cannot see the move.
+
+00:47:31.600 --> 00:47:37.280
+He was a valued community member. And at&nbsp;
+the time I was actually quite surprised&nbsp;&nbsp;
+
+00:47:37.280 --> 00:47:45.040
+that he was so viciously attacking Python&nbsp;
+3. I was probably even more negative on it&nbsp;&nbsp;
+
+00:47:45.040 --> 00:47:50.080
+than appropriate. But Python had such a good&nbsp;
+run and I put so much energy into it. I was&nbsp;&nbsp;
+
+00:47:50.080 --> 00:47:54.160
+part of like building out web frameworks&nbsp;
+and and all these libraries. I felt like:&nbsp;&nbsp;
+
+00:47:54.160 --> 00:47:59.200
+why are we ruining all of this with this move&nbsp;
+that didn't even have that many benefits.&nbsp;&nbsp;
+
+00:47:59.200 --> 00:48:06.560
+I had not appreciated how many people already&nbsp;
+had enormous code bases or were on their way&nbsp;&nbsp;
+
+00:48:06.560 --> 00:48:13.760
+to building up enormous code bases. The payback&nbsp;
+for that was that I had to initiate the project&nbsp;&nbsp;
+
+00:48:13.760 --> 00:48:22.640
+at Dropbox. We had a pretty long road to migrate&nbsp;
+many millions of lines of Python 2 code. 5 million&nbsp;&nbsp;
+
+00:48:22.640 --> 00:48:28.640
+lines of code in the server alone and another&nbsp;
+million for the client. That is a very large&nbsp;&nbsp;
+
+00:48:28.640 --> 00:48:48.400
+pile of code to transform. And so we had to&nbsp;
+invent ways of sort of doing it in in pieces.
+
+00:48:55.080 --> 00:48:56.080
+[Laughter]&nbsp;&nbsp;
+
+00:48:56.080 --> 00:49:01.280
+A funny sticker I found in my pocket.&nbsp;
+There's a built tool called Bazel.&nbsp;&nbsp;
+
+00:49:01.280 --> 00:49:07.040
+It's sort of a frozen version of&nbsp;
+Python 2. So here the sticker says&nbsp;&nbsp;
+
+00:49:07.040 --> 00:49:12.880
+after re-education enemy of the people&nbsp;
+Python denounced their bourgeois class,&nbsp;&nbsp;
+
+00:49:12.880 --> 00:49:18.160
+renounced formalist notions like Turing&nbsp;
+incompleteness and began a new life as&nbsp;&nbsp;
+
+00:49:18.160 --> 00:49:26.000
+citizen Starlark. This is especially an&nbsp;
+example of Benjamin Peterson's humor.&nbsp;&nbsp;
+
+00:49:27.280 --> 00:49:33.760
+I had the fortune or the misfortune depending how&nbsp;
+you see it to be the uh Python 2.7 release manager&nbsp;&nbsp;
+
+00:49:33.760 --> 00:49:41.920
+for an entire decade. We had to adjust our plans&nbsp;
+for Python 3 and for Python 2 so that there was&nbsp;&nbsp;
+
+00:49:41.920 --> 00:49:48.720
+a longer series of releases where there were both&nbsp;
+new Python 2 versions and new Python 3 versions.&nbsp;&nbsp;
+
+00:49:48.720 --> 00:49:53.680
+What ended up happening is then the community was&nbsp;
+like maintaining 2 and 3 and that created a lot&nbsp;&nbsp;
+
+00:49:53.680 --> 00:49:59.120
+of burden. And so this was happening all during&nbsp;
+the growth of NumPy. We made it work for Python&nbsp;&nbsp;
+
+00:49:59.120 --> 00:50:11.200
+2 and then I think Python 3.1 I think or 3.2,&nbsp;
+we also made it work there but saw no adoption.
+
+00:50:11.200 --> 00:50:17.600
+We knew it was going to take a long time.&nbsp;
+Uh we knew it was going to be painful but&nbsp;&nbsp;
+
+00:50:17.600 --> 00:50:22.640
+there is light at the end of the tunnel. The&nbsp;
+community contributed stuff like lib2to3 and&nbsp;&nbsp;
+
+00:50:22.640 --> 00:50:29.360
+other migration tools came out. Benjamin Peterson&nbsp;
+wrote Six that really helped that transition. The&nbsp;&nbsp;
+
+00:50:29.360 --> 00:50:34.960
+language itself became a little more backwards&nbsp;
+compatible. I eventually advocated to bring&nbsp;&nbsp;
+
+00:50:34.960 --> 00:50:39.360
+back the 'u' prefix on the strings and that&nbsp;
+actually made it easier to write unified code&nbsp;&nbsp;
+
+00:50:39.360 --> 00:50:43.120
+bases that target both Python 2 and Python&nbsp;
+3. There was a point in time where we made&nbsp;&nbsp;
+
+00:50:43.120 --> 00:50:53.360
+a very strong declaration, there will never&nbsp;
+be a Python 2.8 and Python 3 is the future.
+
+00:50:53.360 --> 00:51:00.640
+Python 3 just is a better language and it&nbsp;
+is getting better over time. Python 2 on&nbsp;&nbsp;
+
+00:51:00.640 --> 00:51:06.960
+the other hand is a fine language and it will&nbsp;
+remain exactly what it is. For a long time,&nbsp;&nbsp;
+
+00:51:06.960 --> 00:51:11.360
+there was a lot of measurement of how much&nbsp;
+Python 2 usage is there, how much Python 3&nbsp;&nbsp;
+
+00:51:11.360 --> 00:51:16.080
+usage is there. I think it was when Python was in&nbsp;
+Portland, was roughly when we started to see like&nbsp;&nbsp;
+
+00:51:16.080 --> 00:51:22.720
+50/50. Once 3.4 came out, it actually added some&nbsp;
+features that were interesting to people like, oh,&nbsp;&nbsp;
+
+00:51:22.720 --> 00:51:30.320
+I want that capability. So, to me, Python 3.4 was&nbsp;
+really Python 3.0. And then 3.5 was an even bigger&nbsp;&nbsp;
+
+00:51:30.320 --> 00:51:36.560
+milestone. That was the one that got widespread&nbsp;
+adoption of Python 3. And by the time Python 3.5&nbsp;&nbsp;
+
+00:51:36.560 --> 00:51:40.880
+came out, then it was clear that Python 3 would&nbsp;
+work. And then you started to have companies come&nbsp;&nbsp;
+
+00:51:40.880 --> 00:51:48.640
+out and give talks like Instagram's talk, which&nbsp;
+I believe is also at Portland, was a big deal.
+
+00:51:48.640 --> 00:51:54.960
+Yes, you heard it right. Instagram has been&nbsp;
+running fully on Python 3 for a few months.&nbsp;&nbsp;
+
+00:51:54.960 --> 00:52:00.000
+The whole process took I would say about 9 to&nbsp;
+10 months. And I think Instagram was the largest&nbsp;&nbsp;
+
+00:52:00.000 --> 00:52:06.960
+production deployment for Python at the time. She&nbsp;
+gave a very good, very thorough talk explaining&nbsp;&nbsp;
+
+00:52:06.960 --> 00:52:12.080
+why they did it. Two main things: typing and&nbsp;
+asyncio. How they did it. We cleaned out all&nbsp;&nbsp;
+
+00:52:12.080 --> 00:52:17.200
+the libraries that are not making the migration&nbsp;
+from Python 2 to 3. How you should do it. Unit&nbsp;&nbsp;
+
+00:52:17.200 --> 00:52:22.880
+test. What they had learned during the process. We&nbsp;
+had actually some good performance gains as well,&nbsp;&nbsp;
+
+00:52:22.880 --> 00:52:30.560
+after our migration. It felt as vindication&nbsp;
+that at least there were large companies that&nbsp;&nbsp;
+
+00:52:30.560 --> 00:52:36.560
+took the time to do it right and to convert all&nbsp;
+their code to Python 3 and were able to do it&nbsp;&nbsp;
+
+00:52:36.560 --> 00:52:41.840
+successfully. It was definitely well received.&nbsp;
+We got a lot of people saying: we really wanted&nbsp;&nbsp;
+
+00:52:41.840 --> 00:52:47.920
+to migrate as well, but we weren't getting the&nbsp;
+kind of support that my team or my company was&nbsp;&nbsp;
+
+00:52:47.920 --> 00:52:52.800
+giving us. And now I can bring this back to&nbsp;
+my management. And that really gave people&nbsp;&nbsp;
+
+00:52:52.800 --> 00:52:59.760
+the confidence in migrating to Python 3. It became&nbsp;
+like a look, Instagram can do it. Why don't you&nbsp;&nbsp;
+
+00:52:59.760 --> 00:53:12.000
+do it? Instagram's getting benefits, new features,&nbsp;
+faster code. Why don't you also want that benefit?
+
+00:53:12.000 --> 00:53:18.160
+[Music]
+
+00:53:18.160 --> 00:53:23.920
+Projects undergo things like this. And Python&nbsp;
+learned a lot from it and it did actually&nbsp;&nbsp;
+
+00:53:23.920 --> 00:53:29.200
+eventually end up with Python 3 being in a pretty&nbsp;
+good spot again that it was safe to use. And safe&nbsp;&nbsp;
+
+00:53:29.200 --> 00:53:34.400
+to use sounds weird but like where I felt like I&nbsp;
+can actually start new projects on Python 3 now&nbsp;&nbsp;
+
+00:53:34.400 --> 00:53:40.000
+because we're back to a stable situation where&nbsp;
+you're about as productive as I felt like I was&nbsp;&nbsp;
+
+00:53:40.000 --> 00:53:44.480
+with Python 2. Hi, Anna, nice to meet you. I&nbsp;
+really liked your talk. But it was basically&nbsp;&nbsp;
+
+00:53:44.480 --> 00:53:50.800
+time that healed it. When Python 2.7 was declared&nbsp;
+that there wouldn't be any more security fixes,&nbsp;&nbsp;
+
+00:53:50.800 --> 00:53:56.400
+it became a security concern. That was sort&nbsp;
+of the final push. People who donated their&nbsp;&nbsp;
+
+00:53:56.400 --> 00:54:01.760
+work to do this migration in the wider Python&nbsp;
+world and community eventually got the world&nbsp;&nbsp;
+
+00:54:01.760 --> 00:54:06.240
+running on Python 3, but as I said like it&nbsp;
+was a decade long process. And I don't think&nbsp;&nbsp;
+
+00:54:06.240 --> 00:54:11.440
+anybody anticipated how much work it would be&nbsp;
+to move to Python 3. I think Python's probably&nbsp;&nbsp;
+
+00:54:11.440 --> 00:54:19.120
+too big to ever go through a transition like that&nbsp;
+today. The community was maybe a little too big,&nbsp;&nbsp;
+
+00:54:19.120 --> 00:54:24.880
+but not too big. I even still get angry&nbsp;
+messages sometimes from people who are like,&nbsp;&nbsp;
+
+00:54:24.880 --> 00:54:31.840
+"My code needs Python 2.7. You need to&nbsp;
+provide it." And I tell them, "No." I&nbsp;&nbsp;
+
+00:54:31.840 --> 00:54:37.840
+never wavered in my commitment to Python 3. It&nbsp;
+was a lesson learned for sure. For a long time,&nbsp;&nbsp;
+
+00:54:37.840 --> 00:54:43.920
+I regularly joked there would be a Python 4, but&nbsp;
+the transition would be handled much better than&nbsp;&nbsp;
+
+00:54:43.920 --> 00:54:50.640
+the transition to Python 3. I felt I owed that&nbsp;
+to the community. And now, the mantra has changed&nbsp;&nbsp;
+
+00:54:50.640 --> 00:54:56.240
+to there will never be even a Python 4. To be&nbsp;
+honest, I don't know how many people in Python&nbsp;&nbsp;
+
+00:54:56.240 --> 00:55:04.240
+even know about the whole transition because&nbsp;
+that all ended in 2020. At least it's behind us.
+
+00:55:17.000 --> 00:55:18.000
+[Music]
+
+00:55:18.000 --> 00:55:28.240
+Okay, so now we get in the closet. So there's&nbsp;
+the frisbee. This is the most unique merch I've&nbsp;&nbsp;
+
+00:55:28.240 --> 00:55:35.600
+ever seen related to Python. Now, here's&nbsp;
+a significant t-shirt. It says, "Python is&nbsp;&nbsp;
+
+00:55:35.600 --> 00:55:45.600
+for girls." I received this anonymously&nbsp;
+in the mail at Google. And to this day,&nbsp;&nbsp;
+
+00:55:45.600 --> 00:55:50.720
+I don't know exactly what the intention of the&nbsp;
+sender was. They never revealed themselves,&nbsp;&nbsp;
+
+00:55:50.720 --> 00:55:55.760
+at least not to me. And I don't know if&nbsp;
+there was an intention even.. But I sort&nbsp;&nbsp;
+
+00:55:55.760 --> 00:56:04.560
+of realized at that point that there wasn't a&nbsp;
+whole lot of women in the the Python community&nbsp;&nbsp;
+
+00:56:04.560 --> 00:56:14.400
+and the community also discovered that&nbsp;
+and fixed it for the Python conference.
+
+00:56:14.400 --> 00:56:20.000
+This idea of being a place where people from&nbsp;
+a wide range of backgrounds can learn how to&nbsp;&nbsp;
+
+00:56:20.000 --> 00:56:26.240
+program, benefit from programming, find community.&nbsp;
+There really was some snowballing adoption of&nbsp;&nbsp;
+
+00:56:26.240 --> 00:56:34.560
+these ideas across languages at the time. Jessica&nbsp;
+McKellar looks at the speakers at PyCon and says,&nbsp;&nbsp;
+
+00:56:34.560 --> 00:56:40.320
+"There's only 3% that are women. What can we&nbsp;
+do about this?" She was co-organizer of the&nbsp;&nbsp;
+
+00:56:40.320 --> 00:56:45.200
+biggest Python meetup in the world in Boston.&nbsp;
+She knew what she was talking about. It's not&nbsp;&nbsp;
+
+00:56:45.200 --> 00:56:49.840
+rocket science. It's like, ask people if they're&nbsp;
+interested in speaking and we just.. providing&nbsp;&nbsp;
+
+00:56:49.840 --> 00:57:01.520
+like a little bit of support drove a huge shift in&nbsp;
+the volume and demographics of the talks that were&nbsp;&nbsp;
+
+00:57:01.520 --> 00:57:08.240
+submitted. And then 3 years later, like 35% of&nbsp;
+the speakers are women. I forget what the number&nbsp;&nbsp;
+
+00:57:08.240 --> 00:57:15.120
+was but I think it was almost even with male&nbsp;
+speakers. PyCon... I had an old tweet about this,&nbsp;&nbsp;
+
+00:57:15.120 --> 00:57:19.920
+so I just pulled this up. Says, "Hello from your&nbsp;
+PyCon Diversity Chair." So, the percentage of&nbsp;&nbsp;
+
+00:57:19.920 --> 00:57:31.760
+PyCon talks by women: 2011 was 1%, 2012, it was&nbsp;
+7%, 2013, 15%, 2014 and 2015, 33%. And in 2016,&nbsp;&nbsp;
+
+00:57:31.760 --> 00:57:38.560
+40%. Problems have solutions. That was a very&nbsp;
+inspiring story to me also. Something that was&nbsp;&nbsp;
+
+00:57:38.560 --> 00:57:45.280
+less inspiring to me was that at the language&nbsp;
+summit there wasn't a single woman in the room,&nbsp;&nbsp;
+
+00:57:45.280 --> 00:57:54.560
+and I don't believe we have a single female&nbsp;
+committer to core Python. There wasn't ever&nbsp;&nbsp;
+
+00:57:54.560 --> 00:57:59.760
+ill intent but unfortunately we fell into&nbsp;
+the trap of not doing enough diversity&nbsp;&nbsp;
+
+00:57:59.760 --> 00:58:04.160
+reach out to try to get more people to&nbsp;
+come in. To be honest it was a lot of&nbsp;&nbsp;
+
+00:58:04.160 --> 00:58:12.480
+white men. So Guido wanted to change that.&nbsp;
+I want at least two female core Python devs&nbsp;&nbsp;
+
+00:58:12.480 --> 00:58:18.240
+in the next year and I will try to train&nbsp;
+them myself if that's what it takes. So&nbsp;&nbsp;
+
+00:58:18.240 --> 00:58:30.440
+come talk to me. I believe one of the first&nbsp;
+people who took up that call was Mariatta.
+
+00:58:30.440 --> 00:58:41.040
+[Music] Even though I've always been&nbsp;
+passionate about technology and programming,&nbsp;&nbsp;
+
+00:58:41.040 --> 00:58:49.840
+I also felt it wasn't a welcoming environment for&nbsp;
+women. My schoolmates who took computer science&nbsp;&nbsp;
+
+00:58:49.840 --> 00:58:56.720
+are mostly men. Most of the professors were men&nbsp;
+and at work most of my co-workers were men and I&nbsp;&nbsp;
+
+00:58:56.720 --> 00:59:04.720
+just didn't really have examples or role models&nbsp;
+of women being successful in the tech industry.
+
+00:59:06.960 --> 00:59:12.560
+One of my co-workers went to PyCon. He&nbsp;
+saw that at that conference there is&nbsp;&nbsp;
+
+00:59:12.560 --> 00:59:32.960
+this community called PyLadies and&nbsp;
+I felt like.. I want to meet them.
+
+00:59:32.960 --> 00:59:33.120
+[Music]
+
+00:59:33.120 --> 00:59:40.080
+So in 2015, that's when I decided I&nbsp;
+want to go to PyCon. At this conference,&nbsp;&nbsp;
+
+00:59:40.080 --> 00:59:48.240
+I got to see a lot of women speaking and&nbsp;
+presenting. At my previous tech conference,&nbsp;&nbsp;
+
+00:59:48.240 --> 00:59:55.680
+all speakers were men, all the keynote speakers&nbsp;
+were men. So this was really different.
+
+00:59:55.680 --> 01:00:00.320
+One of the keynote speakers at that same&nbsp;
+conference was Guido van Rossum. Hello&nbsp;&nbsp;
+
+01:00:00.320 --> 01:00:06.640
+everybody. Glad to see you all. I want to meet&nbsp;
+and see the creator of the Python programming&nbsp;&nbsp;
+
+01:00:06.640 --> 01:00:10.880
+language. "And I will try to train them&nbsp;
+myself if that's what it takes". I heard&nbsp;&nbsp;
+
+01:00:10.880 --> 01:00:16.880
+this speech. However, at that time, I&nbsp;
+just didn't think that it's something&nbsp;&nbsp;
+
+01:00:16.880 --> 01:00:22.240
+I could do. I wasn't even contributing to&nbsp;
+the Python community. I didn't contribute&nbsp;&nbsp;
+
+01:00:22.240 --> 01:00:30.320
+to open source at all. I just thought&nbsp;
+I'm sure they will find women next year.
+
+01:00:35.200 --> 01:00:41.920
+The year after I went back to PyCon US and Guido&nbsp;
+van Rossum gave another keynote. We still don't&nbsp;&nbsp;
+
+01:00:41.920 --> 01:00:47.440
+have two female core developers. I think at&nbsp;
+that time that's something really clicked in me,&nbsp;&nbsp;
+
+01:00:47.440 --> 01:00:52.640
+like I realized that there's something&nbsp;
+within me that says: if nobody's doing it,&nbsp;&nbsp;
+
+01:00:52.640 --> 01:00:59.680
+I will do it. I wrote to Guido van&nbsp;
+Rossum and I asked him for help.&nbsp;&nbsp;
+
+01:01:00.320 --> 01:01:07.920
+Somehow I felt really scared. I just didn't&nbsp;
+feel like I deserved mentorship from Guido&nbsp;&nbsp;
+
+01:01:07.920 --> 01:01:15.440
+van Rossum. So I really hesitated to send this&nbsp;
+email to him. But in the end, I realized that I&nbsp;&nbsp;
+
+01:01:15.440 --> 01:01:27.280
+want to try. Like I felt like this was a great&nbsp;
+opportunity for me. I pressed the send button.
+
+01:01:27.280 --> 01:01:33.840
+I got a reply. He was very friendly. He started&nbsp;
+sharing resources about, you know, how to get&nbsp;&nbsp;
+
+01:01:33.840 --> 01:01:40.320
+started contributing to Python. He offered to&nbsp;
+do video chats. It's been really helpful to have&nbsp;&nbsp;
+
+01:01:40.320 --> 01:01:47.200
+his moral support. We had a pretty sort of deep&nbsp;
+mentorship relationship for a few years. Mariatta&nbsp;&nbsp;
+
+01:01:47.200 --> 01:01:52.480
+learned the process from Guido and continued to&nbsp;
+contribute more and more very much around tooling,&nbsp;&nbsp;
+
+01:01:52.480 --> 01:01:57.840
+like she really found her niche in terms of trying&nbsp;
+to help make our development process easier.&nbsp;&nbsp;
+
+01:01:58.480 --> 01:02:05.840
+It was scary at first, like I just didn't feel&nbsp;
+comfortable sharing my questions in public. I&nbsp;&nbsp;
+
+01:02:05.840 --> 01:02:11.280
+didn't want people to know that I don't&nbsp;
+know how to do certain things, you know,&nbsp;&nbsp;
+
+01:02:11.280 --> 01:02:18.880
+like I didn't want people to see that I'm actually&nbsp;
+not that good. But this is how it it works in open&nbsp;&nbsp;
+
+01:02:18.880 --> 01:02:27.920
+source. And the community has always been kind&nbsp;
+and helped me with my questions without saying&nbsp;&nbsp;
+
+01:02:27.920 --> 01:02:41.200
+that you're stupid. Like I never felt like I was&nbsp;
+being judged. I think it does start with Guido.&nbsp;&nbsp;
+
+01:02:41.200 --> 01:02:48.160
+The fact that Guido was very active in bringing&nbsp;
+more voices into Python absolutely made Python&nbsp;&nbsp;
+
+01:02:48.160 --> 01:02:53.920
+better and stronger. Just the way the whole&nbsp;
+community works and what we stand for,&nbsp;&nbsp;
+
+01:02:53.920 --> 01:03:06.000
+thanks to Guido's leadership, is where I want to&nbsp;
+be. And I think that's true for a lot of people.
+
+01:03:10.640 --> 01:03:15.600
+About six, seven months after I&nbsp;
+started reaching out to Guido,&nbsp;&nbsp;
+
+01:03:15.600 --> 01:03:21.920
+I was recommended to become a Python&nbsp;
+core developer. It really wasn't until&nbsp;&nbsp;
+
+01:03:21.920 --> 01:03:31.840
+4 months ago that for the first&nbsp;
+time ever. There's a woman...
+
+01:03:31.840 --> 01:03:38.640
+There's a woman who became a Python core developer&nbsp;
+and earned that commit privilege. The first woman&nbsp;&nbsp;
+
+01:03:38.640 --> 01:03:43.920
+ever to join our team and has continued to be&nbsp;
+there and participate and try to help us and&nbsp;&nbsp;
+
+01:03:43.920 --> 01:03:52.320
+always a very good advocate to try to improve&nbsp;
+our diversity. Now that I've seen the camera,&nbsp;&nbsp;
+
+01:03:52.320 --> 01:03:59.840
+I can't do it. My life really changed after&nbsp;
+that. A lot of opportunities opened up just&nbsp;&nbsp;
+
+01:03:59.840 --> 01:04:10.320
+because I'm a Python core developer. Hi, how are&nbsp;
+you? [Music] Mariatta went on to give her own set&nbsp;&nbsp;
+
+01:04:10.320 --> 01:04:19.760
+of talks about how important mentorship is. When&nbsp;
+you don't have role models who you can relate to,&nbsp;&nbsp;
+
+01:04:19.760 --> 01:04:28.720
+you start believing that you cannot do it. Thank&nbsp;
+you. Hi everybody. Uh my name is Mariatta. I'm&nbsp;&nbsp;
+
+01:04:28.720 --> 01:04:37.200
+a PyLady. I run PyLadies Vancouver. I also&nbsp;
+help with the PyLadies con. 10 years ago,&nbsp;&nbsp;
+
+01:04:37.200 --> 01:04:41.840
+I was also in this room for the&nbsp;
+Pyladies luncheon at PyCon US 2015.&nbsp;&nbsp;
+
+01:04:41.840 --> 01:04:49.120
+It was a life-changing event for me. It was at&nbsp;
+that event that I felt for the first time in&nbsp;&nbsp;
+
+01:04:49.120 --> 01:04:58.880
+my life as a developer, I felt like I belong in&nbsp;
+tech because I see 100 women in the room with me.&nbsp;&nbsp;
+
+01:04:58.880 --> 01:05:09.040
+I just want other women to have role models.&nbsp;
+I hope I can help inspire them and help them.&nbsp;&nbsp;
+
+01:05:09.040 --> 01:05:15.360
+These opportunities belong to you, too. You're&nbsp;
+all the reason I do this because I know there's&nbsp;&nbsp;
+
+01:05:15.360 --> 01:05:23.600
+still a lot to do and I know together we can&nbsp;
+help each other and support each other. Okay,&nbsp;&nbsp;
+
+01:05:23.600 --> 01:05:33.760
+I think that's it. Thank you so much everybody.&nbsp;
+[Applause] I have been so consistently impressed&nbsp;&nbsp;
+
+01:05:33.760 --> 01:05:41.760
+by the Python community's ability to have&nbsp;
+respectful and and real reflection and&nbsp;&nbsp;
+
+01:05:41.760 --> 01:05:51.440
+dialogue about how to steward itself and how to&nbsp;
+move it forward in a way that I find so inspiring&nbsp;&nbsp;
+
+01:05:51.440 --> 01:05:56.480
+and a vision of what is possible in other&nbsp;
+communities. And I mean that really sincerely.
+
+01:06:06.720 --> 01:06:13.680
+There were an ever growing number of sort of&nbsp;
+scientific disciplines where all the code was&nbsp;&nbsp;
+
+01:06:13.680 --> 01:06:21.280
+written in Python or a lot of it was prototyped&nbsp;
+in Python at least. And then the next step was&nbsp;&nbsp;
+
+01:06:21.280 --> 01:06:28.480
+machine learning packages which started with&nbsp;
+TensorFlow and was later followed by PyTorch.&nbsp;&nbsp;
+
+01:06:28.480 --> 01:06:35.120
+For a long time, Python was seen sort of as&nbsp;
+a scripting language that you would just do&nbsp;&nbsp;
+
+01:06:35.120 --> 01:06:41.280
+small things that you need to automate and not&nbsp;
+production ready code and so it wasn't given a&nbsp;&nbsp;
+
+01:06:41.280 --> 01:06:48.400
+ton of attention. And then now AI/ML has sort of&nbsp;
+changed things where it is now a business driver.&nbsp;&nbsp;
+
+01:06:48.400 --> 01:06:57.440
+It appeals to people who are not professional&nbsp;
+programmers but need software to do a task.&nbsp;&nbsp;
+
+01:06:57.440 --> 01:07:03.600
+There are some other languages like Rm you can do&nbsp;
+some interesting stuff in but Python is really it&nbsp;&nbsp;
+
+01:07:03.600 --> 01:07:09.920
+for a AI/ML these days. Python has probably&nbsp;
+like centuries of engineering time that has&nbsp;&nbsp;
+
+01:07:09.920 --> 01:07:15.040
+gone into code in the ecosystem specifically&nbsp;
+on those topics. So if you're using Python,&nbsp;&nbsp;
+
+01:07:15.040 --> 01:07:22.160
+you're able to instantly tap into those libraries.&nbsp;
+Meta has PyTorch, which has a amazing Python API&nbsp;&nbsp;
+
+01:07:22.160 --> 01:07:28.560
+and front-end people can interact with. There's&nbsp;
+also SciPy, NumPy, Numba, Pandas. There's a&nbsp;&nbsp;
+
+01:07:28.560 --> 01:07:35.200
+whole suite of really extensive tools. Trying to&nbsp;
+build a language and a language ecosystem that&nbsp;&nbsp;
+
+01:07:35.200 --> 01:07:39.840
+is amendable to all of that is non-trivial.&nbsp;
+That actually took real design, real thought,&nbsp;&nbsp;
+
+01:07:39.840 --> 01:07:46.240
+and real ecosystem collective innovation over the&nbsp;
+course of decades. The back-end of those tools are&nbsp;&nbsp;
+
+01:07:46.240 --> 01:07:54.800
+usually C or Fortran or some other native language&nbsp;
+that's much faster, but would be difficult for&nbsp;&nbsp;
+
+01:07:54.800 --> 01:08:03.760
+someone with an AI background to program in. And&nbsp;
+it continues to be used for all that by all the&nbsp;&nbsp;
+
+01:08:03.760 --> 01:08:07.920
+AI scientists, developing the models, and&nbsp;
+the people training the models, people&nbsp;&nbsp;
+
+01:08:07.920 --> 01:08:17.320
+using the models. And that brings yet another&nbsp;
+increment of of growth to the Python community.
+
+01:08:17.320 --> 01:08:24.400
+[Music] Python's a fantastic language&nbsp;
+even if you're not a scientist. I just&nbsp;&nbsp;
+
+01:08:24.400 --> 01:08:29.600
+don't think it would have risen to the level&nbsp;
+of dramatic usage without the science first&nbsp;&nbsp;
+
+01:08:29.600 --> 01:08:33.760
+data science and machine learning story. We&nbsp;
+had a massive impact in the world. You know,&nbsp;&nbsp;
+
+01:08:33.760 --> 01:08:39.120
+I think one testament to the future of Python&nbsp;
+is, if you prompt any of the LLMs to do code&nbsp;&nbsp;
+
+01:08:39.120 --> 01:08:44.640
+generation today. If it's front-end, it's going&nbsp;
+to be JavaScript. If it's back-end data analysis,&nbsp;&nbsp;
+
+01:08:44.640 --> 01:08:49.440
+it's going to be Python. That's&nbsp;
+the future. And Python is a part&nbsp;&nbsp;
+
+01:08:49.440 --> 01:08:58.560
+of that future. Lucky me that I that I chose&nbsp;
+that language and not not a different one.
+
+01:08:58.560 --> 01:09:05.680
+Hey, Jacob. Oh, hello, morning. Hope you don't&nbsp;
+mind being filmed. Yeah. Ah, okay. Ida's following&nbsp;&nbsp;
+
+01:09:05.680 --> 01:09:11.840
+me. All right. Yeah, she's shooting some b-roll&nbsp;
+for the documentary, I think. Ah, nice. I first&nbsp;&nbsp;
+
+01:09:11.840 --> 01:09:21.760
+used Python in 1997 or something like that.&nbsp;
+Wow, that's really early days. So, it's got&nbsp;&nbsp;
+
+01:09:21.760 --> 01:09:26.960
+30 frames of animation. Oh, wow. I told everyone&nbsp;
+that he would hate getting the DSA, but they did&nbsp;&nbsp;
+
+01:09:26.960 --> 01:09:32.480
+it anyway. Yeah. Sorry, the DSA? Distinguished&nbsp;
+Service Award. I labeled him in the annual report&nbsp;&nbsp;
+
+01:09:32.480 --> 01:09:37.920
+as like a leader in the Python community once and&nbsp;
+he made me take it out. Yeah, we can see that. But&nbsp;&nbsp;
+
+01:09:37.920 --> 01:09:43.920
+nevertheless, he was on the steering council for&nbsp;
+five years. Uhhuh. And he was a leader. I got a&nbsp;&nbsp;
+
+01:09:43.920 --> 01:09:49.520
+job from a Python conference back in 2017. I grew&nbsp;
+up in India. I moved to Germany, changed my life.&nbsp;&nbsp;
+
+01:09:49.520 --> 01:09:54.560
+So I think Python changed a lot of things for me&nbsp;
+and I just wanted to say thanks to you for for&nbsp;&nbsp;
+
+01:09:54.560 --> 01:10:00.560
+making this language. That's very sweet. Yeah. Do&nbsp;
+you mind if I uh take a picture with you or that&nbsp;&nbsp;
+
+01:10:00.560 --> 01:10:06.640
+you don't like it? I'm so sorry. I really don't&nbsp;
+like it and especially not in busy places. Okay,&nbsp;&nbsp;
+
+01:10:06.640 --> 01:10:13.200
+no problem. I get it. Okay. Find me in a dark&nbsp;
+alley and I'll do it. Okay. Okay. I get it.&nbsp;&nbsp;
+
+01:10:14.480 --> 01:10:20.800
+Ah, I always kind of looked at myself as the&nbsp;
+bass player of Python, which is great. You know,&nbsp;&nbsp;
+
+01:10:20.800 --> 01:10:26.320
+you can do a lot, you can have fun, and the&nbsp;
+spotlight's not on you. And I love that. I can't&nbsp;&nbsp;
+
+01:10:26.320 --> 01:10:32.560
+imagine having that kind of spotlight on you,&nbsp;
+you know, for so many years. I heard a story from&nbsp;&nbsp;
+
+01:10:32.560 --> 01:10:38.480
+an Apple VP of engineering, that Steve Jobs had&nbsp;
+turned down their hire of Guido because he said,&nbsp;&nbsp;
+
+01:10:38.480 --> 01:10:48.960
+he has his own following and we don't&nbsp;
+want to have that kind of distraction.
+
+01:10:48.960 --> 01:10:54.320
+Python has always been a language that changed.&nbsp;
+We've never been one of those languages that says&nbsp;&nbsp;
+
+01:10:54.320 --> 01:10:59.840
+if you write code against this version of Python,&nbsp;
+it will run forever with any new version of the&nbsp;&nbsp;
+
+01:10:59.840 --> 01:11:08.800
+language. We just simply have never been those&nbsp;
+people. A PEP is an acronym for Python Enhancement&nbsp;&nbsp;
+
+01:11:08.800 --> 01:11:14.480
+Proposal. That's a document that's written&nbsp;
+by someone who wants to make a significant&nbsp;&nbsp;
+
+01:11:14.480 --> 01:11:19.440
+change to Python. Basically, you're trying to&nbsp;
+convince people that this is a good idea. It&nbsp;&nbsp;
+
+01:11:19.440 --> 01:11:24.960
+would be sent for discussion for a mailing&nbsp;
+list and then eventually Guido as the BDFL,&nbsp;&nbsp;
+
+01:11:24.960 --> 01:11:31.760
+the Benevolent Dictator for Life, would decide&nbsp;
+whether your change was going in or not. But&nbsp;&nbsp;
+
+01:11:31.760 --> 01:11:40.640
+people always have worried that the next change&nbsp;
+is going to be the one that changes the feel of&nbsp;&nbsp;
+
+01:11:40.640 --> 01:11:47.360
+the language. It won't fit my brain anymore or it&nbsp;
+won't be accessible anymore. I've actually seen&nbsp;&nbsp;
+
+01:11:47.360 --> 01:11:52.640
+people storm out of rooms saying, "You're ruining&nbsp;
+this language." Some people take it very, very&nbsp;&nbsp;
+
+01:11:52.640 --> 01:12:00.640
+personally and seriously. And the Walrus operator&nbsp;
+was no different. Yeah so, PEP 572, I don't know&nbsp;&nbsp;
+
+01:12:00.640 --> 01:12:04.560
+who coined the term the Walrus Operator, but&nbsp;
+if you kind of turn your head, it looks like&nbsp;&nbsp;
+
+01:12:04.560 --> 01:12:13.360
+a little walrus. It was a new feature that was&nbsp;
+proposed, but it was also a syntax change. The&nbsp;&nbsp;
+
+01:12:13.360 --> 01:12:19.520
+Walrus operator lets you do assignments, meaning&nbsp;
+put values into variables in places that you&nbsp;&nbsp;
+
+01:12:19.520 --> 01:12:26.000
+previously could not. That was probably the most&nbsp;
+contentious language change, oddly enough, because&nbsp;&nbsp;
+
+01:12:26.000 --> 01:12:31.120
+it's kind of a minor thing, but it it there was so&nbsp;
+much passionate feeling about whether that should&nbsp;&nbsp;
+
+01:12:31.120 --> 01:12:37.760
+be added or not that it created kind of a bit of a&nbsp;
+of a ruckus. When I first saw the Walrus Operator,&nbsp;&nbsp;
+
+01:12:37.760 --> 01:12:43.040
+I didn't like it. It kind of felt a little&nbsp;
+un-Pythonic to me, but then I started to play&nbsp;&nbsp;
+
+01:12:43.040 --> 01:12:47.840
+with it. There was a particular use case that&nbsp;
+I came up with in my own code that I was like,&nbsp;&nbsp;
+
+01:12:47.840 --> 01:12:53.200
+"Oh, you know what? This is actually pretty&nbsp;
+cool". And so then I was like, well, I it's&nbsp;&nbsp;
+
+01:12:53.200 --> 01:12:58.480
+something that I won't use very often, but when I&nbsp;
+need it, it's really great to have. And I turned,&nbsp;&nbsp;
+
+01:12:58.480 --> 01:13:06.640
+you know, 180° and became a fan of it. But it was&nbsp;
+very disruptive. [Music] Language features and&nbsp;&nbsp;
+
+01:13:06.640 --> 01:13:13.200
+especially syntax can be a double-edged sword. So&nbsp;
+one person's succinct, elegant code can be another&nbsp;&nbsp;
+
+01:13:13.200 --> 01:13:21.600
+person's unreadable puzzle or a fusticated mess.&nbsp;
+There were very strongly voiced predictions about&nbsp;&nbsp;
+
+01:13:21.600 --> 01:13:27.200
+how bad it would be for Python. And then just&nbsp;
+because Python was so much more popular at the&nbsp;&nbsp;
+
+01:13:27.200 --> 01:13:31.840
+time, there are so many places where people talk&nbsp;
+about Python. I mean Twitter, you know, at the&nbsp;&nbsp;
+
+01:13:31.840 --> 01:13:37.680
+time. This is all happening in public, right? And&nbsp;
+everyone can kind of with low effort throw their&nbsp;&nbsp;
+
+01:13:37.680 --> 01:13:44.080
+hat into the ring and not everyone is going&nbsp;
+to restrain themselves when they're doing it.
+
+01:13:45.760 --> 01:13:50.560
+I started being more and more convinced&nbsp;
+that PEP 572 was actually the right thing&nbsp;&nbsp;
+
+01:13:50.560 --> 01:14:04.160
+to do. I was the BDFL and I accepted&nbsp;
+the PEP. And the next morning I woke up
+
+01:14:04.160 --> 01:14:09.360
+and I felt miserable
+
+01:14:09.360 --> 01:14:12.640
+because of all the attacks&nbsp;
+that had happened before.&nbsp;&nbsp;
+
+01:14:14.080 --> 01:14:23.680
+I sat down at my computer, wrote a short email,&nbsp;
+and hit send wherein I announced that I resigned&nbsp;&nbsp;
+
+01:14:23.680 --> 01:14:33.040
+at BDFL. And that had an incredible impact&nbsp;
+because nobody had expected I would resign&nbsp;&nbsp;
+
+01:14:33.040 --> 01:14:40.560
+and certainly not that I would rage quit&nbsp;
+over this issue, which essentially it was.
+
+01:14:55.720 --> 01:14:56.720
+[Music]&nbsp;&nbsp;
+
+01:14:56.720 --> 01:15:02.240
+Transfer of power. Now that PEP 572&nbsp;
+is done, I don't ever want to have to&nbsp;&nbsp;
+
+01:15:02.240 --> 01:15:07.760
+fight so hard for a PEP and find that&nbsp;
+so many people despise my decisions.&nbsp;&nbsp;
+
+01:15:07.760 --> 01:15:12.880
+I would like to remove myself entirely from&nbsp;
+the decision process. I'm basically giving&nbsp;&nbsp;
+
+01:15:12.880 --> 01:15:19.280
+myself a permanent vacation from being BDFL&nbsp;
+and you all will be on your own. I am not&nbsp;&nbsp;
+
+01:15:19.280 --> 01:15:25.600
+going to appoint a successor. So what are you&nbsp;
+all going to do? Create a democracy, anarchy,&nbsp;&nbsp;
+
+01:15:25.600 --> 01:15:31.200
+a dictatorship, a federation? I'll still be&nbsp;
+here, but I'm trying to let you all figure&nbsp;&nbsp;
+
+01:15:31.200 --> 01:15:40.560
+something out for yourselves. I'm tired&nbsp;
+and I need a very long break. That was it.
+
+01:15:40.560 --> 01:15:47.520
+Haven't read that.. That was I thought that&nbsp;
+was pretty well written. I like to say he mic&nbsp;&nbsp;
+
+01:15:47.520 --> 01:15:51.840
+dropped his way out. You know, he just was like,&nbsp;
+I'm out. I'm done. You guys figure it out. So,&nbsp;&nbsp;
+
+01:15:51.840 --> 01:15:58.880
+it was a complete and total shock to me.&nbsp;
+Yeah. I just felt really sad about it. I&nbsp;&nbsp;
+
+01:15:58.880 --> 01:16:06.560
+wish he would have retired under better&nbsp;
+circumstances. I felt I needed to take a&nbsp;&nbsp;
+
+01:16:06.560 --> 01:16:13.920
+step back to sort of recover myself. I think a&nbsp;
+lot of people really felt for Guido, you know,&nbsp;&nbsp;
+
+01:16:13.920 --> 01:16:26.480
+that he could be pushed to that point like&nbsp;
+maybe we let him down to allow the vitriol&nbsp;&nbsp;
+
+01:16:26.480 --> 01:16:33.360
+over this change to Python to push, you know,&nbsp;
+somebody that we cared about to that point.
+
+01:16:35.600 --> 01:16:41.840
+We all perceived that it was like a a momentous&nbsp;
+occasion or like a significant change that&nbsp;&nbsp;
+
+01:16:41.840 --> 01:16:46.560
+you would put a mark in your timeline in the&nbsp;
+history book in the history of Python, right?&nbsp;&nbsp;
+
+01:16:46.560 --> 01:16:52.720
+Because it had been run on the BDFL model for its&nbsp;
+entire existence. So there was a little bit of&nbsp;&nbsp;
+
+01:16:52.720 --> 01:16:57.760
+uncertainty like, can this work at all without&nbsp;
+got Guido? It's kind of a parent saying, it's&nbsp;&nbsp;
+
+01:16:57.760 --> 01:17:02.560
+time for you to grow up and figure it out on your&nbsp;
+own. I'm not going to solve this problem for you.
+
+01:17:05.280 --> 01:17:11.040
+The first order of business was deciding on&nbsp;
+how to decide. And it turns out some people&nbsp;&nbsp;
+
+01:17:11.040 --> 01:17:15.520
+have very strong opinions on voting systems.&nbsp;
+Programmers love arguing about voting methods.&nbsp;&nbsp;
+
+01:17:15.520 --> 01:17:22.400
+I remember thinking this isn't going to work. Lot&nbsp;
+of strong voices. It's really difficult when you&nbsp;&nbsp;
+
+01:17:22.400 --> 01:17:28.880
+have hundreds of core developers and thousands&nbsp;
+of people online and millions of people in the&nbsp;&nbsp;
+
+01:17:28.880 --> 01:17:35.920
+community and probably billions of dollars of&nbsp;
+software that run on Python. You can't think&nbsp;&nbsp;
+
+01:17:35.920 --> 01:17:42.320
+about that cuz it definitely gets overwhelming.&nbsp;
+I will fully admit it was stressful. I had to go&nbsp;&nbsp;
+
+01:17:42.320 --> 01:17:46.720
+to an ear, nose, and throat specialist because I&nbsp;
+actually was starting to choke on my own throat&nbsp;&nbsp;
+
+01:17:46.720 --> 01:17:52.560
+from the stress. It was not fun because if we&nbsp;
+couldn't decide on how we were going to decide,&nbsp;&nbsp;
+
+01:17:52.560 --> 01:17:59.120
+the project was done. We really approached it&nbsp;
+like the nerdy engineers we are. In Python classic&nbsp;&nbsp;
+
+01:17:59.120 --> 01:18:03.600
+fashion, we wrote a bunch of peps. We didn't want&nbsp;
+to rush it because we knew we were going to have&nbsp;&nbsp;
+
+01:18:03.600 --> 01:18:10.480
+to live with this potentially forever. But we also&nbsp;
+realized the world was watching and did not like&nbsp;&nbsp;
+
+01:18:10.480 --> 01:18:14.160
+the idea of not knowing whether this language was&nbsp;
+going to be around in a year or not, because we&nbsp;&nbsp;
+
+01:18:14.160 --> 01:18:20.000
+couldn't stop bickering among ourselves about how&nbsp;
+to run ourselves. People sponsored different kinds&nbsp;&nbsp;
+
+01:18:20.000 --> 01:18:23.600
+of models. I think there was one which was like,&nbsp;
+let's pick another BDFL because that's what we&nbsp;&nbsp;
+
+01:18:23.600 --> 01:18:28.800
+feel comfortable with. And then there was various&nbsp;
+kinds of committees and councils and we ended up&nbsp;&nbsp;
+
+01:18:28.800 --> 01:18:34.480
+settling on the five person steering committee.&nbsp;
+Good morning PyCon! Thanks so much for joining&nbsp;&nbsp;
+
+01:18:34.480 --> 01:18:40.560
+us. So, welcome to our panel with the Python&nbsp;
+steering council. Because there's five people,&nbsp;&nbsp;
+
+01:18:40.560 --> 01:18:45.680
+you don't have the same problem of like all&nbsp;
+the stress and responsibility of making these&nbsp;&nbsp;
+
+01:18:45.680 --> 01:18:51.520
+decisions falling on one person. I actually&nbsp;
+felt that it made sense for me to be on that&nbsp;&nbsp;
+
+01:18:51.520 --> 01:18:56.880
+first steering council given that there was&nbsp;
+no longer feeling so burned out or attacked,&nbsp;&nbsp;
+
+01:18:56.880 --> 01:19:02.160
+to provide some amount of continuity. "You know&nbsp;
+how this goes when your kid goes off to college.&nbsp;&nbsp;
+
+01:19:02.160 --> 01:19:07.840
+Some of you may have experience with that. you're&nbsp;
+no longer directly involved in their lives maybe,&nbsp;&nbsp;
+
+01:19:07.840 --> 01:19:14.960
+but you never stop worrying. And that's how&nbsp;
+I feel about Python at the moment. And that's&nbsp;&nbsp;
+
+01:19:14.960 --> 01:19:24.880
+why I [Applause] why I nominated myself&nbsp;
+for the steering committee and here I am".&nbsp;&nbsp;
+
+01:19:25.920 --> 01:19:31.520
+There were elections for the second year steering&nbsp;
+council and at first I nominated myself and then&nbsp;&nbsp;
+
+01:19:31.520 --> 01:19:37.440
+withdrew because there were enough other strong&nbsp;
+candidates. They didn't need me and I was happy to&nbsp;&nbsp;
+
+01:19:37.440 --> 01:19:56.080
+uh to sort of let go of it. [Music] The legitimacy&nbsp;
+that came from the replacement springing up from&nbsp;&nbsp;
+
+01:19:56.080 --> 01:20:06.080
+the community is essential to it being accepted.&nbsp;
+It came from us, so it's accepted by us. It works.&nbsp;&nbsp;
+
+01:20:06.080 --> 01:20:11.600
+I think it works for us now. There may be a time&nbsp;
+in the future where it doesn't work or pieces of&nbsp;&nbsp;
+
+01:20:11.600 --> 01:20:17.840
+it don't work. You have to be willing to evolve.&nbsp;
+Change is the one universal constant of the&nbsp;&nbsp;
+
+01:20:17.840 --> 01:20:31.480
+universe. And so things will always change and you&nbsp;
+have to be ready and willing to adapt to change.
+
+01:20:31.480 --> 01:20:38.560
+[Music]
+
+01:20:38.560 --> 01:20:43.760
+It started out as a hobby project. Definitely.&nbsp;
+I think I probably wanted to prove something&nbsp;&nbsp;
+
+01:20:43.760 --> 01:20:50.960
+to myself more than anything. It exceeded my&nbsp;
+wildest expectations and it actually continues&nbsp;&nbsp;
+
+01:20:50.960 --> 01:21:00.560
+to do so. I constantly hear from people whose&nbsp;
+lives were completely changed by Python and it&nbsp;&nbsp;
+
+01:21:00.560 --> 01:21:08.960
+has created this incredible community which was&nbsp;
+also a complete sort of bonus over everything&nbsp;&nbsp;
+
+01:21:08.960 --> 01:21:16.880
+else I had anticipated. This community that&nbsp;
+has like a massive conference every year and&nbsp;&nbsp;
+
+01:21:16.880 --> 01:21:26.160
+smaller conferences in every continent I think&nbsp;
+except Antarctica. There was one of the Python&nbsp;&nbsp;
+
+01:21:26.160 --> 01:21:32.480
+conferences where there was a few thousand people&nbsp;
+in the audience. I remember just looking around&nbsp;&nbsp;
+
+01:21:32.480 --> 01:21:40.960
+and going, this is mind-blowing. That's the&nbsp;
+point at which I knew we had achieved something&nbsp;&nbsp;
+
+01:21:40.960 --> 01:21:50.320
+important, something that made a difference in&nbsp;
+people's lives and in the world. Python turned out&nbsp;&nbsp;
+
+01:21:50.320 --> 01:21:57.360
+to be much more successful than perhaps any of us&nbsp;
+thought except maybe Guido and his team. I think&nbsp;&nbsp;
+
+01:21:57.360 --> 01:22:02.160
+they always believed that this was the future.&nbsp;
+And of course, it's now one of the most popular,&nbsp;&nbsp;
+
+01:22:02.160 --> 01:22:06.800
+if not the most popular programming language&nbsp;
+in the world. He spent two weeks in Christmas,&nbsp;&nbsp;
+
+01:22:06.800 --> 01:22:10.880
+in like 1989, writing a programming language&nbsp;
+because he thought it would be fun. Like who&nbsp;&nbsp;
+
+01:22:10.880 --> 01:22:16.640
+would have imagined that that would be such a life&nbsp;
+altering and also world altering thing to have&nbsp;&nbsp;
+
+01:22:16.640 --> 01:22:23.520
+done. I think it's been great for the world. I&nbsp;
+think it's made people feel like they can get into&nbsp;&nbsp;
+
+01:22:23.520 --> 01:22:28.320
+programming when they never thought they could.&nbsp;
+I think it made programming accessible to people.&nbsp;&nbsp;
+
+01:22:28.320 --> 01:22:36.640
+It's literally part of kindergarten through grade&nbsp;
+12 education around the world. And is on Mars&nbsp;&nbsp;
+
+01:22:36.640 --> 01:22:41.760
+thanks to being used as a scripting language to&nbsp;
+process the parachute of the Perseverance rover&nbsp;&nbsp;
+
+01:22:41.760 --> 01:22:45.440
+landing. Like it's hard to think of anything&nbsp;
+that hasn't been touched by some Python code&nbsp;&nbsp;
+
+01:22:45.440 --> 01:22:52.000
+somewhere. It's mind boggling. It's an important&nbsp;
+language. It's a popular language. It's a vibrant&nbsp;&nbsp;
+
+01:22:52.000 --> 01:22:58.400
+and relevant language today as much as it was in&nbsp;
+the past and I believe as much as it will be in&nbsp;&nbsp;
+
+01:22:58.400 --> 01:23:03.520
+the future. Programmers 30 years from now will&nbsp;
+be like, "Oh yeah, you know, I I'm still using&nbsp;&nbsp;
+
+01:23:03.520 --> 01:23:09.760
+Python." Just like today, people are still using&nbsp;
+Fortran and C and C++ and those are old languages&nbsp;&nbsp;
+
+01:23:09.760 --> 01:23:35.080
+you know too in the scheme of things. Scheme&nbsp;
+- Lisp another old language. So yeah. [Music]
+
+01:23:35.080 --> 01:23:40.400
+[Music]
+
+01:23:40.400 --> 01:23:43.680
+Now I keep thinking of like weird&nbsp;
+jokes. There's this library in&nbsp;&nbsp;
+
+01:23:43.680 --> 01:23:49.920
+Python called Pickles because pickle is a&nbsp;
+funny word I guess. The documentation used&nbsp;&nbsp;
+
+01:23:49.920 --> 01:23:57.520
+to have a footnote about how you should&nbsp;
+imagine Guido and Jim sniffing pickles.
+
