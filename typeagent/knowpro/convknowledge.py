@@ -57,7 +57,9 @@ def create_typechat_model() -> typechat.TypeChatLanguageModel:
 class KnowledgeExtractor:
     model: typechat.TypeChatLanguageModel = field(default_factory=create_typechat_model)
     max_chars_per_chunk: int = 2048
-    merge_action_knowledge: bool = True
+    merge_action_knowledge: bool = (
+        False  # TODO: Implement merge_action_knowledge_into_response
+    )
     # Not in the signature:
     translator: typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse] = field(
         init=False
