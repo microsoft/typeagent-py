@@ -5,18 +5,35 @@ Talk at PyBay is on Sat, Oct 18 in SF
 ## Software
 
 - Test the ingestion pipeline and fix issues
-- Don't work on MCP, do that later
-  - Fix MCP service (should use host's LLM, not its own)
-  - Handle embeddings in MCP, even though MCP doesn't support it yet
-    - GPT5 suggests to run a separate MCP service for this
-    - Batch 128-256 items at a time
-    - Explicitly handle truncation by counting tokens
-  - Handle caching using sha256() of text?
+- Unify Podcast and VTT ingestion (use shared message and metadata classes)
 - Design and implement high-level API to support ingestion and querying
-- Add transactions to ingestion APIs?
+- Add transactions to ingestion APIs? Or just one commit at the end?
 - Code structure (does podcasts need to be under typeagent?)
 - Move to typeagent-py repo?
 - Rename PyPI package name to typeagent?
+
+### Specifically for VTT import:
+
+#### MAJOR
+
+- The WebVTT library only gives a single voice tag, extracted from the first line. So we need to do our own parsing of the raw text in the captions and split it into 1 or more separate messages each with a separate voice (speaker).
+
+### Minor
+
+- `get_transcript_speakers` and `get_transcript_duration` should not re-parse the transcript -- they should just take the parsed vtt object.
+- Why add speaker detection? Doesn't WebVTT support `<v ...>`? In fact things like `[MUSIC]` are used as stage directions, not for the speaker.
+- Example code in README.md uses top-level `await` (which Python does not support directly)
+- Change 'import' to 'ingest' in file/class/function/comment (etc.) when it comes to entering data into the database; import is too ambiguous
+- Do we need the `start_date` parameter? Isn't that in the `.vtt` file?
+
+### Not doing:
+
+- Fix MCP service (should use host's LLM, not its own)
+- Handle embeddings in MCP, even though MCP doesn't support it yet
+  - GPT5 suggests to run a separate MCP service for this
+  - Batch 128-256 items at a time
+  - Explicitly handle truncation by counting tokens
+- Handle caching using sha256() of text?
 
 ## Documentation
 
@@ -69,6 +86,10 @@ this summer and its API.
    1. Explain RAG
    2. Explain how SRAG works instead
    3. Show how SRAG is better (how?)
+
+1a. My process
+  - Over time using more and more AI (mostly Claude)
+  - Latest changes almost entirely written by AI (with my strict supervision :-)
 
 2. Demos
 
