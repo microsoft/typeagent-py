@@ -64,6 +64,46 @@ def extract_speaker_from_text(text: str) -> tuple[str | None, str]:
     return None, text
 
 
+def parse_voice_tags(raw_text: str) -> list[tuple[str | None, str]]:
+    """
+    Parse WebVTT voice tags from raw caption text.
+
+    Returns a list of (speaker, text) tuples, one for each voice segment in the caption.
+
+    WebVTT voice tags can be in the format:
+    - <v Speaker>Text</v>
+    - <v Speaker>Text (no closing tag)
+
+    Multiple voice tags can exist in a single caption, and this function extracts all of them.
+
+    Args:
+        raw_text: Raw caption text that may contain <v> tags
+
+    Returns:
+        List of (speaker, text) tuples. If no voice tags found, returns [(None, raw_text)]
+    """
+    # Pattern to match <v Speaker>Text</v> or <v Speaker>Text
+    # Captures speaker name and the text that follows until the next tag or end
+    voice_pattern = r"<v\s+([^>]+)>([^<]*(?:</v>)?)"
+
+    matches = list(re.finditer(voice_pattern, raw_text, re.IGNORECASE))
+
+    if not matches:
+        # No voice tags found, return the text as-is with no speaker
+        return [(None, raw_text.strip())]
+
+    results = []
+    for match in matches:
+        speaker = match.group(1).strip()
+        text = match.group(2).strip()
+        # Remove closing </v> tag if present
+        text = re.sub(r"</v>\s*$", "", text, flags=re.IGNORECASE).strip()
+        if text:  # Only add non-empty text
+            results.append((speaker, text))
+
+    return results if results else [(None, raw_text.strip())]
+
+
 async def import_vtt_transcript(
     vtt_file_path: str,
     settings: ConversationSettings,
@@ -109,50 +149,57 @@ async def import_vtt_transcript(
         if not caption.text.strip():
             continue
 
-        # Get speaker from webvtt voice attribute
-        speaker = getattr(caption, "voice", None)
+        # Parse raw text for voice tags (handles multiple speakers per cue)
+        raw_text = getattr(caption, "raw_text", caption.text)
+        voice_segments = parse_voice_tags(raw_text)
 
-        # Optionally fallback to text-based speaker detection
-        if speaker is None and use_text_based_speaker_detection:
-            # Fallback to text parsing for non-standard voice formats
-            speaker, text = extract_speaker_from_text(caption.text)
-        else:
-            # Use the cleaned text (voice tags already stripped by webvtt-py)
-            text = caption.text.strip()
+        # Optionally fallback to text-based speaker detection for segments without speaker
+        if use_text_based_speaker_detection:
+            processed_segments = []
+            for speaker, text in voice_segments:
+                if speaker is None:
+                    speaker, text = extract_speaker_from_text(text)
+                processed_segments.append((speaker, text))
+            voice_segments = processed_segments
 
         # Convert WebVTT timestamps
         start_time = caption.start
         end_time = caption.end
 
-        # If we should merge consecutive captions from the same speaker
-        if (
-            merge_consecutive_same_speaker
-            and speaker == current_speaker
-            and current_text_chunks
-        ):
-            # Merge with current message
-            current_text_chunks.append(text)
-            current_end_time = end_time  # Update end time
-        else:
-            # Save previous message if it exists
-            if current_text_chunks:
-                combined_text = " ".join(current_text_chunks).strip()
-                if combined_text:  # Only add non-empty messages
-                    metadata = TranscriptMessageMeta(
-                        speaker=current_speaker,
-                        start_time=current_start_time,
-                        end_time=current_end_time,
-                    )
-                    message = TranscriptMessage(
-                        text_chunks=[combined_text], metadata=metadata
-                    )
-                    messages.append(message)
+        # Process each voice segment in this caption
+        for speaker, text in voice_segments:
+            if not text.strip():
+                continue
 
-            # Start new message
-            current_speaker = speaker
-            current_text_chunks = [text] if text.strip() else []
-            current_start_time = start_time
-            current_end_time = end_time
+            # If we should merge consecutive captions from the same speaker
+            if (
+                merge_consecutive_same_speaker
+                and speaker == current_speaker
+                and current_text_chunks
+            ):
+                # Merge with current message
+                current_text_chunks.append(text)
+                current_end_time = end_time  # Update end time
+            else:
+                # Save previous message if it exists
+                if current_text_chunks:
+                    combined_text = " ".join(current_text_chunks).strip()
+                    if combined_text:  # Only add non-empty messages
+                        metadata = TranscriptMessageMeta(
+                            speaker=current_speaker,
+                            start_time=current_start_time,
+                            end_time=current_end_time,
+                        )
+                        message = TranscriptMessage(
+                            text_chunks=[combined_text], metadata=metadata
+                        )
+                        messages.append(message)
+
+                # Start new message
+                current_speaker = speaker
+                current_text_chunks = [text] if text.strip() else []
+                current_start_time = start_time
+                current_end_time = end_time
 
     # Don't forget the last message
     if current_text_chunks:
@@ -225,15 +272,21 @@ def get_transcript_speakers(
 
     speakers = set()
     for caption in vtt:
-        # Get speaker from webvtt voice attribute
-        speaker = getattr(caption, "voice", None)
+        # Parse raw text for voice tags (handles multiple speakers per cue)
+        raw_text = getattr(caption, "raw_text", caption.text)
+        voice_segments = parse_voice_tags(raw_text)
 
         # Optionally fallback to text-based speaker detection
-        if speaker is None and use_text_based_detection:
-            speaker, _ = extract_speaker_from_text(caption.text)
-
-        if speaker:
-            speakers.add(speaker)
+        if use_text_based_detection:
+            for speaker, text in voice_segments:
+                if speaker is None:
+                    speaker, _ = extract_speaker_from_text(text)
+                if speaker:
+                    speakers.add(speaker)
+        else:
+            for speaker, _ in voice_segments:
+                if speaker:
+                    speakers.add(speaker)
 
     return speakers
 
