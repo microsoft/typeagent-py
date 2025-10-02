@@ -29,7 +29,10 @@ from ...knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from ...knowpro.utils import text_range_from_message_chunk
+from ...knowpro.messageutils import (
+    get_message_chunk_batch,
+    text_range_from_message_chunk,
+)
 from ...knowpro.knowledge import extract_knowledge_from_text_batch
 
 
@@ -628,18 +631,19 @@ async def add_to_semantic_ref_index[
             settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
         )
 
-    # TODO: get_message_chunk_batch
-    # for text_location_batch in get_message_chunk_batch(
-    #     conversation.messages,
-    #     message_ordinal_start_at,
-    #     settings.batch_size,
-    # ):
-    #     await add_batch_to_semantic_ref_index(
-    #         conversation,
-    #         text_location_batch,
-    #         knowledge_extractor,
-    #         terms_added,
-    #     )
+        # Process messages in batches for LLM knowledge extraction
+        batches = await get_message_chunk_batch(
+            conversation.messages,
+            message_ordinal_start_at,
+            settings.batch_size,
+        )
+        for text_location_batch in batches:
+            await add_batch_to_semantic_ref_index(
+                conversation,
+                text_location_batch,
+                knowledge_extractor,
+                terms_added,
+            )
 
 
 def verify_has_semantic_ref_index(conversation: IConversation) -> None:

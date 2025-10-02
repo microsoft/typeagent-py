@@ -666,7 +666,7 @@ async def load_podcast_index(
     provider = await settings.get_storage_provider()
     msgs = await provider.get_message_collection()
     if await msgs.size() > 0:  # Sqlite provider with existing non-empty database
-        with utils.timelog(f"Reusing podcast db {dbname}"):
+        with utils.timelog(f"Reusing database {dbname!r}"):
             conversation = await podcast.Podcast.create(settings)
     else:
         with utils.timelog(f"Loading podcast from {podcast_file_prefix!r}"):

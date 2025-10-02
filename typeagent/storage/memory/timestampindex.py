@@ -31,7 +31,7 @@ from ...knowpro.interfaces import (
     MessageOrdinal,
     TimestampedTextRange,
 )
-from ...knowpro.utils import text_range_from_message_chunk
+from ...knowpro.messageutils import text_range_from_message_chunk
 
 
 class TimestampToTextRangeIndex(ITimestampToTextRangeIndex):
