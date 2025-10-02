@@ -4,22 +4,22 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Software
 
-- Test the ingestion pipeline and fix issues
-- Unify Podcast and VTT ingestion (use shared message and metadata classes)
 - Design and implement high-level API to support ingestion and querying
-- Add transactions to ingestion APIs? Or just one commit at the end?
+- Unify Podcast and VTT ingestion (use shared message and metadata classes)
 - Code structure (does podcasts need to be under typeagent?)
-- Move to typeagent-py repo?
-- Rename PyPI package name to typeagent?
+- Add transactions to ingestion APIs? Or just one commit at the end?
+- Move to typeagent-py repo
+- Rename PyPI package name to typeagent
 
 ### Specifically for VTT import:
 
 #### MAJOR
 
-- The WebVTT library only gives a single voice tag, extracted from the first line. So we need to do our own parsing of the raw text in the captions and split it into 1 or more separate messages each with a separate voice (speaker).
+- Make build-indexes the default (and unchangeable).
 
 ### Minor
 
+- Add progress report to knowledge extraction in ingest_vtt.py.
 - `get_transcript_speakers` and `get_transcript_duration` should not re-parse the transcript -- they should just take the parsed vtt object.
 - Why add speaker detection? Doesn't WebVTT support `<v ...>`? In fact things like `[MUSIC]` are used as stage directions, not for the speaker.
 - Example code in README.md uses top-level `await` (which Python does not support directly)

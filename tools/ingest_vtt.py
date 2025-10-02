@@ -36,6 +36,7 @@ from typeagent.transcripts.transcript_import import (
     extract_speaker_from_text,
     get_transcript_speakers,
     get_transcript_duration,
+    parse_voice_tags,
 )
 from typeagent.transcripts.transcript import (
     Transcript,
@@ -245,44 +246,57 @@ async def ingest_vtt_file(
             if not caption.text.strip():
                 continue
 
-            # Get speaker from webvtt voice attribute
-            speaker = getattr(caption, "voice", None)
+            # Parse raw text for voice tags (handles multiple speakers per cue)
+            raw_text = getattr(caption, "raw_text", caption.text)
+            voice_segments = parse_voice_tags(raw_text)
 
-            # Optionally fallback to text-based speaker detection
-            if speaker is None and use_text_speaker_detection:
-                speaker, text = extract_speaker_from_text(caption.text)
-            else:
-                text = caption.text.strip()
+            # Optionally fallback to text-based speaker detection for segments without speaker
+            if use_text_speaker_detection:
+                processed_segments = []
+                for speaker, text in voice_segments:
+                    if speaker is None:
+                        speaker, text = extract_speaker_from_text(text)
+                    processed_segments.append((speaker, text))
+                voice_segments = processed_segments
 
             # Convert WebVTT timestamps
             start_time = caption.start
             end_time = caption.end
 
-            # If we should merge consecutive captions from the same speaker
-            if merge_consecutive and speaker == current_speaker and current_text_chunks:
-                # Merge with current message
-                current_text_chunks.append(text)
-                current_end_time = end_time
-            else:
-                # Save previous message if it exists
-                if current_text_chunks:
-                    combined_text = " ".join(current_text_chunks).strip()
-                    if combined_text:
-                        metadata = TranscriptMessageMeta(
-                            speaker=current_speaker,
-                            start_time=current_start_time,
-                            end_time=current_end_time,
-                        )
-                        message = TranscriptMessage(
-                            text_chunks=[combined_text], metadata=metadata
-                        )
-                        messages.append(message)
+            # Process each voice segment in this caption
+            for speaker, text in voice_segments:
+                if not text.strip():
+                    continue
 
-                # Start new message
-                current_speaker = speaker
-                current_text_chunks = [text] if text.strip() else []
-                current_start_time = start_time
-                current_end_time = end_time
+                # If we should merge consecutive captions from the same speaker
+                if (
+                    merge_consecutive
+                    and speaker == current_speaker
+                    and current_text_chunks
+                ):
+                    # Merge with current message
+                    current_text_chunks.append(text)
+                    current_end_time = end_time
+                else:
+                    # Save previous message if it exists
+                    if current_text_chunks:
+                        combined_text = " ".join(current_text_chunks).strip()
+                        if combined_text:
+                            metadata = TranscriptMessageMeta(
+                                speaker=current_speaker,
+                                start_time=current_start_time,
+                                end_time=current_end_time,
+                            )
+                            message = TranscriptMessage(
+                                text_chunks=[combined_text], metadata=metadata
+                            )
+                            messages.append(message)
+
+                    # Start new message
+                    current_speaker = speaker
+                    current_text_chunks = [text] if text.strip() else []
+                    current_start_time = start_time
+                    current_end_time = end_time
 
         # Don't forget the last message
         if current_text_chunks:
@@ -354,6 +368,7 @@ async def ingest_vtt_file(
                     tags=[name, "vtt-transcript"],
                 )
 
+                semref_count_before = 0
                 if verbose:
                     print(
                         "Step 3: Building all indexes from messages and semantic refs..."
