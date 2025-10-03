@@ -96,10 +96,23 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         if not message_list:
             return
 
-        # Get the current collection size to determine starting ordinal
-        start_ordinal = await self.size()
+        # Check which messages are already indexed
+        # Get the highest msg_id that's already in the index
+        cursor = self.db.cursor()
+        cursor.execute("SELECT MAX(msg_id) FROM MessageTextIndex")
+        result = cursor.fetchone()[0]
 
-        await self.add_messages_starting_at(start_ordinal, message_list)
+        if result is None:
+            # Index is empty, add all messages starting at 0
+            start_ordinal = 0
+        else:
+            # Index has some entries, only add messages after the highest indexed msg_id
+            start_ordinal = result + 1
+
+        # Only add messages that aren't already indexed
+        if start_ordinal < len(message_list):
+            messages_to_add = message_list[start_ordinal:]
+            await self.add_messages_starting_at(start_ordinal, messages_to_add)
 
     async def rebuild_from_all_messages(self) -> None:
         """Rebuild the entire message text index from all messages in the collection."""

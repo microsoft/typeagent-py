@@ -220,11 +220,13 @@ async def import_vtt_transcript(
         dbname,
         TranscriptMessage,
     )
+    # Attach provider to settings to prevent garbage collection
+    settings.storage_provider = provider
+
     msg_coll = await provider.get_message_collection()
     semref_coll = await provider.get_semantic_ref_collection()
-    if await msg_coll.size() or await semref_coll.size():
-        raise RuntimeError(f"{dbname!r} already has messages or semantic refs.")
 
+    # Append new messages to existing collection (supports incremental import)
     await msg_coll.extend(messages)
 
     # Create transcript

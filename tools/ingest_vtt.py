@@ -334,16 +334,6 @@ async def ingest_vtt_file(
             if verbose:
                 print("\nBuilding indexes...")
 
-            # Clear any auto-generated indexes that were created during message insertion
-            # The message collection automatically builds MessageTextIndex when messages are added
-            # We need to clear it so build_index() can rebuild it properly
-            if isinstance(storage_provider, SqliteStorageProvider):
-                cursor = storage_provider.db.cursor()
-                cursor.execute("DELETE FROM MessageTextIndex")
-                storage_provider.db.commit()
-                if verbose:
-                    print("Cleared auto-generated message text index")
-
             if verbose:
                 print("Step 2: Extracting knowledge (semantic refs)...")
             try:
