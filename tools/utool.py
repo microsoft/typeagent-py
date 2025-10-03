@@ -130,11 +130,11 @@ async def main():
     settings.storage_provider = await create_storage_provider(
         settings.message_text_index_settings,
         settings.related_term_index_settings,
-        args.sqlite_db,
+        args.database,
         podcast.PodcastMessage,
     )
     query_context = await load_podcast_index(
-        args.podcast, settings, args.sqlite_db, args.verbose
+        args.podcast, settings, args.database, args.verbose
     )
 
     ar_list, ar_index = load_index_file(
@@ -524,10 +524,11 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         help="List of comma-separated questions to skip",
     )
     parser.add_argument(
-        "--sqlite-db",
+        "-d",
+        "--database",
         type=str,
         default=None,
-        help="Path to the SQLite database file (default: no SQLite)",
+        help="Path to the SQLite database file (default: in-memory)",
     )
     parser.add_argument(
         "--question",
