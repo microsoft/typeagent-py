@@ -490,8 +490,23 @@ async def add_metadata_to_index[TMessage: IMessage](
     semantic_ref_index: ITermToSemanticRefIndex,
     knowledge_validator: KnowledgeValidator | None = None,
 ) -> None:
+    # Find the highest message ordinal already processed
+    # by checking existing semantic refs
+    start_from_ordinal = 0
+    existing_ref_count = await semantic_refs.size()
+    if existing_ref_count > 0:
+        # Get the last semantic ref to find the highest processed message ordinal
+        last_ref = await semantic_refs.get_item(existing_ref_count - 1)
+        if last_ref.range and last_ref.range.start:
+            start_from_ordinal = last_ref.range.start.message_ordinal + 1
+
     i = 0
     async for msg in messages:
+        # Skip messages that were already processed
+        if i < start_from_ordinal:
+            i += 1
+            continue
+
         knowledge_response = msg.get_knowledge()
         for entity in knowledge_response.entities:
             if knowledge_validator is None or knowledge_validator("entity", entity):
@@ -611,6 +626,9 @@ async def build_semantic_ref_index[TM: IMessage](
     conversation: IConversation[TM, ITermToSemanticRefIndex],
     settings: SemanticRefIndexSettings,
 ) -> None:
+    # For LLM-based knowledge extraction, we need to track separately from metadata extraction
+    # For now, always start from 0 to process all messages
+    # TODO: Implement proper tracking of which messages have had LLM extraction
     await add_to_semantic_ref_index(conversation, settings, 0)
 
 

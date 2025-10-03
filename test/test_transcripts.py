@@ -228,7 +228,7 @@ async def test_transcript_creation():
 
 
 @pytest.mark.asyncio
-async def test_transcript_knowledge_extraction(
+async def test_transcript_knowledge_extraction_slow(
     needs_auth: None, embedding_model: AsyncEmbeddingModel
 ):
     """
@@ -261,9 +261,9 @@ async def test_transcript_knowledge_extraction(
 
     # Create messages from first 5 captions
     messages_list = []
-    for i, caption in enumerate(vtt):
-        if i >= 5:
-            break
+    # vtt is indexable but not iterable
+    for i in range(min(len(vtt), 5)):
+        caption = vtt[i]
         if not caption.text.strip():
             continue
 
