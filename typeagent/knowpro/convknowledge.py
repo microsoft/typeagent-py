@@ -75,6 +75,8 @@ class KnowledgeExtractor:
         if isinstance(result, typechat.Success):
             if self.merge_action_knowledge:
                 self.merge_action_knowledge_into_response(result.value)
+        else:
+            result.message += f" -- MESSAGE={message!r}"
         return result
 
     def create_translator(
