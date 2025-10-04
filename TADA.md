@@ -5,26 +5,24 @@ Talk at PyBay is on Sat, Oct 18 in SF
 ## Software
 
 - Design and implement high-level API to support ingestion and querying
-- Unify Podcast and VTT ingestion (use shared message and metadata classes)
-- Code structure (does podcasts need to be under typeagent?)
-- Add transactions to ingestion APIs? Or just one commit at the end?
+- Unify Podcast and VTT ingestion (use shared message and metadata classes)?
+- Code structure (do podcasts and transcripts need to be under typeagent?)?
 - Move to typeagent-py repo
 - Rename PyPI package name to typeagent
+- Distinguish between release deps and build/dev deps?
 
 ### Specifically for VTT import:
 
-#### MAJOR
+#### MAJOR (must do before talk)
 
-- Make build-indexes the default (and unchangeable).
+- None
 
-### Minor
+### Minor (can do without)
 
-- Add progress report to knowledge extraction in ingest_vtt.py.
-- `get_transcript_speakers` and `get_transcript_duration` should not re-parse the transcript -- they should just take the parsed vtt object.
+- Reduce duplication between ingest_vtt.py and typeagent/transcripts/
 - Why add speaker detection? Doesn't WebVTT support `<v ...>`? In fact things like `[MUSIC]` are used as stage directions, not for the speaker.
-- Example code in README.md uses top-level `await` (which Python does not support directly)
 - Change 'import' to 'ingest' in file/class/function/comment (etc.) when it comes to entering data into the database; import is too ambiguous
-- Do we need the `start_date` parameter? Isn't that in the `.vtt` file?
+- `get_transcript_speakers` and `get_transcript_duration` should not re-parse the transcript -- they should just take the parsed vtt object.
 
 ### Not doing:
 
@@ -47,21 +45,20 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Demos
 
-- Podcast demo (done)
-- Different podcast?
-- VTT (Python Documentary?)
+- Adrian Tchaikovsky Podcast: ready
+- Monty Python Episode: almost ready
 - Documents demo (doesn't look so easy)
-- Rob: Monty Python movie script (Rob will track down scripts)
-- Email demo?! Maybe Umesh can help?? (Umesh thinks may be too complex)
+- Email demo: Umesh has almost working prototype
 
 ## Talk
 
-- Re-read abstract to discover essential points (done)
 - Write slides
 - Make a pretty design for slides?
 - Practice in private, timing, updating slides as needed
 - Practice run for the team?
-- Anticipate questions about (Lazy) GraphRAG
+- Anticipate questions about (Lazy) GraphRAG?
+  The answer is we give equiv/better results without waiting minutes for
+  reindexing [in theory]
 
 
 # Appendix
