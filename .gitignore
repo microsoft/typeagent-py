@@ -8,3 +8,5 @@ venv
 /evals
 /junk
 __pycache__
+testdata/MP/
+db
