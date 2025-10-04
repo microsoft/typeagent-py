@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 """
 VTT Transcript Ingestion Tool
 
@@ -7,17 +10,7 @@ that can be queried using tools/utool.py.
 
 Usage:
     python tools/ingest_vtt.py input.vtt --database transcript.db
-    pyt    await ingest_vtt_file(
-        args.vtt_file,
-        args.database,
-        name=args.name,
-        start_date=args.start_date,
-        merge_consecutive=not args.no_merge,
-        use_text_speaker_detection=args.use_text_speaker_detection,
-        build_index=args.build_index,
-        verbose=args.verbose,
-        overwrite=args.overwrite,
-    )utool.py --sqlite-db transcript.db --question "What was discussed?"
+    python utool.py --database transcript.db --query "What was discussed?"
 """
 
 import argparse
@@ -102,6 +95,13 @@ Examples:
     )
 
     parser.add_argument(
+        "--batchsize",
+        type=int,
+        default=None,
+        help="Batch size for knowledge extraction (default: from settings)",
+    )
+
+    parser.add_argument(
         "-v", "--verbose", action="store_true", help="Show verbose output"
     )
 
@@ -147,6 +147,7 @@ async def ingest_vtt_files(
     merge_consecutive: bool = True,
     use_text_speaker_detection: bool = False,
     verbose: bool = False,
+    batchsize: int | None = None,
 ) -> None:
     """Ingest one or more VTT files into a database."""
 
@@ -224,6 +225,10 @@ async def ingest_vtt_files(
 
         # Update settings to use our storage provider
         settings.storage_provider = storage_provider
+
+        # Override batch size if specified
+        if batchsize is not None:
+            settings.semantic_ref_index_settings.batch_size = batchsize
 
         if verbose:
             print("Settings and storage provider configured")
@@ -440,11 +445,11 @@ async def ingest_vtt_files(
 
             total_batches = len(batches)
             messages_processed = 0
-            last_report_time = time.time()
+            start_time = time.time()
 
             print(f"  Processing {total_batches} batches (batch size: {batch_size})...")
 
-            for batch_idx, batch in enumerate(batches):
+            for batch in batches:
                 batch_start = time.time()
 
                 # Process this batch
@@ -458,22 +463,27 @@ async def ingest_vtt_files(
                 messages_processed += len(batch)
                 batch_time = time.time() - batch_start
 
-                # Print progress every 10 messages (approximately)
-                if messages_processed % 10 == 0 or batch_idx == total_batches - 1:
-                    semref_count = await semref_coll.size()
-                    elapsed = time.time() - last_report_time
-                    print(
-                        f"    {messages_processed}/{await transcript.messages.size()} chunks | "
-                        f"{semref_count} refs | "
-                        f"{batch_time:.1f}s/batch | "
-                        f"{elapsed:.1f}s elapsed"
-                    )
-                    last_report_time = time.time()
+                # Print progress after each batch
+                semref_count = await semref_coll.size()
+                elapsed = time.time() - start_time
+                print(
+                    f"    {messages_processed}/{await transcript.messages.size()} chunks | "
+                    f"{semref_count} refs | "
+                    f"{batch_time:.1f}s/batch | "
+                    f"{elapsed:.1f}s elapsed"
+                )
 
             # Build remaining indexes (metadata-based semantic refs, secondary indexes, etc.)
+            if verbose:
+                print("  Building metadata-based semantic refs...")
             await transcript.add_metadata_to_index()
+
             if transcript.secondary_indexes is not None:
                 # Build secondary indexes (message text index, related terms, etc.)
+                if verbose:
+                    print(
+                        "  Building secondary indexes (message text, related terms, etc.)..."
+                    )
                 from typeagent.knowpro import secindex
 
                 await secindex.build_secondary_indexes(transcript, settings)
@@ -529,6 +539,7 @@ def main():
             start_date=args.start_date,
             merge_consecutive=not args.no_merge,
             use_text_speaker_detection=args.use_text_speaker_detection,
+            batchsize=args.batchsize,
             verbose=args.verbose,
         )
     )
