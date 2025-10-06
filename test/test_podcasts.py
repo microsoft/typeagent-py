@@ -77,11 +77,13 @@ async def test_import_podcast(
     assert os.path.exists(filename2 + EMBEDDING_FILE_SUFFIX)
 
     # Check that the files at filename2 are identical to those at filename
-    with open(filename_prefix + DATA_FILE_SUFFIX, "r") as f1, open(
-        filename2 + DATA_FILE_SUFFIX, "r"
-    ) as f2:
+    with (
+        open(filename_prefix + DATA_FILE_SUFFIX, "r") as f1,
+        open(filename2 + DATA_FILE_SUFFIX, "r") as f2,
+    ):
         assert f1.read() == f2.read(), "Data (json) files do not match"
-    with open(filename_prefix + EMBEDDING_FILE_SUFFIX, "rb") as f1, open(
-        filename2 + EMBEDDING_FILE_SUFFIX, "rb"
-    ) as f2:
+    with (
+        open(filename_prefix + EMBEDDING_FILE_SUFFIX, "rb") as f1,
+        open(filename2 + EMBEDDING_FILE_SUFFIX, "rb") as f2,
+    ):
         assert f1.read() == f2.read(), "Embedding (binary) files do not match"
