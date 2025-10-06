@@ -27,9 +27,8 @@ from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.storage.utils import create_storage_provider
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript_import import (
-    extract_speaker_from_text,
-    get_transcript_speakers,
     get_transcript_duration,
+    get_transcript_speakers,
     parse_voice_tags,
 )
 from typeagent.transcripts.transcript import (
@@ -82,16 +81,9 @@ Examples:
     )
 
     parser.add_argument(
-        "--no-merge",
+        "--merge",
         action="store_true",
-        help="Don't merge consecutive captions from the same speaker",
-    )
-
-    parser.add_argument(
-        "--use-text-speaker-detection",
-        action="store_true",
-        help="Enable text-based speaker detection (e.g., 'SPEAKER:', '[Name]'). "
-        "By default, only WebVTT <v> voice tags are used for speaker detection.",
+        help="Merge consecutive segments from the same speaker",
     )
 
     parser.add_argument(
@@ -144,8 +136,7 @@ async def ingest_vtt_files(
     database: str,
     name: str | None = None,
     start_date: str | None = None,
-    merge_consecutive: bool = True,
-    use_text_speaker_detection: bool = False,
+    merge_consecutive: bool = False,
     verbose: bool = False,
     batchsize: int | None = None,
 ) -> None:
@@ -179,9 +170,7 @@ async def ingest_vtt_files(
         all_speakers = set()
         for vtt_file in vtt_files:
             duration = get_transcript_duration(vtt_file)
-            speakers = get_transcript_speakers(
-                vtt_file, use_text_based_detection=use_text_speaker_detection
-            )
+            speakers = get_transcript_speakers(vtt_file)
             total_duration += duration
             all_speakers.update(speakers)
 
@@ -306,15 +295,6 @@ async def ingest_vtt_files(
                 raw_text = getattr(caption, "raw_text", caption.text)
                 voice_segments = parse_voice_tags(raw_text)
 
-                # Optionally fallback to text-based speaker detection for segments without speaker
-                if use_text_speaker_detection:
-                    processed_segments = []
-                    for speaker, text in voice_segments:
-                        if speaker is None:
-                            speaker, text = extract_speaker_from_text(text)
-                        processed_segments.append((speaker, text))
-                    voice_segments = processed_segments
-
                 # Convert WebVTT timestamps and apply offset for multi-file continuity
                 start_time_seconds = (
                     vtt_timestamp_to_seconds(caption.start) + time_offset
@@ -332,7 +312,7 @@ async def ingest_vtt_files(
                     if not text.strip():
                         continue
 
-                    # If we should merge consecutive captions from the same speaker
+                    # If we should merge consecutive segments from the same speaker
                     if (
                         merge_consecutive
                         and speaker == current_speaker
@@ -537,8 +517,7 @@ def main():
             database=args.database,
             name=args.name,
             start_date=args.start_date,
-            merge_consecutive=not args.no_merge,
-            use_text_speaker_detection=args.use_text_speaker_detection,
+            merge_consecutive=args.merge,
             batchsize=args.batchsize,
             verbose=args.verbose,
         )
