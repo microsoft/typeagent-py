@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/microsoft/TypeAgent/tree/main/python/ta"
+Homepage = "https://github.com/microsoft/TypeAgent/tree/main"
 
 [tool.setuptools]
 # Needed so setuptools doesn't complain about testdata.

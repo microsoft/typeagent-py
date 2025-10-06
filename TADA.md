@@ -7,8 +7,6 @@ Talk at PyBay is on Sat, Oct 18 in SF
 - Design and implement high-level API to support ingestion and querying
 - Unify Podcast and VTT ingestion (use shared message and metadata classes)?
 - Code structure (do podcasts and transcripts need to be under typeagent?)?
-- Move to typeagent-py repo
-- Rename PyPI package name to typeagent
 - Distinguish between release deps and build/dev deps?
 
 ### Specifically for VTT import:
@@ -124,6 +122,6 @@ this summer and its API.
 4. Links
 
 - To PyPI project
-- To GitHub (typeagent-py or TypeAgent/python/ta?)
+- To GitHub (microsoft/typeagent-py)
 - To docs
 
