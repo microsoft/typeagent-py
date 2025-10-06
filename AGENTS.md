@@ -1,6 +1,4 @@
----
-applyTo: '**/*.py'
----
+# Absolute edict
 
 **DO NOT BE OBSEQUIOUS**
 
