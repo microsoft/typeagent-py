@@ -17,7 +17,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: python/ta     # your project subdir
+        working-directory: .     # your project subdir
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: python/ta/dist/
+          path: dist/
 
   publish:
     needs: build
