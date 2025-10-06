@@ -172,7 +172,7 @@ This script will:
 3. Create a git tag "vX.Y.Z-py"
 4. Push the tags to trigger the release workflow
 
-The script must be run from the python/ta directory.
+The script must be run from the repository root.
         """,
     )
 
@@ -191,7 +191,7 @@ The script must be run from the python/ta directory.
     for file_name in expected_files:
         if not (current_dir / file_name).exists():
             print(
-                f"Error: {file_name} not found. Please run this script from the python/ta directory.",
+                f"Error: {file_name} not found. Please run this script from the repository root.",
                 file=sys.stderr,
             )
             return 1

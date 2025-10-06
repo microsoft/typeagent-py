@@ -14,7 +14,7 @@ Never run git commands that many any changes. (`git status` and `git diff` are f
 
 When moving, copying or deleting files, use the git commands: `git mv`, `git cp`, `git rm`
 
-When the working directory is ~/TypeAgent/python/ta/:
+When the working directory is ~/typeagent-py:
 
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
 - Activate `.venv`: make venv; source .venv/bin/activate
