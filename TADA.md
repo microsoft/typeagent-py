@@ -4,20 +4,14 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Software
 
-- Unify Podcast and VTT ingestion (use shared message and metadata classes)?
-- Code structure (do podcasts and transcripts need to be under typeagent?)?
+- Unify Podcast and Transcript (use shared message and metadata classes)?
 - Distinguish between release deps and build/dev deps?
 
-### Specifically for VTT import:
-
-#### MAJOR (must do before talk)
-
-- None
-
-### Minor (can do without)
+### Specifically for VTT import (minor):
 
 - Reduce duplication between ingest_vtt.py and typeagent/transcripts/
-- `get_transcript_speakers` and `get_transcript_duration` should not re-parse the transcript -- they should just take the parsed vtt object.
+- `get_transcript_speakers` and `get_transcript_duration` should not
+  re-parse the transcript -- they should just take the parsed vtt object.
 
 ### Not doing:
 
