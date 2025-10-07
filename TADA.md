@@ -18,8 +18,6 @@ Talk at PyBay is on Sat, Oct 18 in SF
 ### Minor (can do without)
 
 - Reduce duplication between ingest_vtt.py and typeagent/transcripts/
-- Why add speaker detection? Doesn't WebVTT support `<v ...>`? In fact things like `[MUSIC]` are used as stage directions, not for the speaker.
-- Change 'import' to 'ingest' in file/class/function/comment (etc.) when it comes to entering data into the database; import is too ambiguous
 - `get_transcript_speakers` and `get_transcript_duration` should not re-parse the transcript -- they should just take the parsed vtt object.
 
 ### Not doing:
@@ -35,23 +33,20 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 - Getting Started
 - Document the high-level API
-- Document the MCP API
+- Document the MCP API [NOT YET]
 - Document what should go in `.env` and where it should live
-  - And alternatively what to put in shell env directly
-- Document build/release process
+  - And alternatively (first?) what to put in shell env directly
+- Document test/build/release process
 - Document how to run evals (but don't reveal all the data)
 
 ## Demos
 
 - Adrian Tchaikovsky Podcast: ready
-- Monty Python Episode: almost ready
-- Documents demo (doesn't look so easy)
-- Email demo: Umesh has almost working prototype
+- Monty Python Episode: ready but need to pick a list of sketches to index
+- Email demo: Umesh has a working prototype
 
 ## Talk
 
-- Write slides
-- Make a pretty design for slides?
 - Practice in private, timing, updating slides as needed
 - Practice run for the team?
 - Anticipate questions about (Lazy) GraphRAG?
@@ -97,7 +92,7 @@ this summer and its API.
       ```sh
       pip install typeagent-py  # Installs typeagent and dependencies
       ```
-   2. Create conversation:
+   2. Create conversation (TENTATIVE):
       ```py
       import typeagent
 
@@ -105,13 +100,13 @@ this summer and its API.
       # Could be empty (new) or could contain previously ingested data
       # You can always ingest additional messages
       ```
-   3. Ingest messages:
+   3. Ingest messages (TENTATIVE):
       ```py
       for message in ...:  # Source of message strings
           metadata = ...  # Set date/time, speaker(s), listener(s)
           conv.ingest_message(message, metadata)
       ```
-   4. Query:
+   4. Query (TENTATIVE):
       ```py
       request = input("> ")
       answer = conv.query(request)
@@ -124,4 +119,3 @@ this summer and its API.
 - To PyPI project
 - To GitHub (microsoft/typeagent-py)
 - To docs
-

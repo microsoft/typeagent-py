@@ -10,18 +10,18 @@ from fixtures import needs_auth, temp_dir, embedding_model  # type: ignore  # Ye
 from typeagent.podcasts.podcast import Podcast
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
-from typeagent.podcasts import podcast_import
+from typeagent.podcasts import podcast_ingest
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
 
 @pytest.mark.asyncio
-async def test_import_podcast(
+async def test_ingest_podcast(
     needs_auth: None, temp_dir: str, embedding_model: AsyncEmbeddingModel
 ):
     # Import the podcast
     settings = ConversationSettings(embedding_model)
-    pod = await podcast_import.import_podcast(
+    pod = await podcast_ingest.ingest_podcast(
         "testdata/FakePodcast.txt",
         settings,
         None,

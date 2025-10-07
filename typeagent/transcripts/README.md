@@ -1,13 +1,13 @@
-# VTT Transcript Import
+# VTT Transcript Ingestion
 
-This module provides functionality to import WebVTT (.vtt) transcript
+This module provides functionality to ingest WebVTT (.vtt) transcript
 files into the TypeAgent conversation system. It's designed to be
-similar to the podcast import functionality but more general-purpose for
+similar to the podcast ingest functionality but more general-purpose for
 various types of transcripts.
 
 ## Features
 
-- **WebVTT Format Support**: Import standard WebVTT subtitle/caption files
+- **WebVTT Format Support**: Ingest standard WebVTT subtitle/caption files
 - **Speaker Detection**: Automatically extract speaker names from common patterns:
   - `SPEAKER: dialogue`
   - `[Speaker Name] dialogue`
@@ -18,10 +18,10 @@ various types of transcripts.
 
 ## Usage
 
-### Basic Import
+### Basic Ingestion
 
 ```python
-from typeagent.transcripts.transcript_import import import_vtt_transcript
+from typeagent.transcripts.transcript_ingest import ingest_vtt_transcript
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.aitools import utils
 
@@ -31,8 +31,8 @@ utils.load_dotenv()
 # Create settings (tweak as needed)
 settings = ConversationSettings()
 
-# Import transcript
-transcript = await import_vtt_transcript(
+# Ingest transcript
+transcript = await ingest_vtt_transcript(
     vtt_file_path="my_transcript.vtt",
     settings=settings,
     transcript_name="My Transcript",
@@ -41,13 +41,13 @@ transcript = await import_vtt_transcript(
 
 # Use the transcript
 message_count = await transcript.messages.size()
-print(f"Imported {message_count} messages")
+print(f"Ingested {message_count} messages")
 ```
 
 ### Analyzing VTT Files
 
 ```python
-from typeagent.transcripts.transcript_import import (
+from typeagent.transcripts.transcript_ingest import (
     get_transcript_duration,
     get_transcript_speakers,
     extract_speaker_from_text,
@@ -75,7 +75,7 @@ from fixtures import needs_auth, embedding_model
 async def test_my_transcript(needs_auth, embedding_model):
     settings = ConversationSettings(embedding_model)
     
-    transcript = await import_vtt_transcript(
+    transcript = await ingest_vtt_transcript(
         "test.vtt", 
         settings,
         dbname="test.db",
@@ -86,10 +86,10 @@ async def test_my_transcript(needs_auth, embedding_model):
 
 ## API Reference
 
-### `import_vtt_transcript()`
+### `ingest_vtt_transcript()`
 
 ```python
-async def import_vtt_transcript(
+async def ingest_vtt_transcript(
     vtt_file_path: str,
     settings: ConversationSettings,
     transcript_name: str | None = None,
@@ -107,7 +107,7 @@ async def import_vtt_transcript(
 - `merge_consecutive_same_speaker`: Whether to merge consecutive captions from same speaker
 - `dbname`: Database name for storage
 
-**Returns:** `Transcript` object with imported messages
+**Returns:** `Transcript` object with ingested messages
 
 ### `get_transcript_duration(vtt_file_path: str) -> float`
 
@@ -123,7 +123,7 @@ Extracts speaker name from text, returning `(speaker, remaining_text)`.
 
 ## WebVTT Format Support
 
-The importer supports standard WebVTT files with captions:
+The ingester supports standard WebVTT files with captions:
 
 ```webvtt
 WEBVTT
@@ -137,25 +137,7 @@ SPEAKER: Hello, this is a test.
 [Another Speaker] This is another line.
 ```
 
-## Speaker Pattern Recognition
-
-The following speaker patterns are automatically detected:
-
-1. **All caps with colon**: `SPEAKER: text`
-2. **Brackets**: `[Speaker Name] text`
-3. **Dashes**: `- Speaker: text`
-4. **Parentheses**: `(Speaker) text`
-
-If no speaker pattern is found, the message is assigned to an unknown speaker.
-
 ## Dependencies
 
 - `webvtt-py`: For parsing WebVTT files
 - Standard TypeAgent conversation infrastructure
-
-## Examples
-
-See:
-- `demo_transcript.py`: Complete demonstration script
-- `test/test_transcripts.py`: Comprehensive test suite
-- `test_vtt_import.py`: Simple import test

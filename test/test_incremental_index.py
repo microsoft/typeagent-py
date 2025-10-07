@@ -16,7 +16,7 @@ from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
-from typeagent.transcripts.transcript_import import import_vtt_transcript
+from typeagent.transcripts.transcript_ingest import ingest_vtt_transcript
 
 
 @pytest.mark.asyncio
@@ -141,8 +141,8 @@ async def test_incremental_index_with_vtt_files():
     """Test incremental indexing with actual VTT files.
 
     This test verifies that we can:
-    1. Import a VTT file and build indexes
-    2. Import a second VTT file into the same database
+    1. Ingest a VTT file and build indexes
+    2. Ingest a second VTT file into the same database
     3. Rebuild indexes incrementally without errors or duplication
     """
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -153,9 +153,10 @@ async def test_incremental_index_with_vtt_files():
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 
-        # First VTT file import
+        # First VTT file ingestion
         print("\n=== Import first VTT file ===")
-        transcript1 = await import_vtt_transcript(
+        # Import the first transcript
+        transcript1 = await ingest_vtt_transcript(
             "testdata/Confuse-A-Cat.vtt",
             settings,
             dbname=db_path,
@@ -172,15 +173,15 @@ async def test_incremental_index_with_vtt_files():
         storage1 = await settings.get_storage_provider()
         await storage1.close()
 
-        # Second VTT file import into same database
+        # Second VTT file ingestion into same database
         print("\n=== Import second VTT file ===")
         settings2 = ConversationSettings(
             model=AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
         )
         settings2.semantic_ref_index_settings.auto_extract_knowledge = False
 
-        # Import second file into same database - this should work now!
-        transcript2 = await import_vtt_transcript(
+        # Ingest the second transcript
+        transcript2 = await ingest_vtt_transcript(
             "testdata/Parrot_Sketch.vtt",
             settings2,
             dbname=db_path,
