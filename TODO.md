@@ -1,20 +1,8 @@
 # TODO for the Python knowpro port
 
-# TODOs for new repo setup
-
-- Merge newer changes from TypeAgent repo
-- Vendor TypeChat (Python version)
-- Update load_dotenv() to look for .env in current directory and going up (*plus* ts/.env)
-
 # TODOs for fully implementing persistence through SQLite
 
 ## Now
-
-- Switch to (agents.md)[https://agents.md]
-
-- Vendor TypeChat
-
-- Start practicing PyPI releases
 
 - Scrutinize sqlite/reltermsindex.py
 - Unify tests for storage APIs
@@ -28,27 +16,7 @@
 
 ## Also
 
-- The aliases part of the related terms index is hard to understand because the
-  relationship between term and alias feels reversed:
-  We have dozens of aliases for "say", and these all show up as entries
-  like (term="talk", alias="say"), (term="discuss", alias="say"), etc.
-  My feeling (from the unix shell alias command) is that the term is "say"
-  and the alias is "talk", "discuss", etc.
-  (Not sure if the same is true for the fuzzy index, but I am confused there too.)
 - Make (de)serialize methods async in interfaces.py if they might execute SQL statements
-
-## Knowledge extraction pipeline
-
-- Write a function that does the following:
-  - Add a given list of messages to the end of the message collection
-  - Extracts knowledge for all
-  - Call the next function
-
-- Write a function that adds a list of messages *and* a list of corresponding
-  semantic refs, and then updates everything. This is somewhat complicated
-  because we won't know the message ordinals/ids until they have been
-  inserted, and ditto for the semantic refs.
-  (Why do semantic refs contain their own ord/id anyway?)
 
 ## Maybe
 
@@ -59,7 +27,6 @@
 - Replace the storage accessors with readonly @property functions
 - Refactor memory and sqlite indexes to share more code
   (e.g. population and query logic)
-- Store embeddings in message_index
 
 ## Lower priority
 
@@ -118,95 +85,19 @@
 - Each of these has a textual format; it's the user's responsibility to provide that format
 - Everything else is unofficial and undocumented
 
-### Sqlite database schema details
-
-**THIS HAS BEEN SUPERSEDED BY THE FILES IN THE `spec/` FOLDER**
-
-Note: `*` means a column with an index
-
-- ConversationMetadata
-  - name_tag TEXT
-  - schema_version TEXT
-  - other per-conversation stuff
-
-- Messages
-  - * msg_id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT -- whatever
-  - chunks NULL or JSON
-  - chunkuri NULL or TEXT -- exactly one of chunks, chunkuri must be not-NULL
-  - * timestamp NULL or TEXT -- in ISO format with Z timezone (rename to start_timestamp?)
-  - * end_timestamp NULL or TEXT -- ditto
-  - (no tomstone -- when deleting, save stuff in a separate Undo table)
-  - tags JSON
-  - metadata JSON
-  - extra JSON -- for extra message fields that were serialized
-
-  In-memory Message has get_chunks() method:
-  - if chunks != None: return chunks
-  - assert chunkuri
-  - retrieve chunks using chunkuri  # this is up to the extractor to customize
-  - set chunks
-  - return chunks
-
-  Creating an in-memory Message can provide both chunks and chunkuri
-  - If chunkuri is set, chunks are not stored in the db
-
-- SemanticRefs
-  - * semref_id INTEGER UNIQUE PRIMARY KEY AUTOINCREMENT -- whatever
-  - range -- not a field, split up into four
-    - * start_msg_id INTEGER FOREIGN KEY
-    - start_chunk_ord INTEGER
-    - * end_msg_id INTEGER FOREIGN KEY -- Never NULL
-    - end_chunk_ord INTEGER
-  - ktype TEXT -- Choices: entity, action, topic, tag
-  - knowledge JSON BLOB
-
-- SemanticRefIndex -- a list of (term, semref_id) pairs
-  - * term -- lowercased, not-unique/normalized
-  - semref_id -- points to semref that contains this term
-
-  To get all semrefs that mention a given term, SELECT * ... WHERE term = ?
-
-  Future research: Store terms in separate table with term_id,
-  make this table a tuple of (term_id, semref_id)?
-
-- PropertyIndex
-  - * prop_name TEXT
-  - * value_str TEXT or NULL
-  - score FLOAT
-  - semref_id INTEGER
-
-  Later add shredded columns for value_number (bool, int, float),
-  value_quantity_amount, -number; all indexed?
-
-- Timestamp is not a table, just an index on timestamp, end_timestamp in Messages
-
 # Other stuff
-
-## Eval-based improvements
-
-- Collect eval outputs (one change at a time) **[DONE]**
-  - Baseline=(
-  - Schema in reversed order (TC change)
-  - null -> undefined (TC change)
-  - field names -> fieldNames (local change, add alias)
-  - Move required fields in ActionTerm before optionals
-  - Many others.
-
-Then combine the ones that most improve effectiveless.  **[DONE]**
-(Actually, we mostly found bugs this way. Only one schema change.)
 
 ### Left to do here
 
 - Look more into why the search query schema is so instable
-- Implement at least a subset of the @kpBlah commands in query.py
+- Implement at least some @kpBlah commands in query.py
 - More debug options (turn on/off various debug prints dynamically)
-- Unify ui.py and cmp [**done**]
-- Try pydantic.ai again
+- Use pydantic.ai, at least for model drivers
 
 ## General: Look for things marked as incomplete in source
 
 - `TODO` comments (too numerous)
-- `raise NotImplementedError("TODO")` (three found indexing)
+- `raise NotImplementedError("TODO")` (five found)
 
 ## Cleanup:
 
@@ -292,19 +183,21 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 
 ## Refactoring implementations
 
-- Change some inconsistent module names  [DONE -- if we are okay deviating from the TS module names]
+- Change inconsistent module names (Claude uses different names than I do)
 - Rewrite podcast parsing without regexes (low priority)
 - Switch from Protocol to ABC
 
 ## Type checking stuff
 
 - fuzzy_index type mismatch (could VectorBase be made to match the type?)
-- Fix need for `# type: ignore` comments (usually need to make some I-interface generic in actual message/index/etc.)
+- Fix need for `# type: ignore` comments (usually need to make some
+  I-interface generic in actual message/index/etc.) I see 24 of these.
 
 ## Deletions
 
-- Tombstones for message and semantic ref deletions.
-- Support other deletions.
+- A consistent approach to deletions. Deleting a message should remove
+  all semrefs referencing it and all index entries reference those.
+  Probably the only way is tombstoning (in sqlite can just delete rows)
 
 ## Questions
 
