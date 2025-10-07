@@ -6,13 +6,18 @@
 Release automation script for the TypeAgent Python package.
 
 This script:
-1. Bumps the patch version (3rd part) in pyproject.toml
+1. Bumps the patch version (3rd part) in pyproject.toml, or sets it to a specified version
 2. Commits the change
 3. Creates a git tag in the format v{major}.{minor}.{patch}-py
 4. Pushes the tags to trigger the GitHub Actions release workflow
 
 Usage:
-    python tools/release.py [--dry-run] [--help]
+    python tools/release.py [version] [--dry-run] [--help]
+
+Examples:
+    python tools/release.py              # Bump patch version
+    python tools/release.py 1.0.0        # Set version to 1.0.0
+    python tools/release.py 1.2.3 --dry-run  # Test setting version to 1.2.3
 """
 
 import argparse
@@ -80,6 +85,29 @@ def parse_version(version_str: str) -> Tuple[int, int, int]:
 def format_version(major: int, minor: int, patch: int) -> str:
     """Format version components back into a version string."""
     return f"{major}.{minor}.{patch}"
+
+
+def compare_versions(
+    version1: Tuple[int, int, int], version2: Tuple[int, int, int]
+) -> int:
+    """
+    Compare two versions.
+
+    Args:
+        version1: First version tuple (major, minor, patch)
+        version2: Second version tuple (major, minor, patch)
+
+    Returns:
+        -1 if version1 < version2
+         0 if version1 == version2
+         1 if version1 > version2
+    """
+    if version1 < version2:
+        return -1
+    elif version1 > version2:
+        return 1
+    else:
+        return 0
 
 
 def get_current_version(pyproject_path: Path) -> str:
@@ -167,16 +195,28 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 This script will:
-1. Bump the patch version in pyproject.toml
+1. Bump the patch version in pyproject.toml (or set to specified version)
 2. Commit the change with message "Bump version to X.Y.Z"
 3. Create a git tag "vX.Y.Z-py"
 4. Push the tags to trigger the release workflow
 
 The script must be run from the repository root.
+
+Examples:
+    python tools/release.py              # Bump patch version
+    python tools/release.py 1.0.0        # Set version to 1.0.0
+    python tools/release.py 1.2.3 --dry-run  # Test setting version
         """,
     )
 
     parser.add_argument(
+        "version",
+        nargs="?",
+        help="Optional: Specific version to set (e.g., 1.0.0). If not provided, patch version will be bumped.",
+    )
+
+    parser.add_argument(
+        "-n",
         "--dry-run",
         action="store_true",
         help="Show what would be done without making changes",
@@ -211,10 +251,35 @@ The script must be run from the repository root.
         current_version = get_current_version(pyproject_path)
         print(f"Current version: {current_version}")
 
-        # Parse and bump version
-        major, minor, patch = parse_version(current_version)
-        new_patch = patch + 1
-        new_version = format_version(major, minor, new_patch)
+        # Parse current version
+        current_major, current_minor, current_patch = parse_version(current_version)
+
+        # Determine new version
+        if args.version:
+            # Use provided version
+            try:
+                new_major, new_minor, new_patch = parse_version(args.version)
+            except ValueError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                return 1
+
+            # Validate that new version is higher than current
+            current_tuple = (current_major, current_minor, current_patch)
+            new_tuple = (new_major, new_minor, new_patch)
+            comparison = compare_versions(new_tuple, current_tuple)
+
+            if comparison <= 0:
+                print(
+                    f"Error: New version {args.version} must be higher than current version {current_version}",
+                    file=sys.stderr,
+                )
+                return 1
+
+            new_version = args.version
+        else:
+            # Bump patch version
+            new_patch = current_patch + 1
+            new_version = format_version(current_major, current_minor, new_patch)
 
         print(f"New version: {new_version}")
 
