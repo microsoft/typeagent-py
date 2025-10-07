@@ -365,7 +365,7 @@ class Podcast(ConversationBase[PodcastMessage]):
             ]
             await aliases.add_related_term(name, related_terms)
 
-    async def _add_synonyms(self) -> None:
+    async def   _add_synonyms(self) -> None:
         secondary_indexes = self._get_secondary_indexes()
         assert secondary_indexes.term_to_related_terms_index is not None
         aliases = secondary_indexes.term_to_related_terms_index.aliases
