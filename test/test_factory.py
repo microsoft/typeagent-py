@@ -18,6 +18,7 @@ async def test_create_conversation_minimal():
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     settings = ConversationSettings(model=test_model)
     conversation = await create_conversation(
+        None,
         TranscriptMessage,
         name="My Conversation",
         settings=settings,
@@ -38,6 +39,7 @@ async def test_create_conversation_with_tags():
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     settings = ConversationSettings(model=test_model)
     conversation = await create_conversation(
+        None,
         TranscriptMessage,
         name="Tagged Conversation",
         tags=["test", "example"],
@@ -55,6 +57,7 @@ async def test_create_conversation_and_add_messages():
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     settings = ConversationSettings(model=test_model)
     conversation = await create_conversation(
+        None,
         TranscriptMessage,
         name="Test Conversation",
         settings=settings,
@@ -79,12 +82,12 @@ async def test_create_conversation_and_add_messages():
     assert result.messages_added == 2
     assert result.semrefs_added >= 0  # May extract metadata knowledge
     assert await conversation.messages.size() == 2
-    
+
     # Verify messages were stored correctly
     msg0 = await conversation.messages.get_item(0)
     assert msg0.text_chunks == ["Hello, how are you?"]
     assert msg0.metadata.speaker == "Alice"
-    
+
     msg1 = await conversation.messages.get_item(1)
     assert msg1.text_chunks == ["I'm doing great, thanks!"]
     assert msg1.metadata.speaker == "Bob"
