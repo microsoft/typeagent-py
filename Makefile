@@ -25,11 +25,11 @@ coverage: venv
 
 .PHONY: demo
 demo: venv
-	.venv/bin/python -m tools.utool $(FLAGS)
+	.venv/bin/python -m tools.query $(FLAGS)
 
 .PHONY: compare
 compare: venv
-	.venv/bin/python -m tools.utool --batch $(FLAGS)
+	.venv/bin/python -m tools.query --batch $(FLAGS)
 
 .PHONY: mcp
 mcp: venv
@@ -77,8 +77,8 @@ help:
 	@echo "make test        # Run pytest (tests are in test/)"
 	@echo "make coverage    # Run tests with coverage"
 	@echo "make build       # Build the wheel (under dist/)"
-	@echo "make demo        # python tools/utools.py (interactive)"
-	@echo "make compare     # python tools/utools.py --batch"
+	@echo "make demo        # python tools/query.py (interactive)"
+	@echo "make compare     # python tools/query.py --batch"
 	@echo "make venv        # Create .venv/"
 	@echo "make clean       # Remove build/, dist/, .venv/, *.egg-info/"
 	@echo "make install-uv  # Install uv (if not already installed)"
