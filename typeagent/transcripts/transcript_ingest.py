@@ -104,7 +104,7 @@ def parse_voice_tags(raw_text: str) -> list[tuple[str | None, str]]:
     return results if results else [(None, raw_text.strip())]
 
 
-async def import_vtt_transcript(
+async def ingest_vtt_transcript(
     vtt_file_path: str,
     settings: ConversationSettings,
     transcript_name: str | None = None,

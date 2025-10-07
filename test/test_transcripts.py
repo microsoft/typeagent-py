@@ -6,8 +6,8 @@ import os
 import tempfile
 from typing import AsyncGenerator
 
-from typeagent.transcripts.transcript_import import (
-    import_vtt_transcript,
+from typeagent.transcripts.transcript_ingest import (
+    ingest_vtt_transcript,
     get_transcript_speakers,
     get_transcript_duration,
     extract_speaker_from_text,
@@ -98,7 +98,7 @@ def conversation_settings(
     not os.path.exists("testdata/Confuse-A-Cat.vtt"), reason="Test VTT file not found"
 )
 @pytest.mark.asyncio
-async def test_import_vtt_transcript(conversation_settings: ConversationSettings):
+async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
     """Test importing a VTT file into a Transcript object."""
     import webvtt
     from typeagent.storage.memory.collections import (
@@ -106,7 +106,7 @@ async def test_import_vtt_transcript(conversation_settings: ConversationSettings
         MemorySemanticRefCollection,
     )
     from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-    from typeagent.transcripts.transcript_import import parse_voice_tags
+    from typeagent.transcripts.transcript_ingest import parse_voice_tags
 
     vtt_file = "testdata/Confuse-A-Cat.vtt"
 
@@ -247,7 +247,7 @@ async def test_transcript_knowledge_extraction_slow(
         MemorySemanticRefCollection,
     )
     from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-    from typeagent.transcripts.transcript_import import extract_speaker_from_text
+    from typeagent.transcripts.transcript_ingest import extract_speaker_from_text
 
     # Use in-memory storage for speed
     settings = ConversationSettings(embedding_model)

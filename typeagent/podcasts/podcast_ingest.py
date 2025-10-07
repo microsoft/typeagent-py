@@ -10,7 +10,7 @@ from ..storage.utils import create_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
 
 
-async def import_podcast(
+async def ingest_podcast(
     transcript_file_path: str,
     settings: ConversationSettings,
     podcast_name: str | None = None,
