@@ -5,6 +5,7 @@ from typechat import Result, TypeChatLanguageModel
 
 from . import convknowledge
 from . import kplib
+from .interfaces import IKnowledgeExtractor
 
 
 def create_knowledge_extractor(
@@ -19,7 +20,7 @@ def create_knowledge_extractor(
 
 
 async def extract_knowledge_from_text(
-    knowledge_extractor: convknowledge.KnowledgeExtractor,
+    knowledge_extractor: IKnowledgeExtractor,
     text: str,
     max_retries: int,
 ) -> Result[kplib.KnowledgeResponse]:
@@ -29,7 +30,7 @@ async def extract_knowledge_from_text(
 
 
 async def extract_knowledge_from_text_batch(
-    knowledge_extractor: convknowledge.KnowledgeExtractor,
+    knowledge_extractor: IKnowledgeExtractor,
     text_batch: list[str],
     concurrency: int = 2,
     max_retries: int = 3,

@@ -13,6 +13,7 @@ from ...knowpro.convsettings import SemanticRefIndexSettings
 from ...knowpro.interfaces import (
     # Interfaces.
     IConversation,
+    IKnowledgeExtractor,
     IMessage,
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
@@ -60,7 +61,7 @@ async def add_batch_to_semantic_ref_index[
 ](
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     batch: list[TextLocation],
-    knowledge_extractor: convknowledge.KnowledgeExtractor,
+    knowledge_extractor: IKnowledgeExtractor,
     terms_added: set[str] | None = None,
 ) -> None:
     messages = conversation.messages
@@ -71,6 +72,64 @@ async def add_batch_to_semantic_ref_index[
         .strip()
         for tl in batch
     ]
+
+    knowledge_results = await extract_knowledge_from_text_batch(
+        knowledge_extractor,
+        text_batch,
+        len(text_batch),
+    )
+    for i, knowledge_result in enumerate(knowledge_results):
+        if isinstance(knowledge_result, Failure):
+            raise RuntimeError(
+                f"Knowledge extraction failed: {knowledge_result.message}"
+            )
+        text_location = batch[i]
+        knowledge = knowledge_result.value
+        await add_knowledge_to_semantic_ref_index(
+            conversation,
+            text_location.message_ordinal,
+            text_location.chunk_ordinal,
+            knowledge,
+            terms_added,
+        )
+
+
+async def add_batch_to_semantic_ref_index_from_list[
+    TMessage: IMessage, TTermToSemanticRefIndex: ITermToSemanticRefIndex
+](
+    conversation: IConversation[TMessage, TTermToSemanticRefIndex],
+    messages: list[TMessage],
+    batch: list[TextLocation],
+    knowledge_extractor: IKnowledgeExtractor,
+    terms_added: set[str] | None = None,
+) -> None:
+    """
+    Add a batch of knowledge to semantic ref index, extracting from provided message list.
+
+    Args:
+        conversation: The conversation containing semantic refs and index
+        messages: List of messages containing the text to extract from
+        batch: List of text locations (ordinals) to process
+        knowledge_extractor: Extractor for LLM-based knowledge extraction
+        terms_added: Optional set to track newly added terms
+    """
+    # Get the starting ordinal of the message list
+    if not batch:
+        return
+    start_ordinal = batch[0].message_ordinal
+
+    # Extract text from the messages list
+    text_batch = []
+    for tl in batch:
+        # Calculate index in the list from the ordinal
+        list_index = tl.message_ordinal - start_ordinal
+        if list_index < 0 or list_index >= len(messages):
+            raise IndexError(
+                f"Message ordinal {tl.message_ordinal} out of range for list starting at {start_ordinal}"
+            )
+        message = messages[list_index]
+        text = message.text_chunks[tl.chunk_ordinal].strip()
+        text_batch.append(text)
 
     knowledge_results = await extract_knowledge_from_text_batch(
         knowledge_extractor,
@@ -521,6 +580,28 @@ async def add_metadata_to_index[TMessage: IMessage](
         i += 1
 
 
+async def add_metadata_to_index_from_list[TMessage: IMessage](
+    messages: list[TMessage],
+    semantic_refs: ISemanticRefCollection,
+    semantic_ref_index: ITermToSemanticRefIndex,
+    start_from_ordinal: MessageOrdinal,
+    knowledge_validator: KnowledgeValidator | None = None,
+) -> None:
+    """Extract metadata knowledge from a list of messages starting at ordinal."""
+    for i, msg in enumerate(messages, start_from_ordinal):
+        knowledge_response = msg.get_knowledge()
+        for entity in knowledge_response.entities:
+            if knowledge_validator is None or knowledge_validator("entity", entity):
+                await add_entity_to_index(entity, semantic_refs, semantic_ref_index, i)
+        for action in knowledge_response.actions:
+            if knowledge_validator is None or knowledge_validator("action", action):
+                await add_action_to_index(action, semantic_refs, semantic_ref_index, i)
+        for topic_response in knowledge_response.topics:
+            topic = Topic(text=topic_response)
+            if knowledge_validator is None or knowledge_validator("topic", topic):
+                await add_topic_to_index(topic, semantic_refs, semantic_ref_index, i)
+
+
 class TermToSemanticRefIndex(ITermToSemanticRefIndex):
     _map: dict[str, list[ScoredSemanticRefOrdinal]]
 
@@ -638,7 +719,7 @@ async def add_to_semantic_ref_index[
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     settings: SemanticRefIndexSettings,
     message_ordinal_start_at: MessageOrdinal,
-    terms_added: list[str] | None = None,
+    terms_added: set[str] | None = None,
 ) -> None:
     """Add semantic references to the conversation's semantic reference index."""
 

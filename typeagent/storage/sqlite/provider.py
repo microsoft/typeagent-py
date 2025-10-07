@@ -106,6 +106,34 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         # Connect message collection to message text index for automatic indexing
         self._message_collection.set_message_text_index(self._message_text_index)
 
+        # Transaction state tracking
+        self._transaction_state = interfaces.TransactionState.NONE
+
+    async def begin_transaction(self) -> None:
+        """Begin a transaction. Must not be in active transaction."""
+        if self._transaction_state == interfaces.TransactionState.ACTIVE:
+            raise RuntimeError("Transaction already active")
+        self.db.execute("BEGIN IMMEDIATE")
+        self._transaction_state = interfaces.TransactionState.ACTIVE
+
+    async def commit_transaction(self) -> None:
+        """Commit active transaction. Must be in ACTIVE state."""
+        if self._transaction_state != interfaces.TransactionState.ACTIVE:
+            raise RuntimeError(
+                f"Cannot commit: transaction state is {self._transaction_state.value}"
+            )
+        self.db.commit()
+        self._transaction_state = interfaces.TransactionState.NONE
+
+    async def rollback_transaction(self) -> None:
+        """Rollback active transaction. Must be in ACTIVE state."""
+        if self._transaction_state != interfaces.TransactionState.ACTIVE:
+            raise RuntimeError(
+                f"Cannot rollback: transaction state is {self._transaction_state.value}"
+            )
+        self.db.rollback()
+        self._transaction_state = interfaces.TransactionState.NONE
+
     async def close(self) -> None:
         """Close the database connection. COMMITS."""
         if hasattr(self, "db"):
