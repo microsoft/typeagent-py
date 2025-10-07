@@ -4,7 +4,6 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Software
 
-- Rename utool.py to query.py
 - Unify Podcast and VTT ingestion (use shared message and metadata classes)?
 - Code structure (do podcasts and transcripts need to be under typeagent?)?
 - Distinguish between release deps and build/dev deps?
@@ -82,7 +81,7 @@ this summer and its API.
 
 2. Demos
 
-   1. Podcast demo queries (clean up utool.py for this?)
+   1. Podcast demo queries (clean up query.py for this?)
    2. Document demo, show ingest and query (very briefly)
    3. MP movie? Email?
 

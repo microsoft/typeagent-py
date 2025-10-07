@@ -198,7 +198,7 @@ Then combine the ones that most improve effectiveless.  **[DONE]**
 ### Left to do here
 
 - Look more into why the search query schema is so instable
-- Implement at least a subset of the @kpBlah commands in utool.py
+- Implement at least a subset of the @kpBlah commands in query.py
 - More debug options (turn on/off various debug prints dynamically)
 - Unify ui.py and cmp [**done**]
 - Try pydantic.ai again

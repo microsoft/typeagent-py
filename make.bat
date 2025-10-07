@@ -44,7 +44,7 @@ goto end
 :demo
 if not exist ".venv\" call make.bat venv
 echo Running demo...
-.venv\Scripts\python -m tools.utool
+.venv\Scripts\python -m tools.query
 goto end
 
 :build

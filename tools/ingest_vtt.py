@@ -6,11 +6,11 @@
 VTT Transcript Ingestion Tool
 
 This script ingests WebVTT (.vtt) transcript files into a SQLite database
-that can be queried using tools/utool.py.
+that can be queried using tools/query.py.
 
 Usage:
     python tools/ingest_vtt.py input.vtt --database transcript.db
-    python utool.py --database transcript.db --query "What was discussed?"
+    python query.py --database transcript.db --query "What was discussed?"
 """
 
 import argparse
@@ -425,7 +425,7 @@ async def ingest_vtt_files(
     print()
     print("To query the transcript, use:")
     print(
-        f"  python tools/utool.py --database '{database}' --question 'Your question here'"
+        f"  python tools/query.py --database '{database}' --question 'Your question here'"
     )
 
 

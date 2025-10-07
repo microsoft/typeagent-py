@@ -96,4 +96,4 @@ For more control over the query pipeline, you can use the lower-level APIs:
 - `searchlang.search_conversation_with_language()` - Search only
 - `answers.generate_answers()` - Answer generation from search results
 
-See `tools/utool.py` for examples of using these lower-level APIs with debugging options.
+See `tools/query.py` for examples of using these lower-level APIs with debugging options.
