@@ -53,6 +53,7 @@ packages = [
     "typeagent.storage",
     "typeagent.storage.memory",
     "typeagent.storage.sqlite",
+    "typeagent.transcripts",
 ]
 
 [tool.setuptools.package-data]
