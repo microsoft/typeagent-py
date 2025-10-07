@@ -566,7 +566,3 @@ class TestConversationMetadataEdgeCases:
         finally:
             await provider1.close()
             await provider2.close()
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])
