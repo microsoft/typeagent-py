@@ -13,10 +13,12 @@ from pydantic import Field, AliasChoices
 from ..aitools.embeddings import NormalizedEmbeddings
 from ..storage.memory import semrefindex
 from ..knowpro import kplib, secindex
+from ..knowpro.conversation_base import ConversationBase
 from ..knowpro.field_helpers import CamelCaseField
 from ..storage.memory.convthreads import ConversationThreads
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import (
+    AddMessagesResult,
     ConversationDataWithIndexes,
     Datetime,
     ICollection,
@@ -29,6 +31,7 @@ from ..knowpro.interfaces import (
     ISemanticRefCollection,
     IStorageProvider,
     ITermToSemanticRefIndex,
+    IndexingStartPoints,
     MessageOrdinal,
     SemanticRef,
     Term,
@@ -147,14 +150,8 @@ class PodcastData(ConversationDataWithIndexes[PodcastMessageData]):
 
 
 @dataclass
-class Podcast(IConversation[PodcastMessage, ITermToSemanticRefIndex]):
-    settings: ConversationSettings
-    name_tag: str
-    messages: IMessageCollection[PodcastMessage]
-    semantic_refs: ISemanticRefCollection
-    tags: list[str]
-    semantic_ref_index: ITermToSemanticRefIndex
-    secondary_indexes: IConversationSecondaryIndexes[PodcastMessage] | None
+class Podcast(ConversationBase[PodcastMessage]):
+    """Podcast conversation with incremental indexing support."""
 
     @classmethod
     async def create(
@@ -180,20 +177,6 @@ class Podcast(IConversation[PodcastMessage, ITermToSemanticRefIndex]):
             or await secindex.ConversationSecondaryIndexes.create(
                 storage_provider, settings.related_term_index_settings
             ),
-        )
-
-    def _get_secondary_indexes(self) -> IConversationSecondaryIndexes[PodcastMessage]:
-        """Get secondary indexes, asserting they are initialized."""
-        assert (
-            self.secondary_indexes is not None
-        ), "Use await Podcast.create() to create an initialized instance"
-        return self.secondary_indexes
-
-    async def add_metadata_to_index(self) -> None:
-        await semrefindex.add_metadata_to_index(
-            self.messages,
-            self.semantic_refs,
-            self.semantic_ref_index,
         )
 
     async def generate_timestamps(
