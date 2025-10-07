@@ -4,7 +4,7 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Software
 
-- Design and implement high-level API to support ingestion and querying
+- Rename utool.py to query.py
 - Unify Podcast and VTT ingestion (use shared message and metadata classes)?
 - Code structure (do podcasts and transcripts need to be under typeagent?)?
 - Distinguish between release deps and build/dev deps?
@@ -33,11 +33,10 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 - Getting Started
 - Document the high-level API
-- Document the MCP API [NOT YET]
 - Document what should go in `.env` and where it should live
   - And alternatively (first?) what to put in shell env directly
 - Document test/build/release process
-- Document how to run evals (but don't reveal all the data)
+- Document how to run evaluations (but don't reveal all the data)
 
 ## Demos
 

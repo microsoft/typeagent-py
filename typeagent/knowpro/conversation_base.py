@@ -6,7 +6,18 @@
 from dataclasses import dataclass
 from typing import Generic, TypeVar
 
-from . import convknowledge, kplib, secindex
+import typechat
+
+from . import (
+    answers,
+    answer_response_schema,
+    convknowledge,
+    kplib,
+    search_query_schema,
+    searchlang,
+    secindex,
+)
+from ..aitools import utils
 from ..storage.memory import semrefindex
 from .convsettings import ConversationSettings
 from .interfaces import (
@@ -38,6 +49,14 @@ class ConversationBase(
     tags: list[str]
     semantic_ref_index: ITermToSemanticRefIndex
     secondary_indexes: IConversationSecondaryIndexes[TMessage] | None
+
+    # Private cached translators
+    _query_translator: (
+        typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery] | None
+    ) = None
+    _answer_translator: (
+        typechat.TypeChatJsonTranslator[answer_response_schema.AnswerResponse] | None
+    ) = None
 
     def _get_secondary_indexes(self) -> IConversationSecondaryIndexes[TMessage]:
         """Get secondary indexes, asserting they are initialized."""
@@ -180,6 +199,12 @@ class ConversationBase(
 
         await self._update_related_terms_incremental(start_points.semref_count)
 
+        # Update message text index with new messages
+        await self._update_message_index_incremental(
+            new_messages,
+            start_points.message_count,
+        )
+
     async def _add_timestamps_for_messages(
         self,
         messages: list[TMessage],
@@ -231,3 +256,90 @@ class ConversationBase(
 
             if new_terms:
                 await fuzzy_index.add_terms(list(new_terms))
+
+    async def _update_message_index_incremental(
+        self,
+        new_messages: list[TMessage],
+        start_ordinal: MessageOrdinal,
+    ) -> None:
+        """Update message text index with new messages."""
+        if (
+            self.secondary_indexes is None
+            or self.secondary_indexes.message_index is None
+        ):
+            return
+
+        # The message index add_messages handles the ordinal tracking internally
+        await self.secondary_indexes.message_index.add_messages(new_messages)
+
+    async def query(self, question: str) -> str:
+        """
+        Run an end-to-end query on the conversation.
+
+        This method performs a natural language search and generates an answer
+        based on the conversation content.
+
+        Args:
+            question: The natural language question to answer
+
+        Returns:
+            A natural language answer string. If the answer cannot be determined,
+            returns an explanation of why no answer was found.
+
+        Example:
+            >>> answer = await conv.query("What topics were discussed?")
+            >>> print(answer)
+        """
+        # Create translators lazily (once per conversation instance)
+        if self._query_translator is None:
+            model = convknowledge.create_typechat_model()
+            self._query_translator = utils.create_translator(
+                model, search_query_schema.SearchQuery
+            )
+        if self._answer_translator is None:
+            model = convknowledge.create_typechat_model()
+            self._answer_translator = utils.create_translator(
+                model, answer_response_schema.AnswerResponse
+            )
+
+        # Stage 1-3: Search the conversation with the natural language query
+        search_options = searchlang.LanguageSearchOptions(
+            compile_options=searchlang.LanguageQueryCompileOptions(
+                exact_scope=False, verb_scope=True, term_filter=None, apply_scope=True
+            ),
+            exact_match=False,
+            max_message_matches=25,
+        )
+
+        result = await searchlang.search_conversation_with_language(
+            self,
+            self._query_translator,
+            question,
+            search_options,
+        )
+
+        if isinstance(result, typechat.Failure):
+            return f"Search failed: {result.message}"
+
+        search_results = result.value
+
+        # Stage 4: Generate answer from search results
+        answer_options = answers.AnswerContextOptions(
+            entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
+        )
+
+        all_answers, combined_answer = await answers.generate_answers(
+            self._answer_translator,
+            search_results,
+            self,
+            question,
+            options=answer_options,
+        )
+
+        match combined_answer.type:
+            case "NoAnswer":
+                return f"No answer found: {combined_answer.whyNoAnswer or 'Unable to find relevant information'}"
+            case "Answered":
+                return combined_answer.answer or "No answer provided"
+            case _:
+                return f"Unexpected answer type: {combined_answer.type}"
