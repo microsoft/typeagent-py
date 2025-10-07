@@ -3,6 +3,7 @@
 
 """Factory functions for creating conversation objects."""
 
+from ..storage.utils import create_storage_provider
 from . import secindex
 from .conversation_base import ConversationBase
 from .convsettings import ConversationSettings
@@ -10,6 +11,7 @@ from .interfaces import IMessage
 
 
 async def create_conversation[TMessage: IMessage](
+    dbname: str | None,
     message_type: type[TMessage],
     name: str = "",
     tags: list[str] | None = None,
@@ -19,6 +21,7 @@ async def create_conversation[TMessage: IMessage](
     Create a conversation with the given message type and settings.
 
     Args:
+        dbname: Database name for storage (None for in-memory storage)
         message_type: The type of messages this conversation will contain
         name: Optional name for the conversation
         tags: Optional list of tags for the conversation
@@ -30,7 +33,12 @@ async def create_conversation[TMessage: IMessage](
     if settings is None:
         settings = ConversationSettings()
 
-    storage_provider = await settings.get_storage_provider()
+    storage_provider = await create_storage_provider(
+        message_text_settings=settings.message_text_index_settings,
+        related_terms_settings=settings.related_term_index_settings,
+        dbname=dbname,
+        message_type=message_type,
+    )
 
     return ConversationBase(
         settings=settings,
