@@ -37,10 +37,6 @@ from typeagent.transcripts.transcript import (
     TranscriptMessageMeta,
 )
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces import Datetime
-from typeagent.knowpro import convknowledge
-from typeagent.knowpro.messageutils import get_message_chunk_batch
-from typeagent.storage.memory import semrefindex
 
 
 def create_arg_parser() -> argparse.ArgumentParser:
@@ -52,7 +48,7 @@ def create_arg_parser() -> argparse.ArgumentParser:
 Examples:
   %(prog)s input.vtt --database transcript.db
   %(prog)s file1.vtt file2.vtt -d transcript.db --name "Combined Transcript"
-  %(prog)s lecture.vtt -d lecture.db --start-date "2024-10-01T09:00:00"
+  %(prog)s lecture.vtt -d lecture.db --merge
         """,
     )
 
@@ -73,11 +69,6 @@ Examples:
         "-n",
         "--name",
         help="Name for the transcript (defaults to filename without extension)",
-    )
-
-    parser.add_argument(
-        "--start-date",
-        help="Start date/time for the transcript (ISO format: YYYY-MM-DDTHH:MM:SS)",
     )
 
     parser.add_argument(
@@ -135,7 +126,6 @@ async def ingest_vtt_files(
     vtt_files: list[str],
     database: str,
     name: str | None = None,
-    start_date: str | None = None,
     merge_consecutive: bool = False,
     verbose: bool = False,
     batchsize: int | None = None,
@@ -224,18 +214,6 @@ async def ingest_vtt_files(
     except Exception as e:
         print(f"Error creating settings: {e}", file=sys.stderr)
         sys.exit(1)
-
-    # Parse start date if provided
-    start_datetime = None
-    if start_date:
-        try:
-            start_datetime = Datetime.fromisoformat(start_date)
-        except ValueError:
-            print(
-                f"Error: Invalid start date format '{start_date}'. Use ISO format: YYYY-MM-DDTHH:MM:SS",
-                file=sys.stderr,
-            )
-            sys.exit(1)
 
     # Determine transcript name
     if not name:
@@ -367,23 +345,9 @@ async def ingest_vtt_files(
             if file_max_end_time > 0:
                 time_offset = file_max_end_time + 5.0
 
-        # Add all messages to the database
+        # Add all messages to the database in batches with indexing
         if verbose:
             print(f"\nAdding {len(all_messages)} total messages to database...")
-        await msg_coll.extend(all_messages)
-
-        message_count = await msg_coll.size()
-        if verbose:
-            print(f"Successfully added {message_count} messages")
-        else:
-            print(
-                f"Imported {message_count} messages from {len(vtt_files)} file(s) to {database}"
-            )
-
-        # Build all indexes (always)
-        if verbose:
-            print("\nBuilding indexes...")
-            print("  Extracting knowledge (semantic refs)...")
 
         try:
             # Enable knowledge extraction for index building
@@ -397,7 +361,7 @@ async def ingest_vtt_files(
                     f"    batch_size = {settings.semantic_ref_index_settings.batch_size}"
                 )
 
-            # Create a Transcript object to build indexes
+            # Create a Transcript object
             transcript = await Transcript.create(
                 settings,
                 name_tag=name,
@@ -406,85 +370,45 @@ async def ingest_vtt_files(
                 tags=[name, "vtt-transcript"],
             )
 
-            semref_count_before = 0
-            if verbose:
-                print("  Building all indexes from messages and semantic refs...")
-                semref_count_before = await semref_coll.size()
-                print(f"    Semantic refs before: {semref_count_before}")
-
-            # Extract knowledge with progress reporting
-            knowledge_extractor = convknowledge.KnowledgeExtractor()
-            batch_size = settings.semantic_ref_index_settings.batch_size
-
-            # Get all batches
-            batches = await get_message_chunk_batch(
-                transcript.messages,
-                0,  # Start from beginning
-                batch_size,
-            )
-
-            total_batches = len(batches)
-            messages_processed = 0
+            # Process messages in batches
+            batch_size = 10
+            successful_count = 0
             start_time = time.time()
 
-            print(f"  Processing {total_batches} batches (batch size: {batch_size})...")
+            print(
+                f"  Processing {len(all_messages)} messages in batches of {batch_size}..."
+            )
 
-            for batch in batches:
+            for i in range(0, len(all_messages), batch_size):
+                batch = all_messages[i : i + batch_size]
                 batch_start = time.time()
 
-                # Process this batch
-                await semrefindex.add_batch_to_semantic_ref_index(
-                    transcript,
-                    batch,
-                    knowledge_extractor,
-                    None,  # terms_added
-                )
+                result = await transcript.add_messages_with_indexing(batch)
 
-                messages_processed += len(batch)
+                successful_count += result.messages_added
                 batch_time = time.time() - batch_start
 
-                # Print progress after each batch
-                semref_count = await semref_coll.size()
                 elapsed = time.time() - start_time
                 print(
-                    f"    {messages_processed}/{await transcript.messages.size()} chunks | "
-                    f"{semref_count} refs | "
+                    f"    {successful_count}/{len(all_messages)} messages | "
+                    f"{await semref_coll.size()} refs | "
                     f"{batch_time:.1f}s/batch | "
                     f"{elapsed:.1f}s elapsed"
                 )
 
-            # Build remaining indexes (metadata-based semantic refs, secondary indexes, etc.)
-            if verbose:
-                print("  Building metadata-based semantic refs...")
-            await transcript.add_metadata_to_index()
-
-            if transcript.secondary_indexes is not None:
-                # Build secondary indexes (message text index, related terms, etc.)
-                if verbose:
-                    print(
-                        "  Building secondary indexes (message text, related terms, etc.)..."
-                    )
-                from typeagent.knowpro import secindex
-
-                await secindex.build_secondary_indexes(transcript, settings)
-
             if verbose:
                 semref_count = await semref_coll.size()
-                print(f"    Semantic refs after: {semref_count}")
+                print(f"  Successfully added {successful_count} messages")
+                print(f"  Extracted {semref_count} semantic references")
+            else:
                 print(
-                    f"  Extracted {semref_count - semref_count_before} new semantic references"
+                    f"Imported {successful_count} messages from {len(vtt_files)} file(s) to {database}"
                 )
-
-            # Commit everything only after successful indexing
-            if isinstance(storage_provider, SqliteStorageProvider):
-                storage_provider.db.commit()
-                if verbose:
-                    print("\nAll data committed to database")
 
             print("All indexes built successfully")
 
-        except Exception as e:
-            print(f"\nError: Failed to build search indexes: {e}", file=sys.stderr)
+        except BaseException as e:
+            print(f"\nError: Failed to process messages: {e}", file=sys.stderr)
             import traceback
 
             traceback.print_exc()
@@ -516,7 +440,6 @@ def main():
             vtt_files=args.vtt_files,
             database=args.database,
             name=args.name,
-            start_date=args.start_date,
             merge_consecutive=args.merge,
             batchsize=args.batchsize,
             verbose=args.verbose,

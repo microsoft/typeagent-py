@@ -7,6 +7,7 @@ from datetime import (
     datetime as Datetime,  # For export.
     timedelta as Timedelta,  # For export.
 )
+from enum import Enum
 from typing import (
     Any,
     ClassVar,
@@ -47,6 +48,29 @@ class IKnowledgeExtractor(Protocol):
 class DeletionInfo:
     timestamp: str
     reason: str | None = None
+
+
+class TransactionState(Enum):
+    """State machine for storage provider transactions."""
+
+    NONE = "none"
+    ACTIVE = "active"
+
+
+@dataclass
+class IndexingStartPoints:
+    """Track collection sizes before adding new items."""
+
+    message_count: int
+    semref_count: int
+
+
+@dataclass
+class AddMessagesResult:
+    """Result of add_messages_with_indexing operation."""
+
+    messages_added: int
+    semrefs_added: int
 
 
 # Messages are referenced by their sequential ordinal numbers.
@@ -814,5 +838,18 @@ class IStorageProvider[TMessage: IMessage](Protocol):
     async def get_related_terms_index(self) -> ITermToRelatedTermsIndex: ...
 
     async def get_conversation_threads(self) -> IConversationThreads: ...
+
+    # Transaction management
+    async def begin_transaction(self) -> None:
+        """Begin a transaction. Must not be in active transaction."""
+        ...
+
+    async def commit_transaction(self) -> None:
+        """Commit active transaction. Must be in ACTIVE state."""
+        ...
+
+    async def rollback_transaction(self) -> None:
+        """Rollback active transaction. Must be in ACTIVE state."""
+        ...
 
     async def close(self) -> None: ...
