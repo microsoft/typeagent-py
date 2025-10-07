@@ -32,6 +32,8 @@ async def create_conversation[TMessage: IMessage](
     """
     if settings is None:
         settings = ConversationSettings()
+        # Enable knowledge extraction by default for new conversations
+        settings.semantic_ref_index_settings.auto_extract_knowledge = True
 
     storage_provider = await create_storage_provider(
         message_text_settings=settings.message_text_index_settings,
@@ -39,6 +41,8 @@ async def create_conversation[TMessage: IMessage](
         dbname=dbname,
         message_type=message_type,
     )
+
+    settings.storage_provider = storage_provider
 
     return ConversationBase(
         settings=settings,
