@@ -186,14 +186,10 @@ async def main():
     if args.verbose:
         utils.pretty_print(context, Fore.BLUE, Fore.RESET)
 
-    if args.question is not None:
+    if args.query is not None:
         if args.verbose:
-            print(
-                Fore.YELLOW
-                + f"Processing single question: {args.question}"
-                + Fore.RESET
-            )
-        await process_query(context, args.question)
+            print(Fore.YELLOW + f"Processing single query: {args.query}" + Fore.RESET)
+        await process_query(context, args.query)
     elif args.batch:
         if args.verbose:
             print(
@@ -531,11 +527,10 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         help="Path to the SQLite database file (default: in-memory)",
     )
     parser.add_argument(
-        "--question",
         "--query",
         type=str,
         default=None,
-        help="Process a single question and exit (equivalent to echo 'question' | query.py)",
+        help="Process a single query and exit (equivalent to echo 'query' | query.py)",
     )
     parser.add_argument(
         "-v",
@@ -632,8 +627,8 @@ def fill_in_debug_defaults(
 ) -> None:
     # In batch mode, defaults are diff, diff, diff, diff.
     # In interactive mode they are none, none, none, nice.
-    if args.question is not None and args.batch:
-        parser.exit(2, "Error: --question cannot be combined with --batch\n")
+    if args.query is not None and args.batch:
+        parser.exit(2, "Error: --query cannot be combined with --batch\n")
 
     if not args.batch:
         if args.start or args.offset or args.limit:

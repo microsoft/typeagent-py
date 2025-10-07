@@ -425,7 +425,7 @@ async def ingest_vtt_files(
     print()
     print("To query the transcript, use:")
     print(
-        f"  python tools/query.py --database '{database}' --question 'Your question here'"
+        f"  python tools/query.py --database '{database}' --query 'Your question here'"
     )
 
 
