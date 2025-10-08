@@ -3,9 +3,14 @@
 
 import os
 import re
+from datetime import timedelta
 
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import Datetime
+from ..knowpro.universal_message import (
+    UNIX_EPOCH,
+    format_timestamp_utc,
+)
 from ..storage.utils import create_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
 
@@ -18,10 +23,31 @@ async def ingest_podcast(
     length_minutes: float = 60.0,
     dbname: str | None = None,
 ) -> Podcast:
+    """
+    Ingest a podcast transcript file into a Podcast object.
+
+    Args:
+        transcript_file_path: Path to the transcript file
+        settings: Conversation settings
+        podcast_name: Name for the podcast (defaults to filename)
+        start_date: Base datetime for timestamp generation.
+                   If None, uses Unix epoch (1970-01-01 00:00:00 UTC),
+                   preserving relative timing while signaling that the actual
+                   date is unknown (Unix "timestamp left at zero" convention).
+        length_minutes: Total length of podcast in minutes (for proportional timestamp allocation)
+        dbname: Database name
+
+    Returns:
+        Podcast object with imported data
+    """
     with open(transcript_file_path, "r") as f:
         transcript_lines = f.readlines()
     if not podcast_name:
         podcast_name = os.path.splitext(os.path.basename(transcript_file_path))[0]
+
+    # Use Unix epoch if no start_date provided (Easter egg!)
+    base_date = start_date if start_date is not None else UNIX_EPOCH
+
     # TODO: Don't use a regex, just basic string stuff
     regex = r"""(?x)                  # Enable verbose regex syntax
         ^
@@ -62,12 +88,15 @@ async def ingest_podcast(
             if not cur_msg:
                 if speaker:
                     participants.add(speaker)
-                metadata = PodcastMessageMeta(speaker)
+                metadata = PodcastMessageMeta(speaker=speaker, recipients=[])
                 cur_msg = PodcastMessage([speech], metadata)
     if cur_msg:
         msgs.append(cur_msg)
 
     assign_message_listeners(msgs, participants)
+
+    # Assign timestamps proportionally based on message length
+    assign_timestamps_proportionally(msgs, base_date, length_minutes)
 
     provider = await create_storage_provider(
         settings.message_text_index_settings,
@@ -89,9 +118,7 @@ async def ingest_podcast(
         tags=[podcast_name],
         semantic_refs=semref_coll,
     )
-    if start_date:
-        await pod.generate_timestamps(start_date, length_minutes)
-    # TODO: Add more tags.
+    # No more generate_timestamps() - timestamps are set during ingestion!
     return pod
 
 
@@ -99,7 +126,46 @@ def assign_message_listeners(
     msgs: list[PodcastMessage],
     participants: set[str],
 ) -> None:
+    """Assign listeners (recipients) to each message - all participants except the speaker."""
     for msg in msgs:
         if msg.metadata.speaker:
             listeners = [p for p in participants if p != msg.metadata.speaker]
-            msg.metadata.listeners = listeners
+            msg.metadata.recipients = listeners
+
+
+def assign_timestamps_proportionally(
+    msgs: list[PodcastMessage],
+    base_date: Datetime,
+    length_minutes: float,
+) -> None:
+    """
+    Assign timestamps to messages proportionally based on their text length.
+
+    This is used for podcasts where we don't have exact timing data like WebVTT,
+    so we allocate time proportionally based on how much text each speaker said.
+    """
+    if not msgs:
+        return
+
+    # Calculate total text length
+    message_lengths = [sum(len(chunk) for chunk in msg.text_chunks) for msg in msgs]
+    total_length = sum(message_lengths)
+
+    if total_length == 0:
+        # Edge case: no text, just assign all to start time
+        timestamp = format_timestamp_utc(base_date)
+        for msg in msgs:
+            msg.timestamp = timestamp
+        return
+
+    # Calculate seconds per character
+    total_seconds = length_minutes * 60.0
+    seconds_per_char = total_seconds / total_length
+
+    # Assign timestamps
+    current_offset = 0.0
+    for msg, length in zip(msgs, message_lengths):
+        msg.timestamp = format_timestamp_utc(
+            base_date + timedelta(seconds=current_offset)
+        )
+        current_offset += seconds_per_char * length

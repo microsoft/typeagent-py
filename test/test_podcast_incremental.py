@@ -33,8 +33,8 @@ async def test_podcast_add_messages_with_indexing():
         settings.storage_provider = storage
         podcast = await Podcast.create(settings, name_tag="test")
 
-        metadata1 = PodcastMessageMeta(speaker="Host", listeners=["Guest"])
-        metadata2 = PodcastMessageMeta(speaker="Guest", listeners=["Host"])
+        metadata1 = PodcastMessageMeta(speaker="Host", recipients=["Guest"])
+        metadata2 = PodcastMessageMeta(speaker="Guest", recipients=["Host"])
 
         messages = [
             PodcastMessage(text_chunks=["Welcome to the podcast!"], metadata=metadata1),
