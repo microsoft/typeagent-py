@@ -12,7 +12,7 @@ from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ScoredSemanticRefOrdinal
 from typeagent.podcasts import podcast
 
-from fixtures import needs_auth
+from fixtures import really_needs_auth
 
 tests_dir = os.path.dirname(__file__)
 root_dir = os.path.dirname(tests_dir)
@@ -27,7 +27,7 @@ parser.add_argument(
 )
 
 
-def test_main(needs_auth: None):
+def test_main(really_needs_auth: None):
     # auth is needed because we use embeddings.
     # TODO: Only use the embeddings loaded from the file and cached.
     asyncio.run(main(DEFAULT_FILE))

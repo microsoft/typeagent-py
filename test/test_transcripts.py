@@ -3,12 +3,9 @@
 
 import pytest
 import os
-import tempfile
 from datetime import timedelta
-from typing import AsyncGenerator
 
 from typeagent.transcripts.transcript_ingest import (
-    ingest_vtt_transcript,
     get_transcript_speakers,
     get_transcript_duration,
     extract_speaker_from_text,
@@ -24,10 +21,9 @@ from typeagent.knowpro.universal_message import (
     format_timestamp_utc,
 )
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces import Datetime
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
-from fixtures import needs_auth, temp_dir, embedding_model  # type: ignore
+from fixtures import needs_auth, really_needs_auth, temp_dir, embedding_model  # type: ignore
 
 
 def test_extract_speaker_from_text():
@@ -245,7 +241,7 @@ async def test_transcript_creation():
 
 @pytest.mark.asyncio
 async def test_transcript_knowledge_extraction_slow(
-    needs_auth: None, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, embedding_model: AsyncEmbeddingModel
 ):
     """
     Test that knowledge extraction works during transcript ingestion.
