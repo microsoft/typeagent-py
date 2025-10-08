@@ -19,4 +19,4 @@ jobs:
 
       - run: make check
       - run: make test
-      - run: make checkformat
+      - run: make format FLAGS=--check

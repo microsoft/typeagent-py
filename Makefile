@@ -8,10 +8,7 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/black typeagent test tools
-
-checkformat: venv
-	.venv/bin/black --check typeagent test tools
+	.venv/bin/black typeagent test tools $(FLAGS)
 
 .PHONY: check
 check: venv
