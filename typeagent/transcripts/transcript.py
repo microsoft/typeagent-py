@@ -46,61 +46,20 @@ from ..storage.memory.collections import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
+from ..knowpro.universal_message import (
+    ConversationMessage,
+    ConversationMessageMeta,
+)
+
+# Type aliases for backward compatibility
+TranscriptMessage = ConversationMessage
+TranscriptMessageMeta = ConversationMessageMeta
 
 
-@pydantic_dataclass
-class TranscriptMessageMeta(IKnowledgeSource, IMessageMetadata):
-    """Metadata class for transcript messages."""
-
-    speaker: str | None = None
-    start_time: str | None = None  # WebVTT timestamp
-    end_time: str | None = None  # WebVTT timestamp
-
-    @property
-    def source(self) -> str | None:  # type: ignore[reportIncompatibleVariableOverride]
-        return self.speaker
-
-    @property
-    def dest(self) -> str | list[str] | None:  # type: ignore[reportIncompatibleVariableOverride]
-        return None  # Transcripts don't have explicit destinations
-
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
-        if not self.speaker:
-            return kplib.KnowledgeResponse(
-                entities=[],
-                actions=[],
-                inverse_actions=[],
-                topics=[],
-            )
-        else:
-            entities: list[kplib.ConcreteEntity] = []
-            entities.append(
-                kplib.ConcreteEntity(
-                    name=self.speaker,
-                    type=["person"],
-                )
-            )
-            actions = [
-                kplib.Action(
-                    verbs=["say", "speak"],
-                    verb_tense="past",
-                    subject_entity_name=self.speaker,
-                    object_entity_name="none",
-                    indirect_object_entity_name="none",
-                )
-            ]
-            return kplib.KnowledgeResponse(
-                entities=entities,
-                actions=actions,
-                inverse_actions=[],
-                topics=[],
-            )
-
-
+# TypedDict for serialization (kept for backward compatibility with saved files)
 class TranscriptMessageMetaData(TypedDict):
     speaker: str | None
-    start_time: str | None
-    end_time: str | None
+    recipients: list[str]  # Updated to match ConversationMessageMeta
 
 
 class TranscriptMessageData(TypedDict):
@@ -108,34 +67,6 @@ class TranscriptMessageData(TypedDict):
     textChunks: list[str]
     tags: list[str]
     timestamp: str | None
-
-
-@pydantic_dataclass
-class TranscriptMessage(IMessage):
-    text_chunks: list[str] = CamelCaseField("The text chunks of the transcript message")
-    metadata: TranscriptMessageMeta = CamelCaseField(
-        "Metadata associated with the transcript message"
-    )
-    tags: list[str] = CamelCaseField(
-        "Tags associated with the message", default_factory=list
-    )
-    timestamp: str | None = None
-
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
-        return self.metadata.get_knowledge()
-
-    def add_timestamp(self, timestamp: str) -> None:
-        self.timestamp = timestamp
-
-    def add_content(self, content: str) -> None:
-        self.text_chunks[0] += content
-
-    def serialize(self) -> TranscriptMessageData:
-        return self.__pydantic_serializer__.to_python(self, by_alias=True)  # type: ignore
-
-    @staticmethod
-    def deserialize(message_data: TranscriptMessageData) -> "TranscriptMessage":
-        return TranscriptMessage.__pydantic_validator__.validate_python(message_data)  # type: ignore
 
 
 class TranscriptData(ConversationDataWithIndexes[TranscriptMessageData]):
@@ -172,13 +103,6 @@ class Transcript(ConversationBase[TranscriptMessage]):
             or await secindex.ConversationSecondaryIndexes.create(
                 storage_provider, settings.related_term_index_settings
             ),
-        )
-
-    async def generate_timestamps(
-        self, start_date: Datetime, length_minutes: float = 60.0
-    ) -> None:
-        await timestamp_messages(
-            self.messages, start_date, start_date + Timedelta(minutes=length_minutes)
         )
 
     async def build_index(
@@ -381,30 +305,6 @@ class Transcript(ConversationBase[TranscriptMessage]):
             collect_name(message.metadata.speaker)
 
         return aliases
-
-
-# Text (such as a transcript) can be collected over a time range.
-# This text can be partitioned into blocks.
-# However, timestamps for individual blocks are not available.
-# Assigns individual timestamps to blocks proportional to their lengths.
-async def timestamp_messages(
-    messages: ICollection[TranscriptMessage, MessageOrdinal],
-    start_time: Datetime,
-    end_time: Datetime,
-) -> None:
-    start = start_time.timestamp()
-    duration = end_time.timestamp() - start
-    if duration <= 0:
-        raise RuntimeError(f"{start_time} is not < {end_time}")
-    message_lengths = [
-        sum(len(chunk) for chunk in m.text_chunks) async for m in messages
-    ]
-    text_length = sum(message_lengths)
-    seconds_per_char = duration / text_length
-    messages_list = [m async for m in messages]
-    for message, length in zip(messages_list, message_lengths):
-        message.timestamp = Datetime.fromtimestamp(start).isoformat()
-        start += seconds_per_char * length
 
 
 @dataclass

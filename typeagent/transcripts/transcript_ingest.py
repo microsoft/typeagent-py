@@ -3,14 +3,20 @@
 
 import os
 import re
-from typing import Optional
+from datetime import timedelta
 
 import webvtt
 
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import Datetime
+from ..knowpro.universal_message import (
+    UNIX_EPOCH,
+    ConversationMessage,
+    ConversationMessageMeta,
+    format_timestamp_utc,
+)
 from ..storage.utils import create_storage_provider
-from .transcript import Transcript, TranscriptMessage, TranscriptMessageMeta
+from .transcript import Transcript
 
 
 def webvtt_timestamp_to_seconds(timestamp: str) -> float:
@@ -120,7 +126,10 @@ async def ingest_vtt_transcript(
         vtt_file_path: Path to the .vtt file
         settings: Conversation settings
         transcript_name: Name for the transcript (defaults to filename)
-        start_date: Optional start date for timestamp generation
+        start_date: Base datetime for absolute timestamps.
+                   If None, uses Unix epoch (1970-01-01 00:00:00 UTC),
+                   preserving relative timing while signaling that the actual
+                   date is unknown (Unix "timestamp left at zero" convention).
         merge_consecutive_same_speaker: Whether to merge consecutive captions from same speaker
         use_text_based_speaker_detection: Whether to parse speaker names from text patterns (default: False)
                                           When False, only WebVTT <v> voice tags are used for speaker detection
@@ -138,11 +147,13 @@ async def ingest_vtt_transcript(
     if not transcript_name:
         transcript_name = os.path.splitext(os.path.basename(vtt_file_path))[0]
 
-    messages: list[TranscriptMessage] = []
+    # Use Unix epoch if no start_date provided (Easter egg!)
+    base_date = start_date if start_date is not None else UNIX_EPOCH
+
+    messages: list[ConversationMessage] = []
     current_speaker = None
     current_text_chunks = []
-    current_start_time = None
-    current_end_time = None
+    current_start_time = None  # Keep for determining message start
 
     for caption in vtt:
         # Skip empty captions
@@ -164,7 +175,6 @@ async def ingest_vtt_transcript(
 
         # Convert WebVTT timestamps
         start_time = caption.start
-        end_time = caption.end
 
         # Process each voice segment in this caption
         for speaker, text in voice_segments:
@@ -177,21 +187,27 @@ async def ingest_vtt_transcript(
                 and speaker == current_speaker
                 and current_text_chunks
             ):
-                # Merge with current message
+                # Merge with current message (keep first caption's start time)
                 current_text_chunks.append(text)
-                current_end_time = end_time  # Update end time
             else:
                 # Save previous message if it exists
-                if current_text_chunks:
+                if current_text_chunks and current_start_time is not None:
                     combined_text = " ".join(current_text_chunks).strip()
                     if combined_text:  # Only add non-empty messages
-                        metadata = TranscriptMessageMeta(
-                            speaker=current_speaker,
-                            start_time=current_start_time,
-                            end_time=current_end_time,
+                        # Calculate absolute timestamp from WebVTT offset
+                        offset_seconds = webvtt_timestamp_to_seconds(current_start_time)
+                        timestamp = format_timestamp_utc(
+                            base_date + timedelta(seconds=offset_seconds)
                         )
-                        message = TranscriptMessage(
-                            text_chunks=[combined_text], metadata=metadata
+
+                        metadata = ConversationMessageMeta(
+                            speaker=current_speaker,
+                            recipients=[],  # Transcripts have no specific recipients
+                        )
+                        message = ConversationMessage(
+                            text_chunks=[combined_text],
+                            metadata=metadata,
+                            timestamp=timestamp,  # Set during ingestion!
                         )
                         messages.append(message)
 
@@ -199,18 +215,26 @@ async def ingest_vtt_transcript(
                 current_speaker = speaker
                 current_text_chunks = [text] if text.strip() else []
                 current_start_time = start_time
-                current_end_time = end_time
 
     # Don't forget the last message
-    if current_text_chunks:
+    if current_text_chunks and current_start_time is not None:
         combined_text = " ".join(current_text_chunks).strip()
         if combined_text:
-            metadata = TranscriptMessageMeta(
-                speaker=current_speaker,
-                start_time=current_start_time,
-                end_time=current_end_time,
+            # Calculate absolute timestamp from WebVTT offset
+            offset_seconds = webvtt_timestamp_to_seconds(current_start_time)
+            timestamp = format_timestamp_utc(
+                base_date + timedelta(seconds=offset_seconds)
             )
-            message = TranscriptMessage(text_chunks=[combined_text], metadata=metadata)
+
+            metadata = ConversationMessageMeta(
+                speaker=current_speaker,
+                recipients=[],
+            )
+            message = ConversationMessage(
+                text_chunks=[combined_text],
+                metadata=metadata,
+                timestamp=timestamp,
+            )
             messages.append(message)
 
     # Create storage provider
@@ -218,7 +242,7 @@ async def ingest_vtt_transcript(
         settings.message_text_index_settings,
         settings.related_term_index_settings,
         dbname,
-        TranscriptMessage,
+        ConversationMessage,
     )
     # Attach provider to settings to prevent garbage collection
     settings.storage_provider = provider
@@ -238,17 +262,7 @@ async def ingest_vtt_transcript(
         semantic_refs=semref_coll,
     )
 
-    # Generate timestamps if start_date provided
-    if start_date:
-        # Calculate duration from VTT timestamps if available
-        if messages and messages[-1].metadata.end_time:
-            last_end_seconds = webvtt_timestamp_to_seconds(
-                messages[-1].metadata.end_time
-            )
-            duration_minutes = last_end_seconds / 60.0
-        else:
-            duration_minutes = 60.0  # Default fallback
-        await transcript.generate_timestamps(start_date, duration_minutes)
+    # No more generate_timestamps() - timestamps are set during ingestion!
 
     return transcript
 

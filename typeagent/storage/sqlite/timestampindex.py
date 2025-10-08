@@ -6,6 +6,7 @@
 import sqlite3
 
 from ...knowpro import interfaces
+from ...knowpro.universal_message import format_timestamp_utc
 
 
 class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
@@ -100,13 +101,9 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
         """Lookup messages in a date range."""
         cursor = self.db.cursor()
 
-        # Convert datetime objects to ISO format strings for comparison
-        start_timestamp = date_range.start.isoformat().replace("+00:00", "Z")
-        end_timestamp = (
-            date_range.end.isoformat().replace("+00:00", "Z")
-            if date_range.end
-            else None
-        )
+        # Convert datetime objects to ISO format strings with Z suffix
+        start_timestamp = format_timestamp_utc(date_range.start)
+        end_timestamp = format_timestamp_utc(date_range.end) if date_range.end else None
 
         if date_range.end is None:
             # Point query

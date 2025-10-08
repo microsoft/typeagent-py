@@ -18,6 +18,7 @@ import asyncio
 import os
 import sys
 import time
+from datetime import timedelta
 from pathlib import Path
 
 import webvtt
@@ -30,11 +31,16 @@ from typeagent.transcripts.transcript_ingest import (
     get_transcript_duration,
     get_transcript_speakers,
     parse_voice_tags,
+    webvtt_timestamp_to_seconds,
 )
 from typeagent.transcripts.transcript import (
     Transcript,
     TranscriptMessage,
     TranscriptMessageMeta,
+)
+from typeagent.knowpro.universal_message import (
+    UNIX_EPOCH,
+    format_timestamp_utc,
 )
 from typeagent.knowpro.convsettings import ConversationSettings
 
@@ -261,8 +267,28 @@ async def ingest_vtt_files(
             current_speaker = None
             current_text_chunks = []
             current_start_time = None
-            current_end_time = None
             file_max_end_time = 0.0  # Track the maximum end time in this file
+
+            def save_current_message():
+                """Helper to save the current message and add to all_messages."""
+                if current_text_chunks and current_start_time is not None:
+                    combined_text = " ".join(current_text_chunks).strip()
+                    if combined_text:
+                        # Calculate timestamp from WebVTT start time
+                        offset_seconds = webvtt_timestamp_to_seconds(current_start_time)
+                        timestamp = format_timestamp_utc(
+                            UNIX_EPOCH + timedelta(seconds=offset_seconds)
+                        )
+                        metadata = TranscriptMessageMeta(
+                            speaker=current_speaker,
+                            recipients=[],
+                        )
+                        message = TranscriptMessage(
+                            text_chunks=[combined_text],
+                            metadata=metadata,
+                            timestamp=timestamp,
+                        )
+                        all_messages.append(message)
 
             for caption in vtt:
                 # Skip empty captions
@@ -279,7 +305,6 @@ async def ingest_vtt_files(
                 )
                 end_time_seconds = vtt_timestamp_to_seconds(caption.end) + time_offset
                 start_time = seconds_to_vtt_timestamp(start_time_seconds)
-                end_time = seconds_to_vtt_timestamp(end_time_seconds)
 
                 # Track the maximum end time for this file
                 if end_time_seconds > file_max_end_time:
@@ -298,41 +323,17 @@ async def ingest_vtt_files(
                     ):
                         # Merge with current message
                         current_text_chunks.append(text)
-                        current_end_time = end_time
                     else:
                         # Save previous message if it exists
-                        if current_text_chunks:
-                            combined_text = " ".join(current_text_chunks).strip()
-                            if combined_text:
-                                metadata = TranscriptMessageMeta(
-                                    speaker=current_speaker,
-                                    start_time=current_start_time,
-                                    end_time=current_end_time,
-                                )
-                                message = TranscriptMessage(
-                                    text_chunks=[combined_text], metadata=metadata
-                                )
-                                all_messages.append(message)
+                        save_current_message()
 
                         # Start new message
                         current_speaker = speaker
                         current_text_chunks = [text] if text.strip() else []
                         current_start_time = start_time
-                        current_end_time = end_time
 
             # Don't forget the last message from this file
-            if current_text_chunks:
-                combined_text = " ".join(current_text_chunks).strip()
-                if combined_text:
-                    metadata = TranscriptMessageMeta(
-                        speaker=current_speaker,
-                        start_time=current_start_time,
-                        end_time=current_end_time,
-                    )
-                    message = TranscriptMessage(
-                        text_chunks=[combined_text], metadata=metadata
-                    )
-                    all_messages.append(message)
+            save_current_message()
 
             if verbose:
                 print(f"    Extracted {len(all_messages)} messages so far")
