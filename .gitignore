@@ -14,5 +14,5 @@ __pycache__
 /testdata/MP/
 
 # VSCode
-# .vscode
-# **/.vscode/*
+.vscode
+**/.vscode/*
