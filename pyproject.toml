@@ -47,6 +47,7 @@ Homepage = "https://github.com/microsoft/TypeAgent/tree/main"
 packages = [
     "typeagent",
     "typeagent.aitools",
+    "typeagent.emails",
     "typeagent.knowpro",
     "typeagent.mcp",
     "typeagent.podcasts",
@@ -58,6 +59,7 @@ packages = [
 
 [tool.setuptools.package-data]
 "typeagent.podcasts" = ["*.json"]
+"typeagent.emails" = ["*.json"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"

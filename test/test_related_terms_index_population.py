@@ -4,7 +4,6 @@
 
 """Test to verify related terms index population in storage providers."""
 
-import asyncio
 import tempfile
 import os
 import pytest
@@ -18,13 +17,14 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.storage.memory.reltermsindex import RelatedTermsIndex
 from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 
+from fixtures import really_needs_auth
+
 
 @pytest.mark.asyncio
-async def test_related_terms_index_population_from_database():
+async def test_related_terms_index_population_from_database(really_needs_auth):
     """Test that related terms index is correctly populated when reopening a database."""
     load_dotenv()
     temp_db_path = tempfile.mktemp(suffix=".sqlite")

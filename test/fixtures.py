@@ -46,6 +46,14 @@ def needs_auth() -> None:
 
 
 @pytest.fixture(scope="session")
+def really_needs_auth() -> None:
+    utils.load_dotenv()
+    # Check if any of the supported API keys is set
+    if not (os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")):
+        pytest.skip("No API key found")
+
+
+@pytest.fixture(scope="session")
 def embedding_model() -> AsyncEmbeddingModel:
     """Fixture to create a test embedding model with small embedding size for faster tests."""
     return AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
