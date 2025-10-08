@@ -31,7 +31,7 @@ async def test_podcast_add_messages_with_indexing():
             related_term_index_settings=settings.related_term_index_settings,
         )
         settings.storage_provider = storage
-        podcast = await Podcast.create(settings, name_tag="test")
+        podcast = await Podcast.create(settings, name="test")
 
         metadata1 = PodcastMessageMeta(speaker="Host", recipients=["Guest"])
         metadata2 = PodcastMessageMeta(speaker="Guest", recipients=["Host"])
@@ -68,7 +68,7 @@ async def test_podcast_add_messages_batched():
             related_term_index_settings=settings.related_term_index_settings,
         )
         settings.storage_provider = storage
-        podcast = await Podcast.create(settings, name_tag="test")
+        podcast = await Podcast.create(settings, name="test")
 
         # Add first batch
         metadata1 = PodcastMessageMeta(speaker="Host")

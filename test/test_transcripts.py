@@ -160,7 +160,7 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
     # Create transcript with in-memory storage
     transcript = await Transcript.create(
         settings,
-        name_tag="Test-Confuse-A-Cat",
+        name="Test-Confuse-A-Cat",
         tags=["Test-Confuse-A-Cat", "vtt-transcript"],
     )
 
@@ -234,7 +234,7 @@ async def test_transcript_creation():
     settings = ConversationSettings(embedding_model)
 
     transcript = await Transcript.create(
-        settings=settings, name_tag="Test Transcript", tags=["test", "empty"]
+        settings=settings, name="Test Transcript", tags=["test", "empty"]
     )
 
     assert transcript.name_tag == "Test Transcript"
@@ -309,7 +309,7 @@ async def test_transcript_knowledge_extraction_slow(
     # Create transcript with in-memory storage
     transcript = await Transcript.create(
         settings,
-        name_tag="Parrot-Test",
+        name="Parrot-Test",
         tags=["test", "parrot"],
     )
 

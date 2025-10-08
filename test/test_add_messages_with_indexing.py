@@ -35,7 +35,7 @@ async def test_add_messages_with_indexing_basic():
             related_term_index_settings=settings.related_term_index_settings,
         )
         settings.storage_provider = storage
-        transcript = await Transcript.create(settings, name_tag="test")
+        transcript = await Transcript.create(settings, name="test")
 
         metadata1 = TranscriptMessageMeta(speaker="Alice")
         metadata2 = TranscriptMessageMeta(speaker="Bob")
@@ -76,7 +76,7 @@ async def test_add_messages_with_indexing_batched():
             related_term_index_settings=settings.related_term_index_settings,
         )
         settings.storage_provider = storage
-        transcript = await Transcript.create(settings, name_tag="test")
+        transcript = await Transcript.create(settings, name="test")
 
         # Add first batch
         batch1 = [
@@ -133,7 +133,7 @@ async def test_transaction_rollback_on_error():
             related_term_index_settings=settings.related_term_index_settings,
         )
         settings.storage_provider = storage
-        transcript = await Transcript.create(settings, name_tag="test")
+        transcript = await Transcript.create(settings, name="test")
 
         # Add some valid messages first
         batch1 = [
