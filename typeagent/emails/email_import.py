@@ -103,7 +103,7 @@ def get_forwarded_email_parts(email_text: str) -> list[str]:
     # Forwarded emails often start with "From:" lines, so we can split on those
     split_delimiter = re.compile(r"(?=From:)", re.IGNORECASE)
     parts: list[str] = split_delimiter.split(email_text)
-    return _remove_empty(parts)
+    return _remove_empty_strings(parts)
 
 
 # Simple way to get the last response on an email thread in MIME format
@@ -173,14 +173,14 @@ def _import_address_headers(headers: list[str]) -> list[str]:
     unique_addresses: set[str] = set()
     for header in headers:
         if header:
-            addresses = _remove_empty(header.split(","))
+            addresses = _remove_empty_strings(header.split(","))
             for address in addresses:
                 unique_addresses.add(address)
 
     return list(unique_addresses)
 
 
-def _remove_empty(strings: list[str]) -> list[str]:
+def _remove_empty_strings(strings: list[str]) -> list[str]:
     non_empty: list[str] = []
     for s in strings:
         s = s.strip()
@@ -198,7 +198,7 @@ def _text_to_chunks(text: str, max_chunk_length: int) -> list[str]:
 
 
 def _splitIntoParagraphs(text: str) -> list[str]:
-    return _remove_empty(re.split(r"\n{2,}", text))
+    return _remove_empty_strings(re.split(r"\n{2,}", text))
 
 
 def _merge_chunks(
