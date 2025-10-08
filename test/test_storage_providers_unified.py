@@ -252,8 +252,8 @@ async def test_timestamp_index_behavior_parity(
     time_index = await storage_provider.get_timestamp_index()
 
     # Test empty lookup_range interface
-    start_time = Datetime.fromisoformat("2024-01-01T00:00:00")
-    end_time = Datetime.fromisoformat("2024-01-02T00:00:00")
+    start_time = Datetime.fromisoformat("2024-01-01T00:00:00Z")
+    end_time = Datetime.fromisoformat("2024-01-02T00:00:00Z")
     date_range = DateRange(start=start_time, end=end_time)
 
     empty_results = await time_index.lookup_range(date_range)
@@ -478,8 +478,8 @@ async def test_timestamp_index_range_queries(
     timestamp_index = await storage_provider.get_timestamp_index()
 
     # Test basic interface - empty range query
-    start_time = Datetime.fromisoformat("2024-01-01T00:00:00")
-    end_time = Datetime.fromisoformat("2024-01-02T00:00:00")
+    start_time = Datetime.fromisoformat("2024-01-01T00:00:00Z")
+    end_time = Datetime.fromisoformat("2024-01-02T00:00:00Z")
     date_range = DateRange(start=start_time, end=end_time)
 
     empty_results = await timestamp_index.lookup_range(date_range)

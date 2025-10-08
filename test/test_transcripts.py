@@ -4,6 +4,7 @@
 import pytest
 import os
 import tempfile
+from datetime import timedelta
 from typing import AsyncGenerator
 
 from typeagent.transcripts.transcript_ingest import (
@@ -17,6 +18,10 @@ from typeagent.transcripts.transcript import (
     Transcript,
     TranscriptMessage,
     TranscriptMessageMeta,
+)
+from typeagent.knowpro.universal_message import (
+    UNIX_EPOCH,
+    format_timestamp_utc,
 )
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
@@ -130,12 +135,19 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
             if not text.strip():
                 continue
 
+            # Calculate timestamp from WebVTT start time
+            offset_seconds = webvtt_timestamp_to_seconds(caption.start)
+            timestamp = format_timestamp_utc(
+                UNIX_EPOCH + timedelta(seconds=offset_seconds)
+            )
+
             metadata = TranscriptMessageMeta(
                 speaker=speaker,
-                start_time=caption.start,
-                end_time=caption.end,
+                recipients=[],
             )
-            message = TranscriptMessage(text_chunks=[text], metadata=metadata)
+            message = TranscriptMessage(
+                text_chunks=[text], metadata=metadata, timestamp=timestamp
+            )
             messages_list.append(message)
 
     # Create in-memory collections
@@ -177,35 +189,39 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
     assert len(first_message.text_chunks) > 0
     assert first_message.text_chunks[0].strip() != ""
 
-    # Verify metadata has timestamp information
-    assert first_message.metadata.start_time is not None
-    assert first_message.metadata.end_time is not None
+    # Verify message has timestamp
+    assert first_message.timestamp is not None
+    assert first_message.timestamp.endswith("Z")  # Should be UTC
 
 
 def test_transcript_message_creation():
     """Test creating transcript messages manually."""
-    # Create a transcript message
-    metadata = TranscriptMessageMeta(
-        speaker="Test Speaker", start_time="00:00:10.000", end_time="00:00:15.000"
-    )
+    # Create a transcript message with timestamp
+    timestamp = format_timestamp_utc(UNIX_EPOCH + timedelta(seconds=10))
+    metadata = TranscriptMessageMeta(speaker="Test Speaker", recipients=[])
 
     message = TranscriptMessage(
-        text_chunks=["This is a test message."], metadata=metadata, tags=["test"]
+        text_chunks=["This is a test message."],
+        metadata=metadata,
+        tags=["test"],
+        timestamp=timestamp,
     )
 
     # Test serialization
     serialized = message.serialize()
     assert serialized["textChunks"] == ["This is a test message."]
     assert serialized["metadata"]["speaker"] == "Test Speaker"
-    assert serialized["metadata"]["start_time"] == "00:00:10.000"
+    assert serialized["metadata"]["recipients"] == []
     assert serialized["tags"] == ["test"]
+    assert serialized["timestamp"] == timestamp
 
     # Test deserialization
     deserialized = TranscriptMessage.deserialize(serialized)
     assert deserialized.text_chunks == ["This is a test message."]
     assert deserialized.metadata.speaker == "Test Speaker"
-    assert deserialized.metadata.start_time == "00:00:10.000"
+    assert deserialized.metadata.recipients == []
     assert deserialized.tags == ["test"]
+    assert deserialized.timestamp == timestamp
 
 
 @pytest.mark.asyncio
@@ -270,12 +286,17 @@ async def test_transcript_knowledge_extraction_slow(
         speaker = getattr(caption, "voice", None)
         text = caption.text.strip()
 
+        # Calculate timestamp from WebVTT start time
+        offset_seconds = webvtt_timestamp_to_seconds(caption.start)
+        timestamp = format_timestamp_utc(UNIX_EPOCH + timedelta(seconds=offset_seconds))
+
         metadata = TranscriptMessageMeta(
             speaker=speaker,
-            start_time=caption.start,
-            end_time=caption.end,
+            recipients=[],
         )
-        message = TranscriptMessage(text_chunks=[text], metadata=metadata)
+        message = TranscriptMessage(
+            text_chunks=[text], metadata=metadata, timestamp=timestamp
+        )
         messages_list.append(message)
 
     # Create in-memory collections
