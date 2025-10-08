@@ -257,9 +257,7 @@ async def ingest_vtt_transcript(
     transcript = await Transcript.create(
         settings,
         name_tag=transcript_name,
-        messages=msg_coll,
         tags=[transcript_name, "vtt-transcript"],
-        semantic_refs=semref_coll,
     )
 
     # No more generate_timestamps() - timestamps are set during ingestion!

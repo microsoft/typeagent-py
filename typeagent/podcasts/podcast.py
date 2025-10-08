@@ -81,25 +81,25 @@ class Podcast(ConversationBase[PodcastMessage]):
         cls,
         settings: ConversationSettings,
         name_tag: str | None = None,
-        messages: IMessageCollection[PodcastMessage] | None = None,
-        semantic_refs: ISemanticRefCollection | None = None,
-        semantic_ref_index: ITermToSemanticRefIndex | None = None,
         tags: list[str] | None = None,
-        secondary_indexes: IConversationSecondaryIndexes[PodcastMessage] | None = None,
     ) -> "Podcast":
         """Create a fully initialized Podcast instance."""
         storage_provider = await settings.get_storage_provider()
+        messages = await storage_provider.get_message_collection()
+        semantic_refs = await storage_provider.get_semantic_ref_collection()
+        semantic_ref_index = await storage_provider.get_semantic_ref_index()
+        secondary_indexes = await secindex.ConversationSecondaryIndexes.create(
+            storage_provider, settings.related_term_index_settings
+        )
         return cls(
             settings,
+            storage_provider,
             name_tag or "",
-            messages or await storage_provider.get_message_collection(),
-            semantic_refs or await storage_provider.get_semantic_ref_collection(),
             tags if tags is not None else [],
-            semantic_ref_index or await storage_provider.get_semantic_ref_index(),
-            secondary_indexes
-            or await secindex.ConversationSecondaryIndexes.create(
-                storage_provider, settings.related_term_index_settings
-            ),
+            messages,
+            semantic_refs,
+            semantic_ref_index,
+            secondary_indexes,
         )
 
     async def build_index(
@@ -257,7 +257,7 @@ class Podcast(ConversationBase[PodcastMessage]):
             raise RuntimeError(
                 f"Database {dbname!r} already has messages or semantic refs."
             )
-        podcast = await Podcast.create(settings, messages=msgs, semantic_refs=semrefs)
+        podcast = await Podcast.create(settings)
         await podcast.deserialize(data)
         return podcast
 
