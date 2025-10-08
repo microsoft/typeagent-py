@@ -1,22 +1,22 @@
-# .github/workflows/ci.yml
 name: CI
-
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 jobs:
-  tests:
+  run-make:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "make check", cmd: "make check" }
+          - { name: "make test",  cmd: "make test" }
+          - { name: "make format --check", cmd: "make format FLAGS=--check" }
     steps:
       - uses: actions/checkout@v4
-
       - name: Install uv
         run: |
           set -euxo pipefail
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - run: make check
-      - run: make test
-      - run: make format FLAGS=--check
+      - run: ${{ matrix.cmd }}
