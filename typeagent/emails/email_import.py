@@ -3,7 +3,7 @@
 
 import re
 from pathlib import Path
-from datetime import datetime
+from typing import Iterable
 
 from email import message_from_string
 from email.utils import parsedate_to_datetime
@@ -11,33 +11,34 @@ from email.message import Message
 
 from .email_message import EmailMessage, EmailMessageMeta
 
-def import_emails_from_dir(dir_path: str) -> list[EmailMessage]:
+def import_emails_from_dir(dir_path: str, max_chunk_length: int = 4096) -> list[EmailMessage]:
     messages: list[EmailMessage] = []
     for file_path in Path(dir_path).iterdir():
-        messages.append(import_email_from_file(str(file_path.resolve())));
+        if file_path.is_file():
+            messages.append(import_email_from_file(str(file_path.resolve()), max_chunk_length))
     return messages
 
 # Imports an email file (.eml) as a list of EmailMessage objects
-def import_email_from_file(file_path: str) -> EmailMessage:
+def import_email_from_file(file_path: str, max_chunk_length: int = 4096) -> EmailMessage:
     email_string: str = ""
     with open(file_path, "r") as f:
         email_string = f.read()
 
-    return import_email_string(email_string)
+    return import_email_string(email_string, max_chunk_length)
 
 # Imports a single email MIME string and returns an EmailMessage object
-def import_email_string(email_string: str) -> EmailMessage:
+def import_email_string(email_string: str, max_chunk_length: int = 4096) -> EmailMessage:
     msg: Message = message_from_string(email_string)
-    email: EmailMessage = import_email_message(msg)
+    email: EmailMessage = import_email_message(msg, max_chunk_length)
     return email
 
-def import_forwarded_email_string(email_string: str) -> list[EmailMessage]:
+def import_forwarded_email_string(email_string: str, max_chunk_length: int = 4096) -> list[EmailMessage]:
     msg_parts = get_forwarded_email_parts(email_string)
-    return [import_email_string(part) for part in msg_parts if len(part) > 0]
+    return [import_email_string(part, max_chunk_length) for part in msg_parts if len(part) > 0]
 
 # Imports an email.message.Message object and returns an EmailMessage object
 # If the message is a reply, returns only the latest response. 
-def import_email_message(msg: Message) -> EmailMessage:
+def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     # Extract metadata from
     email_meta = EmailMessageMeta(
         sender = msg.get("From", ""),
@@ -61,9 +62,10 @@ def import_email_message(msg: Message) -> EmailMessage:
     if email_meta.subject is not None:
         body = email_meta.subject + "\n\n" + body
 
+    body_chunks = _text_to_chunks(body, max_chunk_length)
     email: EmailMessage = EmailMessage(
         metadata=email_meta, 
-        text_chunks=[body], 
+        text_chunks=body_chunks, 
         timestamp=timestamp
     )
     return email
@@ -159,3 +161,35 @@ def _remove_empty(strings: list[str]) -> list[str]:
         if len(s) > 0:
             non_empty.append(s)
     return non_empty
+
+def _text_to_chunks(text: str, max_chunk_length: int) -> list[str]:
+    if len(text) < max_chunk_length:
+        return [text]
+    
+    paragraphs = _splitIntoParagraphs(text)
+    return list(_merge_chunks(paragraphs, "\n\n", max_chunk_length))
+
+def _splitIntoParagraphs(text: str) -> list[str]: 
+    return _remove_empty(re.split(r'\n{2,}', text))
+
+def _merge_chunks(chunks: Iterable[str], separator: str, max_chunk_length: int) -> Iterable[str]:
+    sep_length = len(separator)
+    cur_chunk:str = ""
+    for new_chunk in chunks:
+        cur_length = len(cur_chunk)
+        new_length = len(new_chunk)
+        if new_length > max_chunk_length:
+            # Truncate
+            new_chunk = new_chunk[0:max_chunk_length]
+            new_length = len(new_chunk)
+
+        if (cur_length + (new_length + sep_length) > max_chunk_length):
+            if cur_length > 0:
+                yield cur_chunk
+            cur_chunk = new_chunk
+        else:
+            cur_chunk += separator
+            cur_chunk += new_chunk
+
+    if (len(cur_chunk)) > 0:
+        yield cur_chunk

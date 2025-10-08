@@ -84,7 +84,7 @@ async def generate_answers(
 
 async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     translator: typechat.TypeChatJsonTranslator[AnswerResponse],
-    search_result: ConversationSearchResult,
+    search_result: ConversationSearchResult,    
     conversation: IConversation[TMessage, TIndex],
     options: AnswerContextOptions | None = None,
 ) -> AnswerResponse:

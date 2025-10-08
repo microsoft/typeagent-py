@@ -27,6 +27,14 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     bcc: list[str] = Field(default_factory=list)
     subject: str | None = None
 
+    @property
+    def source(self) -> str | None:  # type: ignore[reportIncompatibleVariableOverride]
+        return self.sender
+
+    @property
+    def dest(self) -> str | list[str] | None:  # type: ignore[reportIncompatibleVariableOverride]
+        return self.recipients
+
     def get_knowledge(self) -> kplib.KnowledgeResponse:
         return kplib.KnowledgeResponse(
             entities=self.to_entities(), 
