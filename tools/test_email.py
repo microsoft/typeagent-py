@@ -65,7 +65,7 @@ def command(parser: argparse.ArgumentParser):
 
 
 # Just simple test code
-# TODO : Once stable, move creation etc to utool.py
+# TODO : Once stable, move creation etc to query.py
 async def main():
 
     base_path = Path("/data/testChat/knowpro/email/")

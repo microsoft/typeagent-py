@@ -25,9 +25,7 @@ from ..knowpro.interfaces import (
     ITermToSemanticRefIndex,
     Term,
 )
-from ..storage.memory import (
-    semrefindex,
-)
+from ..storage.memory import semrefindex
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 
 from .email_message import EmailMessage
