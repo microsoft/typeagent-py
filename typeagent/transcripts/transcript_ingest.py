@@ -250,15 +250,15 @@ async def ingest_vtt_transcript(
     msg_coll = await provider.get_message_collection()
     semref_coll = await provider.get_semantic_ref_collection()
 
-    # Append new messages to existing collection (supports incremental import)
-    await msg_coll.extend(messages)
-
-    # Create transcript
+    # Create transcript first
     transcript = await Transcript.create(
         settings,
         name=transcript_name,
         tags=[transcript_name, "vtt-transcript"],
     )
+
+    # Add messages with indexing to build embeddings (supports incremental import)
+    await transcript.add_messages_with_indexing(messages)
 
     # No more generate_timestamps() - timestamps are set during ingestion!
 

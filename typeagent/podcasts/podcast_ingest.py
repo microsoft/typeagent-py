@@ -110,14 +110,15 @@ async def ingest_podcast(
     if await msg_coll.size() or await semref_coll.size():
         raise RuntimeError(f"{dbname!r} already has messages or semantic refs.")
 
-    await msg_coll.extend(msgs)
-
     pod = await Podcast.create(
         settings,
         name=podcast_name,
         tags=[podcast_name],
     )
-    # No more generate_timestamps() - timestamps are set during ingestion!
+
+    # Add messages with indexing to build embeddings
+    await pod.add_messages_with_indexing(msgs)
+
     return pod
 
 

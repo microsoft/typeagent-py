@@ -56,18 +56,16 @@ async def test_incremental_index_building():
                 tags=["file1"],
             ),
         ]
-        for msg in messages1:
-            await transcript1.messages.append(msg)
+
+        # Add messages with indexing
+        print("Adding messages with indexing...")
+        result1 = await transcript1.add_messages_with_indexing(messages1)
 
         msg_count1 = await transcript1.messages.size()
         print(f"Added {msg_count1} messages")
-
-        # Build index
-        print("Building index for first time...")
-        await transcript1.build_index()
+        print(f"Created {result1.semrefs_added} semantic refs")
 
         ref_count1 = await transcript1.semantic_refs.size()
-        print(f"Created {ref_count1} semantic refs")
 
         # Close first connection
         await storage1.close()
@@ -104,36 +102,23 @@ async def test_incremental_index_building():
                 tags=["file2"],
             ),
         ]
-        for msg in messages2:
-            await transcript2.messages.append(msg)
+
+        # Add messages with indexing
+        print("Adding more messages with indexing...")
+        result2 = await transcript2.add_messages_with_indexing(messages2)
 
         msg_count2 = await transcript2.messages.size()
         print(f"Now have {msg_count2} messages total")
         assert msg_count2 == msg_count_before + len(messages2)
 
-        # Try to rebuild index - this should work incrementally
-        print("Rebuilding index...")
-        try:
-            await transcript2.build_index()
-            print("SUCCESS: Index rebuilt!")
+        print("SUCCESS: Messages added with incremental indexing!")
+        ref_count2 = await transcript2.semantic_refs.size()
+        print(f"Now have {ref_count2} semantic refs (was {ref_count1})")
 
-            ref_count2 = await transcript2.semantic_refs.size()
-            print(f"Now have {ref_count2} semantic refs (was {ref_count1})")
+        # We should have more refs now
+        assert ref_count2 >= ref_count1, "Should have at least as many refs as before"
 
-            # We should have more refs now
-            assert (
-                ref_count2 >= ref_count1
-            ), "Should have at least as many refs as before"
-
-        except Exception as e:
-            print(f"FAILED: {e}")
-            import traceback
-
-            traceback.print_exc()
-            pytest.fail(f"Index building failed: {e}")
-
-        finally:
-            await storage2.close()
+        await storage2.close()
 
 
 @pytest.mark.asyncio
@@ -164,8 +149,7 @@ async def test_incremental_index_with_vtt_files():
         msg_count1 = await transcript1.messages.size()
         print(f"Imported {msg_count1} messages from Confuse-A-Cat.vtt")
 
-        # Build index
-        await transcript1.build_index()
+        # Indexing already done by add_messages_with_indexing() in ingest
         ref_count1 = await transcript1.semantic_refs.size()
         print(f"Built index with {ref_count1} semantic refs")
 
@@ -190,9 +174,8 @@ async def test_incremental_index_with_vtt_files():
         print(f"Now have {msg_count2} messages total")
         assert msg_count2 > msg_count1, "Should have added more messages"
 
-        # Rebuild index incrementally
-        print("Rebuilding index incrementally...")
-        await transcript2.build_index()
+        # Indexing already done incrementally by add_messages_with_indexing()
+        print("Index built incrementally during ingestion")
         ref_count2 = await transcript2.semantic_refs.size()
         print(f"Now have {ref_count2} semantic refs (was {ref_count1})")
 
