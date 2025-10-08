@@ -104,6 +104,7 @@ async def ingest_podcast(
         dbname,
         PodcastMessage,
     )
+    settings.storage_provider = provider
     msg_coll = await provider.get_message_collection()
     semref_coll = await provider.get_semantic_ref_collection()
     if await msg_coll.size() or await semref_coll.size():
@@ -114,9 +115,7 @@ async def ingest_podcast(
     pod = await Podcast.create(
         settings,
         name_tag=podcast_name,
-        messages=msg_coll,
         tags=[podcast_name],
-        semantic_refs=semref_coll,
     )
     # No more generate_timestamps() - timestamps are set during ingestion!
     return pod

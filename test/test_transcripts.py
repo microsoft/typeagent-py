@@ -161,11 +161,11 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
     transcript = await Transcript.create(
         settings,
         name_tag="Test-Confuse-A-Cat",
-        messages=msg_coll,
-        semantic_refs=semref_coll,
-        semantic_ref_index=semref_index,
         tags=["Test-Confuse-A-Cat", "vtt-transcript"],
     )
+
+    # Add messages to the transcript's collections
+    await transcript.messages.extend(messages_list)
 
     # Verify the transcript was created correctly
     assert isinstance(transcript, Transcript)
@@ -310,11 +310,11 @@ async def test_transcript_knowledge_extraction_slow(
     transcript = await Transcript.create(
         settings,
         name_tag="Parrot-Test",
-        messages=msg_coll,
-        semantic_refs=semref_coll,
-        semantic_ref_index=semref_index,
         tags=["test", "parrot"],
     )
+
+    # Add messages to the transcript's collections
+    await transcript.messages.extend(messages_list)
 
     # Verify we have messages
     assert await transcript.messages.size() == len(messages_list)

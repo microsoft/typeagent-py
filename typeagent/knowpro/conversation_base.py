@@ -27,6 +27,7 @@ from .interfaces import (
     IMessage,
     IMessageCollection,
     ISemanticRefCollection,
+    IStorageProvider,
     ITermToSemanticRefIndex,
     IndexingStartPoints,
     MessageOrdinal,
@@ -43,10 +44,11 @@ class ConversationBase(
     """Base class for conversations with incremental indexing support."""
 
     settings: ConversationSettings
+    storage_provider: IStorageProvider[TMessage]
     name_tag: str
+    tags: list[str]
     messages: IMessageCollection[TMessage]
     semantic_refs: ISemanticRefCollection
-    tags: list[str]
     semantic_ref_index: ITermToSemanticRefIndex
     secondary_indexes: IConversationSecondaryIndexes[TMessage] | None
 
