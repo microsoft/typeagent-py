@@ -4,6 +4,7 @@
 import asyncio
 import os
 import pytest
+from datetime import timezone
 
 from fixtures import needs_auth, temp_dir, embedding_model  # type: ignore  # Yes they are used!
 
@@ -25,7 +26,7 @@ async def test_ingest_podcast(
         "testdata/FakePodcast.txt",
         settings,
         None,
-        Datetime.now(),
+        Datetime.now(timezone.utc),  # Use timezone-aware datetime
         3.0,
     )
 

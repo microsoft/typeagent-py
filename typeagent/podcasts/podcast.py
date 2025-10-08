@@ -45,69 +45,20 @@ from ..storage.memory.collections import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
+from ..knowpro.universal_message import (
+    ConversationMessage,
+    ConversationMessageMeta,
+)
+
+# Type aliases for backward compatibility
+PodcastMessage = ConversationMessage
+PodcastMessageMeta = ConversationMessageMeta
 
 
-@pydantic_dataclass
-class PodcastMessageMeta(IKnowledgeSource, IMessageMetadata):
-    """Metadata class (!= metaclass) for podcast messages."""
-
-    speaker: str | None = None
-    listeners: list[str] = Field(default_factory=list)
-
-    @property
-    def source(self) -> str | None:  # type: ignore[reportIncompatibleVariableOverride]
-        return self.speaker
-
-    @property
-    def dest(self) -> str | list[str] | None:  # type: ignore[reportIncompatibleVariableOverride]
-        return self.listeners
-
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
-        if not self.speaker:
-            return kplib.KnowledgeResponse(
-                entities=[],
-                actions=[],
-                inverse_actions=[],
-                topics=[],
-            )
-        else:
-            entities: list[kplib.ConcreteEntity] = []
-            entities.append(
-                kplib.ConcreteEntity(
-                    name=self.speaker,
-                    type=["person"],
-                )
-            )
-            listener_entities = [
-                kplib.ConcreteEntity(
-                    name=listener,
-                    type=["person"],
-                )
-                for listener in self.listeners
-            ]
-            entities.extend(listener_entities)
-            actions = [
-                kplib.Action(
-                    verbs=["say"],
-                    verb_tense="past",
-                    subject_entity_name=self.speaker,
-                    object_entity_name=listener,
-                    indirect_object_entity_name="none",
-                )
-                for listener in self.listeners
-            ]
-            return kplib.KnowledgeResponse(
-                entities=entities,
-                actions=actions,
-                # TODO: Also create inverse actions.
-                inverse_actions=[],
-                topics=[],
-            )
-
-
+# TypedDict for serialization (kept for backward compatibility with saved files)
 class PodcastMessageMetaData(TypedDict):
     speaker: str | None
-    listeners: list[str]
+    recipients: list[str]  # Updated from 'listeners' to match ConversationMessageMeta
 
 
 class PodcastMessageData(TypedDict):
@@ -115,34 +66,6 @@ class PodcastMessageData(TypedDict):
     textChunks: list[str]
     tags: list[str]
     timestamp: str | None
-
-
-@pydantic_dataclass
-class PodcastMessage(IMessage):
-    text_chunks: list[str] = CamelCaseField("The text chunks of the podcast message")
-    metadata: PodcastMessageMeta = CamelCaseField(
-        "Metadata associated with the podcast message"
-    )
-    tags: list[str] = CamelCaseField(
-        "Tags associated with the message", default_factory=list
-    )
-    timestamp: str | None = None
-
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
-        return self.metadata.get_knowledge()
-
-    def add_timestamp(self, timestamp: str) -> None:
-        self.timestamp = timestamp
-
-    def add_content(self, content: str) -> None:
-        self.text_chunks[0] += content
-
-    def serialize(self) -> PodcastMessageData:
-        return self.__pydantic_serializer__.to_python(self, by_alias=True)  # type: ignore
-
-    @staticmethod
-    def deserialize(message_data: PodcastMessageData) -> "PodcastMessage":
-        return PodcastMessage.__pydantic_validator__.validate_python(message_data)  # type: ignore
 
 
 class PodcastData(ConversationDataWithIndexes[PodcastMessageData]):
@@ -177,13 +100,6 @@ class Podcast(ConversationBase[PodcastMessage]):
             or await secindex.ConversationSecondaryIndexes.create(
                 storage_provider, settings.related_term_index_settings
             ),
-        )
-
-    async def generate_timestamps(
-        self, start_date: Datetime, length_minutes: float = 60.0
-    ) -> None:
-        await timestamp_messages(
-            self.messages, start_date, start_date + Timedelta(minutes=length_minutes)
         )
 
     async def build_index(
@@ -398,34 +314,10 @@ class Podcast(ConversationBase[PodcastMessage]):
 
         async for message in self.messages:
             collect_name(message.metadata.speaker)
-            for listener in message.metadata.listeners:
-                collect_name(listener)
+            for recipient in message.metadata.recipients:
+                collect_name(recipient)
 
         return aliases
-
-
-# Text (such as a transcript) can be collected over a time range.
-# This text can be partitioned into blocks.
-# However, timestamps for individual blocks are not available.
-# Assigns individual timestamps to blocks proportional to their lengths.
-async def timestamp_messages(
-    messages: ICollection[PodcastMessage, MessageOrdinal],
-    start_time: Datetime,
-    end_time: Datetime,
-) -> None:
-    start = start_time.timestamp()
-    duration = end_time.timestamp() - start
-    if duration <= 0:
-        raise RuntimeError(f"{start_time} is not < {end_time}")
-    message_lengths = [
-        sum(len(chunk) for chunk in m.text_chunks) async for m in messages
-    ]
-    text_length = sum(message_lengths)
-    seconds_per_char = duration / text_length
-    messages_list = [m async for m in messages]
-    for message, length in zip(messages_list, message_lengths):
-        message.timestamp = Datetime.fromtimestamp(start).isoformat()
-        start += seconds_per_char * length
 
 
 @dataclass
