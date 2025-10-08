@@ -17,18 +17,6 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: make check
-        run: |
-          set -euxo pipefail
-          make check
-
-      - name: make test
-        run: |
-          set -euxo pipefail
-          make test
-
-      - name: format --check (from make -n format)
-        shell: bash
-        run: |
-          set -euxo pipefail
-          make checkformat
+      - run: make check
+      - run: make test
+      - run: make checkformat
