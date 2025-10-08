@@ -37,7 +37,7 @@ from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.storage.utils import create_storage_provider
 
-from utool import print_result
+from query import print_result
 
 class EmailContext:
     def __init__(self, base_path: Path, db_name: str, conversation: EmailMemory) -> None:

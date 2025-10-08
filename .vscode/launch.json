@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run tools/test_email.py (external terminal)",
+            "type": "python",
+            "request": "launch",
+            // "program": "${workspaceFolder}/tools/utool.py",
+            "program": "${workspaceFolder}/tools/test_email.py",
+            "console": "externalTerminal",
+            "env": {},
+            "envFile": "${workspaceFolder}/.env",
+            "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+            "justMyCode": false
+        }
+    ]
+}
