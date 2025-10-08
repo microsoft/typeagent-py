@@ -10,6 +10,9 @@ all: venv format check test build
 format: venv
 	.venv/bin/black typeagent test tools
 
+checkformat: venv
+	.venv/bin/black --check typeagent test tools
+
 .PHONY: check
 check: venv
 	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test tools
