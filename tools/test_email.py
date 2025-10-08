@@ -37,7 +37,7 @@ from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.storage.utils import create_storage_provider
 
-from utool import print_result
+from query import print_result
 
 class EmailContext:
     def __init__(self, base_path: Path, db_name: str, conversation: EmailMemory) -> None:
@@ -66,7 +66,7 @@ def command(parser: argparse.ArgumentParser):
     return decorator
 
 # Just simple test code
-# TODO : Once stable, move creation etc to utool.py
+# TODO : Once stable, move creation etc to query.py
 async def main():
 
     base_path = Path("/data/testChat/knowpro/email/") 
