@@ -11,15 +11,11 @@ from typeagent.aitools.utils import load_dotenv
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
-
-@pytest.fixture(scope="session")
-def needs_auth() -> None:
-    """Load environment variables for authentication."""
-    load_dotenv()
+from fixtures import really_needs_auth
 
 
 @pytest.mark.asyncio
-async def test_query_method_basic(needs_auth: None):
+async def test_query_method_basic(really_needs_auth: None):
     """Test the basic query method workflow."""
     # Create a conversation with some test data
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
@@ -65,7 +61,7 @@ async def test_query_method_basic(needs_auth: None):
 
 
 @pytest.mark.asyncio
-async def test_query_method_empty_conversation(needs_auth: None):
+async def test_query_method_empty_conversation(really_needs_auth: None):
     """Test query method on an empty conversation."""
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     settings = ConversationSettings(model=test_model)

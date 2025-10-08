@@ -21,6 +21,8 @@ from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.podcasts.podcast import PodcastMessage
 from typeagent.storage import SqliteStorageProvider
 
+from fixtures import really_needs_auth
+
 
 class MockEmbeddingModel(AsyncEmbeddingModel):
     def __init__(self):
@@ -33,7 +35,7 @@ class MockEmbeddingModel(AsyncEmbeddingModel):
 
 
 @pytest.mark.asyncio
-async def test_property_index_population_from_database():
+async def test_property_index_population_from_database(really_needs_auth):
     """Test that property index is correctly populated when reopening a database."""
     load_dotenv()
     temp_db_path = tempfile.mktemp(suffix=".sqlite")

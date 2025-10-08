@@ -26,7 +26,7 @@ from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
 
 # Test fixtures
-from fixtures import needs_auth, embedding_model, temp_db_path
+from fixtures import needs_auth, really_needs_auth, embedding_model, temp_db_path
 
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
@@ -122,7 +122,7 @@ async def test_serialize_and_deserialize(
 
 
 @pytest.mark.asyncio
-async def test_related_terms_index_basic(needs_auth: None) -> None:
+async def test_related_terms_index_basic(really_needs_auth: None) -> None:
     settings = RelatedTermIndexSettings(TextEmbeddingIndexSettings())
     index = RelatedTermsIndex(settings)
     assert isinstance(index.aliases, TermToRelatedTermsMap)

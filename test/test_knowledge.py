@@ -14,7 +14,7 @@ from typeagent.knowpro.knowledge import (
 )
 from typeagent.knowpro import convknowledge, kplib
 
-from fixtures import needs_auth  # type: ignore  # Used!
+from fixtures import really_needs_auth
 
 
 class MockKnowledgeExtractor:
@@ -34,7 +34,7 @@ def mock_knowledge_extractor() -> convknowledge.KnowledgeExtractor:
     return MockKnowledgeExtractor()  # type: ignore
 
 
-def test_create_knowledge_extractor(needs_auth: None):
+def test_create_knowledge_extractor(really_needs_auth: None):
     """Test creating a knowledge extractor."""
     extractor = create_knowledge_extractor()
     assert isinstance(extractor, convknowledge.KnowledgeExtractor)

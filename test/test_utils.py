@@ -2,11 +2,13 @@
 # Licensed under the MIT License.
 
 import os
-import pytest
 from contextlib import redirect_stdout
 from io import StringIO
 
 import typeagent.aitools.utils as utils
+
+
+from fixtures import really_needs_auth
 
 
 def test_timelog():
@@ -29,7 +31,7 @@ def test_pretty_print():
     assert out == '{"a": 1}\n', out
 
 
-def test_load_dotenv():
+def test_load_dotenv(really_needs_auth):
     # Call load_dotenv and check for at least one expected key
     utils.load_dotenv()
     assert "OPENAI_API_KEY" in os.environ or "AZURE_OPENAI_API_KEY" in os.environ
