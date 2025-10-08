@@ -325,7 +325,7 @@ def delete_sqlite_db(db_path: str):
 
 def print_help(handler: CommandHandler):
     if hasattr(handler, "parser"):
-        parser = argparse.ArgumentParser = handler.parser # type: ignore
+        parser: argparse.ArgumentParser = handler.parser # type: ignore
         print(parser.format_help())
         print()
 
