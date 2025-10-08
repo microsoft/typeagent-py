@@ -44,6 +44,7 @@ from typeagent.storage import SqliteStorageProvider
 def needs_auth() -> None:
     utils.load_dotenv()
 
+
 @pytest.fixture(scope="session")
 def really_needs_auth() -> None:
     utils.load_dotenv()

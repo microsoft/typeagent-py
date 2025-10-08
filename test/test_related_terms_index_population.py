@@ -22,6 +22,7 @@ from typeagent.storage import SqliteStorageProvider
 
 from fixtures import really_needs_auth
 
+
 @pytest.mark.asyncio
 async def test_related_terms_index_population_from_database(really_needs_auth):
     """Test that related terms index is correctly populated when reopening a database."""
