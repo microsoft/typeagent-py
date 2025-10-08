@@ -76,21 +76,6 @@ class TranscriptData(ConversationDataWithIndexes[TranscriptMessageData]):
 class Transcript(ConversationBase[TranscriptMessage]):
     """Transcript conversation with incremental indexing support."""
 
-    async def build_index(
-        self,
-    ) -> None:
-        await self.add_metadata_to_index()
-        assert (
-            self.settings is not None
-        ), "Settings must be initialized before building index"
-        await semrefindex.build_semantic_ref(self, self.settings)
-        # build_semantic_ref automatically builds standard secondary indexes.
-        # Pass false here to build transcript specific secondary indexes only.
-        await self._build_transient_secondary_indexes(False)
-        if self.secondary_indexes is not None:
-            if self.secondary_indexes.threads is not None:
-                await self.secondary_indexes.threads.build_index()  # type: ignore  # TODO
-
     async def serialize(self) -> TranscriptData:
         data = TranscriptData(
             nameTag=self.name_tag,
@@ -182,7 +167,14 @@ class Transcript(ConversationBase[TranscriptMessage]):
                 ), "Message index must be empty before deserializing"
             await secondary_indexes.message_index.deserialize(message_index_data)
 
-        await self._build_transient_secondary_indexes(True)
+        # Don't rebuild aliases/synonyms since they were deserialized from relatedTermsIndexData
+        # Only build transient indexes that aren't serialized
+        if related_terms_index_data is None:
+            # If related terms weren't deserialized, build them
+            await self._build_speaker_aliases()
+
+        # Always build other transient indexes
+        await secindex.build_transient_secondary_indexes(self, self.settings)
 
     @staticmethod
     def _read_conversation_data_from_file(

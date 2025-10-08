@@ -35,9 +35,7 @@ async def test_ingest_podcast(
     assert len(pod.tags) > 0
     assert await pod.messages.size() > 0
 
-    # Build the index
-    await pod.build_index()
-    # Verify the semantic refs were built by checking they exist
+    # Verify the semantic refs exist
     assert pod.semantic_refs is not None
 
     # Write the podcast to files

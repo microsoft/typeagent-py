@@ -313,23 +313,23 @@ async def test_transcript_knowledge_extraction_slow(
         tags=["test", "parrot"],
     )
 
-    # Add messages to the transcript's collections
-    await transcript.messages.extend(messages_list)
-
     # Verify we have messages
-    assert await transcript.messages.size() == len(messages_list)
     assert len(messages_list) >= 3, "Need at least 3 messages for testing"
 
     # Enable knowledge extraction
     settings.semantic_ref_index_settings.auto_extract_knowledge = True
     settings.semantic_ref_index_settings.batch_size = 10
 
-    # Build index (this should extract knowledge)
-    await transcript.build_index()
+    # Add messages with indexing (this should extract knowledge)
+    result = await transcript.add_messages_with_indexing(messages_list)
 
-    # Verify semantic refs were created
+    # Verify messages and semantic refs were created
+    assert await transcript.messages.size() == len(messages_list)
+    assert result.messages_added == len(messages_list)
+    assert result.semrefs_added > 0, "Should have extracted some semantic references"
+
     semref_count = await transcript.semantic_refs.size()
-    assert semref_count > 0, "Should have extracted some semantic references"
+    assert semref_count > 0, "Should have semantic refs"
 
     # Verify we have different types of knowledge
     knowledge_types = set()
