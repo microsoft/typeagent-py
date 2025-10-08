@@ -256,7 +256,7 @@ async def ingest_vtt_transcript(
     # Create transcript
     transcript = await Transcript.create(
         settings,
-        name_tag=transcript_name,
+        name=transcript_name,
         tags=[transcript_name, "vtt-transcript"],
     )
 

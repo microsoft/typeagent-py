@@ -41,7 +41,7 @@ async def test_incremental_index_building():
             related_term_index_settings=settings.related_term_index_settings,
         )
         settings.storage_provider = storage1
-        transcript1 = await Transcript.create(settings, name_tag="test")
+        transcript1 = await Transcript.create(settings, name="test")
 
         # Add some messages
         messages1 = [
@@ -84,7 +84,7 @@ async def test_incremental_index_building():
             related_term_index_settings=settings2.related_term_index_settings,
         )
         settings2.storage_provider = storage2
-        transcript2 = await Transcript.create(settings2, name_tag="test")
+        transcript2 = await Transcript.create(settings2, name="test")
 
         # Verify existing messages are there
         msg_count_before = await transcript2.messages.size()

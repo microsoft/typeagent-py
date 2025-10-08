@@ -4,7 +4,7 @@
 """Base class for conversations with incremental indexing support."""
 
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic, Self, TypeVar
 
 import typechat
 
@@ -37,7 +37,7 @@ from .interfaces import (
 TMessage = TypeVar("TMessage", bound=IMessage)
 
 
-@dataclass
+@dataclass(init=False)
 class ConversationBase(
     Generic[TMessage], IConversation[TMessage, ITermToSemanticRefIndex]
 ):
@@ -59,6 +59,44 @@ class ConversationBase(
     _answer_translator: (
         typechat.TypeChatJsonTranslator[answer_response_schema.AnswerResponse] | None
     ) = None
+
+    def __init__(
+        self,
+        settings: ConversationSettings,
+        name: str,
+        tags: list[str],
+    ):
+        """Initialize conversation with storage provider.
+
+        Collections and indexes are obtained from the settings' storage provider
+        by the create() factory method.
+        """
+        self.settings = settings
+        self.name_tag = name
+        self.tags = tags
+
+    @classmethod
+    async def create(
+        cls,
+        settings: ConversationSettings,
+        name: str | None = None,
+        tags: list[str] | None = None,
+    ) -> Self:
+        """Create a fully initialized conversation instance."""
+        storage_provider = await settings.get_storage_provider()
+        instance = cls(
+            settings,
+            name or "",
+            tags if tags is not None else [],
+        )
+        instance.storage_provider = storage_provider
+        instance.messages = await storage_provider.get_message_collection()
+        instance.semantic_refs = await storage_provider.get_semantic_ref_collection()
+        instance.semantic_ref_index = await storage_provider.get_semantic_ref_index()
+        instance.secondary_indexes = await secindex.ConversationSecondaryIndexes.create(
+            storage_provider, settings.related_term_index_settings
+        )
+        return instance
 
     def _get_secondary_indexes(self) -> IConversationSecondaryIndexes[TMessage]:
         """Get secondary indexes, asserting they are initialized."""

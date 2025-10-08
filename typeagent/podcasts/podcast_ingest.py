@@ -114,7 +114,7 @@ async def ingest_podcast(
 
     pod = await Podcast.create(
         settings,
-        name_tag=podcast_name,
+        name=podcast_name,
         tags=[podcast_name],
     )
     # No more generate_timestamps() - timestamps are set during ingestion!

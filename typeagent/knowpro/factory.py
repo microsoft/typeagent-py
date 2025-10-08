@@ -44,15 +44,16 @@ async def create_conversation[TMessage: IMessage](
 
     settings.storage_provider = storage_provider
 
-    return ConversationBase(
+    conversation = ConversationBase(
         settings=settings,
-        storage_provider=storage_provider,
-        name_tag=name,
+        name=name,
         tags=tags if tags is not None else [],
-        messages=await storage_provider.get_message_collection(),
-        semantic_refs=await storage_provider.get_semantic_ref_collection(),
-        semantic_ref_index=await storage_provider.get_semantic_ref_index(),
-        secondary_indexes=await secindex.ConversationSecondaryIndexes.create(
-            storage_provider, settings.related_term_index_settings
-        ),
     )
+    conversation.storage_provider = storage_provider
+    conversation.messages = await storage_provider.get_message_collection()
+    conversation.semantic_refs = await storage_provider.get_semantic_ref_collection()
+    conversation.semantic_ref_index = await storage_provider.get_semantic_ref_index()
+    conversation.secondary_indexes = await secindex.ConversationSecondaryIndexes.create(
+        storage_provider, settings.related_term_index_settings
+    )
+    return conversation

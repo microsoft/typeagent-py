@@ -73,35 +73,8 @@ class TranscriptData(ConversationDataWithIndexes[TranscriptMessageData]):
     pass
 
 
-@dataclass
 class Transcript(ConversationBase[TranscriptMessage]):
     """Transcript conversation with incremental indexing support."""
-
-    @classmethod
-    async def create(
-        cls,
-        settings: ConversationSettings,
-        name_tag: str | None = None,
-        tags: list[str] | None = None,
-    ) -> "Transcript":
-        """Create a fully initialized Transcript instance."""
-        storage_provider = await settings.get_storage_provider()
-        messages = await storage_provider.get_message_collection()
-        semantic_refs = await storage_provider.get_semantic_ref_collection()
-        semantic_ref_index = await storage_provider.get_semantic_ref_index()
-        secondary_indexes = await secindex.ConversationSecondaryIndexes.create(
-            storage_provider, settings.related_term_index_settings
-        )
-        return cls(
-            settings,
-            storage_provider,
-            name_tag or "",
-            tags if tags is not None else [],
-            messages,
-            semantic_refs,
-            semantic_ref_index,
-            secondary_indexes,
-        )
 
     async def build_index(
         self,
