@@ -4,6 +4,7 @@
 import os
 from dataclasses import dataclass
 import json
+import copy
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 import typechat
 from ..aitools import utils
@@ -285,6 +286,9 @@ class EmailMemory2(ConversationBase[EmailMessage]):
 
         if options.compile_options is None:
             options.compile_options = EmailMemory.create_lang_search_compile_options()
+        else:
+            # Copy for modification
+            options.compile_options = copy.copy(options.compile_options)
 
         options.compile_options.term_filter = lambda term: self._is_searchable_term(
             term

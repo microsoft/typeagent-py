@@ -312,6 +312,7 @@ class ConversationBase(
         # The message index add_messages handles the ordinal tracking internally
         await self.secondary_indexes.message_index.add_messages(new_messages)
 
+    # Use search_options to customize number of messages to match, topK etc.
     async def query(
         self, question: str, search_options: searchlang.LanguageSearchOptions | None
     ) -> str:
