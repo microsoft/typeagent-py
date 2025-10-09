@@ -4,7 +4,10 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Software
 
-- Unify Podcast and Transcript (use shared message and metadata classes)?
+- We should change the commit state machine into a context manager
+  ('with storage_provider: ...') rather than requiring the user to do
+  the commit/rollback logic
+
 - Distinguish between release deps and build/dev deps?
 
 ### Specifically for VTT import (minor):
