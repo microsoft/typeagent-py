@@ -201,6 +201,7 @@ async def add_messages(context: EmailContext, args: list[str]):
 
     semantic_settings = context.conversation.settings.semantic_ref_index_settings
     auto_knowledge = semantic_settings.auto_extract_knowledge
+    print(Fore.CYAN, f"auto_extract_knowledge={auto_knowledge}" + Fore.RESET)
     try:
         conversation = context.conversation
         # Add one at a time for debugging etc.
