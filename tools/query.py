@@ -482,7 +482,7 @@ def prsep():
 
 
 def make_arg_parser(description: str) -> argparse.ArgumentParser:
-    line_width = utils.cap(144, shutil.get_terminal_size().columns)
+    line_width = min(144, shutil.get_terminal_size().columns)
     parser = argparse.ArgumentParser(
         description=description,
         formatter_class=lambda *a, **b: argparse.HelpFormatter(

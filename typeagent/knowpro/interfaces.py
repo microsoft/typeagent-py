@@ -50,13 +50,6 @@ class DeletionInfo:
     reason: str | None = None
 
 
-class TransactionState(Enum):
-    """State machine for storage provider transactions."""
-
-    NONE = "none"
-    ACTIVE = "active"
-
-
 @dataclass
 class IndexingStartPoints:
     """Track collection sizes before adding new items."""
@@ -840,16 +833,17 @@ class IStorageProvider[TMessage: IMessage](Protocol):
     async def get_conversation_threads(self) -> IConversationThreads: ...
 
     # Transaction management
-    async def begin_transaction(self) -> None:
-        """Begin a transaction. Must not be in active transaction."""
+    async def __aenter__(self) -> Self:
+        """Enter transaction context. Calls begin_transaction()."""
         ...
 
-    async def commit_transaction(self) -> None:
-        """Commit active transaction. Must be in ACTIVE state."""
-        ...
-
-    async def rollback_transaction(self) -> None:
-        """Rollback active transaction. Must be in ACTIVE state."""
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        """Exit transaction context. Commits on success, rolls back on exception."""
         ...
 
     async def close(self) -> None: ...

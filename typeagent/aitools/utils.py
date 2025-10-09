@@ -17,8 +17,6 @@ import typechat
 
 from pydantic_ai import Agent
 
-cap = min  # More readable name for capping a value at some limit.
-
 
 @contextmanager
 def timelog(label: str, verbose: bool = True):
@@ -51,7 +49,7 @@ def format_code(text: str, line_width=None) -> str:
     """
     if line_width is None:
         # Use the terminal width, but cap it to 200 characters.
-        line_width = cap(200, shutil.get_terminal_size().columns)
+        line_width = min(200, shutil.get_terminal_size().columns)
     formatted_text = black.format_str(
         text, mode=black.FileMode(line_length=line_width)
     ).rstrip()

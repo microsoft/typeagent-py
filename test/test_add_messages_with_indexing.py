@@ -148,22 +148,17 @@ async def test_transaction_rollback_on_error():
 
         initial_count = await transcript.messages.size()
 
-        # Try to add batch with error (empty text_chunks should work, so this isn't a good test)
-        # Instead, let's just verify the transaction state machine works
+        # Verify the transaction context manager works
         try:
-            await storage.begin_transaction()
-            await storage.commit_transaction()
+            async with storage:
+                pass
         except Exception:
-            pytest.fail("Transaction state machine should work")
+            pytest.fail("Transaction context manager should work")
 
-        # Verify transaction state errors
-        with pytest.raises(RuntimeError, match="Transaction already active"):
-            await storage.begin_transaction()
-            await storage.begin_transaction()
-
-        await storage.rollback_transaction()
-
-        with pytest.raises(RuntimeError, match="Cannot commit"):
-            await storage.commit_transaction()
+        # Verify nested transactions fail
+        with pytest.raises(Exception):  # SQLite will raise an OperationalError
+            async with storage:
+                async with storage:  # This should fail
+                    pass
 
         await storage.close()

@@ -90,8 +90,10 @@ async def main():
 
     if sys.argv[1:2]:
         base_path = Path(sys.argv[1])
-    else:
+    elif os.path.exists("/data"):
         base_path = Path("/data/testChat/knowpro/email/")
+    else:
+        base_path = Path(".")
 
     try:
         base_path.mkdir(parents=True, exist_ok=True)

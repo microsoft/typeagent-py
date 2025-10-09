@@ -173,8 +173,7 @@ async def _add_synonyms_file_as_aliases(
         data: list[dict] = json.load(f)
     if data:
         storage_provider = conversation.settings.storage_provider
-        await storage_provider.begin_transaction()
-        try:
+        async with storage_provider:
             if clean:
                 await aliases.clear()
             for obj in data:
@@ -184,10 +183,6 @@ async def _add_synonyms_file_as_aliases(
                     related_term = Term(text=text.lower())
                     for synonym in synonyms:
                         await aliases.add_related_term(synonym.lower(), related_term)
-            await storage_provider.commit_transaction()
-        except:
-            await storage_provider.rollback_transaction()
-            raise
 
 
 def _add_noise_words_from_file(

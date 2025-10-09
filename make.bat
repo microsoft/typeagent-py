@@ -50,7 +50,7 @@ goto end
 :build
 if not exist ".venv\" call make.bat venv
 echo Building package...
-.venv\Scripts\python -m build --wheel --installer uv
+uv build
 goto end
 
 :venv
