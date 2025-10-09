@@ -27,7 +27,9 @@ from fixtures import really_needs_auth
 async def test_related_terms_index_population_from_database(really_needs_auth):
     """Test that related terms index is correctly populated when reopening a database."""
     load_dotenv()
-    temp_db_path = tempfile.mktemp(suffix=".sqlite")
+    temp_db_file = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    temp_db_path = temp_db_file.name
+    temp_db_file.close()
 
     try:
         # Use the test model that's already configured in the system
