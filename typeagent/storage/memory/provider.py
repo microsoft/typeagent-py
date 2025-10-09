@@ -53,21 +53,17 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         thread_settings = message_text_settings.embedding_index_settings
         self._conversation_threads = ConversationThreads(thread_settings)
 
-    async def begin_transaction(self) -> None:
-        """Begin a transaction. No-op for in-memory storage."""
-        pass
+    async def __aenter__(self) -> "MemoryStorageProvider[TMessage]":
+        """Enter transaction context. No-op for in-memory storage."""
+        return self
 
-    async def commit_transaction(self) -> None:
-        """Commit active transaction. No-op for in-memory storage."""
-        pass
-
-    async def rollback_transaction(self) -> None:
-        """
-        Rollback active transaction. No-op for in-memory storage.
-
-        Note: In-memory storage cannot rollback changes as they are
-        immediately applied to the in-memory data structures.
-        """
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: object,
+    ) -> None:
+        """Exit transaction context. No-op for in-memory storage."""
         pass
 
     async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex:
