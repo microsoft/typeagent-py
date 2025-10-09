@@ -19,7 +19,9 @@ from typeagent.knowpro.kplib import ConcreteEntity
 @pytest.mark.asyncio
 async def test_related_terms_index_minimal():
     """Fast test with minimal data to verify related terms functionality."""
-    temp_db_path = tempfile.mktemp(suffix=".sqlite")
+    temp_db_file = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    temp_db_path = temp_db_file.name
+    temp_db_file.close()
 
     try:
         # Create minimal test data with test embedding model (no API keys needed)

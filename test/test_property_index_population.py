@@ -38,7 +38,9 @@ class MockEmbeddingModel(AsyncEmbeddingModel):
 async def test_property_index_population_from_database(really_needs_auth):
     """Test that property index is correctly populated when reopening a database."""
     load_dotenv()
-    temp_db_path = tempfile.mktemp(suffix=".sqlite")
+    temp_db_file = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    temp_db_path = temp_db_file.name
+    temp_db_file.close()
 
     try:
         embedding_model = MockEmbeddingModel()

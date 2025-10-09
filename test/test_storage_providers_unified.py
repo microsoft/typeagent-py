@@ -590,10 +590,12 @@ async def test_storage_provider_independence(
     import tempfile
     import os
 
-    fd1, temp_path1 = tempfile.mkstemp(suffix=".sqlite")
-    os.close(fd1)
-    fd2, temp_path2 = tempfile.mkstemp(suffix=".sqlite")
-    os.close(fd2)
+    temp_file1 = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    temp_path1 = temp_file1.name
+    temp_file1.close()
+    temp_file2 = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    temp_path2 = temp_file2.name
+    temp_file2.close()
 
     sqlite_provider1 = None
     sqlite_provider2 = None

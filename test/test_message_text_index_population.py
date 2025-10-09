@@ -23,7 +23,9 @@ import numpy as np
 async def test_message_text_index_population_from_database():
     """Test that message text index is correctly populated when reopening a database."""
     load_dotenv()
-    temp_db_path = tempfile.mktemp(suffix=".sqlite")
+    temp_db_file = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    temp_db_path = temp_db_file.name
+    temp_db_file.close()
 
     try:
         # Use the test model that's already configured in the system
