@@ -70,8 +70,8 @@ jobs:
         python-version: '3.12'
 
     - run: |
-        python3 --version
-        which python3
+        python --version
+        which python
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
