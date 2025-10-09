@@ -54,14 +54,6 @@ class EmailMemory(ConversationBase[EmailMessage]):
         super().__init__(settings, name, tags)
         self.noise_terms: set[str] = set()
 
-    async def configure_memory(self):
-        # Adjust settings to support knowledge extraction from message ext
-        self.settings.semantic_ref_index_settings.auto_extract_knowledge = True
-        # Add aliases for all the ways in which people can say 'send' and 'received'
-        await _add_synonyms_file_as_aliases(self, "emailVerbs.json", clean=True)
-        # Remove common terms used in email search that can make retrieval noisy
-        _add_noise_words_from_file(self.noise_terms, "noiseTerms.txt")
-
     @staticmethod
     def create_lang_search_options() -> searchlang.LanguageSearchOptions:
         return searchlang.LanguageSearchOptions(
@@ -91,9 +83,7 @@ class EmailMemory(ConversationBase[EmailMessage]):
         tags: list[str] | None = None,
     ) -> "EmailMemory":
         instance = await super().create(settings, name, tags)
-        await instance.configure_memory()
-        # Post-processing: customize instance as needed
-        # await instance.configure_memory()  # Uncomment if needed
+        await instance._configure_memory()
         return instance
 
     async def query(
@@ -127,6 +117,14 @@ class EmailMemory(ConversationBase[EmailMessage]):
             None,
             debug_context,
         )
+
+    async def _configure_memory(self):
+        # Adjust settings to support knowledge extraction from message ext
+        self.settings.semantic_ref_index_settings.auto_extract_knowledge = True
+        # Add aliases for all the ways in which people can say 'send' and 'received'
+        await _add_synonyms_file_as_aliases(self, "emailVerbs.json", clean=True)
+        # Remove common terms used in email search that can make retrieval noisy
+        _add_noise_words_from_file(self.noise_terms, "noiseTerms.txt")
 
     def _adjust_search_options(
         self, options: searchlang.LanguageSearchOptions | None

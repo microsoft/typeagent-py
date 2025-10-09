@@ -347,9 +347,7 @@ async def load_or_create_email_index(db_path: str, create_new: bool) -> EmailMem
         db_path,
         EmailMessage,
     )
-    # return await EmailMemory.create(settings)
     email_memory = await EmailMemory.create(settings)
-    # await email_memory.configure_memory()
     return email_memory
 
 
