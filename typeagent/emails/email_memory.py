@@ -55,6 +55,8 @@ class EmailMemory(ConversationBase[EmailMessage]):
         self.noise_terms: set[str] = set()
 
     async def configure_memory(self):
+        # Adjust settings to support knowledge extraction from message ext
+        self.settings.semantic_ref_index_settings.auto_extract_knowledge = True
         # Add aliases for all the ways in which people can say 'send' and 'received'
         await _add_synonyms_file_as_aliases(self, "emailVerbs.json", clean=True)
         # Remove common terms used in email search that can make retrieval noisy
@@ -80,6 +82,19 @@ class EmailMemory(ConversationBase[EmailMessage]):
         return answers.AnswerContextOptions(
             entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
         )
+
+    @classmethod
+    async def create(
+        cls,
+        settings: ConversationSettings,
+        name: str | None = None,
+        tags: list[str] | None = None,
+    ) -> "EmailMemory":
+        instance = await super().create(settings, name, tags)
+        await instance.configure_memory()
+        # Post-processing: customize instance as needed
+        # await instance.configure_memory()  # Uncomment if needed
+        return instance
 
     async def query(
         self,
