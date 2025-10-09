@@ -14,14 +14,10 @@ from .email_message import EmailMessage, EmailMessageMeta
 
 def import_emails_from_dir(
     dir_path: str, max_chunk_length: int = 4096
-) -> list[EmailMessage]:
-    messages: list[EmailMessage] = []
+) -> Iterable[EmailMessage]:
     for file_path in Path(dir_path).iterdir():
         if file_path.is_file():
-            messages.append(
-                import_email_from_file(str(file_path.resolve()), max_chunk_length)
-            )
-    return messages
+            yield import_email_from_file(str(file_path.resolve()), max_chunk_length)
 
 
 # Imports an email file (.eml) as a list of EmailMessage objects
@@ -32,7 +28,9 @@ def import_email_from_file(
     with open(file_path, "r") as f:
         email_string = f.read()
 
-    return import_email_string(email_string, max_chunk_length)
+    email = import_email_string(email_string, max_chunk_length)
+    email.src_url = file_path
+    return email
 
 
 # Imports a single email MIME string and returns an EmailMessage object
@@ -65,6 +63,7 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
         cc=_import_address_headers(msg.get_all("Cc", [])),
         bcc=_import_address_headers(msg.get_all("Bcc", [])),
         subject=msg.get("Subject"),
+        id=msg.get("Message-ID", None),
     )
     timestamp: str | None = None
     timestamp_date = msg.get("Date", None)
