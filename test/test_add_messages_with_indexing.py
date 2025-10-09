@@ -153,12 +153,12 @@ async def test_transaction_rollback_on_error():
             async with storage:
                 pass
         except Exception:
-            pytest.fail("Transaction state machine should work")
+            pytest.fail("Transaction context manager should work")
 
-        # Verify transaction state errors - cannot nest transactions
-        with pytest.raises(RuntimeError, match="Transaction already active"):
+        # Verify nested transactions fail
+        with pytest.raises(Exception):  # SQLite will raise an OperationalError
             async with storage:
-                async with storage:
+                async with storage:  # This should fail
                     pass
 
         await storage.close()

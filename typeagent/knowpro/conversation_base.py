@@ -136,9 +136,7 @@ class ConversationBase(
         """
         storage = await self.settings.get_storage_provider()
 
-        await storage.begin_transaction()
-
-        try:
+        async with storage:
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
                 semref_count=await self.semantic_refs.size(),
@@ -162,13 +160,7 @@ class ConversationBase(
                 - start_points.semref_count,
             )
 
-            await storage.commit_transaction()
-
             return result
-
-        except BaseException:
-            await storage.rollback_transaction()
-            raise
 
     async def _add_metadata_knowledge_incremental(
         self,
