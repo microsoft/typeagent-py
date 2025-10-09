@@ -49,121 +49,16 @@ class EmailMemorySettings:
 
 
 @dataclass
-class EmailMemory(IConversation[EmailMessage, ITermToSemanticRefIndex]):
-    settings: EmailMemorySettings
-    name_tag: str
-    messages: IMessageCollection[EmailMessage]
-    semantic_refs: ISemanticRefCollection
-    tags: list[str]
-    semantic_ref_index: ITermToSemanticRefIndex
-    secondary_indexes: IConversationSecondaryIndexes[EmailMessage] | None
+class EmailMemory(ConversationBase[EmailMessage]):
+    def __init__(self, settings, name, tags):
+        super().__init__(settings, name, tags)
+        self.noise_terms: set[str] = set()
 
-    noise_terms: set[str]
-
-    @classmethod
-    async def create(
-        cls,
-        settings: ConversationSettings,
-        name_tag: str | None = None,
-        messages: IMessageCollection[EmailMessage] | None = None,
-        semantic_refs: ISemanticRefCollection | None = None,
-        semantic_ref_index: ITermToSemanticRefIndex | None = None,
-        tags: list[str] | None = None,
-        secondary_indexes: IConversationSecondaryIndexes[EmailMessage] | None = None,
-    ) -> "EmailMemory":
-
-        noise_terms = set()
-        storage_provider = await settings.get_storage_provider()
-        email_memory = cls(
-            EmailMemorySettings(settings),
-            name_tag or "",
-            messages or await storage_provider.get_message_collection(),
-            semantic_refs or await storage_provider.get_semantic_ref_collection(),
-            tags if tags is not None else [],
-            semantic_ref_index or await storage_provider.get_semantic_ref_index(),
-            secondary_indexes
-            or await secindex.ConversationSecondaryIndexes.create(
-                storage_provider, settings.related_term_index_settings
-            ),
-            noise_terms,
-        )
-
+    async def configure_memory(self):
         # Add aliases for all the ways in which people can say 'send' and 'received'
-        await _add_synonyms_file_as_aliases(email_memory, "emailVerbs.json")
+        await _add_synonyms_file_as_aliases(self, "emailVerbs.json")
         # Remove common terms used in email search that can make retrieval noisy
-        _add_noise_words_from_file(email_memory.noise_terms, "noiseTerms.txt")
-        email_memory.noise_terms.add("email")
-        email_memory.noise_terms.add("message")
-
-        return email_memory
-
-    # Add an email message to the memory.
-    async def add_message(self, message: EmailMessage) -> None:
-        await self.messages.append(message)
-        self._commit()
-
-    # Build an index using ALL messages in the memory
-    async def build_index(
-        self,
-    ) -> None:
-        await semrefindex.add_metadata_to_index(
-            self.messages,
-            self.semantic_refs,
-            self.semantic_ref_index,
-        )
-        assert (
-            self.settings is not None
-        ), "Settings must be initialized before building index"
-
-        self._commit()
-        await semrefindex.build_semantic_ref(self, self.settings.conversation_settings)
-        self._commit()
-        await secindex.build_transient_secondary_indexes(
-            self, self.settings.conversation_settings
-        )
-        self._commit()
-
-    # Search email memory using language
-    async def search_with_language(
-        self,
-        search_text: str,
-        options: searchlang.LanguageSearchOptions | None = None,
-        lang_search_filter: searchlang.LanguageSearchFilter | None = None,
-        debug_context: searchlang.LanguageSearchDebugContext | None = None,
-    ) -> typechat.Result[list[searchlang.ConversationSearchResult]]:
-        return await searchlang.search_conversation_with_language(
-            self,
-            self.settings.query_translator,
-            search_text,
-            self._adjust_search_options(options),
-            lang_search_filter,
-            debug_context,
-        )
-
-    async def get_answer_with_language(
-        self,
-        question: str,
-        search_options: searchlang.LanguageSearchOptions | None = None,
-        lang_search_filter: searchlang.LanguageSearchFilter | None = None,
-        answer_context_options: answers.AnswerContextOptions | None = None,
-    ) -> typechat.Result[tuple[list[answers.AnswerResponse], answers.AnswerResponse]]:
-        search_results = await self.search_with_language(
-            question, search_options, lang_search_filter, None
-        )
-        if isinstance(search_results, typechat.Failure):
-            return search_results
-
-        if answer_context_options is None:
-            answer_context_options = EmailMemory.create_answer_context_options()
-
-        answer = await answers.generate_answers(
-            self.settings.answer_translator,
-            search_results.value,
-            self,
-            question,
-            answer_context_options,
-        )
-        return typechat.Success(answer)
+        _add_noise_words_from_file(self.noise_terms, "noiseTerms.txt")
 
     @staticmethod
     def create_lang_search_options() -> searchlang.LanguageSearchOptions:
@@ -186,24 +81,50 @@ class EmailMemory(IConversation[EmailMessage, ITermToSemanticRefIndex]):
             entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
         )
 
-    def _get_secondary_indexes(self) -> IConversationSecondaryIndexes[EmailMessage]:
-        """Get secondary indexes, asserting they are initialized."""
-        assert (
-            self.secondary_indexes is not None
-        ), "Use await f.create() to create an initialized instance"
-        return self.secondary_indexes
+    async def query(
+        self,
+        question: str,
+        search_options: searchlang.LanguageSearchOptions | None = None,
+        answer_options: answers.AnswerContextOptions | None = None,
+    ) -> str:
+        return await super().query(
+            question,
+            self._adjust_search_options(search_options),
+            (
+                answer_options
+                if answer_options is not None
+                else EmailMemory.create_answer_context_options()
+            ),
+        )
 
-    def _commit(self):
-        provider = self.settings.conversation_settings.storage_provider
-        if isinstance(provider, SqliteStorageProvider):
-            provider.db.commit()
+    # Search email memory using language
+    async def query_debug(
+        self,
+        search_text: str,
+        query_translator: typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery],
+        debug_context: searchlang.LanguageSearchDebugContext | None = None,
+    ) -> typechat.Result[list[searchlang.ConversationSearchResult]]:
+        return await searchlang.search_conversation_with_language(
+            self,
+            query_translator,
+            search_text,
+            self._adjust_search_options(None),
+            None,
+            debug_context,
+        )
 
-    def _adjust_search_options(self, options: searchlang.LanguageSearchOptions | None):
+    def _adjust_search_options(
+        self, options: searchlang.LanguageSearchOptions | None
+    ) -> searchlang.LanguageSearchOptions:
+        # TODO: should actually clone the object the caller passed
         if options is None:
             options = EmailMemory.create_lang_search_options()
 
         if options.compile_options is None:
             options.compile_options = EmailMemory.create_lang_search_compile_options()
+        else:
+            # Copy for modification
+            options.compile_options = copy.copy(options.compile_options)
 
         options.compile_options.term_filter = lambda term: self._is_searchable_term(
             term
@@ -213,7 +134,6 @@ class EmailMemory(IConversation[EmailMessage, ITermToSemanticRefIndex]):
     def _is_searchable_term(self, term: str) -> bool:
         is_searchable = term not in self.noise_terms
         return is_searchable
-
 
 #
 # TODO: Migrate some variation of these into a shared API
@@ -260,37 +180,3 @@ def _add_noise_words_from_file(
         if len(word) > 0:
             noise.add(word)
 
-
-class EmailMemory2(ConversationBase[EmailMessage]):
-    def __init__(self, settings, name, tags):
-        super().__init__(settings, name, tags)
-        self.noise_terms: set[str] = []
-
-    async def configure_memory(self):
-        # Add aliases for all the ways in which people can say 'send' and 'received'
-        await _add_synonyms_file_as_aliases(self, "emailVerbs.json")
-        # Remove common terms used in email search that can make retrieval noisy
-        _add_noise_words_from_file(self.noise_terms, "noiseTerms.txt")
-
-    async def query(self, question, search_options):
-        return await super().query(
-            question, self._adjust_search_options(search_options)
-        )
-
-    def _adjust_search_options(
-        self, options: searchlang.LanguageSearchOptions | None
-    ) -> searchlang.LanguageSearchOptions:
-        # TODO: should actually clone the object the caller passed
-        if options is None:
-            options = EmailMemory.create_lang_search_options()
-
-        if options.compile_options is None:
-            options.compile_options = EmailMemory.create_lang_search_compile_options()
-        else:
-            # Copy for modification
-            options.compile_options = copy.copy(options.compile_options)
-
-        options.compile_options.term_filter = lambda term: self._is_searchable_term(
-            term
-        )
-        return options

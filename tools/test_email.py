@@ -22,6 +22,8 @@ from typeagent.aitools import utils
 from typeagent.knowpro import (
     kplib,
     searchlang,
+    search_query_schema,
+    convknowledge
 )
 from typeagent.knowpro.interfaces import IConversation
 from typeagent.emails.email_import import import_email_from_file, import_emails_from_dir
@@ -41,9 +43,21 @@ class EmailContext:
         self.base_path = base_path
         self.db_path = base_path.joinpath(db_name)
         self.conversation = conversation
+        self.query_translator: (
+        typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery] | None
+    ) = None
 
+
+    def get_translator(self):
+        if self.query_translator is None:
+            model = convknowledge.create_typechat_model()
+            self.query_translator = utils.create_translator(
+                model, search_query_schema.SearchQuery
+            )
+        return self.query_translator
+    
     async def load_conversation(self, db_name: str, create_new: bool = False):
-        await self.conversation.settings.conversation_settings.storage_provider.close()
+        await self.conversation.settings.storage_provider.close()
         self.db_path = self.base_path.joinpath(db_name)
         self.conversation = await load_or_create_email_index(
             str(self.db_path), create_new
@@ -51,7 +65,7 @@ class EmailContext:
 
     # Delete the current conversation and re-create it
     async def restart_conversation(self):
-        await self.conversation.settings.conversation_settings.storage_provider.close()
+        await self.conversation.settings.storage_provider.close()
         self.conversation = await load_or_create_email_index(
             str(self.db_path), create_new=True
         )
@@ -89,10 +103,11 @@ async def main():
     print("Email Memory Demo")
     print("Type @help for a list of commands")
 
-    db_path = str(base_path.joinpath("pyEmails.db"))
+    default_db = "gmail.db" # "pyEmails.db"
+    db_path = str(base_path.joinpath(default_db))
     context = EmailContext(
         base_path,
-        "pyEmails.db",
+        default_db,
         conversation=await load_or_create_email_index(db_path, create_new=False),
     )
     print(f"Using email memory at: {db_path}")
@@ -105,7 +120,6 @@ async def main():
         "@add_messages": add_messages,  # Add messages
         "@parse_messages": parse_messages,
         "@load_index": load_index,
-        "@build_index": build_index,  # Build index
         "@reset_index": reset_index,  # Delete  index and start over
         "@search": search_index,  # Search index
         "@answer": generate_answer,  # Question answer
@@ -179,27 +193,29 @@ async def add_messages(context: EmailContext, args: list[str]):
         emails = import_emails_from_dir(str(src_path))
 
     print(Fore.CYAN, f"Importing {len(emails)} emails".capitalize())
-    print()
+    print(Fore.RESET)
 
     conversation = context.conversation
     for email in emails:
-        print_email(email)
-        print()
+        #print_email(email)
+        #print()
         # knowledge = email.metadata.get_knowledge()
         # print_knowledge(knowledge)
 
-        print("Adding email...")
-        await conversation.add_message(email)
+        print(f"From: {email.metadata.sender}\nTo:{email.metadata.recipients}")
+        # await conversation.add_message(email)
+        await conversation.add_messages_with_indexing([email])
+        print("Success")
 
     await print_conversation_stats(conversation)
 
 
-async def build_index(context: EmailContext, args: list[str]):
-    conversation = context.conversation
-    print(Fore.GREEN, "Building index")
-    await print_conversation_stats(conversation)
-    await conversation.build_index()
-    print(Fore.GREEN + "Built index.")
+# async def build_index(context: EmailContext, args: list[str]):
+#    conversation = context.conversation
+#    print(Fore.GREEN, "Building index")
+#    await print_conversation_stats(conversation)
+#    await conversation.build_index()
+#    print(Fore.GREEN + "Built index.")
 
 
 async def search_index(context: EmailContext, args: list[str]):
@@ -213,8 +229,10 @@ async def search_index(context: EmailContext, args: list[str]):
     print(Fore.CYAN, f"Searching for:\n{search_text} ")
 
     debug_context = searchlang.LanguageSearchDebugContext()
-    results = await context.conversation.search_with_language(
-        search_text=search_text, debug_context=debug_context
+    results = await context.conversation.query_debug(
+        search_text=search_text,
+        query_translator=context.get_translator(), 
+        debug_context=debug_context
     )
     await print_search_results(context.conversation, debug_context, results)
 
@@ -228,13 +246,9 @@ async def generate_answer(context: EmailContext, args: list[str]):
         return
 
     print(Fore.CYAN, f"Getting answer for:\n{question} ")
-    result = await context.conversation.get_answer_with_language(question=question)
-    if isinstance(result, typechat.Failure):
-        print_error(result.message)
-        return
 
-    all_answers, _ = result.value
-    utils.pretty_print(all_answers)
+    answer = await context.conversation.query(question)
+    print(Fore.GREEN + answer)
 
 
 async def reset_index(context: EmailContext, args: list[str]):
@@ -334,7 +348,10 @@ async def load_or_create_email_index(db_path: str, create_new: bool) -> EmailMem
         db_path,
         EmailMessage,
     )
-    return await EmailMemory.create(settings)
+    # return await EmailMemory.create(settings)
+    email_memory = await EmailMemory.create(settings)
+    await email_memory.configure_memory()
+    return email_memory
 
 
 def delete_sqlite_db(db_path: str):
