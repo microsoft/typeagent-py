@@ -106,7 +106,9 @@ class EmailMemory(ConversationBase[EmailMessage]):
     async def query_debug(
         self,
         search_text: str,
-        query_translator: typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery],
+        query_translator: typechat.TypeChatJsonTranslator[
+            search_query_schema.SearchQuery
+        ],
         debug_context: searchlang.LanguageSearchDebugContext | None = None,
     ) -> typechat.Result[list[searchlang.ConversationSearchResult]]:
         return await searchlang.search_conversation_with_language(
@@ -148,6 +150,7 @@ class EmailMemory(ConversationBase[EmailMessage]):
         is_searchable = term not in self.noise_terms
         return is_searchable
 
+
 #
 # TODO: Migrate some variation of these into a shared API
 #
@@ -155,8 +158,7 @@ class EmailMemory(ConversationBase[EmailMessage]):
 
 # Load synonyms from a file and add them as aliases
 async def _add_synonyms_file_as_aliases(
-    conversation: ConversationBase, file_name: str,
-    clean: bool
+    conversation: ConversationBase, file_name: str, clean: bool
 ) -> None:
     secondary_indexes = conversation.secondary_indexes
     assert secondary_indexes is not None
@@ -186,7 +188,8 @@ async def _add_synonyms_file_as_aliases(
         except:
             await storage_provider.rollback_transaction()
             raise
-                
+
+
 def _add_noise_words_from_file(
     noise: set[str],
     file_name: str,
@@ -201,4 +204,3 @@ def _add_noise_words_from_file(
         word = word.strip()
         if len(word) > 0:
             noise.add(word)
-

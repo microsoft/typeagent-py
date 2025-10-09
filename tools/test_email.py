@@ -19,12 +19,7 @@ except ImportError:
 import typechat
 
 from typeagent.aitools import utils
-from typeagent.knowpro import (
-    kplib,
-    searchlang,
-    search_query_schema,
-    convknowledge
-)
+from typeagent.knowpro import kplib, searchlang, search_query_schema, convknowledge
 from typeagent.knowpro.interfaces import IConversation
 from typeagent.emails.email_import import import_email_from_file, import_emails_from_dir
 from typeagent.emails.email_memory import EmailMemory
@@ -44,9 +39,8 @@ class EmailContext:
         self.db_path = base_path.joinpath(db_name)
         self.conversation = conversation
         self.query_translator: (
-        typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery] | None
-    ) = None
-
+            typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery] | None
+        ) = None
 
     def get_translator(self):
         if self.query_translator is None:
@@ -55,7 +49,7 @@ class EmailContext:
                 model, search_query_schema.SearchQuery
             )
         return self.query_translator
-    
+
     async def load_conversation(self, db_name: str, create_new: bool = False):
         await self.conversation.settings.storage_provider.close()
         self.db_path = self.base_path.joinpath(db_name)
@@ -103,7 +97,7 @@ async def main():
     print("Email Memory Demo")
     print("Type @help for a list of commands")
 
-    default_db = "gmail.db" # "pyEmails.db"
+    default_db = "gmail.db"  # "pyEmails.db"
     db_path = str(base_path.joinpath(default_db))
     context = EmailContext(
         base_path,
@@ -197,8 +191,8 @@ async def add_messages(context: EmailContext, args: list[str]):
 
     conversation = context.conversation
     for email in emails:
-        #print_email(email)
-        #print()
+        # print_email(email)
+        # print()
         # knowledge = email.metadata.get_knowledge()
         # print_knowledge(knowledge)
 
@@ -231,8 +225,8 @@ async def search_index(context: EmailContext, args: list[str]):
     debug_context = searchlang.LanguageSearchDebugContext()
     results = await context.conversation.query_debug(
         search_text=search_text,
-        query_translator=context.get_translator(), 
-        debug_context=debug_context
+        query_translator=context.get_translator(),
+        debug_context=debug_context,
     )
     await print_search_results(context.conversation, debug_context, results)
 
