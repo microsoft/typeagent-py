@@ -11,6 +11,11 @@ from colorama import Fore
 from pathlib import Path
 import argparse
 
+try:
+    import readline  # noqa: F401
+except ImportError:
+    pass  # readline not available on Windows
+
 import typechat
 
 from typeagent.aitools import utils
@@ -68,8 +73,17 @@ def command(parser: argparse.ArgumentParser):
 # TODO : Once stable, move creation etc to query.py
 async def main():
 
-    base_path = Path("/data/testChat/knowpro/email/")
-    base_path.mkdir(parents=True, exist_ok=True)
+    if sys.argv[1:2]:
+        base_path = Path(sys.argv[1])
+    else:
+        base_path = Path("/data/testChat/knowpro/email/")
+
+    try:
+        base_path.mkdir(parents=True, exist_ok=True)
+    except PermissionError as err:
+        print(err)
+        sys.exit(1)
+
     utils.load_dotenv()
 
     print("Email Memory Demo")
@@ -96,9 +110,16 @@ async def main():
         "@search": search_index,  # Search index
         "@answer": generate_answer,  # Question answer
     }
-    default_handler = generate_answer
+
+    async def default_handler(context, line):
+        return await generate_answer(context, [line])
+
     while True:
-        line = input("✉>>").strip()
+        try:
+            line = input("✉>> ").strip()
+        except EOFError:
+            print()
+            break
         if len(line) == 0:
             continue
         try:
@@ -112,15 +133,16 @@ async def main():
             else:
                 cmd_handler = cmd_handlers.get(cmd)
                 if cmd_handler is None and not cmd.startswith("@"):
-                    cmd_handler = default_handler
-                if cmd_handler:
+                    await default_handler(context, line)
+                elif cmd_handler:
                     await cmd_handler(context, args)
                 else:
                     print_commands(cmd_handlers)
-        except Exception as e:
+        except (Exception, SystemExit) as e:
             print()
-            print(Fore.RED, f"Error\n: {e}")
+            print(Fore.RED + f"Error\n: {e}" + Fore.RESET)
             traceback.print_exc()
+            continue
 
         print(Fore.RESET)
 
