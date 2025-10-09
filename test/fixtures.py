@@ -68,8 +68,9 @@ def temp_dir() -> Iterator[str]:
 @pytest.fixture
 def temp_db_path() -> Iterator[str]:
     """Create a temporary SQLite database file for testing."""
-    fd, path = tempfile.mkstemp(suffix=".sqlite")
-    os.close(fd)
+    temp_file = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+    path = temp_file.name
+    temp_file.close()
     yield path
     if os.path.exists(path):
         os.remove(path)

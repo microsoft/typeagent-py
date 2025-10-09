@@ -250,10 +250,12 @@ class TestConversationMetadata:
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
         # Create temporary database files
-        fd1, db_path1 = tempfile.mkstemp(suffix=".sqlite")
-        fd2, db_path2 = tempfile.mkstemp(suffix=".sqlite")
-        os.close(fd1)
-        os.close(fd2)
+        temp_file1 = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+        db_path1 = temp_file1.name
+        temp_file1.close()
+        temp_file2 = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
+        db_path2 = temp_file2.name
+        temp_file2.close()
 
         try:
             # Create first provider with conversation "conv1"
