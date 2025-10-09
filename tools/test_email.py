@@ -338,7 +338,6 @@ def help(handlers: dict[str, CommandHandler], args: list[str]):
 #
 async def load_or_create_email_index(db_path: str, create_new: bool) -> EmailMemory:
     if create_new:
-        print(f"Deleting {db_path}")
         delete_sqlite_db(db_path)
 
     settings = ConversationSettings()

@@ -56,7 +56,7 @@ class EmailMemory(ConversationBase[EmailMessage]):
 
     async def configure_memory(self):
         # Add aliases for all the ways in which people can say 'send' and 'received'
-        await _add_synonyms_file_as_aliases(self, "emailVerbs.json")
+        await _add_synonyms_file_as_aliases(self, "emailVerbs.json", clean=True)
         # Remove common terms used in email search that can make retrieval noisy
         _add_noise_words_from_file(self.noise_terms, "noiseTerms.txt")
 
@@ -142,7 +142,8 @@ class EmailMemory(ConversationBase[EmailMessage]):
 
 # Load synonyms from a file and add them as aliases
 async def _add_synonyms_file_as_aliases(
-    conversation: IConversation, file_name: str
+    conversation: ConversationBase, file_name: str,
+    clean: bool
 ) -> None:
     secondary_indexes = conversation.secondary_indexes
     assert secondary_indexes is not None
@@ -156,15 +157,23 @@ async def _add_synonyms_file_as_aliases(
     with open(synonym_file) as f:
         data: list[dict] = json.load(f)
     if data:
-        for obj in data:
-            text = obj.get("term")
-            synonyms = obj.get("relatedTerms")
-            if text and synonyms:
-                related_term = Term(text=text.lower())
-                for synonym in synonyms:
-                    await aliases.add_related_term(synonym.lower(), related_term)
-
-
+        storage_provider = conversation.settings.storage_provider
+        await storage_provider.begin_transaction()
+        try:
+            if clean:
+                await aliases.clear()
+            for obj in data:
+                text = obj.get("term")
+                synonyms = obj.get("relatedTerms")
+                if text and synonyms:
+                    related_term = Term(text=text.lower())
+                    for synonym in synonyms:
+                        await aliases.add_related_term(synonym.lower(), related_term)
+            await storage_provider.commit_transaction()
+        except:
+            await storage_provider.rollback_transaction()
+            raise
+                
 def _add_noise_words_from_file(
     noise: set[str],
     file_name: str,
