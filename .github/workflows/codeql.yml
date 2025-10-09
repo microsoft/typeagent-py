@@ -63,10 +63,11 @@ jobs:
     # - name: Setup runtime (example)
     #   uses: actions/setup-example@v1
 
-      # Force Python 3.12 for this job (uv will pick this up)
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12.x'
+    # Force Python 3.12 for this job (uv will pick this up)
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
