@@ -59,7 +59,7 @@ packages = [
 
 [tool.setuptools.package-data]
 "typeagent.podcasts" = ["*.json"]
-"typeagent.emails" = ["*.json"]
+"typeagent.emails" = ["*.json", ".txt"]
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"

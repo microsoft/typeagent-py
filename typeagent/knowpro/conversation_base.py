@@ -312,7 +312,9 @@ class ConversationBase(
         # The message index add_messages handles the ordinal tracking internally
         await self.secondary_indexes.message_index.add_messages(new_messages)
 
-    async def query(self, question: str) -> str:
+    async def query(
+        self, question: str, search_options: searchlang.LanguageSearchOptions | None
+    ) -> str:
         """
         Run an end-to-end query on the conversation.
 
@@ -343,13 +345,17 @@ class ConversationBase(
             )
 
         # Stage 1-3: Search the conversation with the natural language query
-        search_options = searchlang.LanguageSearchOptions(
-            compile_options=searchlang.LanguageQueryCompileOptions(
-                exact_scope=False, verb_scope=True, term_filter=None, apply_scope=True
-            ),
-            exact_match=False,
-            max_message_matches=25,
-        )
+        if search_options is None:
+            search_options = searchlang.LanguageSearchOptions(
+                compile_options=searchlang.LanguageQueryCompileOptions(
+                    exact_scope=False,
+                    verb_scope=True,
+                    term_filter=None,
+                    apply_scope=True,
+                ),
+                exact_match=False,
+                max_message_matches=25,
+            )
 
         result = await searchlang.search_conversation_with_language(
             self,

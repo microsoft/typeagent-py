@@ -50,3 +50,6 @@ every
 any
 some
 none
+
+email
+message

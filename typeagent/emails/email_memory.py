@@ -25,6 +25,7 @@ from ..knowpro.interfaces import (
     ITermToSemanticRefIndex,
     Term,
 )
+from ..knowpro.conversation_base import ConversationBase
 from ..storage.memory import semrefindex
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 
@@ -257,3 +258,35 @@ def _add_noise_words_from_file(
         word = word.strip()
         if len(word) > 0:
             noise.add(word)
+
+
+class EmailMemory2(ConversationBase[EmailMessage]):
+    def __init__(self, settings, name, tags):
+        super().__init__(settings, name, tags)
+        self.noise_terms: set[str] = []
+
+    async def configure_memory(self):
+        # Add aliases for all the ways in which people can say 'send' and 'received'
+        await _add_synonyms_file_as_aliases(self, "emailVerbs.json")
+        # Remove common terms used in email search that can make retrieval noisy
+        _add_noise_words_from_file(self.noise_terms, "noiseTerms.txt")
+
+    async def query(self, question, search_options):
+        return await super().query(
+            question, self._adjust_search_options(search_options)
+        )
+
+    def _adjust_search_options(
+        self, options: searchlang.LanguageSearchOptions | None
+    ) -> searchlang.LanguageSearchOptions:
+        # TODO: should actually clone the object the caller passed
+        if options is None:
+            options = EmailMemory.create_lang_search_options()
+
+        if options.compile_options is None:
+            options.compile_options = EmailMemory.create_lang_search_compile_options()
+
+        options.compile_options.term_filter = lambda term: self._is_searchable_term(
+            term
+        )
+        return options
