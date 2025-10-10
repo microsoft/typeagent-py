@@ -10,6 +10,7 @@ from typing import Any, Literal, Iterable, Callable, Awaitable
 from colorama import Fore
 from pathlib import Path
 import argparse
+import shelve
 
 try:
     import readline  # noqa: F401
@@ -19,10 +20,7 @@ except ImportError:
 import typechat
 
 from typeagent.aitools import utils
-from typeagent.knowpro import (
-    kplib,
-    searchlang,
-)
+from typeagent.knowpro import kplib, searchlang, search_query_schema, convknowledge
 from typeagent.knowpro.interfaces import IConversation
 from typeagent.emails.email_import import import_email_from_file, import_emails_from_dir
 from typeagent.emails.email_memory import EmailMemory
@@ -39,22 +37,41 @@ class EmailContext:
         self, base_path: Path, db_name: str, conversation: EmailMemory
     ) -> None:
         self.base_path = base_path
+        self.db_name = db_name
         self.db_path = base_path.joinpath(db_name)
         self.conversation = conversation
+        self.query_translator: (
+            typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery] | None
+        ) = None
+        self.index_log = load_index_log(str(self.db_path), create_new=False)
+
+    def get_translator(self):
+        if self.query_translator is None:
+            model = convknowledge.create_typechat_model()
+            self.query_translator = utils.create_translator(
+                model, search_query_schema.SearchQuery
+            )
+        return self.query_translator
 
     async def load_conversation(self, db_name: str, create_new: bool = False):
-        await self.conversation.settings.conversation_settings.storage_provider.close()
+        await self.conversation.settings.storage_provider.close()
+        self.db_name = db_name
         self.db_path = self.base_path.joinpath(db_name)
         self.conversation = await load_or_create_email_index(
             str(self.db_path), create_new
         )
+        self.index_log = load_index_log(str(self.db_path), create_new)
 
     # Delete the current conversation and re-create it
     async def restart_conversation(self):
-        await self.conversation.settings.conversation_settings.storage_provider.close()
-        self.conversation = await load_or_create_email_index(
-            str(self.db_path), create_new=True
-        )
+        await self.load_conversation(self.db_name, create_new=True)
+
+    def is_indexed(self, email_id: str | None) -> bool:
+        return bool(email_id and self.index_log.get(email_id))
+
+    def log_indexed(self, email_id: str | None) -> None:
+        if email_id is not None:
+            self.index_log[email_id] = True
 
 
 CommandHandler = Callable[[EmailContext, list[str]], Awaitable[None]]
@@ -69,8 +86,6 @@ def command(parser: argparse.ArgumentParser):
     return decorator
 
 
-# Just simple test code
-# TODO : Once stable, move creation etc to query.py
 async def main():
 
     if sys.argv[1:2]:
@@ -91,10 +106,11 @@ async def main():
     print("Email Memory Demo")
     print("Type @help for a list of commands")
 
-    db_path = str(base_path.joinpath("pyEmails.db"))
+    default_db = "gmail.db"  # "pyEmails.db"
+    db_path = str(base_path.joinpath(default_db))
     context = EmailContext(
         base_path,
-        "pyEmails.db",
+        default_db,
         conversation=await load_or_create_email_index(db_path, create_new=False),
     )
     print(f"Using email memory at: {db_path}")
@@ -107,7 +123,6 @@ async def main():
         "@add_messages": add_messages,  # Add messages
         "@parse_messages": parse_messages,
         "@load_index": load_index,
-        "@build_index": build_index,  # Build index
         "@reset_index": reset_index,  # Delete  index and start over
         "@search": search_index,  # Search index
         "@answer": generate_answer,  # Question answer
@@ -162,6 +177,10 @@ def _add_messages_def() -> argparse.ArgumentParser:
         default="",
         help="Path to an .eml file or to a directory with .eml files",
     )
+    cmd.add_argument("--ignore_error", type=bool, default=True, help="Ignore errors")
+    cmd.add_argument(
+        "--knowledge", type=bool, default=True, help="Automatically extract knowledge"
+    )
     return cmd
 
 
@@ -174,34 +193,46 @@ async def add_messages(context: EmailContext, args: list[str]):
 
     # Get the path to the email file or directory of emails to ingest
     src_path = Path(named_args.path)
-    emails: list[EmailMessage]
+    emails: Iterable[EmailMessage]
     if src_path.is_file():
         emails = [import_email_from_file(str(src_path))]
     else:
         emails = import_emails_from_dir(str(src_path))
 
-    print(Fore.CYAN, f"Importing {len(emails)} emails".capitalize())
-    print()
+    print(Fore.CYAN, f"Importing from {src_path}" + Fore.RESET)
 
-    conversation = context.conversation
-    for email in emails:
-        print_email(email)
-        print()
-        # knowledge = email.metadata.get_knowledge()
-        # print_knowledge(knowledge)
+    semantic_settings = context.conversation.settings.semantic_ref_index_settings
+    auto_knowledge = semantic_settings.auto_extract_knowledge
+    print(Fore.CYAN, f"auto_extract_knowledge={auto_knowledge}" + Fore.RESET)
+    try:
+        conversation = context.conversation
+        # Add one at a time for debugging etc.
+        for i, email in enumerate(emails):
+            email_id = email.metadata.id
+            email_src = email.src_url if email.src_url is not None else ""
+            print_progress(i + 1, None, email.src_url)
+            print()
+            if context.is_indexed(email_id):
+                print(Fore.GREEN + email_src + "[Already indexed]" + Fore.RESET)
+                continue
 
-        print("Adding email...")
-        await conversation.add_message(email)
+            try:
+                await conversation.add_messages_with_indexing([email])
+                context.log_indexed(email_id)
+            except Exception as e:
+                if named_args.ignore_error:
+                    print_error(f"{email.src_url}\n{e}")
+                    print(
+                        Fore.GREEN
+                        + f"ignore_error = {named_args.ignore_error}"
+                        + Fore.RESET
+                    )
+                else:
+                    raise
+    finally:
+        semantic_settings.auto_extract_knowledge = auto_knowledge
 
     await print_conversation_stats(conversation)
-
-
-async def build_index(context: EmailContext, args: list[str]):
-    conversation = context.conversation
-    print(Fore.GREEN, "Building index")
-    await print_conversation_stats(conversation)
-    await conversation.build_index()
-    print(Fore.GREEN + "Built index.")
 
 
 async def search_index(context: EmailContext, args: list[str]):
@@ -215,8 +246,10 @@ async def search_index(context: EmailContext, args: list[str]):
     print(Fore.CYAN, f"Searching for:\n{search_text} ")
 
     debug_context = searchlang.LanguageSearchDebugContext()
-    results = await context.conversation.search_with_language(
-        search_text=search_text, debug_context=debug_context
+    results = await context.conversation.query_debug(
+        search_text=search_text,
+        query_translator=context.get_translator(),
+        debug_context=debug_context,
     )
     await print_search_results(context.conversation, debug_context, results)
 
@@ -230,13 +263,9 @@ async def generate_answer(context: EmailContext, args: list[str]):
         return
 
     print(Fore.CYAN, f"Getting answer for:\n{question} ")
-    result = await context.conversation.get_answer_with_language(question=question)
-    if isinstance(result, typechat.Failure):
-        print_error(result.message)
-        return
 
-    all_answers, _ = result.value
-    utils.pretty_print(all_answers)
+    answer = await context.conversation.query(question)
+    print(Fore.GREEN + answer)
 
 
 async def reset_index(context: EmailContext, args: list[str]):
@@ -326,7 +355,6 @@ def help(handlers: dict[str, CommandHandler], args: list[str]):
 #
 async def load_or_create_email_index(db_path: str, create_new: bool) -> EmailMemory:
     if create_new:
-        print(f"Deleting {db_path}")
         delete_sqlite_db(db_path)
 
     settings = ConversationSettings()
@@ -336,7 +364,16 @@ async def load_or_create_email_index(db_path: str, create_new: bool) -> EmailMem
         db_path,
         EmailMessage,
     )
-    return await EmailMemory.create(settings)
+    email_memory = await EmailMemory.create(settings)
+    return email_memory
+
+
+def load_index_log(db_path: str, create_new: bool) -> shelve.Shelf[Any]:
+    log_path = db_path + ".index_log"
+    index_log = shelve.open(log_path)
+    if create_new:
+        index_log.clear()
+    return index_log
 
 
 def delete_sqlite_db(db_path: str):
@@ -398,29 +435,6 @@ def print_knowledge(knowledge: kplib.KnowledgeResponse):
     print(Fore.RESET)
 
 
-def print_list(
-    color, list: Iterable[Any], title: str, type: Literal["plain", "ol", "ul"] = "plain"
-):
-    print(color)
-    if title:
-        print(f"# {title}\n")
-    if type == "plain":
-        for item in list:
-            print(item)
-    elif type == "ul":
-        for item in list:
-            print(f"- {item}")
-    elif type == "ol":
-        for i, item in enumerate(list):
-            print(f"{i + 1}. {item}")
-    print(Fore.RESET)
-
-
-def print_error(msg: str):
-    print(Fore.RED + msg)
-    print(Fore.RESET)
-
-
 async def print_conversation_stats(conversation: IConversation):
     print(f"Conversation index stats".upper())
     print(f"Message count: {await conversation.messages.size()}")
@@ -445,6 +459,37 @@ async def print_search_results(
             print(Fore.GREEN, search_result.raw_query_text)
             await print_result(search_result, conversation)
     print(Fore.RESET)
+
+
+def print_list(
+    color, list: Iterable[Any], title: str, type: Literal["plain", "ol", "ul"] = "plain"
+):
+    print(color)
+    if title:
+        print(f"# {title}\n")
+    if type == "plain":
+        for item in list:
+            print(item)
+    elif type == "ul":
+        for item in list:
+            print(f"- {item}")
+    elif type == "ol":
+        for i, item in enumerate(list):
+            print(f"{i + 1}. {item}")
+    print(Fore.RESET)
+
+
+def print_error(msg: str):
+    print(Fore.RED + msg + Fore.RESET)
+
+
+def print_progress(cur: int, total: int | None = None, suffix: str | None = "") -> None:
+    if suffix is None:
+        suffix = ""
+    if total is not None:
+        print(f"[{cur} / {total}] {suffix}\r", end="", flush=True)
+    else:
+        print(f"[{cur}] {suffix}\r", end="", flush=True)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,7 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     cc: list[str] = Field(default_factory=list)
     bcc: list[str] = Field(default_factory=list)
     subject: str | None = None
+    id: str | None = None
 
     @property
     def source(self) -> str | None:  # type: ignore[reportIncompatibleVariableOverride]
@@ -155,6 +156,7 @@ class EmailMessage(IMessage):
         "Tags associated with the message", default_factory=list
     )
     timestamp: str | None = None  # Use metadata.sent_on for the actual sent time
+    src_url: str | None = None  # Source file or uri for this email
 
     def get_knowledge(self) -> kplib.KnowledgeResponse:
         return self.metadata.get_knowledge()
