@@ -22,7 +22,9 @@ class AzureTokenProvider:
     # Note that the Python library has no async support!
 
     def __init__(self):
-        self.credential = DefaultAzureCredential()
+        self.credential = (
+            DefaultAzureCredential()  # CodeQL [SM05139] This is run manually by the user on a development machine.
+        )
         self.access_token: IAccessToken | None = None
 
     def get_token(self) -> str:
