@@ -47,6 +47,10 @@ scaling: venv
 build: venv
 	uv build
 
+.PHONY: release
+release: venv
+	.venv/bin/python tools/release.py $(version)
+
 .PHONY: venv
 venv: .venv
 
