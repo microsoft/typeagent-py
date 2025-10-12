@@ -12,7 +12,7 @@ This is an in-progress project aiming at a Pythonic translation of
 
 ### Documentation
 
-(To be written. Sorry.)
+Found in the [docs directory](docs/README.md)
 
 ## Trademarks
 
