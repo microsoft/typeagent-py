@@ -3,23 +3,22 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  run-make:
-    name: ${{ matrix.name }}
+  ci:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { name: "make check", cmd: "make check" }
-          - { name: "make test",  cmd: "make test" }
-          - { name: "make format --check", cmd: "make format FLAGS=--check" }
+        python-version: ['3.12', '3.13', '3.14']
+        task: [check, test, format]
+    name: ${{ matrix.task }} (py ${{ matrix.python-version }})
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python-version }}
 
       - name: Cache uv
         uses: actions/cache@v4
@@ -30,10 +29,13 @@ jobs:
           key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
           restore-keys: ${{ runner.os }}-uv-
 
-      - name: Install uv
+      - name: Select command
         run: |
-          set -euxo pipefail
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          case "${{ matrix.task }}" in
+            check)  echo "CMD=make check" >> $GITHUB_ENV ;;
+            test)   echo "CMD=make test" >> $GITHUB_ENV ;;
+            format) echo "CMD=make format FLAGS=--check" >> $GITHUB_ENV ;;
+          esac
 
-      - run: ${{ matrix.cmd }}
+      - name: Run
+        run: $CMD
