@@ -50,8 +50,6 @@ def CamelCaseField(
 
         return Field(**field_kwargs)
 
-        return Field(**field_kwargs)
-
     # Otherwise, use the descriptor approach for backward compatibility
     class CamelCaseFieldDescriptor:
         def __init__(
