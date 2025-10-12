@@ -29,6 +29,12 @@ jobs:
           key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
           restore-keys: ${{ runner.os }}-uv-
 
+      - name: Install uv
+        run: |
+          set -euxo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Select command
         run: |
           case "${{ matrix.task }}" in
