@@ -55,7 +55,7 @@ dependencies = [
 
 [project.urls]
 GitHub-repo = "https://github.com/microsoft/typeagent-py"
-Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs"
+Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README.md"
 [tool.setuptools]
 # Needed so setuptools doesn't complain about testdata.
 packages = [
