@@ -54,7 +54,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/microsoft/typeagent-py"
+GitHub-repo = "https://github.com/microsoft/typeagent-py"
 Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs"
 [tool.setuptools]
 # Needed so setuptools doesn't complain about testdata.
