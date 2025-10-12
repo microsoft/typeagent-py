@@ -13,7 +13,7 @@ authors = [
   { name = "Umesh Madan" },
   { name = "Guido van Rossum" },
 ]
-requires-python = ">=3.12,<3.14"
+requires-python = ">=3.12,<3.15"
 dependencies = [
   "azure-identity>=1.22.0",
   "black>=25.1.0",
@@ -30,6 +30,7 @@ dependencies = [
   "opentelemetry-instrumentation-httpx>=0.57b0",
   "pydantic>=2.11.4",
   "pydantic-ai-slim[openai]>=0.5.0",
+  "pydantic-core>=2.41.1",
   "pyright>=1.1.405",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
