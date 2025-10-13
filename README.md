@@ -7,8 +7,13 @@ Working toward a shared understanding of the MVP for structured RAG.
 ### This is sample code
 
 This is an in-progress project aiming at a Pythonic translation of
-`TypeAgent/ts/packages/knowPro` and a few related packages to Python.
-(Pythonic because it uses Python conventions and types as appropriate.)
+[TypeAgent knowPro](https://github.com/microsoft/TypeAgent/ts/packages/knowPro)
+and a few related packages from TypeScript to Python.
+
+### Warning
+
+This library will send its input to an LLM hosted by a third party.
+Don't use it to index confidential information.
 
 ### Documentation
 
