@@ -2,6 +2,12 @@
 
 Talk at PyBay is on Sat, Oct 18 in SF
 
+## My Priorities
+
+- Write docs
+- Polish demos
+- Practice and polish talk
+
 ## Software
 
 Minor:
