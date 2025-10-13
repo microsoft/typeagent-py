@@ -4,13 +4,14 @@ Talk at PyBay is on Sat, Oct 18 in SF
 
 ## Software
 
-- We should change the commit state machine into a context manager
-  ('with storage_provider: ...') rather than requiring the user to do
-  the commit/rollback logic
+Minor:
 
 - Distinguish between release deps and build/dev deps?
+- Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
 
-### Specifically for VTT import (minor):
+### Specifically for VTT import:
+
+Minor:
 
 - Reduce duplication between ingest_vtt.py and typeagent/transcripts/
 - `get_transcript_speakers` and `get_transcript_duration` should not
