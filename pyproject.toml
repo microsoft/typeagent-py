@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "typeagent"
-version = "0.2.6"
+version = "0.2.7"
 description = "TypeAgent implements an agentic memory framework."
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -54,8 +54,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/microsoft/TypeAgent/tree/main"
-
+GitHub = "https://github.com/microsoft/typeagent-py"
+Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README.md"
 [tool.setuptools]
 # Needed so setuptools doesn't complain about testdata.
 packages = [

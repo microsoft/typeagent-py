@@ -2,15 +2,22 @@
 
 Talk at PyBay is on Sat, Oct 18 in SF
 
+## My Priorities
+
+- Write docs
+- Polish demos
+- Practice and polish talk
+
 ## Software
 
-- We should change the commit state machine into a context manager
-  ('with storage_provider: ...') rather than requiring the user to do
-  the commit/rollback logic
+Minor:
 
 - Distinguish between release deps and build/dev deps?
+- Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
 
-### Specifically for VTT import (minor):
+### Specifically for VTT import:
+
+Minor:
 
 - Reduce duplication between ingest_vtt.py and typeagent/transcripts/
 - `get_transcript_speakers` and `get_transcript_duration` should not
@@ -33,6 +40,7 @@ Talk at PyBay is on Sat, Oct 18 in SF
   - And alternatively (first?) what to put in shell env directly
 - Document test/build/release process
 - Document how to run evaluations (but don't reveal all the data)
+- Document how to use gmail_dump.py (set up a project etc.)
 
 ## Demos
 

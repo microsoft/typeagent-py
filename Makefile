@@ -8,11 +8,11 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/black typeagent test tools $(FLAGS)
+	.venv/bin/black -tpy312 -tpy313 -tpy314 typeagent test tools gmail $(FLAGS)
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test tools
+	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test tools gmail
 
 .PHONY: test
 test: venv
