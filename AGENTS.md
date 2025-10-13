@@ -1,29 +1,25 @@
-# Absolute edict
-
 **DO NOT BE OBSEQUIOUS**
-
-# For Agent mode
 
 **NEVER use TEST_MODEL_NAME or "test" embedding model outside of test files**
 
-Never run git commands that many any changes. (`git status` and `git diff` are fine)
+Never run git commands that make any changes. (`git status` and `git diff` are fine)
 
-**NEVER COMMIT CODE. Do not run `git commit` or any other git commands that make changes to the repository. Not even `git add`**
+**NEVER COMMIT CODE. Do not run `git commit` or any other git commands
+that make changes to the repository. Not even `git add`**
 
 When moving, copying or deleting files, use the git commands: `git mv`, `git cp`, `git rm`
 
-When the working directory is ~/typeagent-py:
-
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
 - Activate `.venv`: make venv; source .venv/bin/activate
-- To get API keys in ad-hoc code, run `typeagent.aitools.utils.load_dotenv()`
-- Use pytest to run tests in test/
-- Use pyright to check type annotations in tools/, test/, typeagent/
+- To get API keys in ad-hoc code, call `typeagent.aitools.utils.load_dotenv()`
+- Use `pytest test` to run tests in test/
+- Use `pyright` to check type annotations in tools/, test/, typeagent/, gmail/
 - Ignore build/, dist/
 - You can also use the pylance extension for type checking in VS Code
 - Use `make check` to type-check all files
 - Use `make test` to run all tests
 - Use `make check test` to run `make check` and if it passes also run `make test`
+- Use `make format` to format all files using `black`. Do this before reporting success.
 
 ## Package Management with uv
 
@@ -56,8 +52,7 @@ please follow these guidelines:
 
 * Use `Literal` for unions of string literals
 * Keep union notation (`X | Y`) for other unions
-* Use `Protocol` for interfaces whose name starts with `I`
-  followed by a capital letter
+* Use `Protocol` for interfaces whose name starts with `I` followed by a capital letter
 * Use `dataclass` for other classes and structured types
 * Use `type` for type aliases (`PascalCase` again)
 * Use `list`, `tuple`, `dict`, `set` etc., not `List` etc.
