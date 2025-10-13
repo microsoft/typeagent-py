@@ -40,6 +40,7 @@ Minor:
   - And alternatively (first?) what to put in shell env directly
 - Document test/build/release process
 - Document how to run evaluations (but don't reveal all the data)
+- Document how to use gmail_dump.py (set up a project etc.)
 
 ## Demos
 
