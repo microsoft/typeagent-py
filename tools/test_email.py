@@ -32,6 +32,10 @@ from typeagent.storage.utils import create_storage_provider
 from query import print_result
 
 
+class ReallyExit(Exception):
+    pass
+
+
 class EmailContext:
     def __init__(
         self, base_path: Path, db_name: str, conversation: EmailMemory
@@ -97,14 +101,13 @@ async def main():
 
     try:
         base_path.mkdir(parents=True, exist_ok=True)
-    except PermissionError as err:
-        print(err)
+    except PermissionError as e:
+        print(e)
         sys.exit(1)
 
     utils.load_dotenv()
 
     print("Email Memory Demo")
-    print("Type @help for a list of commands")
 
     default_db = "gmail.db"  # "pyEmails.db"
     db_path = str(base_path.joinpath(default_db))
@@ -131,35 +134,49 @@ async def main():
     async def default_handler(context, line):
         return await generate_answer(context, [line])
 
+    print("Type @help for a list of commands")
+
     while True:
         try:
             line = input("✉>> ").strip()
         except EOFError:
             print()
             break
-        if len(line) == 0:
+        if not line:
             continue
         try:
-            args = shlex.split(line)
-            if len(args) < 1:
-                continue
-            cmd = args[0].lower()
-            args.pop(0)
-            if cmd == "@help":
-                help(cmd_handlers, args)
+            if not line.startswith("@"):
+                await default_handler(context, line)
             else:
-                cmd_handler = cmd_handlers.get(cmd)
-                if cmd_handler is None and not cmd.startswith("@"):
-                    await default_handler(context, line)
-                elif cmd_handler:
-                    await cmd_handler(context, args)
+                try:
+                    args = shlex.split(line, comments=True)
+                except ValueError as e:
+                    print(Fore.RED + f"Error parsing command: {e}" + Fore.RESET)
+                    continue
+                if len(args) < 1:
+                    continue
+                cmd = args.pop(0).lower()
+                if cmd == "@help":
+                    help(cmd_handlers, args)
                 else:
-                    print_commands(cmd_handlers)
-        except (Exception, SystemExit) as e:
+                    cmd_handler = cmd_handlers.get(cmd)
+                    if cmd_handler:
+                        await cmd_handler(context, args)
+                    else:
+                        print_commands(cmd_handlers)
+        except ReallyExit:
+            # Raised by exit_app() to reall exit the app
+            sys.exit(0)
+        except Exception as e:
             print()
             print(Fore.RED + f"Error\n: {e}" + Fore.RESET)
             traceback.print_exc()
-            continue
+        except SystemExit as e:
+            # Command handlers using argparse may see this
+            if e.code != 0:
+                print(Fore.RED + f"Error: {e}" + Fore.RESET)
+        except KeyboardInterrupt:
+            print()
 
         print(Fore.RESET)
 
@@ -171,7 +188,9 @@ async def main():
 
 # Adds messages. Takes a path either to a file or to a directory
 def _add_messages_def() -> argparse.ArgumentParser:
-    cmd = argparse.ArgumentParser(description="Add messages to index")
+    cmd = argparse.ArgumentParser(
+        description="Add messages to index", prog="@add_messages"
+    )
     cmd.add_argument(
         "--path",
         default="",
@@ -199,11 +218,11 @@ async def add_messages(context: EmailContext, args: list[str]):
     else:
         emails = import_emails_from_dir(str(src_path))
 
-    print(Fore.CYAN, f"Importing from {src_path}" + Fore.RESET)
+    print(Fore.CYAN + f"Importing from {src_path}" + Fore.RESET)
 
     semantic_settings = context.conversation.settings.semantic_ref_index_settings
     auto_knowledge = semantic_settings.auto_extract_knowledge
-    print(Fore.CYAN, f"auto_extract_knowledge={auto_knowledge}" + Fore.RESET)
+    print(Fore.CYAN + f"auto_extract_knowledge={auto_knowledge}" + Fore.RESET)
     try:
         conversation = context.conversation
         # Add one at a time for debugging etc.
@@ -243,7 +262,7 @@ async def search_index(context: EmailContext, args: list[str]):
         print_error("No search text")
         return
 
-    print(Fore.CYAN, f"Searching for:\n{search_text} ")
+    print(Fore.CYAN + f"Searching for:\n{search_text} " + Fore.RESET)
 
     debug_context = searchlang.LanguageSearchDebugContext()
     results = await context.conversation.query_debug(
@@ -262,10 +281,10 @@ async def generate_answer(context: EmailContext, args: list[str]):
         print_error("No question")
         return
 
-    print(Fore.CYAN, f"Getting answer for:\n{question} ")
+    print(Fore.CYAN + f"Getting answer for:\n{question} " + Fore.RESET)
 
     answer = await context.conversation.query(question)
-    print(Fore.GREEN + answer)
+    print(Fore.GREEN + answer + Fore.RESET)
 
 
 async def reset_index(context: EmailContext, args: list[str]):
@@ -275,7 +294,9 @@ async def reset_index(context: EmailContext, args: list[str]):
 
 
 def _load_index_def() -> argparse.ArgumentParser:
-    cmdDef = argparse.ArgumentParser(description="Load index at given db path")
+    cmdDef = argparse.ArgumentParser(
+        description="Load index at given db path", prog="@load_index"
+    )
     cmdDef.add_argument(
         "--name", type=str, default="", help="Name of the index to load"
     )
@@ -336,12 +357,15 @@ async def parse_messages(context: EmailContext, args: list[str]):
 
 async def exit_app(context: EmailContext, args: list[str]):
     print("Goodbye")
-    sys.exit(0)
+    raise ReallyExit()
 
 
 def help(handlers: dict[str, CommandHandler], args: list[str]):
     if len(args) > 0:
-        cmd = handlers.get(args[0])
+        name = args[0]
+        if not name.startswith("@"):
+            name = "@" + name
+        cmd = handlers.get(name)
         if cmd is not None:
             print_help(cmd)
             return
@@ -403,7 +427,9 @@ def print_help(handler: CommandHandler):
 
 
 def print_commands(commands: dict[str, CommandHandler]):
-    names = sorted(commands.keys())
+    names = list(commands.keys())
+    names.append("@help")
+    names.sort()
     print_list(Fore.GREEN, names, "COMMANDS", "ul")
 
 
@@ -420,7 +446,7 @@ def print_email(email: EmailMessage):
 
     print("Body:")
     for chunk in email.text_chunks:
-        print(Fore.CYAN + chunk)
+        print(Fore.CYAN + chunk + Fore.RESET)
 
     print(Fore.RESET)
 
