@@ -14,7 +14,7 @@ install wheels from [PyPI](https://pypi.org).
 
 ## "Hello world" ingestion program
 
-### 1. Create a file named `transcript.txt` containing messages to index, e.g.:
+### 1. Create a text file named `transcript.txt`
 
 ```txt
 STEVE We should really make a Python library for Structured RAG.
@@ -22,7 +22,7 @@ UMESH Who would be a good person to do the Python library?
 GUIDO I volunteer to do the Python library. Give me a few months.
 ```
 
-### 2. Write a small program like this:
+### 2. Create a Python file named `demo.py`
 
 ```py
 from typeagent import create_conversation
@@ -57,24 +57,30 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
-
     asyncio.run(main())
 ```
 
 ### 3. Set up your environment for using OpenAI
 
-The minimal set of environment variables seems to be:
+The minimal set of environment variables is:
 
 ```sh
 export OPENAI_API_KEY=your-very-secret-openai-api-key
 export OPENAI_MODEL=gpt-4o
 ```
 
-(See [Environment Variables](env-vars.md) for more information.)
+Some OpenAI setups will require som additional environment variables.
+See [Environment Variables](env-vars.md) for more information.
+You will also find information there on how to use
+Azure-hosted OpenAI models.
 
 ### 4. Run your program
 
-Expected output is something like:
+```sh
+$ python demo.py
+```
+
+Expected output looks like:
 
 ```txt
 0.027s -- Using OpenAI
@@ -85,4 +91,46 @@ Got 26 semantic refs.
 
 ## "Hello world" query program
 
-TBD.
+### 1. Write this small program
+
+```py
+from typeagent import create_conversation
+from typeagent.transcripts.transcript import TranscriptMessage
+
+
+async def main():
+    conversation = await create_conversation("demo.db", TranscriptMessage)
+    question = "Who volunteered to do the python library?"
+    print("Q:", question)
+    answer = await conversation.query(question)
+    print("A:", answer)
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+```
+
+### 2. Set up your environment like above
+
+### 3. Run your program
+
+```sh
+$ python query.py
+```
+
+Expected output looks like:
+
+```txt
+0.019s -- Using OpenAI
+Q: Who volunteered to do the python library?
+A: Guido volunteered to do the Python library.
+```
+
+## Next steps
+
+You can study the full documentation for `create_conversation()`
+and `conersation.query()` in [High-level API](high-level-api.md).
+
+You can also study the source code at the
+[typeagent-py repo](https://github.com/microsoft/typeagent-py).
