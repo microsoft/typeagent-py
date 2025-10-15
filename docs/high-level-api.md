@@ -76,7 +76,7 @@ It has one public method:
 
   Tries to answer the question using (only) the indexed messages.
   If no answer is found, the returned string starts with
-  `"No answer found:"` or `"Unexpected answer type:"`.
+  `"No answer found:"`.
 
 ## Functions
 

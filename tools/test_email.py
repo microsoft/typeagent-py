@@ -284,7 +284,8 @@ async def generate_answer(context: EmailContext, args: list[str]):
     print(Fore.CYAN + f"Getting answer for:\n{question} " + Fore.RESET)
 
     answer = await context.conversation.query(question)
-    print(Fore.GREEN + answer + Fore.RESET)
+    color = Fore.RED if answer.startswith("No answer found:") else Fore.GREEN
+    print(color + answer + Fore.RESET)
 
 
 async def reset_index(context: EmailContext, args: list[str]):
