@@ -384,5 +384,5 @@ class ConversationBase(
                 return f"No answer found: {combined_answer.whyNoAnswer or 'Unable to find relevant information'}"
             case "Answered":
                 return combined_answer.answer or "No answer provided"
-            case _:
+            case _:  # Cannot happen in type-checked code
                 return f"Unexpected answer type: {combined_answer.type}"

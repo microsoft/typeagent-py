@@ -1,0 +1,44 @@
+# Environment Variables
+
+No LLM-using application today works without API tokens and/or other
+authentication secrets. These are almost always passed via environment
+variables.
+
+Typeagent currently supports two families of environment variables:
+
+- Those for (public) OpenAI servers.
+- Those for the Azure OpenAI service.
+
+## OPENAI environment variables
+
+The (public) OpenAI environment variables include:
+
+- `OPENAI_API_KEY`: Your secret API key that you get from the
+  [OpenAI dashboard](https://platform.openai.com/api-keys).
+- `OPENAI_MODEL`: An environment variable introduced by
+  [TypeChat](https://microsoft.github.io/TypeChat/docs/examples/)
+  indicating the model to use (e.g.`gpt-4o`).
+
+## Azure OpenAI environment variables
+
+If you are using the OpenAI service hosted by Azure, you need different
+environment variables, starting with:
+
+- `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key.
+- `AZURE_OPENAI_ENDPOINT`: The full URL of the Azure OpenAI REST API
+  (e.g. https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15).
+- If you use Azure OpenAI you will know where to get these
+  (or ask your sysadmin).
+
+## Conflicts
+
+If you set both `OPENAI_API_KEY` and `AZURE_OPENAI_API_KEY`,
+plain `OPENAI` will win.
+
+## Other ways to specify environment variables
+
+It is recommended to put your environment variables in a file named
+`.env` in the current or parent directory.
+To pick up these variables, call `typeagent.aitools.utils.load_dotenv()`
+at the start of your program (before calling any typeagent functions).
+(For simplicity this is not shown in [Getting Started](getting-started.md).)
