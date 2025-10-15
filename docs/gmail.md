@@ -1,4 +1,4 @@
-# Extracting GMail messages
+# Extracting GMail Messages
 
 There's a helper script in the repo under `gmail/`.
 It requires setting up and creating a Google API project.

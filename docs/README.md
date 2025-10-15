@@ -1,4 +1,4 @@
-# Typeagent docs
+# Typeagent Docs
 
 ## Basics
 
