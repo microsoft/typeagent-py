@@ -1,14 +1,13 @@
 # Typeagent docs
 
-## TBD
+## Basics
 
-For now we have:
+- [Getting Started](getting-started.md)
+- [High-level API](high-level-api.md)
+- [Environment Variables](env-vars.md)
 
-### High-level API:
+## Advanced
 
-- create_conversation
-- [conversation.query](query-method.md)
-
-### Other
-
-- [architecture design](typeagent-architecture.md)
+- [Reproducing the Demos](demos.md)
+- [Downloading GMail Messages](gmail.md)
+- [Developing and Contributing](developing.md)
