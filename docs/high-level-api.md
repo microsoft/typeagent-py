@@ -26,7 +26,7 @@ class ConversationMessage(
 
 - Only `text_chunks` is required.
 - Tags are arbitrary pieces of information attached to a message
-  that will be indexed; e.g. `["sketch", "pet shop"]
+  that will be indexed; e.g. `["sketch", "pet shop"]`
 - If present, the timestamp must be of the form `2025-10-14T09:03:21z`.
 
 #### `ConversationMessageMeta`
@@ -70,7 +70,7 @@ It has one public method:
   ```py
   async def query(
       question: str,
-      # Other parameters are not pubic
+      # Other parameters are not public
   ) -> str
   ```
 

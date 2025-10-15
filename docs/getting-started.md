@@ -69,7 +69,7 @@ export OPENAI_API_KEY=your-very-secret-openai-api-key
 export OPENAI_MODEL=gpt-4o
 ```
 
-Some OpenAI setups will require som additional environment variables.
+Some OpenAI setups will require some additional environment variables.
 See [Environment Variables](env-vars.md) for more information.
 You will also find information there on how to use
 Azure-hosted OpenAI models.
@@ -130,7 +130,7 @@ A: Guido volunteered to do the Python library.
 ## Next steps
 
 You can study the full documentation for `create_conversation()`
-and `conersation.query()` in [High-level API](high-level-api.md).
+and `conversation.query()` in [High-level API](high-level-api.md).
 
 You can also study the source code at the
 [typeagent-py repo](https://github.com/microsoft/typeagent-py).
