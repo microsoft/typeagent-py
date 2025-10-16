@@ -113,14 +113,25 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     def _createActions(
         self, verb: str, sender: str, recipient: str
     ) -> list[kplib.Action]:
-        display_name, address = parseaddr(recipient)
+        sender_display_name, sender_address = parseaddr(sender)
         actions: list[kplib.Action] = []
-        if display_name:
-            actions.append(self._createAction(verb, sender, display_name))
+        if sender_display_name:
+            self._add_actions_for_sender(actions, verb, sender_display_name, recipient)
 
-        if address:
-            actions.append(self._createAction(verb, sender, address))
+        if sender_address:
+            self._add_actions_for_sender(actions, verb, sender_address, recipient)
+
         return actions
+
+    def _add_actions_for_sender(
+        self, actions: list[kplib.Action], verb: str, sender: str, recipient: str
+    ) -> None:
+        recipient_display_name, recipient_address = parseaddr(recipient)
+        if recipient_display_name:
+            actions.append(self._createAction(verb, sender, recipient_display_name))
+
+        if recipient_address:
+            actions.append(self._createAction(verb, sender, recipient_address))
 
     def _createAction(
         self, verb: str, sender: str, recipient: str, useIndirect: bool = True
