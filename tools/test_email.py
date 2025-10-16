@@ -345,9 +345,9 @@ async def parse_messages(context: EmailContext, args: list[str]):
         try:
             msg = import_email_from_file(file_path)
             print(file_path)
+            print("####################")
+            print_email(msg)
             if named_args.verbose:
-                print("####################")
-                print_email(msg)
                 print_knowledge(msg.get_knowledge())
                 print("####################")
 
