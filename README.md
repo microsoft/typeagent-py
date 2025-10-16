@@ -7,7 +7,7 @@ Working toward a shared understanding of the MVP for structured RAG.
 ### This is sample code
 
 This is an in-progress project aiming at a Pythonic translation of
-[TypeAgent knowPro](https://github.com/microsoft/TypeAgent/ts/packages/knowPro)
+[TypeAgent KnowPro](https://github.com/microsoft/TypeAgent/tree/main/ts/packages/knowPro)
 and a few related packages from TypeScript to Python.
 
 ### Warning
