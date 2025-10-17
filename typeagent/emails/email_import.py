@@ -104,36 +104,39 @@ def get_forwarded_email_parts(email_text: str) -> list[str]:
     parts: list[str] = split_delimiter.split(email_text)
     return _remove_empty_strings(parts)
 
+# Precompiled regex for reply/forward delimiters and quoted reply headers
+_THREAD_DELIMITERS = re.compile(
+    "|".join([
+        r"^from: .+$",                              # From: someone
+        r"^sent: .+$",                              # Sent: ...
+        r"^to: .+$",                                # To: ...
+        r"^subject: .+$",                           # Subject: ...
+        r"^-{2,}\s*Original Message\s*-{2,}$",     # -----Original Message-----
+        r"^-{2,}\s*Forwarded by.*$",                # ----- Forwarded by
+        r"^_{5,}$",                                 # _________
+        r"^on .+wrote:\s*(?:\r?\n\s*)+>",         # On ... wrote: followed by quoted text
+    ]),
+    re.IGNORECASE | re.MULTILINE
+)
+
+# Precompiled regex for trailing line delimiters (underscores, dashes, equals, spaces)
+_TRAILING_LINE_DELIMITERS = re.compile(r"[\r\n][_\-= ]+\s*$")
 
 # Simple way to get the last response on an email thread in MIME format
 def get_last_response_in_thread(email_text: str) -> str:
     if not email_text:
         return ""
 
-    delimiters = [
-        "From:",
-        "Sent:",
-        "To:",
-        "Subject:",
-        "-----Original Message-----",
-        "----- Forwarded by",
-        "________________________________________",
-    ]
+    match = _THREAD_DELIMITERS.search(email_text)
+    if match:
+        email_text = email_text[:match.start()]
 
-    first_delimiter_at = -1
-    for delimiter in delimiters:
-        index = email_text.find(delimiter)
-        if index != -1 and (first_delimiter_at == -1 or index < first_delimiter_at):
-            first_delimiter_at = index
-
-    if first_delimiter_at > 0:
-        email_text = email_text[:first_delimiter_at]
 
     email_text = email_text.strip()
-    # Remove trailing line delimiters
-    email_text = re.sub(r"[\r\n]_+\s*$", "", email_text)
+    # Remove trailing line delimiters (e.g. underscores, dashes, equals)
+    _TRAILING_LINE_DELIMITER_REGEX = _TRAILING_LINE_DELIMITERS
+    email_text = _TRAILING_LINE_DELIMITER_REGEX.sub("", email_text)
     return email_text
-
 
 # Extracts the plain text body from an email.message.Message object.
 def _extract_email_body(msg: Message) -> str:
