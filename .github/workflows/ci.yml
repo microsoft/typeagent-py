@@ -20,15 +20,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Cache uv
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/uv
-            .venv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
-          restore-keys: ${{ runner.os }}-uv-
-
       - name: Install uv
         run: |
           set -euxo pipefail
