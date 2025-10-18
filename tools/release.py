@@ -222,6 +222,13 @@ Examples:
         help="Show what would be done without making changes",
     )
 
+    parser.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="Force the release even if the working directory is not clean",
+    )
+
     args = parser.parse_args()
 
     # Ensure we're in the right directory
@@ -238,8 +245,8 @@ Examples:
 
     pyproject_path = current_dir / "pyproject.toml"
 
-    # Check git status (unless dry run)
-    if not args.dry_run and not check_git_status():
+    # Check git status (unless --force)
+    if not args.force and not check_git_status():
         print(
             "Error: Git working directory is not clean. Please commit or stash changes first.",
             file=sys.stderr,
