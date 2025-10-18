@@ -49,7 +49,7 @@ build: venv
 
 .PHONY: release
 release: venv
-	.venv/bin/python tools/release.py $(version)
+	.venv/bin/python tools/release.py $(VERSION)
 
 .PHONY: venv
 venv: .venv
