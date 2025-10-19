@@ -11,3 +11,7 @@
 - [Reproducing the Demos](demos.md)
 - [Downloading GMail Messages](gmail.md)
 - [Developing and Contributing](developing.md)
+
+## Miscellaneous
+
+- [PyBay '25 powerpoint slides](StructturedRanPyBay25.pptx)

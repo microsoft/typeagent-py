@@ -19,6 +19,8 @@ Don't use it to index confidential information.
 
 Found in the [docs directory](docs/README.md)
 
+- [PyBay '25 powerpoint slides](docs/StructturedRanPyBay25.pptx)
+
 ## Trademarks
 
 This project may contain trademarks or logos for projects, products, or services.
