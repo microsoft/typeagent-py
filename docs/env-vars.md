@@ -12,12 +12,13 @@ Typeagent currently supports two families of environment variables:
 ## OPENAI environment variables
 
 The (public) OpenAI environment variables include:
-
 - `OPENAI_API_KEY`: Your secret API key that you get from the
   [OpenAI dashboard](https://platform.openai.com/api-keys).
 - `OPENAI_MODEL`: An environment variable introduced by
   [TypeChat](https://microsoft.github.io/TypeChat/docs/examples/)
   indicating the model to use (e.g.`gpt-4o`).
+- `OPENAI_BASE_URL`: The URL for an openai compatible embedding server, e.g. [Infinity](https://github.com/michaelfeil/infinity). With this option `OPENAI_API_KEY` also needs to be set, but can be any value.
+- `OPENAI_ENDPOINT`: The URL for an server compatible with the OpenAI Chat Completions API. Make sure the `OPENAI_MODEL` variable matches with the deployed model name. E.g. 'llama:3.2:1b'
 
 ## Azure OpenAI environment variables
 
