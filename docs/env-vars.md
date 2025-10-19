@@ -12,6 +12,7 @@ Typeagent currently supports two families of environment variables:
 ## OPENAI environment variables
 
 The (public) OpenAI environment variables include:
+
 - `OPENAI_API_KEY`: Your secret API key that you get from the
   [OpenAI dashboard](https://platform.openai.com/api-keys).
 - `OPENAI_MODEL`: An environment variable introduced by
