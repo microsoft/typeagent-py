@@ -1,0 +1,3 @@
+STEVE We should really make a Python library for Structured RAG.
+UMESH Who would be a good person to do the Python library?
+GUIDO I volunteer to do the Python library. Give me a few months.
