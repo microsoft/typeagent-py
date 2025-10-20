@@ -1,5 +1,43 @@
 # TODO for the Python knowpro port
 
+# Leftover TODOs from TADA.md
+
+
+## Software
+
+Minor:
+
+- Distinguish between release deps and build/dev deps?
+- Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
+
+### Specifically for VTT import (minor)
+
+- Reduce duplication between ingest_vtt.py and typeagent/transcripts/
+- `get_transcript_speakers` and `get_transcript_duration` should not
+  re-parse the transcript -- they should just take the parsed vtt object.
+
+### Later
+
+- Fix MCP service (should use host's LLM, not its own)
+- Handle embeddings in MCP, even though MCP doesn't support it yet
+  - GPT5 suggests to run a separate MCP service for this
+  - Batch 128-256 items at a time
+  - Explicitly handle truncation by counting tokens
+- Handle caching using sha256() of text?
+
+## Documentation
+
+- Document what should go in `.env` and where it should live
+  - And alternatively (first?) what to put in shell env directly
+- Document how o reproduce the demos from the talk (and Kevin/Adrian)
+- Document test/build/release process
+- Document how to use gmail_dump.py (set up a project etc.)
+
+Maybe later:
+
+- Document how to run evaluations (but don't reveal all the data)
+
+
 # TODOs for fully implementing persistence through SQLite
 
 ## Now
