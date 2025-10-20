@@ -14,4 +14,4 @@
 
 ## Miscellaneous
 
-- [PyBay '25 powerpoint slides](StructturedRanPyBay25.pptx)
+- [PyBay '25 powerpoint slides](StructuredRagPyBay25.pptx)
