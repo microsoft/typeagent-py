@@ -1,7 +1,8 @@
 # TODO for the Python knowpro port
 
-# Leftover TODOs from TADA.md
+Meta-todo: Gradually move work items from here to repo Issues.
 
+# Leftover TODOs from TADA.md
 
 ## Software
 
@@ -15,13 +16,9 @@ Minor:
 - `get_transcript_speakers` and `get_transcript_duration` should not
   re-parse the transcript -- they should just take the parsed vtt object.
 
-### Later
+### Embeddings
 
-- Fix MCP service (should use host's LLM, not its own)
-- Handle embeddings in MCP, even though MCP doesn't support it yet
-  - GPT5 suggests to run a separate MCP service for this
-  - Batch 128-256 items at a time
-  - Explicitly handle truncation by counting tokens
+- Handle input truncation for embeddings by counting tokens (e.g. tiktoken).
 
 ## Documentation
 
