@@ -71,8 +71,8 @@ class AsyncEmbeddingModel:
                 and endpoint_envvar != required_endpoint_envvar
             ):
                 raise ValueError(
-                    f"Environment variable for endpoint {endpoint_envvar} does not match "
-                    f"required environment variable {required_endpoint_envvar} for model {model_name}."
+                    f"Environment variable for embedding endpoint {endpoint_envvar} does not match "
+                    f"required environment variable {required_endpoint_envvar} for embedding model {model_name}."
                 )
             endpoint_envvar = required_endpoint_envvar
         if endpoint_envvar is None:
