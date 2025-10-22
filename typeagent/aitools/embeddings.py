@@ -42,7 +42,10 @@ class AsyncEmbeddingModel:
     _embedding_cache: dict[str, NormalizedEmbedding]
 
     def __init__(
-        self, embedding_size: int | None = None, model_name: str | None = None, endpoint_envvar: str | None = None
+        self,
+        embedding_size: int | None = None,
+        model_name: str | None = None,
+        endpoint_envvar: str | None = None,
     ):
         if model_name is None:
             model_name = DEFAULT_MODEL_NAME
@@ -61,9 +64,12 @@ class AsyncEmbeddingModel:
         if embedding_size is None or embedding_size <= 0:
             embedding_size = DEFAULT_EMBEDDING_SIZE
         self.embedding_size = embedding_size
-        
+
         if required_endpoint_envvar is not None:
-            if endpoint_envvar is not None and endpoint_envvar != required_endpoint_envvar:
+            if (
+                endpoint_envvar is not None
+                and endpoint_envvar != required_endpoint_envvar
+            ):
                 raise ValueError(
                     f"Environment variable for endpoint {endpoint_envvar} does not match "
                     f"required environment variable {required_endpoint_envvar} for model {model_name}."
@@ -80,9 +86,12 @@ class AsyncEmbeddingModel:
         else:
             openai_key_name = "OPENAI_API_KEY"
             azure_key_name = "AZURE_OPENAI_API_KEY"
-            if os.getenv(openai_key_name):
+            if openai_key := os.getenv(openai_key_name):
+                endpoint = os.getenv(self.endpoint_envvar)
                 with timelog(f"Using OpenAI"):
-                    self.async_client = AsyncOpenAI()
+                    self.async_client = AsyncOpenAI(
+                        base_url=endpoint, api_key=openai_key
+                    )
             elif azure_api_key := os.getenv(azure_key_name):
                 with timelog("Using Azure OpenAI"):
                     self._setup_azure(azure_api_key)

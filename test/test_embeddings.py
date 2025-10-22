@@ -7,7 +7,7 @@ from pytest_mock import MockerFixture
 import numpy as np
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model  # type: ignore  # Yes it's used!
+from fixtures import embedding_model, set_env  # type: ignore  # Yes it's used!
 
 
 @pytest.mark.asyncio
@@ -128,3 +128,23 @@ async def test_refresh_auth(
 
     embedding_model.azure_token_provider.refresh_token.assert_called_once()  # type: ignore
     assert embedding_model.async_client is not None
+
+
+@pytest.mark.asyncio
+async def test_set_endpoint(mocker: MockerFixture, set_env):
+    """Test creating of model with custom endpoint."""
+
+    embedding_model = AsyncEmbeddingModel(
+        1024, "custom_model", "INFINITY_EMBEDDING_URL"
+    )
+    assert embedding_model.async_client.base_url == "http://localhost:7997"
+    assert embedding_model.async_client.api_key == "does-not-matter"
+
+    with pytest.raises(
+        ValueError,
+        match="Environment variable for endpoint WRONG_ENDPOINT does not match required environment"
+        " variable AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL for model text-embedding-small.",
+    ):
+        embedding_model = AsyncEmbeddingModel(
+            2000, "text-embedding-small", "WRONG_ENDPOINT"
+        )
