@@ -299,9 +299,3 @@ async def fake_conversation_with_storage(
 ) -> FakeConversation:
     """Fixture to create a FakeConversation instance with storage provider."""
     return FakeConversation(storage_provider=memory_storage)
-
-
-@pytest.fixture(scope="function")
-def set_env():
-    os.environ["INFINITY_EMBEDDING_URL"] = "http://localhost:7997"
-    os.environ["OPENAI_API_KEY"] = "does-not-matter"
