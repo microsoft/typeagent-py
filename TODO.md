@@ -7,7 +7,6 @@
 
 Minor:
 
-- Distinguish between release deps and build/dev deps?
 - Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
 
 ### Specifically for VTT import (minor)
@@ -23,13 +22,10 @@ Minor:
   - GPT5 suggests to run a separate MCP service for this
   - Batch 128-256 items at a time
   - Explicitly handle truncation by counting tokens
-- Handle caching using sha256() of text?
 
 ## Documentation
 
-- Document what should go in `.env` and where it should live
-  - And alternatively (first?) what to put in shell env directly
-- Document how o reproduce the demos from the talk (and Kevin/Adrian)
+- Document how to reproduce the demos from the talk (and podcast)
 - Document test/build/release process
 - Document how to use gmail_dump.py (set up a project etc.)
 
@@ -50,7 +46,6 @@ Maybe later:
 - Improve test coverage for search, searchlang, query, sqlite
 - Reduce code size
 - Make coding style more uniform (e.g. docstrings)
-- Document the highest-level API
 
 ## Also
 
@@ -68,21 +63,14 @@ Maybe later:
 
 ## Lower priority
 
-- Rework pyproject to separate build-time from runtime deps
-  - Make some runtime deps optional (e.g. logfire, mcp)
-  - Comment out pydantic-ai until we resume that work
-
 - Try to avoid so many inline imports.
   Break cycles by moving things to their own file if necessary
 
-# From Meeting 8/12/2025 morning
+# From Meeting 8/12/2025 morning (edited)
 
-- Get rid of `__getitem__` in favor of get_item(), get_slice(), get_multiple() [**DONE**]
-  - Also rename `__len__` to size() [**DONE**]
-- Switch db API to async (even for in-memory); fix all related bugs [**DONE**]
-- "Ordinals" ("ids") are sequential (ordered) but not contiguous
-- So we can use auto-increment
-- Fix all bugs related to that
+- "Ordinals" ("ids") should be sequential (ordered) but not contiguous
+  - So we can use auto-increment
+  - Fix all bugs related to that
 - Flatten and reduce IConversation structure:
   - Message collection
   - SemanticRef collection
@@ -90,47 +78,24 @@ Maybe later:
   - Property to SemanticRef index
   - Timestamp to TextRange
   - Terms to related terms
-- Persist all of the above in the SQLite version
 - Keep in-memory version (with some compromises) for comparison
 
-# From Meeting 8/12/2025 afternoon
+# From Meeting 8/12/2025 afternoon (edited)
 
-- Toss out character ordinals from TextLocation etc. [**DONE**]
-  - Message ordinal must exist [**DONE**]
-  - Chunk ordinal of end in range is 1 past last chunk in range
-    (== standard Python slice conventions) [**DONE**]
-  - TextRange is a half-open interval; end points past last chunk [**DONE**]
 - Indexing (knowledge extraction) operates chunk by chunk
 - TimeRange always points to a TextRange
 - Always import VTT, helper to convert podcast to VTT format
+  (Probably not, podcast format has listeners but VTT doesn't)
 - Rename "Ordinal" to "Id"
-
-## From Meeting 8/13/2025 morning
-
-- Keep "Conversation" as the top-level name; changing it isn't worth it
-- Get rid of event handling API, move this into the front-line extractor
-  - batching is up to the extractor
-  - every batch is processed completely inside one transaction
-  - extractor gets an exception when the transaction fails or is rolled back
-- Move to a toplevel library (structured_rag or python?) and update
-  toplevel README.md to advertise that.
-- If pydantic AI doesn't pan out, vendor TypeChat
-- See images of database schema and API proposals
-- Example data types for which we ship extractors:
-  - VTT (for Teams, YouTube, podcasts); podcast examples converted by unpublished example
-  - Email (MIME messages); GMail example via adapter
-  - Markdown; HTML via Markdown conversion
-- Each of these has a textual format; it's the user's responsibility to provide that format
-- Everything else is unofficial and undocumented
 
 # Other stuff
 
 ### Left to do here
 
 - Look more into why the search query schema is so instable
-- Implement at least some @kpBlah commands in query.py
+- Implement at least some @-commands in query.py
 - More debug options (turn on/off various debug prints dynamically)
-- Use pydantic.ai, at least for model drivers
+- Use pydantic.ai for model drivers
 
 ## General: Look for things marked as incomplete in source
 
@@ -154,8 +119,7 @@ Maybe later:
 ## Development
 
 - Move `typeagent` into `src`.
-- Separate development dependencies from installation dependencies.
-- Move test to tests
+- Move test to tests?
 - Configure testpaths in pyproject.toml
 
 ## Testing
@@ -191,25 +155,17 @@ We have several stages (someof which loop):
       the contexts into multiple requests and combine the answers
       in the same way.
 
-All of these stages are at least partially implemented
-(though only the simplest form of answer generation),
+All of these stages are at least partially implemented,
 so we have some end-to-end functionality.
 
 The TODO items include (in no particular order):
 
 - Implement token budgets -- may leave out messages, favoring only knowledge,
   if it answers the question.
-- Fix handling of datetime range queries. [**DONE**]
-- Use fallback query and other fallback stuff in search_conv*_w*_lang*. [**DONE**]
 - Change the context to be text, including message texts and timestamps,
   rather than JSON (and especially not just semantic ref ordinals).
-- Property translate time range filters. [**DONE**]
-- Add message timestamp to context. [**DONE**]
-- Move out of `demo` into `knowpro` what belongs there. [**DONE**]
-- Complete the implementation of each stage (3b is missing a lot). [**DONE**]
 - Split large contexts to avoid overflowing the answer generator's
   context buffer (4b).
-- Fix all the TODOs left in the code.
 - Redesign the whole pipeline now that I understand the archtecture better;
   notably make each stage its own function with simpler API.
 
@@ -221,15 +177,14 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 
 ## Refactoring implementations
 
-- Change inconsistent module names (Claude uses different names than I do)
+- Change inconsistent module names (Claude uses different naming style)
 - Rewrite podcast parsing without regexes (low priority)
 - Switch from Protocol to ABC
 
 ## Type checking stuff
 
-- fuzzy_index type mismatch (could VectorBase be made to match the type?)
 - Fix need for `# type: ignore` comments (usually need to make some
-  I-interface generic in actual message/index/etc.) I see 24 of these.
+  I-interface generic in actual message/index/etc.) I see 22 in typeagent/.
 
 ## Deletions
 
@@ -240,6 +195,4 @@ For robustness -- TypeChat already retries, but my embeddings don't.
 ## Questions
 
 - Do the serialization data formats (which are TypedDicts, not Protocols):
-  - Really belong in interfaces.py? [UMESH: No] [me: TODO]
-  - Need to have names starting with 'I'? [UMESH: No] [me: DONE] [TS hasn't changed yet]
-  My answers for both are no, unless Steve explains why.
+  - Really belong in interfaces.py? [UMESH: No] [me: NO; TODO]
