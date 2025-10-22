@@ -14,4 +14,4 @@
 
 ## Miscellaneous
 
-- [PyBay '25 powerpoint slides](StructuredRagPyBay25.pptx)
+- [Download PyBay '25 PowerPoint slides](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pptx)
