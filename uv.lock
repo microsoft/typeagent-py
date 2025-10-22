@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -1576,13 +1576,7 @@ version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
-    { name = "black" },
-    { name = "build" },
     { name = "colorama" },
-    { name = "coverage" },
-    { name = "google-api-python-client" },
-    { name = "google-auth-httplib2" },
-    { name = "google-auth-oauthlib" },
     { name = "logfire" },
     { name = "mcp", extra = ["cli"] },
     { name = "numpy" },
@@ -1591,25 +1585,35 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-ai-slim", extra = ["openai"] },
     { name = "pydantic-core" },
-    { name = "pyright" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-mock" },
     { name = "python-dotenv" },
     { name = "typechat" },
     { name = "webvtt-py" },
 ]
 
+[package.optional-dependencies]
+dev = [
+    { name = "black" },
+    { name = "build" },
+    { name = "coverage" },
+    { name = "google-api-python-client" },
+    { name = "google-auth-httplib2" },
+    { name = "google-auth-oauthlib" },
+    { name = "pyright" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-mock" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
-    { name = "black", specifier = ">=25.1.0" },
-    { name = "build", specifier = ">=1.2.2.post1" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=25.1.0" },
+    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.2.post1" },
     { name = "colorama", specifier = ">=0.4.6" },
-    { name = "coverage", extras = ["toml"], specifier = ">=7.9.1" },
-    { name = "google-api-python-client", specifier = ">=2.184.0" },
-    { name = "google-auth-httplib2", specifier = ">=0.2.0" },
-    { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
+    { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.9.1" },
+    { name = "google-api-python-client", marker = "extra == 'dev'", specifier = ">=2.184.0" },
+    { name = "google-auth-httplib2", marker = "extra == 'dev'", specifier = ">=0.2.0" },
+    { name = "google-auth-oauthlib", marker = "extra == 'dev'", specifier = ">=1.2.2" },
     { name = "logfire", specifier = ">=4.1.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.1" },
     { name = "numpy", specifier = ">=2.2.6" },
@@ -1618,14 +1622,15 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=0.5.0" },
     { name = "pydantic-core", specifier = ">=2.41.1" },
-    { name = "pyright", specifier = ">=1.1.405" },
-    { name = "pytest", specifier = ">=8.3.5" },
-    { name = "pytest-asyncio", specifier = ">=0.26.0" },
-    { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.405" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.26.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "typechat", specifier = ">=0.0.4" },
     { name = "webvtt-py", specifier = ">=0.5.1" },
 ]
+provides-extras = ["dev"]
 
 [[package]]
 name = "typechat"

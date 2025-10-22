@@ -32,7 +32,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Create .venv and install deps
-        run: uv sync
+        run: uv sync --extra dev
 
       - name: Build sdist + wheel (via make)
         run: make build                   # runs `uv build`, outputs to dist/

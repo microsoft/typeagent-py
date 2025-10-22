@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "typeagent"
 version = "0.3.0"
-description = "TypeAgent implements an agentic memory framework."
+description = "Typeagent implements an agentic memory framework"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
   { name = "Guido van Rossum", email = "gvanrossum@microsoft.com" },
@@ -29,13 +29,7 @@ classifiers = [
 ]
 dependencies = [
   "azure-identity>=1.22.0",
-  "black>=25.1.0",
-  "build>=1.2.2.post1",
   "colorama>=0.4.6",
-  "coverage[toml]>=7.9.1",
-  "google-api-python-client>=2.184.0",
-  "google-auth-httplib2>=0.2.0",
-  "google-auth-oauthlib>=1.2.2",
   "logfire>=4.1.0",
   "mcp[cli]>=1.12.1",
   "numpy>=2.2.6",
@@ -44,13 +38,23 @@ dependencies = [
   "pydantic>=2.11.4",
   "pydantic-ai-slim[openai]>=0.5.0",
   "pydantic-core>=2.41.1",
+  "python-dotenv>=1.1.0",
+  "typechat>=0.0.4",
+  "webvtt-py>=0.5.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=25.1.0",
+  "build>=1.2.2.post1",
+  "coverage[toml]>=7.9.1",
+  "google-api-python-client>=2.184.0",
+  "google-auth-httplib2>=0.2.0",
+  "google-auth-oauthlib>=1.2.2",
   "pyright>=1.1.405",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",
-  "python-dotenv>=1.1.0",
-  "typechat>=0.0.4",
-  "webvtt-py>=0.5.1",
 ]
 
 [project.urls]

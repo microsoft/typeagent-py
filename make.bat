@@ -55,7 +55,7 @@ goto end
 
 :venv
 echo Creating virtual environment...
-uv sync -q
+uv sync -q --extra dev
 .venv\Scripts\python --version
 .venv\Scripts\black --version
 .venv\Scripts\pyright --version

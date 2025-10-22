@@ -56,7 +56,7 @@ venv: .venv
 
 .venv:
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
-	uv sync -q
+	uv sync -q --extra dev
 	@.venv/bin/black --version | sed 's/, / /'
 	@.venv/bin/pyright --version
 	@.venv/bin/pytest --version
