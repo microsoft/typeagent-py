@@ -2,6 +2,12 @@
 
 ## 2025
 
+### 0.3.2 (Oct 22)
+
+Brown bag release!
+
+- Put `black` back with the runtime dependencies (it's used for debug output).
+
 ### 0.3.1 (Oct 22)
 
 - Limit dependencies to what's needed at runtime;
