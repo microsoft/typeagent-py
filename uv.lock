@@ -1576,6 +1576,7 @@ version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
+    { name = "black" },
     { name = "colorama" },
     { name = "logfire" },
     { name = "mcp", extra = ["cli"] },
@@ -1592,7 +1593,6 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "black" },
     { name = "build" },
     { name = "coverage" },
     { name = "google-api-python-client" },
@@ -1607,7 +1607,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=25.1.0" },
+    { name = "black", specifier = ">=25.1.0" },
     { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.2.post1" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.9.1" },
