@@ -19,7 +19,7 @@ Don't use it to index confidential information.
 
 Found in the [docs directory](docs/README.md)
 
-- [PyBay '25 powerpoint slides](docs/StructuredRagPyBay25.pptx)
+- [Dowload PyBay '25 PowerPoint slides](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pptx)
 
 ## Trademarks
 
