@@ -17,9 +17,10 @@ Don't use it to index confidential information.
 
 ### Documentation
 
-Found in the [docs directory](docs/README.md)
-
-- [Dowload PyBay '25 PowerPoint slides](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pptx)
+- Found in the [docs directory](docs/README.md)
+- Quick install: `pip install typeagent`
+- Download [PyBay '25 PowerPoint slides](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pptx)
+- Download [PyBay '25 slides as PDF](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pdf)
 
 ## Trademarks
 
