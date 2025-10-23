@@ -14,7 +14,7 @@ install wheels from [PyPI](https://pypi.org).
 
 ## "Hello world" ingestion program
 
-### 1. Create a text file named `transcript.txt`
+### 1. Create a text file named `testdata.txt`
 
 ```txt
 STEVE We should really make a Python library for Structured RAG.
@@ -26,7 +26,7 @@ GUIDO I volunteer to do the Python library. Give me a few months.
 
 ```py
 from typeagent import create_conversation
-from typeagent.transcripts.transcript import (
+from typeagent.testdatas.testdata import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
@@ -48,7 +48,7 @@ def read_messages(filename) -> list[TranscriptMessage]:
 
 async def main():
     conversation = await create_conversation("demo.db", TranscriptMessage)
-    messages = read_messages("transcript.txt")
+    messages = read_messages("testdata.txt")
     print(f"Indexing {len(messages)} messages...")
     results = await conversation.add_messages_with_indexing(messages)
     print(f"Indexed {results.messages_added} messages.")
