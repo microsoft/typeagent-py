@@ -158,10 +158,6 @@ The TODO items include (in no particular order):
 
 # Older TODO action items
 
-## Retries for embeddings
-
-For robustness -- TypeChat already retries, but my embeddings don't.
-
 ## Refactoring implementations
 
 - Change inconsistent module names (Claude uses different naming style)
