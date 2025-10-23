@@ -1,5 +1,7 @@
 # How to Reproduce the Demos
 
+All demos require [configuring](env-vars.md) an API key etc.
+
 ## How we did the Monty Python demo
 
 The demo consisted of loading a number (specifically, 11) popular
@@ -19,7 +21,6 @@ This is `tools/ingest_vtt.py`. You run it as follows:
 ```sh
 python tools/ingest_vtt.py FILE1.vtt ... FILEN.vtt -d mp.db
 ```
-(This requires [configuring](env-vars.md) an API key etc.)
 
 The process took maybe 15 minutes for 11 sketches.
 
@@ -72,4 +73,37 @@ used the instructions at [GeeksForGeeks
 
 The rest of the email ingestion pipeline doesn't care where you got
 your `*.eml` files from -- every email provider has its own quirks.
-`
+
+## Bonus content: Podcast demo
+
+The podcast demo is actually the easiest to run:
+The "database" is included in the repo as
+`testdata/Episode_53_AdrianTchaikovsky_index*`,
+and this is in fact the default "database" used by `tools/query.py`
+when no `-d`/`--database` flag is given.
+
+This "database" indexes `test/Episode_53_AdrianTchaikovsky.txt`.
+It was created by a one-off script that invoked
+`typeagent/podcast/podcast_ingest/ingest_podcast()`
+and saved to two files by calling the `.ingest()` method on the
+returned `typeagent/podcasts/podcast/Podcast` object.
+
+Here's a brief sample session:
+```sh
+$ python tools/query.py
+1.318s -- Using Azure OpenAI
+0.054s -- Loading podcast from 'testdata/Episode_53_AdrianTchaikovsky_index'
+TypeAgent demo UI 0.2 (type 'q' to exit)
+TypeAgent> What did Kevin say to Adrian about science fiction?
+--------------------------------------------------
+Kevin Scott expressed his admiration for Adrian Tchaikovsky as his favorite science fiction author. He mentioned that Adrian has a new trilogy called The Final Architecture, and Kevin is eagerly awaiting the third book, Lords of Uncreation, which he has had on preorder for months. Kevin praised Adrian for his impressive writing skills and his ability to produce large, interesting science fiction books at a rate of about one per year.
+--------------------------------------------------
+TypeAgent> How was Asimov mentioned.
+--------------------------------------------------
+Asimov was mentioned in the context of discussing the ethical and moral issues surrounding AI development. Adrian Tchaikovsky referenced Asimov's Laws of Robotics, noting that Asimov's stories often highlight the inadequacy of these laws in governing robots.
+--------------------------------------------------
+TypeAgent> q
+$
+```
+
+Enjoy exploring!
