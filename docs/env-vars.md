@@ -11,15 +11,24 @@ Typeagent currently supports two families of environment variables:
 
 ## OPENAI environment variables
 
-The (public) OpenAI environment variables include:
+The (public) OpenAI environment variables include the following:
+
+### Required:
 
 - `OPENAI_API_KEY`: Your secret API key that you get from the
   [OpenAI dashboard](https://platform.openai.com/api-keys).
 - `OPENAI_MODEL`: An environment variable introduced by
   [TypeChat](https://microsoft.github.io/TypeChat/docs/examples/)
   indicating the model to use (e.g.`gpt-4o`).
-- `OPENAI_BASE_URL`: **Optional:** The URL for an OpenAI-compatible embedding server, e.g. [Infinity](https://github.com/michaelfeil/infinity). With this option `OPENAI_API_KEY` also needs to be set, but can be any value.
-- `OPENAI_ENDPOINT`: **Optional:** The URL for an server compatible with the OpenAI Chat Completions API. Make sure the `OPENAI_MODEL` variable matches with the deployed model name, e.g. 'llama:3.2:1b'
+
+### Optional:
+
+- `OPENAI_BASE_URL`: The URL for an OpenAI-compatible embedding server,
+  e.g. [Infinity](https://github.com/michaelfeil/infinity). With this
+  option `OPENAI_API_KEY` also needs to be set, but can be any value.
+- `OPENAI_ENDPOINT`: The URL for an server compatible with the OpenAI
+  Chat Completions API. Make sure the `OPENAI_MODEL` variable matches
+  with the deployed model name, e.g. 'llama:3.2:1b'
 
 ## Azure OpenAI environment variables
 
@@ -35,7 +44,7 @@ environment variables, starting with:
 ## Conflicts
 
 If you set both `OPENAI_API_KEY` and `AZURE_OPENAI_API_KEY`,
-plain `OPENAI` will win.
+`OPENAI_API_KEY` will win.
 
 ## Other ways to specify environment variables
 
@@ -43,4 +52,5 @@ It is recommended to put your environment variables in a file named
 `.env` in the current or parent directory.
 To pick up these variables, call `typeagent.aitools.utils.load_dotenv()`
 at the start of your program (before calling any typeagent functions).
-(For simplicity this is not shown in [Getting Started](getting-started.md).)
+(For simplicity this is not shown in
+[Getting Started](getting-started.md).)
