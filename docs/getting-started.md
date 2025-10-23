@@ -26,7 +26,7 @@ GUIDO I volunteer to do the Python library. Give me a few months.
 
 ```py
 from typeagent import create_conversation
-from typeagent.testdatas.testdata import (
+from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
