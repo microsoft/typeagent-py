@@ -2,11 +2,9 @@
 
 Meta-todo: Gradually move work items from here to repo Issues.
 
-# Leftover TODOs from TADA.md
+# Leftover TODOs from elsewhere
 
 ## Software
-
-Minor:
 
 - Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
 
@@ -22,14 +20,10 @@ Minor:
 
 ## Documentation
 
-- Document how to reproduce the demos from the talk (and podcast)
-- Document test/build/release process
-- Document how to use gmail_dump.py (set up a project etc.)
-
-Maybe later:
-
-- Document how to run evaluations (but don't reveal all the data)
-
+- Test/build/release process
+- How to run evaluations (but don't share the data)
+- Low-level APIs -- at least the key parts that are used directly by the
+  high-level APIs
 
 # TODOs for fully implementing persistence through SQLite
 
@@ -79,19 +73,16 @@ Maybe later:
 
 # From Meeting 8/12/2025 afternoon (edited)
 
-- Indexing (knowledge extraction) operates chunk by chunk
-- TimeRange always points to a TextRange
-- Always import VTT, helper to convert podcast to VTT format
-  (Probably not, podcast format has listeners but VTT doesn't)
 - Rename "Ordinal" to "Id"
 
 # Other stuff
 
 ### Left to do here
 
-- Look more into why the search query schema is so instable
+- Look more into why the search query schema is so unstable
 - Implement at least some @-commands in query.py
 - More debug options (turn on/off various debug prints dynamically)
+
 - Use pydantic.ai for model drivers
 
 ## General: Look for things marked as incomplete in source
@@ -124,7 +115,6 @@ Maybe later:
 - Review Copilot-generated tests for sanity and minimal mocking
 - Add new tests for newly added classes/methods/functions
 - Coverage testing (needs to use a mix of indexing and querying)
-- Automated end-to-end tests using Umesh's test data files
 
 ## Tighter types
 
