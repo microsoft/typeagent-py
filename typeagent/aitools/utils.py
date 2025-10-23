@@ -51,7 +51,7 @@ def format_code(text: str, line_width=None) -> str:
         # Use the terminal width, but cap it to 200 characters.
         line_width = min(200, shutil.get_terminal_size().columns)
     formatted_text = black.format_str(
-        text, mode=black.FileMode(line_length=line_width)
+        text, mode=black.Mode(line_length=line_width)
     ).rstrip()
     return reindent(formatted_text)
 

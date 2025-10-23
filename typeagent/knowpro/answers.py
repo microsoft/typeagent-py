@@ -128,7 +128,7 @@ def create_context_prompt(context: AnswerContext) -> str:
     prompt = [
         "[ANSWER CONTEXT]",
         "===",
-        black.format_str(str(dictify(context)), mode=black.FileMode(line_length=200)),
+        black.format_str(str(dictify(context)), mode=black.Mode(line_length=200)),
         "===",
     ]
     return "\n".join(prompt)
