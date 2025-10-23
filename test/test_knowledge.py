@@ -15,6 +15,7 @@ from typeagent.knowpro.knowledge import (
 from typeagent.knowpro import convknowledge, kplib
 
 from fixtures import really_needs_auth
+from unittest.mock import AsyncMock
 
 
 class MockKnowledgeExtractor:
@@ -45,15 +46,26 @@ async def test_extract_knowledge_from_text(
     mock_knowledge_extractor: convknowledge.KnowledgeExtractor,
 ):
     """Test extracting knowledge from a single text input."""
+
+    mock_knowledge_extractor.extract = AsyncMock(
+        side_effect=mock_knowledge_extractor.extract
+    )
+
     result = await extract_knowledge_from_text(mock_knowledge_extractor, "test text", 3)
     assert isinstance(result, Success)
     assert result.value.topics[0] == "test text"
+
+    assert mock_knowledge_extractor.extract.call_count == 1
 
     failure_result = await extract_knowledge_from_text(
         mock_knowledge_extractor, "error", 3
     )
     assert isinstance(failure_result, Failure)
     assert failure_result.message == "Extraction failed"
+
+    assert (
+        mock_knowledge_extractor.extract.call_count == 5
+    )  # 1 for success | 1 + 3 retries for failures
 
 
 @pytest.mark.asyncio

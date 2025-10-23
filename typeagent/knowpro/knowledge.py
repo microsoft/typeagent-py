@@ -6,6 +6,7 @@ from typechat import Result, TypeChatLanguageModel
 from . import convknowledge
 from . import kplib
 from .interfaces import IKnowledgeExtractor
+from typechat import Result, Failure, Success
 
 
 def create_knowledge_extractor(
@@ -25,8 +26,18 @@ async def extract_knowledge_from_text(
     max_retries: int,
 ) -> Result[kplib.KnowledgeResponse]:
     """Extract knowledge from a single text input with retries."""
-    # TODO: Add a retry mechanism to handle transient errors.
-    return await knowledge_extractor.extract(text)
+
+    if max_retries < 0:
+        max_retries = 0
+
+    attempt = 0
+    while attempt <= max_retries:
+        result = await knowledge_extractor.extract(text)
+        if isinstance(result, Success) or attempt == max_retries:
+            return result
+        attempt += 1
+
+    return Failure("No result returned after retries")
 
 
 async def extract_knowledge_from_text_batch(
