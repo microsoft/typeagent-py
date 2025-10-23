@@ -1,5 +1,5 @@
 from typeagent import create_conversation
-from typeagent.testdatas.testdata import (
+from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )

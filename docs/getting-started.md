@@ -86,7 +86,7 @@ Expected output looks like:
 0.027s -- Using OpenAI
 Indexing 3 messages...
 Indexed 3 messages.
-Got 26 semantic refs.
+Got 24 semantic refs.
 ```
 
 ## "Hello world" query program
