@@ -22,7 +22,7 @@ UMESH Who would be a good person to do the Python library?
 GUIDO I volunteer to do the Python library. Give me a few months.
 ```
 
-### 2. Create a Python file named `demo.py`
+### 2. Create a Python file named `ingest.py`
 
 ```py
 from typeagent import create_conversation
@@ -77,7 +77,7 @@ Azure-hosted OpenAI models.
 ### 4. Run your program
 
 ```sh
-$ python demo.py
+$ python ingest.py
 ```
 
 Expected output looks like:
