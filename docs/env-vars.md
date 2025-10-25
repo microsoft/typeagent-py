@@ -9,6 +9,11 @@ Typeagent currently supports two families of environment variables:
 - Those for (public) OpenAI servers.
 - Those for the Azure OpenAI service.
 
+**Note:** The MCP server (`typeagent/mcp/server.py`) uses MCP's sampling API
+to request completions from the client's LLM, so it does **not** require
+OpenAI or Azure API keys for LLM completions. However, it still requires
+API keys for embeddings until MCP adds native embedding support.
+
 ## OPENAI environment variables
 
 The (public) OpenAI environment variables include the following:
