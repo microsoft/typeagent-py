@@ -7,15 +7,67 @@ from dataclasses import dataclass
 import time
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import TextContent
 import typechat
 
 from typeagent.aitools import embeddings, utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from typeagent.knowpro import answers, convknowledge, query, searchlang
+from typeagent.knowpro import answers, query, searchlang
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.search_query_schema import SearchQuery
 from typeagent.podcasts import podcast
+
+
+class MCPTypeChatModel(typechat.TypeChatLanguageModel):
+    """TypeChat language model that uses MCP sampling API instead of direct API calls."""
+
+    def __init__(self, mcp_server: FastMCP):
+        self.mcp_server = mcp_server
+
+    async def complete(
+        self, prompt: str | list[typechat.PromptSection]
+    ) -> typechat.Result[str]:
+        """Request completion from the MCP client's LLM."""
+        try:
+            # Convert prompt to message format
+            if isinstance(prompt, str):
+                messages = [{"role": "user", "content": prompt}]
+            else:
+                # PromptSection list: convert to messages
+                messages = []
+                for section in prompt:
+                    role = "user" if section.role == "user" else "assistant"
+                    messages.append({"role": role, "content": section.content})
+
+            # Use MCP sampling to request completion from client
+            result = await self.mcp_server.request_context.session.create_message(
+                messages=messages, max_tokens=4096
+            )
+
+            # Extract text content from response
+            # MCP responses have a content field that can be TextContent or a list
+            if isinstance(result.content, TextContent):
+                return typechat.Success(result.content.text)
+            elif isinstance(result.content, list):
+                # Handle list of content items
+                text_parts = []
+                for item in result.content:
+                    if isinstance(item, TextContent):
+                        text_parts.append(item.text)
+                    elif hasattr(item, "text"):
+                        text_parts.append(item.text)
+                if text_parts:
+                    return typechat.Success("".join(text_parts))
+                else:
+                    return typechat.Failure("No text content in MCP response")
+            elif hasattr(result.content, "text"):
+                return typechat.Success(result.content.text)
+            else:
+                return typechat.Failure("No text content in MCP response")
+
+        except Exception as e:
+            return typechat.Failure(f"MCP sampling failed: {str(e)}")
 
 
 @dataclass
@@ -34,7 +86,12 @@ class ProcessingContext:
         return f"Context({', '.join(parts)})"
 
 
-async def make_context() -> ProcessingContext:
+async def make_context(mcp_server: FastMCP) -> ProcessingContext:
+    """Create processing context using MCP-based language model.
+
+    Note: Embeddings still require API keys since MCP doesn't support embeddings yet.
+    Make sure to set OPENAI_API_KEY or AZURE_OPENAI_API_KEY for embeddings.
+    """
     utils.load_dotenv()
 
     settings = ConversationSettings()
@@ -53,7 +110,8 @@ async def make_context() -> ProcessingContext:
         "testdata/Episode_53_AdrianTchaikovsky_index", settings
     )
 
-    model = convknowledge.create_typechat_model()
+    # Use MCP-based model instead of one that requires API keys
+    model = MCPTypeChatModel(mcp_server)
     query_translator = utils.create_translator(model, SearchQuery)
     answer_translator = utils.create_translator(model, AnswerResponse)
 
@@ -100,7 +158,7 @@ async def query_conversation(question: str) -> QuestionResponse:
         return QuestionResponse(
             success=False, answer="No question provided", time_used=dt
         )
-    context = await make_context()
+    context = await make_context(mcp)
 
     # Stages 1, 2, 3 (LLM -> proto-query, compile, execute query)
     result = await searchlang.search_conversation_with_language(
