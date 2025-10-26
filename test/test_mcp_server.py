@@ -5,6 +5,8 @@
 
 import pytest
 
+from mcp.types import TextContent
+
 from fixtures import really_needs_auth
 
 
@@ -44,7 +46,13 @@ async def test_mcp_server_query_conversation(really_needs_auth):
 
             # Verify response structure
             assert len(result.content) > 0, "Expected non-empty response"
-            response_text = result.content[0].text
+
+            # Type narrow the content to TextContent
+            content_item = result.content[0]
+            assert isinstance(
+                content_item, TextContent
+            ), f"Expected TextContent, got {type(content_item)}"
+            response_text = content_item.text
 
             # Parse response (it should be JSON with success, answer, time_used)
             import json
@@ -86,7 +94,13 @@ async def test_mcp_server_empty_question(really_needs_auth):
 
             # Verify response
             assert len(result.content) > 0
-            response_text = result.content[0].text
+
+            # Type narrow the content to TextContent
+            content_item = result.content[0]
+            assert isinstance(
+                content_item, TextContent
+            ), f"Expected TextContent, got {type(content_item)}"
+            response_text = content_item.text
 
             import json
 
