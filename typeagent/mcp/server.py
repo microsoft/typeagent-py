@@ -42,7 +42,7 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
 
             # Use MCP sampling to request completion from client
             result = await self.mcp_server.request_context.session.create_message(
-                messages=messages, max_tokens=4096
+                messages=messages, max_tokens=16384
             )
 
             # Extract text content from response
@@ -55,19 +55,15 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
                 for item in result.content:
                     if isinstance(item, TextContent):
                         text_parts.append(item.text)
-                    elif hasattr(item, "text"):
-                        text_parts.append(item.text)
                 if text_parts:
-                    return typechat.Success("".join(text_parts))
+                    return typechat.Success("\n".join(text_parts))
                 else:
                     return typechat.Failure("No text content in MCP response")
-            elif hasattr(result.content, "text"):
-                return typechat.Success(result.content.text)
             else:
                 return typechat.Failure("No text content in MCP response")
 
         except Exception as e:
-            return typechat.Failure(f"MCP sampling failed: {str(e)}")
+            return typechat.Failure(f"MCP sampling failed: {e!r}")
 
 
 @dataclass
