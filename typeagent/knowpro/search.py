@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
+from dataclasses import dataclass as stdlib_dataclass
 from pydantic.dataclasses import dataclass
 from pydantic import Field, AliasChoices
 from typing import TypeGuard, cast, Annotated
@@ -78,7 +79,7 @@ class SearchQueryExpr:
     raw_query: str | None = None
 
 
-@dataclass
+@stdlib_dataclass
 class SearchOptions:
     max_knowledge_matches: int | None = None
     exact_match: bool = False
