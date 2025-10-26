@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import time
 
 from mcp.server.fastmcp import FastMCP
-from mcp.server import RequestContext
+from mcp.server import RequestContext, Session
 from mcp.types import TextContent
 import typechat
 
@@ -23,7 +23,7 @@ from typeagent.podcasts import podcast
 class MCPTypeChatModel(typechat.TypeChatLanguageModel):
     """TypeChat language model that uses MCP sampling API instead of direct API calls."""
 
-    def __init__(self, session):
+    def __init__(self, session: Session):
         """Initialize with MCP session for sampling."""
         self.session = session
 
@@ -84,7 +84,7 @@ class ProcessingContext:
         return f"Context({', '.join(parts)})"
 
 
-async def make_context(session) -> ProcessingContext:
+async def make_context(session: Session) -> ProcessingContext:
     """Create processing context using MCP-based language model.
 
     Note: Embeddings still require API keys since MCP doesn't support embeddings yet.
