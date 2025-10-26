@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import time
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server import RequestContext
 from mcp.types import TextContent
 import typechat
 
@@ -22,8 +23,9 @@ from typeagent.podcasts import podcast
 class MCPTypeChatModel(typechat.TypeChatLanguageModel):
     """TypeChat language model that uses MCP sampling API instead of direct API calls."""
 
-    def __init__(self, mcp_server: FastMCP):
-        self.mcp_server = mcp_server
+    def __init__(self, session):
+        """Initialize with MCP session for sampling."""
+        self.session = session
 
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
@@ -37,11 +39,11 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
                 # PromptSection list: convert to messages
                 messages = []
                 for section in prompt:
-                    role = "user" if section.role == "user" else "assistant"
-                    messages.append({"role": role, "content": section.content})
+                    role = "user" if section["role"] == "user" else "assistant"
+                    messages.append({"role": role, "content": section["content"]})
 
             # Use MCP sampling to request completion from client
-            result = await self.mcp_server.request_context.session.create_message(
+            result = await self.session.create_message(
                 messages=messages, max_tokens=16384
             )
 
@@ -82,7 +84,7 @@ class ProcessingContext:
         return f"Context({', '.join(parts)})"
 
 
-async def make_context(mcp_server: FastMCP) -> ProcessingContext:
+async def make_context(session) -> ProcessingContext:
     """Create processing context using MCP-based language model.
 
     Note: Embeddings still require API keys since MCP doesn't support embeddings yet.
@@ -107,7 +109,7 @@ async def make_context(mcp_server: FastMCP) -> ProcessingContext:
     )
 
     # Use MCP-based model instead of one that requires API keys
-    model = MCPTypeChatModel(mcp_server)
+    model = MCPTypeChatModel(session)
     query_translator = utils.create_translator(model, SearchQuery)
     answer_translator = utils.create_translator(model, AnswerResponse)
 
@@ -145,7 +147,7 @@ class QuestionResponse:
 
 
 @mcp.tool()
-async def query_conversation(question: str) -> QuestionResponse:
+async def query_conversation(question: str, ctx: RequestContext) -> QuestionResponse:
     """Send a question to the memory server and get an answer back"""
     t0 = time.time()
     question = question.strip()
@@ -154,7 +156,7 @@ async def query_conversation(question: str) -> QuestionResponse:
         return QuestionResponse(
             success=False, answer="No question provided", time_used=dt
         )
-    context = await make_context(mcp)
+    context = await make_context(ctx.session)
 
     # Stages 1, 2, 3 (LLM -> proto-query, compile, execute query)
     result = await searchlang.search_conversation_with_language(

@@ -1,35 +1,95 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Tests for the MCP server MCPTypeChatModel."""
+"""End-to-end tests for the MCP server."""
+
+import pytest
+
+from fixtures import really_needs_auth
 
 
-def test_max_tokens_value():
-    """Test that max_tokens is set to a reasonable value."""
-    # The MCP server should use a higher max_tokens value to allow
-    # applications that need more than 4K tokens
-    expected_max_tokens = 16384
-    assert expected_max_tokens == 16384
-    assert expected_max_tokens > 4096  # Old value was 4096, new is higher
+@pytest.mark.asyncio
+async def test_mcp_server_query_conversation(really_needs_auth):
+    """Test the query_conversation tool end-to-end using MCP client."""
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    # Configure server parameters
+    server_params = StdioServerParameters(
+        command="python",
+        args=["-m", "typeagent.mcp.server"],
+        env=None,
+    )
+
+    # Create client session and connect to server
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize the session
+            await session.initialize()
+
+            # List available tools
+            tools_result = await session.list_tools()
+            tool_names = [tool.name for tool in tools_result.tools]
+
+            # Verify query_conversation tool exists
+            assert (
+                "query_conversation" in tool_names
+            ), f"query_conversation tool not found. Available tools: {tool_names}"
+
+            # Call the query_conversation tool
+            result = await session.call_tool(
+                "query_conversation",
+                arguments={"question": "What is the title of this podcast?"},
+            )
+
+            # Verify response structure
+            assert len(result.content) > 0, "Expected non-empty response"
+            response_text = result.content[0].text
+
+            # Parse response (it should be JSON with success, answer, time_used)
+            import json
+
+            response_data = json.loads(response_text)
+            assert "success" in response_data
+            assert "answer" in response_data
+            assert "time_used" in response_data
+
+            # If successful, answer should be non-empty
+            if response_data["success"]:
+                assert len(response_data["answer"]) > 0
 
 
-def test_text_join_delimiter():
-    """Test that we use newline as delimiter when joining text parts."""
-    # When MCP returns multiple content items, we should join with newlines
-    text_parts = ["Part 1", "Part 2", "Part 3"]
-    result = "\n".join(text_parts)
-    assert result == "Part 1\nPart 2\nPart 3"
-    # Verify newline is used, not just concatenation
-    assert "\n" in result
+@pytest.mark.asyncio
+async def test_mcp_server_empty_question(really_needs_auth):
+    """Test the query_conversation tool with an empty question."""
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
 
+    # Configure server parameters
+    server_params = StdioServerParameters(
+        command="python",
+        args=["-m", "typeagent.mcp.server"],
+        env=None,
+    )
 
-def test_error_formatting():
-    """Test that errors use repr for better debugging."""
-    test_exception = RuntimeError("Test error")
-    error_message = f"MCP sampling failed: {test_exception!r}"
-    # Should contain both the exception type and message
-    assert "RuntimeError" in error_message
-    assert "Test error" in error_message
-    # repr should give more info than str
-    str_message = f"MCP sampling failed: {str(test_exception)}"
-    assert len(error_message) >= len(str_message)
+    # Create client session and connect to server
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize the session
+            await session.initialize()
+
+            # Call with empty question
+            result = await session.call_tool(
+                "query_conversation",
+                arguments={"question": ""},
+            )
+
+            # Verify response
+            assert len(result.content) > 0
+            response_text = result.content[0].text
+
+            import json
+
+            response_data = json.loads(response_text)
+            assert response_data["success"] is False
+            assert "No question provided" in response_data["answer"]
