@@ -5,9 +5,10 @@
 
 from dataclasses import dataclass
 import time
+from typing import Any
 
 from mcp.server.fastmcp import FastMCP
-from mcp.server import RequestContext, Session
+from mcp.shared.context import RequestContext
 from mcp.types import TextContent
 import typechat
 
@@ -23,8 +24,12 @@ from typeagent.podcasts import podcast
 class MCPTypeChatModel(typechat.TypeChatLanguageModel):
     """TypeChat language model that uses MCP sampling API instead of direct API calls."""
 
-    def __init__(self, session: Session):
-        """Initialize with MCP session for sampling."""
+    def __init__(self, session: Any):
+        """Initialize with MCP session for sampling.
+
+        Args:
+            session: The MCP server session that provides create_message() for sampling.
+        """
         self.session = session
 
     async def complete(
@@ -84,8 +89,11 @@ class ProcessingContext:
         return f"Context({', '.join(parts)})"
 
 
-async def make_context(session: Session) -> ProcessingContext:
+async def make_context(session: Any) -> ProcessingContext:
     """Create processing context using MCP-based language model.
+
+    Args:
+        session: The MCP server session that provides create_message() for sampling.
 
     Note: Embeddings still require API keys since MCP doesn't support embeddings yet.
     Make sure to set OPENAI_API_KEY or AZURE_OPENAI_API_KEY for embeddings.
