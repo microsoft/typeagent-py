@@ -92,9 +92,7 @@ async def test_mcp_server_query_conversation(really_needs_auth):
             tool_names = [tool.name for tool in tools_result.tools]
 
             # Verify query_conversation tool exists
-            assert (
-                "query_conversation" in tool_names
-            ), f"query_conversation tool not found. Available tools: {tool_names}"
+            assert "query_conversation" in tool_names
 
             # Call the query_conversation tool
             result = await session.call_tool(
@@ -155,9 +153,7 @@ async def test_mcp_server_empty_question():
 
             # Type narrow the content to TextContent
             content_item = result.content[0]
-            assert isinstance(
-                content_item, TextContent
-            ), f"Expected TextContent, got {type(content_item)}"
+            assert isinstance(content_item, TextContent)
             response_text = content_item.text
 
             import json
