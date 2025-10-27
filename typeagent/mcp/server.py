@@ -7,24 +7,24 @@ from dataclasses import dataclass
 import time
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
-from mcp.shared.context import RequestContext
-from mcp.types import TextContent
+from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.session import ServerSession
+from mcp.types import SamplingMessage, TextContent
 import typechat
 
 from typeagent.aitools import embeddings, utils
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro import answers, query, searchlang
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.search_query_schema import SearchQuery
 from typeagent.podcasts import podcast
+from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
 
 
 class MCPTypeChatModel(typechat.TypeChatLanguageModel):
     """TypeChat language model that uses MCP sampling API instead of direct API calls."""
 
-    def __init__(self, session: Any):
+    def __init__(self, session: ServerSession):
         """Initialize with MCP session for sampling.
 
         Args:
@@ -37,19 +37,29 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
     ) -> typechat.Result[str]:
         """Request completion from the MCP client's LLM."""
         try:
-            # Convert prompt to message format
+            # Convert prompt to MCP SamplingMessage format
+            sampling_messages: list[SamplingMessage]
             if isinstance(prompt, str):
-                messages = [{"role": "user", "content": prompt}]
+                sampling_messages = [
+                    SamplingMessage(
+                        role="user", content=TextContent(type="text", text=prompt)
+                    )
+                ]
             else:
-                # PromptSection list: convert to messages
-                messages = []
+                # PromptSection list: convert to SamplingMessage
+                sampling_messages = []
                 for section in prompt:
                     role = "user" if section["role"] == "user" else "assistant"
-                    messages.append({"role": role, "content": section["content"]})
+                    sampling_messages.append(
+                        SamplingMessage(
+                            role=role,
+                            content=TextContent(type="text", text=section["content"]),
+                        )
+                    )
 
             # Use MCP sampling to request completion from client
             result = await self.session.create_message(
-                messages=messages, max_tokens=16384
+                messages=sampling_messages, max_tokens=16384
             )
 
             # Extract text content from response
@@ -58,7 +68,7 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
                 return typechat.Success(result.content.text)
             elif isinstance(result.content, list):
                 # Handle list of content items
-                text_parts = []
+                text_parts: list[str] = []
                 for item in result.content:
                     if isinstance(item, TextContent):
                         text_parts.append(item.text)
@@ -77,19 +87,21 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
 class ProcessingContext:
     lang_search_options: searchlang.LanguageSearchOptions
     answer_context_options: answers.AnswerContextOptions
-    query_context: query.QueryEvalContext
+    query_context: query.QueryEvalContext[
+        podcast.PodcastMessage, TermToSemanticRefIndex
+    ]
     embedding_model: embeddings.AsyncEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse]
 
     def __repr__(self) -> str:
-        parts = []
+        parts: list[str] = []
         parts.append(f"{self.lang_search_options}")
         parts.append(f"{self.answer_context_options}")
         return f"Context({', '.join(parts)})"
 
 
-async def make_context(session: Any) -> ProcessingContext:
+async def make_context(session: ServerSession) -> ProcessingContext:
     """Create processing context using MCP-based language model.
 
     Args:
@@ -135,7 +147,7 @@ async def make_context(session: Any) -> ProcessingContext:
 
 async def load_podcast_index(
     podcast_file_prefix: str, settings: ConversationSettings
-) -> query.QueryEvalContext:
+) -> query.QueryEvalContext[podcast.PodcastMessage, Any]:
     conversation = await podcast.Podcast.read_from_file(podcast_file_prefix, settings)
     assert (
         conversation is not None
@@ -155,7 +167,9 @@ class QuestionResponse:
 
 
 @mcp.tool()
-async def query_conversation(question: str, ctx: RequestContext) -> QuestionResponse:
+async def query_conversation(
+    question: str, ctx: Context[ServerSession, Any, Any]
+) -> QuestionResponse:
     """Send a question to the memory server and get an answer back"""
     t0 = time.time()
     question = question.strip()
@@ -164,7 +178,7 @@ async def query_conversation(question: str, ctx: RequestContext) -> QuestionResp
         return QuestionResponse(
             success=False, answer="No question provided", time_used=dt
         )
-    context = await make_context(ctx.session)
+    context = await make_context(ctx.request_context.session)
 
     # Stages 1, 2, 3 (LLM -> proto-query, compile, execute query)
     result = await searchlang.search_conversation_with_language(

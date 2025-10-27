@@ -3,11 +3,67 @@
 
 """End-to-end tests for the MCP server."""
 
+from typing import Any
+
 import pytest
 
-from mcp.types import TextContent
+from mcp.client.session import ClientSession as ClientSessionType
+from mcp.shared.context import RequestContext
+from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
 from fixtures import really_needs_auth
+
+
+async def sampling_callback(
+    context: RequestContext[ClientSessionType, Any, Any],
+    params: CreateMessageRequestParams,
+) -> CreateMessageResult:
+    """Sampling callback that uses OpenAI to generate responses."""
+    # Use OpenAI to generate a response
+    import openai
+    from openai.types.chat import ChatCompletionMessageParam
+
+    client = openai.AsyncOpenAI()
+
+    # Convert MCP SamplingMessage to OpenAI format
+    messages: list[ChatCompletionMessageParam] = []
+    for msg in params.messages:
+        # Handle TextContent
+        content: str
+        if isinstance(msg.content, TextContent):
+            content = msg.content.text
+        elif hasattr(msg.content, "text"):
+            content = msg.content.text  # type: ignore
+        else:
+            content = str(msg.content)
+
+        # MCP roles are "user" or "assistant", which are compatible with OpenAI
+        if msg.role == "user":
+            messages.append({"role": "user", "content": content})
+        else:
+            messages.append({"role": "assistant", "content": content})
+
+    # Add system prompt if provided
+    if params.systemPrompt:
+        messages.insert(0, {"role": "system", "content": params.systemPrompt})
+
+    # Call OpenAI
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        max_tokens=params.maxTokens,
+        temperature=params.temperature if params.temperature is not None else 1.0,
+    )
+
+    # Convert response to MCP format
+    return CreateMessageResult(
+        role="assistant",
+        content=TextContent(
+            type="text", text=response.choices[0].message.content or ""
+        ),
+        model=response.model,
+        stopReason="endTurn",
+    )
 
 
 @pytest.mark.asyncio
@@ -25,7 +81,9 @@ async def test_mcp_server_query_conversation(really_needs_auth):
 
     # Create client session and connect to server
     async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
+        async with ClientSession(
+            read, write, sampling_callback=sampling_callback
+        ) as session:
             # Initialize the session
             await session.initialize()
 
@@ -49,9 +107,7 @@ async def test_mcp_server_query_conversation(really_needs_auth):
 
             # Type narrow the content to TextContent
             content_item = result.content[0]
-            assert isinstance(
-                content_item, TextContent
-            ), f"Expected TextContent, got {type(content_item)}"
+            assert isinstance(content_item, TextContent)
             response_text = content_item.text
 
             # Parse response (it should be JSON with success, answer, time_used)
@@ -68,7 +124,7 @@ async def test_mcp_server_query_conversation(really_needs_auth):
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_empty_question(really_needs_auth):
+async def test_mcp_server_empty_question():
     """Test the query_conversation tool with an empty question."""
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
@@ -82,7 +138,9 @@ async def test_mcp_server_empty_question(really_needs_auth):
 
     # Create client session and connect to server
     async with stdio_client(server_params) as (read, write):
-        async with ClientSession(read, write) as session:
+        async with ClientSession(
+            read, write, sampling_callback=sampling_callback
+        ) as session:
             # Initialize the session
             await session.initialize()
 
