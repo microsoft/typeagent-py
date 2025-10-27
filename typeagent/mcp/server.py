@@ -59,7 +59,7 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
 
             # Use MCP sampling to request completion from client
             result = await self.session.create_message(
-                messages=sampling_messages, max_tokens=16384
+                messages=sampling_messages, max_tokens=4096
             )
 
             # Extract text content from response

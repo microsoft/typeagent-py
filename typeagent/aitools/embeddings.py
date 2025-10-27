@@ -103,23 +103,17 @@ class AsyncEmbeddingModel:
         self._embedding_cache = {}
 
     def _setup_azure(self, azure_api_key: str) -> None:
-        # TODO: support different endpoint names
-        endpoint_envvar = self.endpoint_envvar
-        azure_endpoint = os.environ.get(endpoint_envvar)
-        if not azure_endpoint:
-            raise ValueError(f"Environment variable {endpoint_envvar} not found.")
-        m = re.search(r"[?,]api-version=([^,]+)$", azure_endpoint)
-        if not m:
-            raise ValueError(
-                f"{endpoint_envvar}={azure_endpoint} "
-                f"doesn't end in api-version=<version>"
-            )
-        self.azure_endpoint = azure_endpoint
-        self.azure_api_version = m.group(1)
-        if azure_api_key.lower() == "identity":
+        from .utils import get_azure_api_key, parse_azure_endpoint
+
+        azure_api_key = get_azure_api_key(azure_api_key)
+        self.azure_endpoint, self.azure_api_version = parse_azure_endpoint(
+            self.endpoint_envvar
+        )
+
+        if azure_api_key != os.getenv("AZURE_OPENAI_API_KEY"):
+            # If we got a token from identity, store the provider for refresh
             self.azure_token_provider = get_shared_token_provider()
-            azure_api_key = self.azure_token_provider.get_token()
-            # print("Using shared TokenProvider")
+
         self.async_client = AsyncAzureOpenAI(
             api_version=self.azure_api_version,
             azure_endpoint=self.azure_endpoint,

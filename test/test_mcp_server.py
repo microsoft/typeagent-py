@@ -20,10 +20,11 @@ async def sampling_callback(
 ) -> CreateMessageResult:
     """Sampling callback that uses OpenAI to generate responses."""
     # Use OpenAI to generate a response
-    import openai
     from openai.types.chat import ChatCompletionMessageParam
 
-    client = openai.AsyncOpenAI()
+    from typeagent.aitools.utils import create_async_openai_client
+
+    client = create_async_openai_client()
 
     # Convert MCP SamplingMessage to OpenAI format
     messages: list[ChatCompletionMessageParam] = []
@@ -49,7 +50,7 @@ async def sampling_callback(
 
     # Call OpenAI
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=messages,
         max_tokens=params.maxTokens,
         temperature=params.temperature if params.temperature is not None else 1.0,
@@ -67,7 +68,7 @@ async def sampling_callback(
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_query_conversation(really_needs_auth):
+async def test_mcp_server_query_conversation_slow(really_needs_auth):
     """Test the query_conversation tool end-to-end using MCP client."""
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
@@ -119,6 +120,8 @@ async def test_mcp_server_query_conversation(really_needs_auth):
             # If successful, answer should be non-empty
             if response_data["success"]:
                 assert len(response_data["answer"]) > 0
+
+            assert response_data["success"] is True, response_data
 
 
 @pytest.mark.asyncio
