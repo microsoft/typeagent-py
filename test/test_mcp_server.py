@@ -74,7 +74,7 @@ async def test_mcp_server_query_conversation(really_needs_auth):
 
     # Configure server parameters
     server_params = StdioServerParameters(
-        command="python",
+        command=".venv/bin/python",
         args=["-m", "typeagent.mcp.server"],
         env=None,
     )
@@ -131,7 +131,7 @@ async def test_mcp_server_empty_question():
 
     # Configure server parameters
     server_params = StdioServerParameters(
-        command="python",
+        command=".venv/bin/python",
         args=["-m", "typeagent.mcp.server"],
         env=None,
     )
