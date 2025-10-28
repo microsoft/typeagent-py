@@ -3,11 +3,10 @@
 
 import asyncio
 import os
-import re
 
 import numpy as np
 from numpy.typing import NDArray
-from openai import AsyncOpenAI, AsyncAzureOpenAI, OpenAIError
+from openai import AsyncOpenAI, AsyncAzureOpenAI, DEFAULT_MAX_RETRIES, OpenAIError
 
 from .auth import get_shared_token_provider, AzureTokenProvider
 from .utils import timelog
@@ -23,8 +22,8 @@ TEST_MODEL_NAME = "test"
 
 model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
     DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
-    "text-embedding-small": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
-    "text-embedding-large": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
+    "text-embedding-3-small": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
+    "text-embedding-3-large": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
     # For testing only, not a real model (insert real embeddings above)
     TEST_MODEL_NAME: (3, "SIR_NOT_APPEARING_IN_THIS_FILM"),
 }
@@ -46,6 +45,7 @@ class AsyncEmbeddingModel:
         embedding_size: int | None = None,
         model_name: str | None = None,
         endpoint_envvar: str | None = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
     ):
         if model_name is None:
             model_name = DEFAULT_MODEL_NAME
@@ -90,7 +90,7 @@ class AsyncEmbeddingModel:
                 endpoint = os.getenv(self.endpoint_envvar)
                 with timelog(f"Using OpenAI"):
                     self.async_client = AsyncOpenAI(
-                        base_url=endpoint, api_key=openai_key
+                        base_url=endpoint, api_key=openai_key, max_retries=max_retries
                     )
             elif azure_api_key := os.getenv(azure_key_name):
                 with timelog("Using Azure OpenAI"):
