@@ -21,7 +21,7 @@ DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
 TEST_MODEL_NAME = "test"
 
 model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
-    DEFAULT_MODEL_NAME: (None, DEFAULT_ENVVAR),
+    DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
     "text-embedding-3-small": (1536, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
     "text-embedding-3-large": (3072, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
     # For testing only, not a real model (insert real embeddings above)
@@ -61,6 +61,11 @@ class AsyncEmbeddingModel:
             else:
                 embedding_size = DEFAULT_EMBEDDING_SIZE
         self.embedding_size = embedding_size
+
+        if model_name == DEFAULT_MODEL_NAME and embedding_size != DEFAULT_EMBEDDING_SIZE:
+            raise ValueError(
+                f"Cannot customize embedding_size for default model {DEFAULT_MODEL_NAME}"
+            )
 
         if endpoint_envvar is None:
             if suggested_endpoint_envvar is not None:

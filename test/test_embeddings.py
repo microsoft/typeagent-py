@@ -181,3 +181,14 @@ async def test_set_endpoint(monkeypatch):
     assert embedding_model.embedding_size == 2000
     assert embedding_model.model_name == "text-embedding-3-small"
     assert embedding_model.endpoint_envvar == "ALTERNATE_ENDPOINT"
+
+    # Allow explicitly setting default embedding size
+    AsyncEmbeddingModel(1536)
+
+    # Can't customize embedding_size for default model
+    with pytest.raises(ValueError):
+        AsyncEmbeddingModel(1024)
+
+    # Not even when default model name specified explicitly
+    with pytest.raises(ValueError):
+        AsyncEmbeddingModel(1024, "text-embedding-ada-002")
