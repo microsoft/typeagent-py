@@ -10,6 +10,8 @@ from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
+from fixtures import really_needs_auth
+
 
 @pytest.mark.asyncio
 async def test_create_conversation_minimal():
@@ -51,7 +53,7 @@ async def test_create_conversation_with_tags():
 
 
 @pytest.mark.asyncio
-async def test_create_conversation_and_add_messages():
+async def test_create_conversation_and_add_messages(really_needs_auth):
     """Test the complete workflow: create conversation and add messages."""
     # 1. Create empty conversation
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
