@@ -8,7 +8,7 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/black -tpy312 -tpy313 -tpy314 typeagent test tools gmail $(FLAGS)
+	.venv/bin/black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo $(FLAGS)
 
 .PHONY: check
 check: venv
