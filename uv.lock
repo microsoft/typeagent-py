@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -90,20 +90,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/ce/883ec4b6303acdeca93ee06b7622f1fa383c6b3765294824165d49b1a86b/black-25.9.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b756fc75871cb1bcac5499552d771822fd9db5a2bb8db2a7247936ca48f39831", size = 1655583, upload-time = "2025-09-19T00:30:44.505Z" },
     { url = "https://files.pythonhosted.org/packages/21/17/5c253aa80a0639ccc427a5c7144534b661505ae2b5a10b77ebe13fa25334/black-25.9.0-cp313-cp313-win_amd64.whl", hash = "sha256:846d58e3ce7879ec1ffe816bb9df6d006cd9590515ed5d17db14e17666b2b357", size = 1343428, upload-time = "2025-09-19T00:32:13.839Z" },
     { url = "https://files.pythonhosted.org/packages/1b/46/863c90dcd3f9d41b109b7f19032ae0db021f0b2a81482ba0a1e28c84de86/black-25.9.0-py3-none-any.whl", hash = "sha256:474b34c1342cdc157d307b56c4c65bce916480c4a8f6551fdc6bf9b486a7c4ae", size = 203363, upload-time = "2025-09-19T00:27:35.724Z" },
-]
-
-[[package]]
-name = "build"
-version = "1.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama", marker = "os_name == 'nt'" },
-    { name = "packaging" },
-    { name = "pyproject-hooks" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/25/1c/23e33405a7c9eac261dff640926b8b5adaed6a6eb3e1767d441ed611d0c0/build-1.3.0.tar.gz", hash = "sha256:698edd0ea270bde950f53aed21f3a0135672206f3911e0176261a31e0e07b397", size = 48544, upload-time = "2025-08-01T21:27:09.268Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/8c/2b30c12155ad8de0cf641d76a8b396a16d2c36bc6d50b621a62b7c4567c1/build-1.3.0-py3-none-any.whl", hash = "sha256:7145f0b5061ba90a1500d60bd1b13ca0a8a4cebdd0cc16ed8adf1c0e739f43b4", size = 23382, upload-time = "2025-08-01T21:27:07.844Z" },
 ]
 
 [[package]]
@@ -1292,15 +1278,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyproject-hooks"
-version = "1.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e7/82/28175b2414effca1cdac8dc99f76d660e7a4fb0ceefa4b4ab8f5f6742925/pyproject_hooks-1.2.0.tar.gz", hash = "sha256:1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8", size = 19228, upload-time = "2024-09-29T09:24:13.293Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bd/24/12818598c362d7f300f18e74db45963dbcb85150324092410c8b49405e42/pyproject_hooks-1.2.0-py3-none-any.whl", hash = "sha256:9e5c6bfa8dcc30091c74b0cf803c81fdd29d94f01992a7707bc97babb1141913", size = 10216, upload-time = "2024-09-29T09:24:11.978Z" },
-]
-
-[[package]]
 name = "pyright"
 version = "1.1.407"
 source = { registry = "https://pypi.org/simple" }
@@ -1612,11 +1589,8 @@ dependencies = [
     { name = "mcp", extra = ["cli"] },
     { name = "numpy" },
     { name = "openai" },
-    { name = "opentelemetry-instrumentation-httpx" },
     { name = "pydantic" },
     { name = "pydantic-ai-slim", extra = ["openai"] },
-    { name = "pydantic-core" },
-    { name = "pyright" },
     { name = "python-dotenv" },
     { name = "typechat" },
     { name = "webvtt-py" },
@@ -1624,11 +1598,11 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "build" },
     { name = "coverage" },
     { name = "google-api-python-client" },
     { name = "google-auth-httplib2" },
     { name = "google-auth-oauthlib" },
+    { name = "opentelemetry-instrumentation-httpx" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -1639,7 +1613,6 @@ dev = [
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
     { name = "black", specifier = ">=25.1.0" },
-    { name = "build", marker = "extra == 'dev'", specifier = ">=1.2.2.post1" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.9.1" },
     { name = "google-api-python-client", marker = "extra == 'dev'", specifier = ">=2.184.0" },
@@ -1649,12 +1622,10 @@ requires-dist = [
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.1" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "openai", specifier = ">=1.81.0" },
-    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.57b0" },
+    { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'dev'", specifier = ">=0.57b0" },
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=0.5.0" },
-    { name = "pydantic-core", specifier = ">=2.41.1" },
-    { name = "pyright", specifier = ">=1.1.407" },
-    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.405" },
+    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.407" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.26.0" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
