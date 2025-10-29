@@ -141,6 +141,10 @@ async def test_set_endpoint(monkeypatch):
         1024, "custom_model", "INFINITY_EMBEDDING_URL"
     )
 
+    assert embedding_model.embedding_size == 1024
+    assert embedding_model.model_name == "custom_model"
+
+    # NOTE: checking openai.AsyncOpenAI internals
     assert embedding_model.async_client is not None
     assert embedding_model.async_client.base_url == "http://localhost:7997"
     assert embedding_model.async_client.api_key == "does-not-matter"
@@ -148,8 +152,8 @@ async def test_set_endpoint(monkeypatch):
     with pytest.raises(
         ValueError,
         match="Environment variable for embedding endpoint WRONG_ENDPOINT does not match required environment"
-        " variable AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL for embedding model text-embedding-small.",
+        " variable AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL for embedding model text-embedding-3-small.",
     ):
         embedding_model = AsyncEmbeddingModel(
-            2000, "text-embedding-small", "WRONG_ENDPOINT"
+            2000, "text-embedding-3-small", "WRONG_ENDPOINT"
         )

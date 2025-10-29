@@ -54,7 +54,7 @@ class ConversationSettings:
         )
         self.semantic_ref_index_settings = SemanticRefIndexSettings(
             batch_size=10,
-            auto_extract_knowledge=False,
+            auto_extract_knowledge=True,  # The high-level API wants this
         )
 
         # Storage provider will be created lazily if not provided
