@@ -226,7 +226,6 @@ class AsyncEmbeddingModel:
                     entity_to_embed = self.encoding.encode(entity)
 
                 entity_size = len(entity_to_embed)
-                chunked_sizes.append(entity_size)
                 if entity_size > self.max_chunk_size:
                     chunked_entity = list(
                         chunk_input(entity_to_embed, self.max_chunk_size)
@@ -238,15 +237,17 @@ class AsyncEmbeddingModel:
                         chunked_sizes.append(len(chunk))
                         chunked_input.append(chunk)
                 else:
+                    chunked_sizes.append(entity_size)
                     chunked_input.append(entity_to_embed)
 
             input_embeddings = []
             batch = []
-            tokens_per_batch = 0
+            size_of_batch = 0
+            assert len(chunked_sizes) == len(chunked_input)
             for chunk_size, chunk in zip(chunked_sizes, chunked_input):
                 if (
                     len(batch) == MAX_BATCH_SIZE
-                    or tokens_per_batch + chunk_size > self.max_size_per_batch
+                    or size_of_batch + chunk_size > self.max_size_per_batch
                 ):
                     data = (
                         await self.async_client.embeddings.create(
@@ -258,37 +259,35 @@ class AsyncEmbeddingModel:
                     ).data
                     input_embeddings.extend(data)
                     batch = [chunk]
-                    tokens_per_batch = chunk_size
+                    size_of_batch = chunk_size
                 else:
                     batch.append(chunk)
-                    tokens_per_batch += chunk_size
-
-            data = (
-                await self.async_client.embeddings.create(
-                    input=batch,
-                    model=self.model_name,
-                    encoding_format="float",
-                    **extra_args,
-                )
-            ).data
-            input_embeddings.extend(data)
+                    size_of_batch += chunk_size
+            if batch:
+                data = (
+                    await self.async_client.embeddings.create(
+                        input=batch,
+                        model=self.model_name,
+                        encoding_format="float",
+                        **extra_args,
+                    )
+                ).data
+                input_embeddings.extend(data)
 
             result = np.empty((len(input), self.embedding_size), dtype=np.float32)
             embedding_idx = 0
-            sentence_idx = 0
-            while sentence_idx < len(input):
-                if sentence_idx in chunked_groups:
-                    start_idx, no_of_chunks = chunked_groups[sentence_idx]
+            for input_idx in range(len(input)):
+                if input_idx in chunked_groups:
+                    start_idx, no_of_chunks = chunked_groups[input_idx]
                     chunks = input_embeddings[start_idx : start_idx + no_of_chunks]
                     chunk_embeddings = np.average(
                         [chunk.embedding for chunk in chunks], axis=0
                     )
-                    result[sentence_idx] = chunk_embeddings
+                    result[input_idx] = chunk_embeddings
                     embedding_idx += no_of_chunks
                 else:
-                    result[sentence_idx] = input_embeddings[embedding_idx].embedding
+                    result[input_idx] = input_embeddings[embedding_idx].embedding
                     embedding_idx += 1
-                sentence_idx += 1
 
             assert len(result) == len(input), (len(result), "!=", len(input))
             return result
