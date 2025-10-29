@@ -37,8 +37,12 @@ class TextEmbeddingIndexSettings:
         self.min_score = min_score if min_score is not None else 0.85
         self.max_matches = max_matches if max_matches and max_matches >= 1 else None
         self.batch_size = batch_size if batch_size and batch_size >= 1 else 10
-        self.max_retries = max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
-        self.embedding_model = embedding_model or AsyncEmbeddingModel(embedding_size, max_retries=self.max_retries)
+        self.max_retries = (
+            max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
+        )
+        self.embedding_model = embedding_model or AsyncEmbeddingModel(
+            embedding_size, max_retries=self.max_retries
+        )
         self.embedding_size = self.embedding_model.embedding_size
         assert (
             embedding_size is None or self.embedding_size == embedding_size
