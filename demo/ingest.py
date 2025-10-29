@@ -21,7 +21,7 @@ def read_messages(filename) -> list[TranscriptMessage]:
 
 async def main():
     conversation = await create_conversation("demo.db", TranscriptMessage)
-    messages = read_messages("transcript.txt")
+    messages = read_messages("testdata.txt")
     print(f"Indexing {len(messages)} messages...")
     results = await conversation.add_messages_with_indexing(messages)
     print(f"Indexed {results.messages_added} messages.")

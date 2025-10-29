@@ -14,7 +14,7 @@ install wheels from [PyPI](https://pypi.org).
 
 ## "Hello world" ingestion program
 
-### 1. Create a text file named `transcript.txt`
+### 1. Create a text file named `testdata.txt`
 
 ```txt
 STEVE We should really make a Python library for Structured RAG.
@@ -22,7 +22,7 @@ UMESH Who would be a good person to do the Python library?
 GUIDO I volunteer to do the Python library. Give me a few months.
 ```
 
-### 2. Create a Python file named `demo.py`
+### 2. Create a Python file named `ingest.py`
 
 ```py
 from typeagent import create_conversation
@@ -48,7 +48,7 @@ def read_messages(filename) -> list[TranscriptMessage]:
 
 async def main():
     conversation = await create_conversation("demo.db", TranscriptMessage)
-    messages = read_messages("transcript.txt")
+    messages = read_messages("testdata.txt")
     print(f"Indexing {len(messages)} messages...")
     results = await conversation.add_messages_with_indexing(messages)
     print(f"Indexed {results.messages_added} messages.")
@@ -77,7 +77,7 @@ Azure-hosted OpenAI models.
 ### 4. Run your program
 
 ```sh
-$ python demo.py
+$ python ingest.py
 ```
 
 Expected output looks like:
@@ -86,7 +86,7 @@ Expected output looks like:
 0.027s -- Using OpenAI
 Indexing 3 messages...
 Indexed 3 messages.
-Got 26 semantic refs.
+Got 24 semantic refs.
 ```
 
 ## "Hello world" query program

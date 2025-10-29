@@ -197,12 +197,97 @@ def setup_logfire():
     logfire.instrument_httpx(capture_all=True)
 
 
+def parse_azure_endpoint(
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+) -> tuple[str, str]:
+    """Parse Azure OpenAI endpoint to extract endpoint URL and API version.
+
+    Args:
+        endpoint_envvar: Name of environment variable containing the endpoint.
+
+    Returns:
+        Tuple of (endpoint_url, api_version).
+
+    Raises:
+        RuntimeError: If endpoint is not found or doesn't contain api-version.
+    """
+    azure_endpoint = os.getenv(endpoint_envvar)
+    if not azure_endpoint:
+        raise RuntimeError(f"Environment variable {endpoint_envvar} not found")
+
+    m = re.search(r"[?,]api-version=([\d-]+(?:preview)?)", azure_endpoint)
+    if not m:
+        raise RuntimeError(
+            f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
+        )
+
+    return azure_endpoint, m.group(1)
+
+
+def get_azure_api_key(azure_api_key: str) -> str:
+    """Get Azure OpenAI API key, handling 'identity' token provider case.
+
+    Args:
+        azure_api_key: The raw API key from environment variable.
+
+    Returns:
+        The API key or token to use.
+    """
+    from .auth import get_shared_token_provider
+
+    # This section is rather specific to our team's setup at Microsoft.
+    if azure_api_key.lower() == "identity":
+        token_provider = get_shared_token_provider()
+        azure_api_key = token_provider.get_token()
+
+    return azure_api_key
+
+
+def create_async_openai_client(
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+    base_url: str | None = None,
+):
+    """Create AsyncOpenAI or AsyncAzureOpenAI client based on environment variables.
+
+    Returns the appropriate async OpenAI client based on what credentials are available.
+    Prefers OPENAI_API_KEY over AZURE_OPENAI_API_KEY.
+
+    Args:
+        endpoint_envvar: Environment variable name for Azure endpoint (default: AZURE_OPENAI_ENDPOINT).
+        base_url: Optional base URL override for OpenAI client.
+
+    Returns:
+        AsyncOpenAI or AsyncAzureOpenAI client instance.
+
+    Raises:
+        RuntimeError: If neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set.
+    """
+    from openai import AsyncAzureOpenAI, AsyncOpenAI
+
+    if openai_api_key := os.getenv("OPENAI_API_KEY"):
+        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
+
+    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
+        azure_api_key = get_azure_api_key(azure_api_key)
+        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
+
+        return AsyncAzureOpenAI(
+            api_version=api_version,
+            azure_endpoint=azure_endpoint,
+            api_key=azure_api_key,
+        )
+
+    else:
+        raise RuntimeError(
+            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
+        )
+
+
 def make_agent[T](cls: type[T]) -> Agent[None, T]:
     """Create Pydantic AI agent using hardcoded preferences."""
     from pydantic_ai import NativeOutput, ToolOutput
     from pydantic_ai.models.openai import OpenAIModel
     from pydantic_ai.providers.azure import AzureProvider
-    from .auth import get_shared_token_provider
 
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):
@@ -210,23 +295,11 @@ def make_agent[T](cls: type[T]) -> Agent[None, T]:
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
         model = OpenAIModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
 
-    elif azure_openai_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        # This section is rather specific to our team's setup  at Microsoft.
-        if azure_openai_api_key == "identity":
-            token_provider = get_shared_token_provider()
-            azure_openai_api_key = token_provider.get_token()
-
-        azure_endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        if not azure_endpoint:
-            raise RuntimeError("AZURE_OPENAI_ENDPOINT not found")
+    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
+        azure_api_key = get_azure_api_key(azure_api_key)
+        azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
 
         print(f"## {azure_endpoint} ##")
-        m = re.search(r"api-version=([\d-]+(?:preview)?)", azure_endpoint)
-        if not m:
-            raise RuntimeError(
-                f"AZURE_OPENAI_ENDPOINT has no valid api-version field: {azure_endpoint}"
-            )
-        api_version = m.group(1)
         Wrapper = ToolOutput
 
         print(f"## Using Azure {api_version} with {Wrapper.__name__} ##")
@@ -235,7 +308,7 @@ def make_agent[T](cls: type[T]) -> Agent[None, T]:
             provider=AzureProvider(
                 azure_endpoint=azure_endpoint,
                 api_version=api_version,
-                api_key=azure_openai_api_key,
+                api_key=azure_api_key,
             ),
         )
 
