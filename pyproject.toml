@@ -49,7 +49,7 @@ dev = [
   "google-auth-httplib2>=0.2.0",
   "google-auth-oauthlib>=1.2.2",
   "opentelemetry-instrumentation-httpx>=0.57b0",
-  "pyright>=1.1.407",
+  "pyright==1.1.406",  # 407 has a regression
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",
