@@ -69,31 +69,17 @@ def reindent(text: str) -> str:
 
 def load_dotenv() -> None:
     """Load environment variables from '<repo_root>/ta/.env'."""
-    paths = []
-    # Look for <repo_root>/ts/.env first.
-    repo_root = os.popen("git rev-parse --show-toplevel").read().strip()
-    if repo_root:
-        env_path = os.path.join(repo_root, "ts", ".env")
-        if os.path.exists(env_path):
-            paths.append(env_path)
-
-    # Also look in current directory and going up.
+    # Look for ".env" in current directory and up until root.
     cur_dir = os.path.abspath(os.getcwd())
     while True:
-        paths.append(os.path.join(cur_dir, ".env"))
+        path = os.path.join(cur_dir, ".env")
+        if os.path.exists(path):
+            dotenv.load_dotenv(path)
+            return
         parent_dir = os.path.dirname(cur_dir)
         if parent_dir == cur_dir:
             break  # Reached filesystem root ('/').
         cur_dir = parent_dir
-
-    env_path = None
-    for path in paths:
-        # Filter out non-existing paths.
-        if os.path.exists(path):
-            env_path = path
-            break
-    if env_path:
-        dotenv.load_dotenv(env_path)
 
 
 def create_translator[T](
