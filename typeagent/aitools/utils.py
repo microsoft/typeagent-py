@@ -15,7 +15,12 @@ import colorama
 import dotenv
 import typechat
 
+from itertools import batched
+
 from pydantic_ai import Agent
+from typing import Iterable, Iterator, List, TypeVar
+
+T = TypeVar("T")
 
 
 @contextmanager
@@ -240,3 +245,8 @@ def make_agent[T](cls: type[T]) -> Agent[None, T]:
         )
 
     return Agent(model, output_type=Wrapper(cls, strict=True), retries=3)
+
+
+def chunk_input(data: list[T] | str, chunk_size: int) -> Iterator[list[T] | str]:
+    for i in range(0, len(data), chunk_size):
+        yield data[i : i + chunk_size]
