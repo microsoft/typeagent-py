@@ -62,7 +62,10 @@ class AsyncEmbeddingModel:
                 embedding_size = DEFAULT_EMBEDDING_SIZE
         self.embedding_size = embedding_size
 
-        if model_name == DEFAULT_MODEL_NAME and embedding_size != DEFAULT_EMBEDDING_SIZE:
+        if (
+            model_name == DEFAULT_MODEL_NAME
+            and embedding_size != DEFAULT_EMBEDDING_SIZE
+        ):
             raise ValueError(
                 f"Cannot customize embedding_size for default model {DEFAULT_MODEL_NAME}"
             )

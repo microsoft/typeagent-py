@@ -136,27 +136,32 @@ async def test_set_endpoint(monkeypatch):
 
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "does-not-matter")
 
-    # Default 
-    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT_EMBEDDING", "http://localhost:7997?api-version=2024-06-01")
+    # Default
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING",
+        "http://localhost:7997?api-version=2024-06-01",
+    )
     embedding_model = AsyncEmbeddingModel()
     assert embedding_model.embedding_size == 1536
     assert embedding_model.model_name == "text-embedding-ada-002"
     assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING"
 
     # 3-large
-    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE", "http://localhost:7997?api-version=2024-06-01")
-    embedding_model = AsyncEmbeddingModel(
-        model_name="text-embedding-3-large"
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE",
+        "http://localhost:7997?api-version=2024-06-01",
     )
+    embedding_model = AsyncEmbeddingModel(model_name="text-embedding-3-large")
     assert embedding_model.embedding_size == 3072
     assert embedding_model.model_name == "text-embedding-3-large"
     assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"
 
     # 3-small
-    monkeypatch.setenv("AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL", "http://localhost:7998?api-version=2024-06-01")
-    embedding_model = AsyncEmbeddingModel(
-        model_name="text-embedding-3-small"
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL",
+        "http://localhost:7998?api-version=2024-06-01",
     )
+    embedding_model = AsyncEmbeddingModel(model_name="text-embedding-3-small")
     assert embedding_model.embedding_size == 1536
     assert embedding_model.model_name == "text-embedding-3-small"
     assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"
