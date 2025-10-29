@@ -21,9 +21,9 @@ DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
 TEST_MODEL_NAME = "test"
 
 model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
-    DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
-    "text-embedding-3-small": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
-    "text-embedding-3-large": (None, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
+    DEFAULT_MODEL_NAME: (None, DEFAULT_ENVVAR),
+    "text-embedding-3-small": (1536, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
+    "text-embedding-3-large": (3072, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
     # For testing only, not a real model (insert real embeddings above)
     TEST_MODEL_NAME: (3, "SIR_NOT_APPEARING_IN_THIS_FILM"),
 }
@@ -51,32 +51,22 @@ class AsyncEmbeddingModel:
             model_name = DEFAULT_MODEL_NAME
         self.model_name = model_name
 
-        required_embedding_size, required_endpoint_envvar = (
+        suggested_embedding_size, suggested_endpoint_envvar = (
             model_to_embedding_size_and_envvar.get(model_name, (None, None))
         )
-        if required_embedding_size is not None:
-            if embedding_size is not None and embedding_size != required_embedding_size:
-                raise ValueError(
-                    f"Embedding size {embedding_size} does not match "
-                    f"required size {required_embedding_size} for model {model_name}."
-                )
-            embedding_size = required_embedding_size
-        if embedding_size is None or embedding_size <= 0:
-            embedding_size = DEFAULT_EMBEDDING_SIZE
+
+        if embedding_size is None:
+            if suggested_embedding_size is not None:
+                embedding_size = suggested_embedding_size
+            else:
+                embedding_size = DEFAULT_EMBEDDING_SIZE
         self.embedding_size = embedding_size
 
-        if required_endpoint_envvar is not None:
-            if (
-                endpoint_envvar is not None
-                and endpoint_envvar != required_endpoint_envvar
-            ):
-                raise ValueError(
-                    f"Environment variable for embedding endpoint {endpoint_envvar} does not match "
-                    f"required environment variable {required_endpoint_envvar} for embedding model {model_name}."
-                )
-            endpoint_envvar = required_endpoint_envvar
         if endpoint_envvar is None:
-            endpoint_envvar = DEFAULT_ENVVAR
+            if suggested_endpoint_envvar is not None:
+                endpoint_envvar = suggested_endpoint_envvar
+            else:
+                endpoint_envvar = DEFAULT_ENVVAR
         self.endpoint_envvar = endpoint_envvar
 
         self.azure_token_provider = None
