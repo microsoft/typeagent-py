@@ -51,11 +51,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         # Settings with defaults (require embedding settings)
         if message_text_index_settings is None:
             # Create default embedding settings if not provided
-            from ...aitools.embeddings import AsyncEmbeddingModel
             from ...aitools.vectorbase import TextEmbeddingIndexSettings
 
-            model = AsyncEmbeddingModel()
-            embedding_settings = TextEmbeddingIndexSettings(model)
+            embedding_settings = TextEmbeddingIndexSettings()
             message_text_index_settings = MessageTextIndexSettings(embedding_settings)
         self.message_text_index_settings = message_text_index_settings
 
