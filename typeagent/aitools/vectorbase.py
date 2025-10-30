@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
 import numpy as np
+from openai import DEFAULT_MAX_RETRIES
 
 from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
 
@@ -18,12 +19,11 @@ class ScoredInt:
 @dataclass
 class TextEmbeddingIndexSettings:
     embedding_model: AsyncEmbeddingModel
-    embedding_size: int  # Always embedding_model.embedding_size
-    min_score: float
-    max_matches: int | None
-    retry_max_attempts: int = 2
-    retry_delay: float = 2.0  # Seconds
-    batch_size: int = 8
+    embedding_size: int  # Set to embedding_model.embedding_size
+    min_score: float  # Between 0.0 and 1.0
+    max_matches: int | None  # >= 1; None means no limit
+    batch_size: int  # >= 1
+    max_retries: int
 
     def __init__(
         self,
@@ -31,14 +31,22 @@ class TextEmbeddingIndexSettings:
         embedding_size: int | None = None,
         min_score: float | None = None,
         max_matches: int | None = None,
+        batch_size: int | None = None,
+        max_retries: int | None = None,
     ):
-        self.embedding_model = embedding_model or AsyncEmbeddingModel(embedding_size)
+        self.min_score = min_score if min_score is not None else 0.85
+        self.max_matches = max_matches if max_matches and max_matches >= 1 else None
+        self.batch_size = batch_size if batch_size and batch_size >= 1 else 10
+        self.max_retries = (
+            max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
+        )
+        self.embedding_model = embedding_model or AsyncEmbeddingModel(
+            embedding_size, max_retries=self.max_retries
+        )
         self.embedding_size = self.embedding_model.embedding_size
         assert (
             embedding_size is None or self.embedding_size == embedding_size
         ), f"Given embedding size {embedding_size} doesn't match model's embedding size {self.embedding_size}"
-        self.min_score = min_score if min_score is not None else 0.85
-        self.max_matches = max_matches
 
 
 class VectorBase:

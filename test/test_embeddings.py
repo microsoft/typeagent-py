@@ -137,26 +137,69 @@ async def test_refresh_auth(
 async def test_set_endpoint(monkeypatch):
     """Test creating of model with custom endpoint."""
 
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "does-not-matter")
+
+    # Default
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING",
+        "http://localhost:7997?api-version=2024-06-01",
+    )
+    embedding_model = AsyncEmbeddingModel()
+    assert embedding_model.embedding_size == 1536
+    assert embedding_model.model_name == "text-embedding-ada-002"
+    assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING"
+
+    # 3-large
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE",
+        "http://localhost:7997?api-version=2024-06-01",
+    )
+    embedding_model = AsyncEmbeddingModel(model_name="text-embedding-3-large")
+    assert embedding_model.embedding_size == 3072
+    assert embedding_model.model_name == "text-embedding-3-large"
+    assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"
+
+    # 3-small
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL",
+        "http://localhost:7998?api-version=2024-06-01",
+    )
+    embedding_model = AsyncEmbeddingModel(model_name="text-embedding-3-small")
+    assert embedding_model.embedding_size == 1536
+    assert embedding_model.model_name == "text-embedding-3-small"
+    assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"
+
+    # Fully custom
     monkeypatch.setenv("OPENAI_API_KEY", "does-not-matter")
     monkeypatch.setenv("INFINITY_EMBEDDING_URL", "http://localhost:7997")
-
     embedding_model = AsyncEmbeddingModel(
         1024, "custom_model", "INFINITY_EMBEDDING_URL"
     )
-
+    assert embedding_model.embedding_size == 1024
+    assert embedding_model.model_name == "custom_model"
+    # NOTE: checking openai.AsyncOpenAI internals
     assert embedding_model.async_client is not None
     assert embedding_model.async_client.base_url == "http://localhost:7997"
     assert embedding_model.async_client.api_key == "does-not-matter"
 
-    with pytest.raises(
-        ValueError,
-        match="Environment variable for embedding endpoint WRONG_ENDPOINT does not match required environment"
-        " variable AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL for embedding model text-embedding-small.",
-    ):
-        embedding_model = AsyncEmbeddingModel(
-            2000, "text-embedding-small", "WRONG_ENDPOINT"
-        )
+    # Customized 3-small
+    embedding_model = AsyncEmbeddingModel(
+        2000, "text-embedding-3-small", "ALTERNATE_ENDPOINT"
+    )
+    assert embedding_model.embedding_size == 2000
+    assert embedding_model.model_name == "text-embedding-3-small"
+    assert embedding_model.endpoint_envvar == "ALTERNATE_ENDPOINT"
 
+    # Allow explicitly setting default embedding size
+    AsyncEmbeddingModel(1536)
+
+    # Can't customize embedding_size for default model
+    with pytest.raises(ValueError):
+        AsyncEmbeddingModel(1024)
+
+    # Not even when default model name specified explicitly
+    with pytest.raises(ValueError):
+        AsyncEmbeddingModel(1024, "text-embedding-ada-002")
 
 @pytest.mark.asyncio
 async def test_embeddings_batching_tiktoken(

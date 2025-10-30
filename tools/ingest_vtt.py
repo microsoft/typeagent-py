@@ -370,7 +370,7 @@ async def ingest_vtt_files(
             )
 
             # Process messages in batches
-            batch_size = 10
+            batch_size = settings.semantic_ref_index_settings.batch_size
             successful_count = 0
             start_time = time.time()
 

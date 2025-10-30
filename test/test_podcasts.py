@@ -1,12 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import asyncio
 import os
 import pytest
 from datetime import timezone
 
-from fixtures import needs_auth, temp_dir, embedding_model  # type: ignore  # Yes they are used!
+from fixtures import really_needs_auth, temp_dir, embedding_model  # type: ignore  # Yes they are used!
 
 from typeagent.podcasts.podcast import Podcast
 from typeagent.knowpro.convsettings import ConversationSettings
@@ -18,7 +17,7 @@ from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
 @pytest.mark.asyncio
 async def test_ingest_podcast(
-    needs_auth: None, temp_dir: str, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, temp_dir: str, embedding_model: AsyncEmbeddingModel
 ):
     # Import the podcast
     settings = ConversationSettings(embedding_model)
