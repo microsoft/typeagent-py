@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Fledgling MCP server on top of knowpro."""
+"""Fledgling MCP server on top of typeagent."""
 
 import argparse
 from dataclasses import dataclass
