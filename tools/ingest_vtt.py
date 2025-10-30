@@ -50,12 +50,6 @@ def create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Ingest WebVTT transcript files into a database for querying",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s input.vtt --database transcript.db
-  %(prog)s file1.vtt file2.vtt -d transcript.db --name "Combined Transcript"
-  %(prog)s lecture.vtt -d lecture.db --merge
-        """,
     )
 
     parser.add_argument(
@@ -88,6 +82,13 @@ Examples:
         type=int,
         default=None,
         help="Batch size for knowledge extraction (default: from settings)",
+    )
+
+    parser.add_argument(
+        "--embedding-name",
+        type=str,
+        default=None,
+        help="Embedding model name (default: text-embedding-ada-002)",
     )
 
     parser.add_argument(
@@ -135,6 +136,7 @@ async def ingest_vtt_files(
     merge_consecutive: bool = False,
     verbose: bool = False,
     batchsize: int | None = None,
+    embedding_name: str | None = None,
 ) -> None:
     """Ingest one or more VTT files into a database."""
 
@@ -197,7 +199,7 @@ async def ingest_vtt_files(
     if verbose:
         print("Setting up conversation settings...")
     try:
-        embedding_model = AsyncEmbeddingModel()
+        embedding_model = AsyncEmbeddingModel(model_name=embedding_name)
         settings = ConversationSettings(embedding_model)
 
         # Create storage provider explicitly with the database
@@ -441,6 +443,7 @@ def main():
             name=args.name,
             merge_consecutive=args.merge,
             batchsize=args.batchsize,
+            embedding_name=args.embedding_name,
             verbose=args.verbose,
         )
     )

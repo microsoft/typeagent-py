@@ -40,7 +40,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         conversation_id: str = "default",
         message_type: type[TMessage] = None,  # type: ignore
         semantic_ref_type: type[interfaces.SemanticRef] = None,  # type: ignore
-        conversation_index_settings=None,
         message_text_index_settings: MessageTextIndexSettings | None = None,
         related_term_index_settings: RelatedTermIndexSettings | None = None,
     ):
@@ -50,14 +49,11 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self.semantic_ref_type = semantic_ref_type
 
         # Settings with defaults (require embedding settings)
-        self.conversation_index_settings = conversation_index_settings or {}
         if message_text_index_settings is None:
             # Create default embedding settings if not provided
-            from ...aitools.embeddings import AsyncEmbeddingModel
             from ...aitools.vectorbase import TextEmbeddingIndexSettings
 
-            model = AsyncEmbeddingModel()
-            embedding_settings = TextEmbeddingIndexSettings(model)
+            embedding_settings = TextEmbeddingIndexSettings()
             message_text_index_settings = MessageTextIndexSettings(embedding_settings)
         self.message_text_index_settings = message_text_index_settings
 
