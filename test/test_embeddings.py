@@ -6,8 +6,11 @@ import pytest
 from pytest_mock import MockerFixture
 import numpy as np
 
+from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
+
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model  # type: ignore  # Yes it's used!
+from fixtures import embedding_model, fake_embeddings, fake_embeddings_tiktoken, FakeEmbeddings  # type: ignore  # Yes it's used!
+from unittest.mock import MagicMock
 
 
 @pytest.mark.asyncio
@@ -197,3 +200,76 @@ async def test_set_endpoint(monkeypatch):
     # Not even when default model name specified explicitly
     with pytest.raises(ValueError):
         AsyncEmbeddingModel(1024, "text-embedding-ada-002")
+
+@pytest.mark.asyncio
+async def test_embeddings_batching_tiktoken(
+    fake_embeddings_tiktoken: FakeEmbeddings, monkeypatch
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "test_key")
+
+    embedding_model = AsyncEmbeddingModel()
+    assert embedding_model.max_chunk_size == 4096
+
+    embedding_model.async_client.embeddings = fake_embeddings_tiktoken  # type: ignore
+
+    # Check max batch size
+    inputs = ["a"] * 2049
+    embeddings = await embedding_model.get_embeddings(inputs)
+    assert len(embeddings) == 2049
+    assert fake_embeddings_tiktoken.call_count == 2
+
+    # Check max token size
+    inputs = ["Very long input longer than 4096 tokens needs to split in 2" * 500]
+    embeddings = await embedding_model.get_embeddings(inputs)
+    assert len(embeddings) == 1
+    assert np.all(embeddings[0] == 0.5)
+
+
+@pytest.mark.asyncio
+async def test_embeddings_batching(fake_embeddings: FakeEmbeddings, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test_key")
+
+    embedding_model = AsyncEmbeddingModel(1024, "custom_model")
+    embedding_model.async_client.embeddings = fake_embeddings  # type: ignore
+
+    # Check max batch size
+    inputs = ["a"] * 2049
+    embeddings = await embedding_model.get_embeddings(inputs)
+    assert len(embeddings) == 2049
+    assert fake_embeddings.call_count == 2
+
+    TEST_MAX_CHUNK_SIZE = 10
+    TEST_MAX_CHARS_PER_BATCH = 20
+    embedding_model.max_chunk_size = TEST_MAX_CHUNK_SIZE
+    embedding_model.max_size_per_batch = TEST_MAX_CHARS_PER_BATCH
+
+    # Check max token size
+    inputs = ["a" * TEST_MAX_CHUNK_SIZE]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)
+    assert len(embeddings) == 1
+    assert np.all(embeddings[0] == 0)
+
+    fake_embeddings.reset_counter()
+
+    # Check one over max token size
+    inputs = ["a" * (TEST_MAX_CHUNK_SIZE + 1)]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)
+    assert len(embeddings) == 1
+    assert fake_embeddings.call_count == 1
+    assert np.all(embeddings[0] == 0.5)
+
+    fake_embeddings.reset_counter()
+
+    # Check input as large as max_size_per_batch
+    inputs = ["a" * 10, "a" * 5, "a" * 5]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)  # type: ignore
+    assert fake_embeddings.call_count == 1
+    assert len(embeddings) == 3
+
+    fake_embeddings.reset_counter()
+
+    # Check input larger than max_size_per_batch
+    inputs = ["a" * 100]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)  # type: ignore
+    assert fake_embeddings.call_count == 5
+    assert len(embeddings) == 1

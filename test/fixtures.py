@@ -39,6 +39,9 @@ from typeagent.knowpro.secindex import ConversationSecondaryIndexes
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
 
+from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
+from openai.types.embedding import Embedding
+
 
 @pytest.fixture(scope="session")
 def needs_auth() -> None:
@@ -299,3 +302,58 @@ async def fake_conversation_with_storage(
 ) -> FakeConversation:
     """Fixture to create a FakeConversation instance with storage provider."""
     return FakeConversation(storage_provider=memory_storage)
+
+
+class FakeEmbeddings:
+
+    def __init__(self, max_batch_size: int = 2048, max_chunk_size: int = 4096):
+        self.call_count = 0
+        self.max_batch_size = max_batch_size
+        self.max_chunk_size = max_chunk_size
+
+    def reset_counter(self):
+        self.call_count = 0
+
+    async def create(self, **kwargs):
+        self.call_count += 1
+        input = kwargs["input"]
+        len_input = len(input)
+        if len_input > self.max_batch_size:
+            raise ValueError("Embedding model received batch larger 2048")
+        dimensions = 1536
+        if "dimensions" in kwargs:
+            dimensions = kwargs["dimensions"]
+
+        embedding_result = []
+        for index in range(len_input):
+            if len(input[index]) > self.max_chunk_size:
+                raise ValueError(
+                    f"Chunk size {len(input[index])} larger than max size {self.max_chunk_size}"
+                )
+            value = index % 2
+            embedding_result.append(
+                Embedding(
+                    embedding=[value] * dimensions, index=index, object="embedding"
+                )
+            )
+
+        response = CreateEmbeddingResponse(
+            data=embedding_result,
+            model="test_model",
+            object="list",
+            usage=Usage(prompt_tokens=0, total_tokens=0),
+        )
+
+        return response
+
+
+@pytest.fixture
+def fake_embeddings() -> FakeEmbeddings:
+    """Fixture to create a FaceEmbedding instance"""
+    return FakeEmbeddings(max_batch_size=2048, max_chunk_size=4096 * 3)
+
+
+@pytest.fixture
+def fake_embeddings_tiktoken() -> FakeEmbeddings:
+    """Fixture to create a FaceEmbedding instance"""
+    return FakeEmbeddings(max_batch_size=2048, max_chunk_size=4096)

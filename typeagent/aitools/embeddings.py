@@ -3,10 +3,15 @@
 
 import asyncio
 import os
+import re
 
 import numpy as np
 from numpy.typing import NDArray
 from openai import AsyncOpenAI, AsyncAzureOpenAI, DEFAULT_MAX_RETRIES, OpenAIError
+import tiktoken
+from tiktoken import model
+
+from .utils import chunk_input
 
 from .auth import get_shared_token_provider, AzureTokenProvider
 from .utils import timelog
@@ -19,6 +24,11 @@ DEFAULT_MODEL_NAME = "text-embedding-ada-002"
 DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
 DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
 TEST_MODEL_NAME = "test"
+MAX_BATCH_SIZE = 2048
+MAX_TOKEN_SIZE = 4096
+MAX_TOKENS_PER_BATCH = 300_000
+MAX_STRING_SIZE = MAX_TOKEN_SIZE * 3
+MAX_CHARS_PER_BATCH = MAX_TOKENS_PER_BATCH
 
 model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
     DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
@@ -37,6 +47,7 @@ class AsyncEmbeddingModel:
     async_client: AsyncOpenAI | None
     azure_endpoint: str
     azure_api_version: str
+    encoding_name: str | None
 
     _embedding_cache: dict[str, NormalizedEmbedding]
 
@@ -97,6 +108,16 @@ class AsyncEmbeddingModel:
                 raise ValueError(
                     f"Neither {openai_key_name} nor {azure_key_name} found in environment."
                 )
+
+        if self.model_name in model.MODEL_TO_ENCODING:
+            encoding_name = tiktoken.encoding_name_for_model(self.model_name)
+            self.encoding = tiktoken.get_encoding(encoding_name)
+            self.max_chunk_size = MAX_TOKEN_SIZE
+            self.max_size_per_batch = MAX_TOKENS_PER_BATCH
+        else:
+            self.encoding = None
+            self.max_chunk_size = MAX_STRING_SIZE
+            self.max_size_per_batch = MAX_CHARS_PER_BATCH
 
         self._embedding_cache = {}
 
@@ -188,18 +209,81 @@ class AsyncEmbeddingModel:
             result = np.array(fake_data, dtype=np.float32)
             return result
         else:
-            # TODO: Split in batches of 2048 inputs if too long;
-            # or smaller if inputs are large.
-            data = (
-                await self.async_client.embeddings.create(
-                    input=input,
-                    model=self.model_name,
-                    encoding_format="float",
-                    **extra_args,
-                )
-            ).data
-            assert len(data) == len(input), (len(data), "!=", len(input))
-            return np.array([d.embedding for d in data], dtype=np.float32)
+
+            chunked_groups = {}
+            chunked_input = []
+            chunked_sizes = []
+            for input_idx, entity in enumerate(input):
+                entity_to_embed = entity
+                if self.encoding:
+                    entity_to_embed = self.encoding.encode(entity)
+
+                entity_size = len(entity_to_embed)
+                if entity_size > self.max_chunk_size:
+                    chunked_entity = list(
+                        chunk_input(entity_to_embed, self.max_chunk_size)
+                    )
+                    start_idx = len(chunked_input)
+                    no_of_chunks = len(chunked_entity)
+                    chunked_groups[input_idx] = (start_idx, no_of_chunks)
+                    for chunk in chunked_entity:
+                        chunked_sizes.append(len(chunk))
+                        chunked_input.append(chunk)
+                else:
+                    chunked_sizes.append(entity_size)
+                    chunked_input.append(entity_to_embed)
+
+            input_embeddings = []
+            batch = []
+            size_of_batch = 0
+            assert len(chunked_sizes) == len(chunked_input)
+            for chunk_size, chunk in zip(chunked_sizes, chunked_input):
+                if (
+                    len(batch) == MAX_BATCH_SIZE
+                    or size_of_batch + chunk_size > self.max_size_per_batch
+                ):
+                    data = (
+                        await self.async_client.embeddings.create(
+                            input=batch,
+                            model=self.model_name,
+                            encoding_format="float",
+                            **extra_args,
+                        )
+                    ).data
+                    input_embeddings.extend(data)
+                    batch = [chunk]
+                    size_of_batch = chunk_size
+                else:
+                    batch.append(chunk)
+                    size_of_batch += chunk_size
+            if batch:
+                data = (
+                    await self.async_client.embeddings.create(
+                        input=batch,
+                        model=self.model_name,
+                        encoding_format="float",
+                        **extra_args,
+                    )
+                ).data
+                input_embeddings.extend(data)
+
+            result = np.empty((len(input), self.embedding_size), dtype=np.float32)
+            embedding_idx = 0
+            for input_idx in range(len(input)):
+                if input_idx in chunked_groups:
+                    start_idx, no_of_chunks = chunked_groups[input_idx]
+                    chunks = input_embeddings[start_idx : start_idx + no_of_chunks]
+                    chunk_embeddings = np.average(
+                        [chunk.embedding for chunk in chunks], axis=0
+                    )
+                    result[input_idx] = chunk_embeddings
+                    embedding_idx += no_of_chunks
+                else:
+                    result[input_idx] = input_embeddings[embedding_idx].embedding
+                    embedding_idx += 1
+
+            assert len(result) == len(input), (len(result), "!=", len(input))
+            return result
 
     async def get_embedding(self, key: str) -> NormalizedEmbedding:
         """Retrieve an embedding, using the cache."""
