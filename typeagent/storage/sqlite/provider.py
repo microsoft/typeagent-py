@@ -80,6 +80,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         # Initialize schema
         init_db_schema(self.db)
 
+        # Check embedding consistency before initializing indexes
+        self._check_embedding_consistency()
+
         # Initialize collections
         # Initialize message collection first
         self._message_collection = SqliteMessageCollection(self.db, self.message_type)
@@ -101,6 +104,43 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         # Connect message collection to message text index for automatic indexing
         self._message_collection.set_message_text_index(self._message_text_index)
+
+    def _check_embedding_consistency(self) -> None:
+        """Check that existing embeddings in the database match the expected embedding size."""
+        cursor = self.db.cursor()
+        expected_size = self.message_text_index_settings.embedding_index_settings.embedding_size
+        
+        # Check message text index embeddings
+        cursor.execute("SELECT embedding FROM MessageTextIndex LIMIT 1")
+        row = cursor.fetchone()
+        if row and row[0]:
+            from .schema import deserialize_embedding
+            embedding = deserialize_embedding(row[0])
+            actual_size = len(embedding)
+            if actual_size != expected_size:
+                raise ValueError(
+                    f"Message text index embedding size mismatch: "
+                    f"database contains embeddings of size {actual_size}, "
+                    f"but ConversationSettings specifies embedding_size={expected_size}. "
+                    f"The database was likely created with a different embedding model. "
+                    f"Please use the same embedding model or create a new database."
+                )
+        
+        # Check related terms fuzzy index embeddings
+        cursor.execute("SELECT term_embedding FROM RelatedTermsFuzzy LIMIT 1")
+        row = cursor.fetchone()
+        if row and row[0]:
+            from .schema import deserialize_embedding
+            embedding = deserialize_embedding(row[0])
+            actual_size = len(embedding)
+            if actual_size != expected_size:
+                raise ValueError(
+                    f"Related terms index embedding size mismatch: "
+                    f"database contains embeddings of size {actual_size}, "
+                    f"but ConversationSettings specifies embedding_size={expected_size}. "
+                    f"The database was likely created with a different embedding model. "
+                    f"Please use the same embedding model or create a new database."
+                )
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
         """Enter transaction context."""
