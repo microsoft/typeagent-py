@@ -38,6 +38,8 @@ environment variables, starting with:
 - `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key.
 - `AZURE_OPENAI_ENDPOINT`: The full URL of the Azure OpenAI REST API
   (e.g. https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15).
+- `AZURE_OPENAI_ENDPOINT_EMBEDDING`: The full URL of the Azure OpenAI REST API for embeddings (e.g. https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_EMBEDDING_DEPLOYMENT_NAME/embeddings?api-version=2024-08-01-preview).
+
 - If you use Azure OpenAI you will know where to get these
   (or ask your sysadmin).
 
