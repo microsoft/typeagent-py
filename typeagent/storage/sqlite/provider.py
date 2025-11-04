@@ -32,7 +32,12 @@ from .schema import (
 class SqliteStorageProvider[TMessage: interfaces.IMessage](
     interfaces.IStorageProvider[TMessage]
 ):
-    """SQLite-backed storage provider implementation."""
+    """SQLite-backed storage provider implementation.
+    
+    This provider performs consistency checks on database initialization to ensure
+    that existing embeddings match the configured embedding_size. If a mismatch is
+    detected, a ValueError is raised with a descriptive error message.
+    """
 
     def __init__(
         self,
@@ -106,7 +111,15 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self._message_collection.set_message_text_index(self._message_text_index)
 
     def _check_embedding_consistency(self) -> None:
-        """Check that existing embeddings in the database match the expected embedding size."""
+        """Check that existing embeddings in the database match the expected embedding size.
+        
+        This method is called during initialization to ensure that embeddings stored in the
+        database match the embedding_size specified in ConversationSettings. This prevents
+        runtime errors when trying to use embeddings of incompatible sizes.
+        
+        Raises:
+            ValueError: If embeddings in the database don't match the expected size.
+        """
         cursor = self.db.cursor()
         expected_size = self.message_text_index_settings.embedding_index_settings.embedding_size
         
