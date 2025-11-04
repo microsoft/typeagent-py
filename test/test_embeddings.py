@@ -133,7 +133,7 @@ async def test_refresh_auth(
 
 
 @pytest.mark.asyncio
-async def test_set_endpoint(monkeypatch):
+async def test_set_endpoint(monkeypatch: MonkeyPatch):
     """Test creating of model with custom endpoint."""
 
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "does-not-matter")
@@ -203,7 +203,7 @@ async def test_set_endpoint(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_embeddings_batching_tiktoken(
-    fake_embeddings_tiktoken: FakeEmbeddings, monkeypatch
+    fake_embeddings_tiktoken: FakeEmbeddings, monkeypatch: MonkeyPatch
 ):
     monkeypatch.setenv("OPENAI_API_KEY", "test_key")
 
