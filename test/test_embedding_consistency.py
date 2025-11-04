@@ -21,7 +21,7 @@ async def test_embedding_size_mismatch_in_message_index():
         db_path = tmp.name
     
     try:
-        # Create a conversation with default embedding size (1536 for test model)
+        # Create a conversation with test model (embedding size 3)
         settings1 = ConversationSettings(
             model=AsyncEmbeddingModel(embedding_size=3, model_name="test")
         )

@@ -120,6 +120,8 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         Raises:
             ValueError: If embeddings in the database don't match the expected size.
         """
+        from .schema import deserialize_embedding
+        
         cursor = self.db.cursor()
         expected_size = self.message_text_index_settings.embedding_index_settings.embedding_size
         
@@ -127,7 +129,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         cursor.execute("SELECT embedding FROM MessageTextIndex LIMIT 1")
         row = cursor.fetchone()
         if row and row[0]:
-            from .schema import deserialize_embedding
             embedding = deserialize_embedding(row[0])
             actual_size = len(embedding)
             if actual_size != expected_size:
@@ -143,7 +144,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         cursor.execute("SELECT term_embedding FROM RelatedTermsFuzzy LIMIT 1")
         row = cursor.fetchone()
         if row and row[0]:
-            from .schema import deserialize_embedding
             embedding = deserialize_embedding(row[0])
             actual_size = len(embedding)
             if actual_size != expected_size:
