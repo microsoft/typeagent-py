@@ -293,7 +293,7 @@ def test_text_range_equality_with_logical_equivalence():
 
     # Test with non-TextRange object
     assert point_range != "not a TextRange"
-    assert point_range != None
+    assert point_range is not None
 
 
 def test_text_range_equality_both_explicit_ends():
