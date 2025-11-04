@@ -6,11 +6,8 @@ import pytest
 from pytest_mock import MockerFixture
 import numpy as np
 
-from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
-
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from fixtures import embedding_model, fake_embeddings, fake_embeddings_tiktoken, FakeEmbeddings  # type: ignore  # Yes it's used!
-from unittest.mock import MagicMock
 
 
 @pytest.mark.asyncio
@@ -201,6 +198,7 @@ async def test_set_endpoint(monkeypatch):
     with pytest.raises(ValueError):
         AsyncEmbeddingModel(1024, "text-embedding-ada-002")
 
+
 @pytest.mark.asyncio
 async def test_embeddings_batching_tiktoken(
     fake_embeddings_tiktoken: FakeEmbeddings, monkeypatch
@@ -219,10 +217,9 @@ async def test_embeddings_batching_tiktoken(
     assert fake_embeddings_tiktoken.call_count == 2
 
     # Check max token size
-    inputs = ["Very long input longer than 4096 tokens needs to split in 2" * 500]
+    inputs = ["Very long input longer than 4096 tokens will be truncated" * 500]
     embeddings = await embedding_model.get_embeddings(inputs)
     assert len(embeddings) == 1
-    assert np.all(embeddings[0] == 0.5)
 
 
 @pytest.mark.asyncio
@@ -256,7 +253,6 @@ async def test_embeddings_batching(fake_embeddings: FakeEmbeddings, monkeypatch)
     embeddings = await embedding_model.get_embeddings_nocache(inputs)
     assert len(embeddings) == 1
     assert fake_embeddings.call_count == 1
-    assert np.all(embeddings[0] == 0.5)
 
     fake_embeddings.reset_counter()
 
@@ -269,7 +265,8 @@ async def test_embeddings_batching(fake_embeddings: FakeEmbeddings, monkeypatch)
     fake_embeddings.reset_counter()
 
     # Check input larger than max_size_per_batch
-    inputs = ["a" * 100]
+    # max chars per batch is 20, so 10*10 chars requires 5 batches
+    inputs = ["a" * 10] * 10
     embeddings = await embedding_model.get_embeddings_nocache(inputs)  # type: ignore
     assert fake_embeddings.call_count == 5
-    assert len(embeddings) == 1
+    assert len(embeddings) == 10

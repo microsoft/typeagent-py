@@ -4,7 +4,7 @@
 from collections.abc import AsyncGenerator, Iterator
 import os
 import tempfile
-from typing import Any, assert_never
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -41,6 +41,7 @@ from typeagent.storage import SqliteStorageProvider
 
 from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
 from openai.types.embedding import Embedding
+import tiktoken
 
 
 @pytest.fixture(scope="session")
@@ -306,10 +307,17 @@ async def fake_conversation_with_storage(
 
 class FakeEmbeddings:
 
-    def __init__(self, max_batch_size: int = 2048, max_chunk_size: int = 4096):
+    def __init__(
+        self,
+        max_batch_size: int = 2048,
+        max_chunk_size: int = 4096,
+        use_tiktoken: bool = False,
+    ):
+        self.model_name = "text-embedding-ada-002"
         self.call_count = 0
         self.max_batch_size = max_batch_size
         self.max_chunk_size = max_chunk_size
+        self.use_tiktoken = use_tiktoken
 
     def reset_counter(self):
         self.call_count = 0
@@ -326,9 +334,14 @@ class FakeEmbeddings:
 
         embedding_result = []
         for index in range(len_input):
-            if len(input[index]) > self.max_chunk_size:
+            entity = input[index]
+            if self.use_tiktoken:
+                enc_name = tiktoken.encoding_name_for_model(self.model_name)
+                enc = tiktoken.get_encoding(enc_name)
+                entity = enc.encode(entity)
+            if len(entity) > self.max_chunk_size:
                 raise ValueError(
-                    f"Chunk size {len(input[index])} larger than max size {self.max_chunk_size}"
+                    f"Chunk size {len(entity)} larger than max size {self.max_chunk_size}"
                 )
             value = index % 2
             embedding_result.append(
@@ -356,4 +369,4 @@ def fake_embeddings() -> FakeEmbeddings:
 @pytest.fixture
 def fake_embeddings_tiktoken() -> FakeEmbeddings:
     """Fixture to create a FaceEmbedding instance"""
-    return FakeEmbeddings(max_batch_size=2048, max_chunk_size=4096)
+    return FakeEmbeddings(max_batch_size=2048, max_chunk_size=4096, use_tiktoken=True)
