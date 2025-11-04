@@ -9,6 +9,10 @@ from typing import Any
 import pytest
 import pytest_asyncio
 
+from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
+from openai.types.embedding import Embedding
+import tiktoken
+
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
@@ -38,10 +42,6 @@ from typeagent.knowpro.convsettings import (
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
-
-from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
-from openai.types.embedding import Embedding
-import tiktoken
 
 
 @pytest.fixture(scope="session")
@@ -311,12 +311,14 @@ class FakeEmbeddings:
         self,
         max_batch_size: int = 2048,
         max_chunk_size: int = 4096,
+        max_elements_per_batch: int = 300_000,
         use_tiktoken: bool = False,
     ):
         self.model_name = "text-embedding-ada-002"
         self.call_count = 0
         self.max_batch_size = max_batch_size
         self.max_chunk_size = max_chunk_size
+        self.max_elements_per_batch = max_elements_per_batch
         self.use_tiktoken = use_tiktoken
 
     def reset_counter(self):
@@ -333,12 +335,14 @@ class FakeEmbeddings:
             dimensions = kwargs["dimensions"]
 
         embedding_result = []
+        total_elements = 0
         for index in range(len_input):
             entity = input[index]
             if self.use_tiktoken:
                 enc_name = tiktoken.encoding_name_for_model(self.model_name)
                 enc = tiktoken.get_encoding(enc_name)
                 entity = enc.encode(entity)
+            total_elements += len(entity)
             if len(entity) > self.max_chunk_size:
                 raise ValueError(
                     f"Chunk size {len(entity)} larger than max size {self.max_chunk_size}"
@@ -348,6 +352,11 @@ class FakeEmbeddings:
                 Embedding(
                     embedding=[value] * dimensions, index=index, object="embedding"
                 )
+            )
+
+        if total_elements > self.max_elements_per_batch:
+            raise ValueError(
+                f"Batch size {total_elements} larger than max tokens/chars per batch {self.max_elements_per_batch}"
             )
 
         response = CreateEmbeddingResponse(

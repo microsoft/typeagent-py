@@ -211,7 +211,6 @@ class AsyncEmbeddingModel:
             result = np.array(fake_data, dtype=np.float32)
             return result
         else:
-
             batches: list[list[str]] = []
             batch: list[str] = []
             batch_sum: int = 0
