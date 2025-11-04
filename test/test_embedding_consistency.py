@@ -19,7 +19,7 @@ async def test_embedding_size_mismatch_in_message_index():
     # Create a temporary database file
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         db_path = tmp.name
-    
+
     try:
         # Create a conversation with test model (embedding size 3)
         settings1 = ConversationSettings(
@@ -30,7 +30,7 @@ async def test_embedding_size_mismatch_in_message_index():
         conv1 = await create_conversation(
             db_path, TranscriptMessage, settings=settings1
         )
-        
+
         # Add some messages to populate the index
         messages = [
             TranscriptMessage(
@@ -40,13 +40,13 @@ async def test_embedding_size_mismatch_in_message_index():
         ]
         await conv1.add_messages_with_indexing(messages)
         await conv1.storage_provider.close()
-        
+
         # Now try to open the same database with a different embedding size
         # This should raise an error
         settings2 = ConversationSettings(
             model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
         )
-        
+
         with pytest.raises(ValueError, match="embedding size mismatch"):
             provider = SqliteStorageProvider(
                 db_path=db_path,
@@ -55,7 +55,7 @@ async def test_embedding_size_mismatch_in_message_index():
                 related_term_index_settings=settings2.related_term_index_settings,
             )
             await provider.close()
-    
+
     finally:
         # Clean up the temporary database
         if os.path.exists(db_path):
@@ -68,7 +68,7 @@ async def test_embedding_size_mismatch_in_related_terms():
     # Create a temporary database file
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         db_path = tmp.name
-    
+
     try:
         # Create a conversation with default embedding size
         settings1 = ConversationSettings(
@@ -79,7 +79,7 @@ async def test_embedding_size_mismatch_in_related_terms():
         conv1 = await create_conversation(
             db_path, TranscriptMessage, settings=settings1
         )
-        
+
         # Add some messages to populate the related terms index
         messages = [
             TranscriptMessage(
@@ -89,13 +89,13 @@ async def test_embedding_size_mismatch_in_related_terms():
         ]
         await conv1.add_messages_with_indexing(messages)
         await conv1.storage_provider.close()
-        
+
         # Now try to open the same database with a different embedding size
         # This should raise an error
         settings2 = ConversationSettings(
             model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
         )
-        
+
         with pytest.raises(ValueError, match="embedding size mismatch"):
             provider = SqliteStorageProvider(
                 db_path=db_path,
@@ -104,7 +104,7 @@ async def test_embedding_size_mismatch_in_related_terms():
                 related_term_index_settings=settings2.related_term_index_settings,
             )
             await provider.close()
-    
+
     finally:
         # Clean up the temporary database
         if os.path.exists(db_path):
@@ -117,7 +117,7 @@ async def test_empty_db_no_error():
     # Create a temporary database file
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
         db_path = tmp.name
-    
+
     try:
         # Create an empty database
         settings1 = ConversationSettings(
@@ -129,7 +129,7 @@ async def test_empty_db_no_error():
             db_path, TranscriptMessage, settings=settings1
         )
         await conv1.storage_provider.close()
-        
+
         # Open with different embedding size should work since DB is empty
         settings2 = ConversationSettings(
             model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
@@ -141,7 +141,7 @@ async def test_empty_db_no_error():
             related_term_index_settings=settings2.related_term_index_settings,
         )
         await provider.close()
-    
+
     finally:
         # Clean up the temporary database
         if os.path.exists(db_path):
