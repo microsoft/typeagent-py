@@ -4,10 +4,12 @@
 import openai
 import pytest
 from pytest_mock import MockerFixture
+from pytest import MonkeyPatch
+
 import numpy as np
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model  # type: ignore  # Yes it's used!
+from fixtures import embedding_model, fake_embeddings, fake_embeddings_tiktoken, FakeEmbeddings  # type: ignore  # Yes it's used!
 
 
 @pytest.mark.asyncio
@@ -131,7 +133,7 @@ async def test_refresh_auth(
 
 
 @pytest.mark.asyncio
-async def test_set_endpoint(monkeypatch):
+async def test_set_endpoint(monkeypatch: MonkeyPatch):
     """Test creating of model with custom endpoint."""
 
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "does-not-matter")
@@ -197,3 +199,111 @@ async def test_set_endpoint(monkeypatch):
     # Not even when default model name specified explicitly
     with pytest.raises(ValueError):
         AsyncEmbeddingModel(1024, "text-embedding-ada-002")
+
+
+@pytest.mark.asyncio
+async def test_embeddings_batching_tiktoken(
+    fake_embeddings_tiktoken: FakeEmbeddings, monkeypatch: MonkeyPatch
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "test_key")
+
+    embedding_model = AsyncEmbeddingModel()
+    assert embedding_model.max_chunk_size == 4096
+
+    embedding_model.async_client.embeddings = fake_embeddings_tiktoken  # type: ignore
+
+    # Check max batch size
+    inputs = ["a"] * 2049
+    embeddings = await embedding_model.get_embeddings(inputs)
+    assert len(embeddings) == 2049
+    assert fake_embeddings_tiktoken.call_count == 2
+
+    # Check max token size
+    inputs = ["Very long input longer than 4096 tokens will be truncated" * 500]
+    embeddings = await embedding_model.get_embeddings(inputs)
+    assert len(embeddings) == 1
+
+    fake_embeddings_tiktoken.reset_counter()
+
+    TEST_MAX_TOKEN_SIZE = 10
+    TEST_MAX_TOKENS_PER_BATCH = 20
+    embedding_model.max_chunk_size = TEST_MAX_TOKEN_SIZE
+    embedding_model.max_size_per_batch = TEST_MAX_TOKENS_PER_BATCH
+    fake_embeddings_tiktoken.max_elements_per_batch = TEST_MAX_TOKENS_PER_BATCH
+
+    assert embedding_model.encoding is not None
+
+    token = [500] * 20  # --> 20 tokens
+    input = [embedding_model.encoding.decode(token)] * 4
+    embeddings = await embedding_model.get_embeddings_nocache(input)  # type: ignore
+
+    # each input gets truncated to 10 tokens, so 4 inputs fit in 2 batches of 20 tokens
+    assert fake_embeddings_tiktoken.call_count == 2
+    assert len(embeddings) == 4
+
+    fake_embeddings_tiktoken.reset_counter()
+
+    TEST_MAX_TOKEN_SIZE = 7
+    embedding_model.max_chunk_size = TEST_MAX_TOKEN_SIZE
+
+    token = [500] * 20  # --> 20 tokens
+    input = [embedding_model.encoding.decode(token)] * 5
+    embeddings = await embedding_model.get_embeddings_nocache(input)  # type: ignore
+
+    # each input gets truncated to 7 tokens, so each batch can hold 2 inputs (14 tokens)
+    # 5 inputs require 3 batches
+    assert fake_embeddings_tiktoken.call_count == 3
+    assert len(embeddings) == 5
+
+
+@pytest.mark.asyncio
+async def test_embeddings_batching(
+    fake_embeddings: FakeEmbeddings, monkeypatch: MonkeyPatch
+):
+    monkeypatch.setenv("OPENAI_API_KEY", "test_key")
+
+    embedding_model = AsyncEmbeddingModel(1024, "custom_model")
+    embedding_model.async_client.embeddings = fake_embeddings  # type: ignore
+
+    # Check max batch size
+    inputs = ["a"] * 2049
+    embeddings = await embedding_model.get_embeddings(inputs)
+    assert len(embeddings) == 2049
+    assert fake_embeddings.call_count == 2
+
+    TEST_MAX_CHAR_SIZE = 10
+    TEST_MAX_CHARS_PER_BATCH = 20
+    embedding_model.max_chunk_size = TEST_MAX_CHAR_SIZE
+    embedding_model.max_size_per_batch = TEST_MAX_CHARS_PER_BATCH
+    fake_embeddings.max_elements_per_batch = TEST_MAX_CHARS_PER_BATCH
+
+    # Check max token size
+    inputs = ["a" * TEST_MAX_CHAR_SIZE]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)
+    assert len(embeddings) == 1
+    assert np.all(embeddings[0] == 0)
+
+    fake_embeddings.reset_counter()
+
+    # Check one over max token size
+    inputs = ["a" * (TEST_MAX_CHAR_SIZE + 1)]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)
+    assert len(embeddings) == 1
+    assert fake_embeddings.call_count == 1
+
+    fake_embeddings.reset_counter()
+
+    # Check input as large as max_size_per_batch
+    inputs = ["a" * 10, "a" * 5, "a" * 5]
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)  # type: ignore
+    assert fake_embeddings.call_count == 1
+    assert len(embeddings) == 3
+
+    fake_embeddings.reset_counter()
+
+    # Check input larger than max_size_per_batch
+    # max chars per batch is 20, so 10*10 chars requires 5 batches
+    inputs = ["a" * 10] * 10
+    embeddings = await embedding_model.get_embeddings_nocache(inputs)  # type: ignore
+    assert fake_embeddings.call_count == 5
+    assert len(embeddings) == 10

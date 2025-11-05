@@ -7,9 +7,14 @@ import os
 import numpy as np
 from numpy.typing import NDArray
 from openai import AsyncOpenAI, AsyncAzureOpenAI, DEFAULT_MAX_RETRIES, OpenAIError
+from openai.types import Embedding
+import tiktoken
+from tiktoken import model as tiktoken_model
+from tiktoken.core import Encoding
 
 from .auth import get_shared_token_provider, AzureTokenProvider
 from .utils import timelog
+
 
 type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
@@ -19,6 +24,11 @@ DEFAULT_MODEL_NAME = "text-embedding-ada-002"
 DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
 DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
 TEST_MODEL_NAME = "test"
+MAX_BATCH_SIZE = 2048
+MAX_TOKEN_SIZE = 4096
+MAX_TOKENS_PER_BATCH = 300_000
+MAX_CHAR_SIZE = MAX_TOKEN_SIZE * 3
+MAX_CHARS_PER_BATCH = MAX_TOKENS_PER_BATCH * 3
 
 model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
     DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
@@ -37,6 +47,9 @@ class AsyncEmbeddingModel:
     async_client: AsyncOpenAI | None
     azure_endpoint: str
     azure_api_version: str
+    encoding: Encoding | None
+    max_chunk_size: int
+    max_size_per_batch: int
 
     _embedding_cache: dict[str, NormalizedEmbedding]
 
@@ -97,6 +110,16 @@ class AsyncEmbeddingModel:
                 raise ValueError(
                     f"Neither {openai_key_name} nor {azure_key_name} found in environment."
                 )
+
+        if self.model_name in tiktoken_model.MODEL_TO_ENCODING:
+            encoding_name = tiktoken.encoding_name_for_model(self.model_name)
+            self.encoding = tiktoken.get_encoding(encoding_name)
+            self.max_chunk_size = MAX_TOKEN_SIZE
+            self.max_size_per_batch = MAX_TOKENS_PER_BATCH
+        else:
+            self.encoding = None
+            self.max_chunk_size = MAX_CHAR_SIZE
+            self.max_size_per_batch = MAX_CHARS_PER_BATCH
 
         self._embedding_cache = {}
 
@@ -188,16 +211,37 @@ class AsyncEmbeddingModel:
             result = np.array(fake_data, dtype=np.float32)
             return result
         else:
-            # TODO: Split in batches of 2048 inputs if too long;
-            # or smaller if inputs are large.
-            data = (
-                await self.async_client.embeddings.create(
-                    input=input,
-                    model=self.model_name,
-                    encoding_format="float",
-                    **extra_args,
+            batches: list[list[str]] = []
+            batch: list[str] = []
+            batch_sum: int = 0
+            for sentence in input:
+                truncated_input, truncated_input_size = await self.truncate_input(
+                    sentence
                 )
-            ).data
+                if (
+                    len(batch) >= MAX_BATCH_SIZE
+                    or batch_sum + truncated_input_size > self.max_size_per_batch
+                ):
+                    batches.append(batch)
+                    batch = []
+                    batch_sum = 0
+                batch.append(truncated_input)
+                batch_sum += truncated_input_size
+            if batch:
+                batches.append(batch)
+
+            data: list[Embedding] = []
+            for batch in batches:
+                embeddings_data = (
+                    await self.async_client.embeddings.create(
+                        input=batch,
+                        model=self.model_name,
+                        encoding_format="float",
+                        **extra_args,
+                    )
+                ).data
+                data.extend(embeddings_data)
+
             assert len(data) == len(input), (len(data), "!=", len(input))
             return np.array([d.embedding for d in data], dtype=np.float32)
 
@@ -235,3 +279,27 @@ class AsyncEmbeddingModel:
         return np.array(embeddings, dtype=np.float32).reshape(
             (len(keys), self.embedding_size)
         )
+
+    async def truncate_input(self, input: str) -> tuple[str, int]:
+        """Truncate input strings to fit within model limits.
+
+        args:
+            input: The input string to truncate.
+
+        returns:
+            A tuple of (truncated string, size after truncation).
+        """
+        if self.encoding is None:
+            # Non-token-aware truncation
+            if len(input) > self.max_chunk_size:
+                return input[: self.max_chunk_size], self.max_chunk_size
+            else:
+                return input, len(input)
+        else:
+            # Token-aware truncation
+            tokens = self.encoding.encode(input)
+            if len(tokens) > self.max_chunk_size:
+                truncated_tokens = tokens[: self.max_chunk_size]
+                return self.encoding.decode(truncated_tokens), self.max_chunk_size
+            else:
+                return input, len(tokens)

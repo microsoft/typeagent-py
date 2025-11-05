@@ -4,10 +4,14 @@
 from collections.abc import AsyncGenerator, Iterator
 import os
 import tempfile
-from typing import Any, assert_never
+from typing import Any
 
 import pytest
 import pytest_asyncio
+
+from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
+from openai.types.embedding import Embedding
+import tiktoken
 
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
@@ -299,3 +303,79 @@ async def fake_conversation_with_storage(
 ) -> FakeConversation:
     """Fixture to create a FakeConversation instance with storage provider."""
     return FakeConversation(storage_provider=memory_storage)
+
+
+class FakeEmbeddings:
+
+    def __init__(
+        self,
+        max_batch_size: int = 2048,
+        max_chunk_size: int = 4096,
+        max_elements_per_batch: int = 300_000,
+        use_tiktoken: bool = False,
+    ):
+        self.model_name = "text-embedding-ada-002"
+        self.call_count = 0
+        self.max_batch_size = max_batch_size
+        self.max_chunk_size = max_chunk_size
+        self.max_elements_per_batch = max_elements_per_batch
+        self.use_tiktoken = use_tiktoken
+
+    def reset_counter(self):
+        self.call_count = 0
+
+    async def create(self, **kwargs):
+        self.call_count += 1
+        input = kwargs["input"]
+        len_input = len(input)
+        if len_input > self.max_batch_size:
+            raise ValueError("Embedding model received batch larger 2048")
+        dimensions = 1536
+        if "dimensions" in kwargs:
+            dimensions = kwargs["dimensions"]
+
+        embedding_result = []
+        total_elements = 0
+        for index in range(len_input):
+            entity = input[index]
+            if self.use_tiktoken:
+                enc_name = tiktoken.encoding_name_for_model(self.model_name)
+                enc = tiktoken.get_encoding(enc_name)
+                entity = enc.encode(entity)
+            total_elements += len(entity)
+            if len(entity) > self.max_chunk_size:
+                raise ValueError(
+                    f"Chunk size {len(entity)} larger than max size {self.max_chunk_size}"
+                )
+            value = index % 2
+            embedding_result.append(
+                Embedding(
+                    embedding=[value] * dimensions, index=index, object="embedding"
+                )
+            )
+
+        if total_elements > self.max_elements_per_batch:
+            raise ValueError(
+                f"Batch size {total_elements} larger than max tokens/chars per batch {self.max_elements_per_batch}"
+            )
+
+        response = CreateEmbeddingResponse(
+            data=embedding_result,
+            model="test_model",
+            object="list",
+            usage=Usage(prompt_tokens=0, total_tokens=0),
+        )
+
+        return response
+
+
+@pytest.fixture
+def fake_embeddings() -> FakeEmbeddings:
+    """Fixture to create a FaceEmbedding instance"""
+    return FakeEmbeddings(max_batch_size=2048, max_chunk_size=4096 * 3)
+
+
+@pytest.fixture
+def fake_embeddings_tiktoken() -> FakeEmbeddings:
+    """Fixture to create a FaceEmbedding instance"""
+    return FakeEmbeddings(max_batch_size=2048, max_chunk_size=4096, use_tiktoken=True)
