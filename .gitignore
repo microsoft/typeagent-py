@@ -1,20 +1,36 @@
+# Editor settings
+.vscode
+
+# Python
 __pycache__
+
+# Build
 /typeagent.egg-info
-/.env
-/.ui_history
-/.venv
+
+# Auth files (env vars for secrets)
+.env
+/demo/env
+
+# query.py
+.ui_history
+
+# Databases
 *.db
 *.db.index_log
+
+# Coverage
+.coverage
+.coverage.*
+
+# Evaluations
 /evals
+/testdata/Episode_53_Answer_results.json
+/testdata/Episode_53_Search_results.json
+
+# Email demo
 /gmail/client_secret.json
 /gmail/token.json
 *_dump/
-/testdata/Episode_53_Answer_results.json
-/testdata/Episode_53_Search_results.json
-/testdata/MP
-/demo/env
-.coverage
 
-# VSCode
-.vscode
-**/.vscode/*
+# Monty Python demo
+/testdata/MP
