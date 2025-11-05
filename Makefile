@@ -20,8 +20,10 @@ test: venv
 
 .PHONY: coverage
 coverage: venv
-	.venv/bin/python -m coverage run --source=typeagent -m pytest test $(FLAGS)
-	coverage report --sort=cover
+	coverage erase
+	COVERAGE_PROCESS_START=.coveragerc .venv/bin/coverage run -m pytest test $(FLAGS)
+	coverage combine
+	coverage report
 
 .PHONY: demo
 demo: venv
