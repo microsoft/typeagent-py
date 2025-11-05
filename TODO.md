@@ -4,26 +4,16 @@ Meta-todo: Gradually move work items from here to repo Issues.
 
 # Leftover TODOs from elsewhere
 
-## Software
-
-- Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
-
 ### Specifically for VTT import (minor)
 
 - Reduce duplication between ingest_vtt.py and typeagent/transcripts/
-- `get_transcript_speakers` and `get_transcript_duration` should not
-  re-parse the transcript -- they should just take the parsed vtt object.
-
-### Embeddings
-
-- Handle input truncation for embeddings by counting tokens (e.g. tiktoken).
 
 ## Documentation
 
 - Test/build/release process
 - How to run evaluations (but don't share the data)
 - Low-level APIs -- at least the key parts that are used directly by the
-  high-level APIs
+  high-level APIs (e.g. ConversationSettings)
 
 # TODOs for fully implementing persistence through SQLite
 
@@ -34,6 +24,7 @@ Meta-todo: Gradually move work items from here to repo Issues.
 - Review the new storage code more carefully, adding notes here
 - Conversation id in conversation metadata table feels wrong
 - Conversation metadata isn't written -- needs a separate call
+- Need embedding size and embedding name in metadata
 - Improve test coverage for search, searchlang, query, sqlite
 - Reduce code size
 - Make coding style more uniform (e.g. docstrings)
@@ -51,17 +42,19 @@ Meta-todo: Gradually move work items from here to repo Issues.
 - Replace the storage accessors with readonly @property functions
 - Refactor memory and sqlite indexes to share more code
   (e.g. population and query logic)
+- Remove message text index -- it doesn't appear to be used at all
 
 ## Lower priority
 
-- Try to avoid so many inline imports.
-  Break cycles by moving things to their own file if necessary
+- Avoid most inline imports
+- Break cycles by moving things to their own file if necessary
 
 # From Meeting 8/12/2025 morning (edited)
 
 - "Ordinals" ("ids") should be sequential (ordered) but not contiguous
   - So we can use auto-increment
   - Fix all bugs related to that
+    (currently we strongly rely on starting at 0 and no gaps)
 - Flatten and reduce IConversation structure:
   - Message collection
   - SemanticRef collection
@@ -73,7 +66,7 @@ Meta-todo: Gradually move work items from here to repo Issues.
 
 # From Meeting 8/12/2025 afternoon (edited)
 
-- Rename "Ordinal" to "Id"
+- Rename "Ordinal" to "Id" (tedious though)
 
 # Other stuff
 
@@ -83,7 +76,7 @@ Meta-todo: Gradually move work items from here to repo Issues.
 - Implement at least some @-commands in query.py
 - More debug options (turn on/off various debug prints dynamically)
 
-- Use pydantic.ai for model drivers
+- Use pydantic.ai for model drivers, to support non-openai models
 
 ## General: Look for things marked as incomplete in source
 
@@ -92,8 +85,8 @@ Meta-todo: Gradually move work items from here to repo Issues.
 
 ## Cleanup:
 
-- Sort out why `IConversation` needs two generic parameters;
-  especially `TTermToSemanticRefIndex` is annoying. Can we do better?
+- Sort out why `IConversation` needs two generic parameters
+- Especially `TTermToSemanticRefIndex` is annoying. Can we do better?
 - Unify or align or refactor `VectorBase` and `EmbeddingIndex`.
 
 ## Serialization
@@ -142,13 +135,10 @@ We have several stages (someof which loop):
       the contexts into multiple requests and combine the answers
       in the same way.
 
-All of these stages are at least partially implemented,
-so we have some end-to-end functionality.
-
 The TODO items include (in no particular order):
 
-- Implement token budgets -- may leave out messages, favoring only knowledge,
-  if it answers the question.
+- Implement token budgets for answer generation -- may leave out messages,
+  favoring only knowledge, if it answers the question.
 - Change the context to be text, including message texts and timestamps,
   rather than JSON (and especially not just semantic ref ordinals).
 - Split large contexts to avoid overflowing the answer generator's
@@ -177,5 +167,5 @@ The TODO items include (in no particular order):
 
 ## Questions
 
-- Do the serialization data formats (which are TypedDicts, not Protocols):
-  - Really belong in interfaces.py? [UMESH: No] [me: NO; TODO]
+- Do the serialization data formats (which are TypedDicts, not Protocols)
+  really belong in interfaces.py? [UMESH: No] [me: NO; TODO]
