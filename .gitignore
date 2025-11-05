@@ -11,8 +11,9 @@ __pycache__
 *_dump/
 /testdata/Episode_53_Answer_results.json
 /testdata/Episode_53_Search_results.json
-/testdata/MP/
+/testdata/MP
 /demo/env
+.coverage
 
 # VSCode
 .vscode

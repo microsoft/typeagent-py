@@ -1,0 +1,9 @@
+# Used by 'make coverage'
+
+[run]
+branch = true
+parallel = true
+source = test
+
+[report]
+sort = cover

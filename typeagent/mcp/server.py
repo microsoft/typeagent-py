@@ -3,15 +3,20 @@
 
 """Fledgling MCP server on top of typeagent."""
 
+
 import argparse
 from dataclasses import dataclass
 import time
 from typing import Any
 
+import coverage
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent
 import typechat
+
+# Enable coverage.py before local imports (a no-op unless COVERAGE_PROCESS_START is set).
+coverage.process_startup()
 
 from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import answers, query, searchlang
@@ -20,7 +25,6 @@ from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.search_query_schema import SearchQuery
 from typeagent.podcasts import podcast
 from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-from typeagent.storage.sqlite import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 

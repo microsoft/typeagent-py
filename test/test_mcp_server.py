@@ -3,15 +3,30 @@
 
 """End-to-end tests for the MCP server."""
 
+import os
 from typing import Any
 
 import pytest
-
+from mcp import StdioServerParameters
 from mcp.client.session import ClientSession as ClientSessionType
 from mcp.shared.context import RequestContext
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
 from fixtures import really_needs_auth
+
+
+@pytest.fixture
+def server_params() -> StdioServerParameters:
+    """Create MCP server parameters with minimal environment."""
+    env = {}
+    if "COVERAGE_PROCESS_START" in os.environ:
+        env["COVERAGE_PROCESS_START"] = os.environ["COVERAGE_PROCESS_START"]
+
+    return StdioServerParameters(
+        command=".venv/bin/python",
+        args=["-m", "typeagent.mcp.server"],
+        env=env,
+    )
 
 
 async def sampling_callback(
@@ -33,10 +48,10 @@ async def sampling_callback(
         content: str
         if isinstance(msg.content, TextContent):
             content = msg.content.text
-        elif hasattr(msg.content, "text"):
-            content = msg.content.text  # type: ignore
         else:
-            content = str(msg.content)
+            raise ValueError(
+                f"Unsupported content type in sampling message: {type(msg.content)}"
+            )
 
         # MCP roles are "user" or "assistant", which are compatible with OpenAI
         if msg.role == "user":
@@ -68,17 +83,12 @@ async def sampling_callback(
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_query_conversation_slow(really_needs_auth):
+async def test_mcp_server_query_conversation_slow(
+    really_needs_auth, server_params: StdioServerParameters
+):
     """Test the query_conversation tool end-to-end using MCP client."""
-    from mcp import ClientSession, StdioServerParameters
+    from mcp import ClientSession
     from mcp.client.stdio import stdio_client
-
-    # Configure server parameters
-    server_params = StdioServerParameters(
-        command=".venv/bin/python",
-        args=["-m", "typeagent.mcp.server"],
-        env=None,
-    )
 
     # Create client session and connect to server
     async with stdio_client(server_params) as (read, write):
@@ -125,17 +135,10 @@ async def test_mcp_server_query_conversation_slow(really_needs_auth):
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_empty_question():
+async def test_mcp_server_empty_question(server_params: StdioServerParameters):
     """Test the query_conversation tool with an empty question."""
-    from mcp import ClientSession, StdioServerParameters
+    from mcp import ClientSession
     from mcp.client.stdio import stdio_client
-
-    # Configure server parameters
-    server_params = StdioServerParameters(
-        command=".venv/bin/python",
-        args=["-m", "typeagent.mcp.server"],
-        env=None,
-    )
 
     # Create client session and connect to server
     async with stdio_client(server_params) as (read, write):
