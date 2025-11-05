@@ -101,7 +101,6 @@ Meta-todo: Gradually move work items from here to repo Issues.
 
 - Move `typeagent` into `src`.
 - Move test to tests?
-- Configure testpaths in pyproject.toml
 
 ## Testing
 

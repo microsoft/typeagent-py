@@ -16,12 +16,12 @@ check: venv
 
 .PHONY: test
 test: venv
-	.venv/bin/pytest test $(FLAGS)
+	.venv/bin/pytest $(FLAGS)
 
 .PHONY: coverage
 coverage: venv
 	coverage erase
-	COVERAGE_PROCESS_START=.coveragerc .venv/bin/coverage run -m pytest test $(FLAGS)
+	COVERAGE_PROCESS_START=.coveragerc .venv/bin/coverage run -m pytest $(FLAGS)
 	coverage combine
 	coverage report
 
