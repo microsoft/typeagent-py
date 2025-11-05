@@ -4,9 +4,6 @@
 # Python
 __pycache__
 
-# Virtual environment
-.venv
-
 # Build
 /typeagent.egg-info
 
@@ -24,7 +21,6 @@ __pycache__
 # Coverage
 .coverage
 .coverage.*
-htmlcov
 
 # Evaluations
 /evals
