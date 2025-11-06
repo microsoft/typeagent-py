@@ -31,7 +31,7 @@ Gradually move work items from here to repo Issues.
 ### P2 - Medium Priority
 - **[P2, large]** Refactor memory and sqlite indexes to share more code (e.g. population and query logic)
 - **[P2, medium]** Make the collection/index accessors in StorageProvider synchronous (the async work is all done in create())
-- **[P2, small]** Replace the storage accessors with readonly @property functions
+- **[P2, medium]** Replace the storage accessors with readonly @property functions
 - **[P2, medium]** "Ordinals" should be renamed to "Id" (tedious though)
 
 ### P3 - Low Priority
@@ -43,7 +43,6 @@ Gradually move work items from here to repo Issues.
   - Timestamp to TextRange
   - Terms to related terms
 - **[P3, medium]** Split related terms index in two (aliases and fuzzy_index)
-- **[P3, small]** Remove message text index -- it doesn't appear to be used at all
 - **[P3, large]** Implement consistent approach to deletions (tombstoning in sqlite, cascade delete semrefs and indexes)
 
 ---
