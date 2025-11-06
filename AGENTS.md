@@ -10,7 +10,7 @@ that make changes to the repository. Not even `git add`**
 When moving, copying or deleting files, use the git commands: `git mv`, `git cp`, `git rm`
 
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
-- Activate `.venv`: make venv; source .venv/bin/activate
+- Activate `.venv`: `make venv; source .venv/bin/activate` (run this only once)
 - To get API keys in ad-hoc code, call `typeagent.aitools.utils.load_dotenv()`
 - Use `pytest test` to run tests in test/
 - Use `pyright` to check type annotations in tools/, test/, typeagent/, gmail/
