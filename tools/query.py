@@ -203,7 +203,7 @@ async def cmd_debug(context: ProcessingContext, args: list[str]) -> None:
         for item in ns.items:
             pair = item.split("=", maxsplit=1)
             if len(pair) != 2:
-                print(f"Invalid item format: {item!r}. Expected FORMAT=VALUE.")
+                print(f"Invalid item format: {item!r}. Expected FLAG=VALUE.")
                 return
             flag = pair[0].lower()
             value = pair[1].lower()
@@ -374,7 +374,7 @@ commands: dict[str, CommandHandler] = {
 
 
 async def handle_at_command(context: ProcessingContext, line: str) -> None:
-    """Handle @-commands. Returns True if the line was a command.
+    """Handle @-commands.
 
     Input line includes leading '@'.
     """
