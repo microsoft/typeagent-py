@@ -35,7 +35,13 @@ Gradually move work items from here to repo Issues.
 - **[P2, medium]** "Ordinals" should be renamed to "Id" (tedious though)
 
 ### P3 - Low Priority
-- **[P3, medium]** Flatten secondary indexes into Conversation (they are no longer optional)
+- **[P3, medium]** Flatten secondary indexes into Conversation (they are no longer optional), reducing the structure to:
+  - Message collection
+  - SemanticRef collection
+  - SemanticRef index
+  - Property to SemanticRef index
+  - Timestamp to TextRange
+  - Terms to related terms
 - **[P3, medium]** Split related terms index in two (aliases and fuzzy_index)
 - **[P3, small]** Remove message text index -- it doesn't appear to be used at all
 - **[P3, large]** Implement consistent approach to deletions (tombstoning in sqlite, cascade delete semrefs and indexes)
@@ -140,11 +146,4 @@ Gradually move work items from here to repo Issues.
 ## Architecture Decisions
 
 ### P2 - Medium Priority
-- **[P2, large]** Flatten and reduce IConversation structure:
-  - Message collection
-  - SemanticRef collection
-  - SemanticRef index
-  - Property to SemanticRef index
-  - Timestamp to TextRange
-  - Terms to related terms
 - **[P2, medium]** Keep in-memory version (with some compromises) for comparison
