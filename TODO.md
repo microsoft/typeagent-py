@@ -57,10 +57,8 @@ Gradually move work items from here to repo Issues.
 
 ### P2 - Medium Priority
 - **[P2, medium]** Implement token budgets for answer generation (may leave out messages, favoring only knowledge)
-- **[P2, medium]** Change the context to be text (message texts and timestamps), not JSON or semantic ref ordinals
-- **[P2, medium]** Split large contexts to avoid overflowing the answer generator's context buffer
-- **[P2, small]** Implement at least some @-commands in query.py
-- **[P2, small]** More debug options (turn on/off various debug prints dynamically)
+- **[P2, medium]** Change answer context to be text (message texts and timestamps), not JSON or semantic ref ordinals
+- **[P2, medium]** Split large answer contexts to avoid overflowing the answer generator's context buffer
 
 ---
 
