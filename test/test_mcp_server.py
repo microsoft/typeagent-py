@@ -108,7 +108,7 @@ async def test_mcp_server_query_conversation_slow(
             # Call the query_conversation tool
             result = await session.call_tool(
                 "query_conversation",
-                arguments={"question": "Who is the host of this podcast?"},
+                arguments={"question": "Who is Kevin Scott?"},
             )
 
             # Verify response structure
