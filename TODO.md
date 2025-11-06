@@ -1,181 +1,146 @@
-# TODO for the Python knowpro port
+# TODO for typeagent-py
 
-Meta-todo: Gradually move work items from here to repo Issues.
+## Organizing principle
 
-# Leftover TODOs from elsewhere
+Tasks are grouped by component/feature area, with priorities
+P0-P3 (P0=higest, P3=lowest). Note that priorities were assigned by Copilot,
+and I don't always agree (it often assigns P0 or P1 to complicated work items).
 
-## Software
+Each item also has a rough size estimate.
 
-- Improve load_dotenv() (don't look for `<repo>/ts/.env`, use one loop)
+## Meta-TODO
 
-### Specifically for VTT import (minor)
+Gradually move work items from here to repo Issues.
 
-- Reduce duplication between ingest_vtt.py and typeagent/transcripts/
-- `get_transcript_speakers` and `get_transcript_duration` should not
-  re-parse the transcript -- they should just take the parsed vtt object.
+---
 
-### Embeddings
+## Storage & Persistence
 
-- Handle input truncation for embeddings by counting tokens (e.g. tiktoken).
+### P0 - Critical
+- **[P0, large]** Fix all bugs related to ordinals/ids relying on starting at 0 and no gaps
+- **[P0, small]** Conversation metadata isn't written -- needs a separate call
+- **[P0, small]** Need embedding size and embedding name in metadata
 
-## Documentation
+### P1 - High Priority
+- **[P1, medium]** Scrutinize sqlite/reltermsindex.py
+- **[P1, medium]** Review the new storage code more carefully, adding notes
+- **[P1, large]** Unify tests for storage APIs
+- **[P1, small]** Conversation id in conversation metadata table feels wrong
+- **[P1, medium]** Make (de)serialize methods async in interfaces.py if they might execute SQL statements
 
-- Test/build/release process
-- How to run evaluations (but don't share the data)
-- Low-level APIs -- at least the key parts that are used directly by the
-  high-level APIs
+### P2 - Medium Priority
+- **[P2, large]** Refactor memory and sqlite indexes to share more code (e.g. population and query logic)
+- **[P2, medium]** Make the collection/index accessors in StorageProvider synchronous (the async work is all done in create())
+- **[P2, medium]** Replace the storage accessors with readonly @property functions
+- **[P2, medium]** "Ordinals" should be renamed to "Id" (tedious though)
 
-# TODOs for fully implementing persistence through SQLite
-
-## Now
-
-- Scrutinize sqlite/reltermsindex.py
-- Unify tests for storage APIs
-- Review the new storage code more carefully, adding notes here
-- Conversation id in conversation metadata table feels wrong
-- Conversation metadata isn't written -- needs a separate call
-- Improve test coverage for search, searchlang, query, sqlite
-- Reduce code size
-- Make coding style more uniform (e.g. docstrings)
-
-## Also
-
-- Make (de)serialize methods async in interfaces.py if they might execute SQL statements
-
-## Maybe
-
-- Flatten secondary indexes into Conversation (they are no longer optional)
-- Split related terms index in two (aliases and fuzzy_index)
-- Make the collection/index accessors in StorageProvider synchronous
-  (the async work is all done in create())
-- Replace the storage accessors with readonly @property functions
-- Refactor memory and sqlite indexes to share more code
-  (e.g. population and query logic)
-
-## Lower priority
-
-- Try to avoid so many inline imports.
-  Break cycles by moving things to their own file if necessary
-
-# From Meeting 8/12/2025 morning (edited)
-
-- "Ordinals" ("ids") should be sequential (ordered) but not contiguous
-  - So we can use auto-increment
-  - Fix all bugs related to that
-- Flatten and reduce IConversation structure:
+### P3 - Low Priority
+- **[P3, medium]** Flatten secondary indexes into Conversation (they are no longer optional), reducing the structure to:
   - Message collection
   - SemanticRef collection
   - SemanticRef index
   - Property to SemanticRef index
   - Timestamp to TextRange
   - Terms to related terms
-- Keep in-memory version (with some compromises) for comparison
+- **[P3, medium]** Split related terms index in two (aliases and fuzzy_index)
+- **[P3, large]** Implement consistent approach to deletions (tombstoning in sqlite, cascade delete semrefs and indexes)
 
-# From Meeting 8/12/2025 afternoon (edited)
+---
 
-- Rename "Ordinal" to "Id"
+## Query & Search Pipeline
 
-# Other stuff
+### P1 - High Priority
+- **[P1, medium]** Look more into why the search query schema is so unstable
+- **[P1, large]** Redesign the whole pipeline; make each stage its own function with simpler API
+- **[P1, large]** Improve test coverage for search, searchlang, query, sqlite
 
-### Left to do here
+### P2 - Medium Priority
+- **[P2, medium]** Implement token budgets for answer generation (may leave out messages, favoring only knowledge)
+- **[P2, medium]** Change answer context to be text (message texts and timestamps), not JSON or semantic ref ordinals
+- **[P2, medium]** Split large answer contexts to avoid overflowing the answer generator's context buffer
 
-- Look more into why the search query schema is so unstable
-- Implement at least some @-commands in query.py
-- More debug options (turn on/off various debug prints dynamically)
+---
 
-- Use pydantic.ai for model drivers
+## Type System & Interfaces
 
-## General: Look for things marked as incomplete in source
+### P1 - High Priority
+- **[P1, medium]** Move TypedDicts out of interfaces.py (they don't belong there)
+- **[P1, medium]** Fix need for `# type: ignore` comments (22 in typeagent/) by making I-interfaces more generic
 
-- `TODO` comments (too numerous)
-- `raise NotImplementedError("TODO")` (five found)
+### P2 - Medium Priority
+- **[P2, medium]** Sort out why `IConversation` needs two generic parameters
+- **[P2, medium]** Simplify `TTermToSemanticRefIndex` generic parameter
+- **[P2, medium]** Tighten types: several places allow `None` and construct default instances; either disallow `None` or skip that functionality
 
-## Cleanup:
-
-- Sort out why `IConversation` needs two generic parameters;
-  especially `TTermToSemanticRefIndex` is annoying. Can we do better?
-- Unify or align or refactor `VectorBase` and `EmbeddingIndex`.
+---
 
 ## Serialization
 
-- Remove a bunch of `XxxData` TypedDicts that can be dealt with using
-  `deserialize_object` and `serialize_object`
-- Catch and report `DeserializationError` better
-- Look into whether Pydantic can do our (de)serialization --
-  if it can, presumably it's faster?
+### P2 - Medium Priority
+- **[P2, medium]** Remove a bunch of `XxxData` TypedDicts that can be dealt with using `deserialize_object` and `serialize_object`
+- **[P2, small]** Catch and report `DeserializationError` better
+- **[P2, medium]** Look into whether Pydantic can do our (de)serialization (presumably faster?)
 
-## Development
+---
 
-- Move `typeagent` into `src`.
-- Move test to tests?
-- Configure testpaths in pyproject.toml
+## Code Quality & Cleanup
+
+### P1 - High Priority
+- **[P1, large]** Make coding style more uniform (e.g. docstrings)
+- **[P1, large]** Reduce code size
+
+### P2 - Medium Priority
+- **[P2, small]** Avoid most inline imports
+- **[P2, medium]** Break cycles by moving things to their own file if necessary
+- **[P2, medium]** Unify or align or refactor `VectorBase` and `EmbeddingIndex`
+- **[P2, medium]** Address `TODO` comments (too numerous)
+- **[P2, medium]** Address `raise NotImplementedError("TODO")` (five found) -- implement it
+
+### P3 - Low Priority
+- **[P3, medium]** Change inconsistent module names (Claude uses different naming style)
+- **[P3, medium]** Rewrite podcast parsing without regexes
+- **[P3, medium]** Switch from Protocol to ABC
+- **[P3, medium]** Reduce duplication between ingest_vtt.py and typeagent/transcripts/
+
+---
 
 ## Testing
 
-- Review Copilot-generated tests for sanity and minimal mocking
-- Add new tests for newly added classes/methods/functions
-- Coverage testing (needs to use a mix of indexing and querying)
+### P1 - High Priority
+- **[P1, large]** Add new tests for newly added classes/methods/functions
 
-## Tighter types
+### P2 - Medium Priority
+- **[P2, medium]** Review Copilot-generated tests for sanity and minimal mocking
 
-- Several places allow `None` and in that case construct a default instance.
-  It's probably better to either disallow `None` or skip that functionality.
+---
 
-## Queries and searches
+## Documentation
 
-Let me first describe the architecture.
-We have several stages (someof which loop):
+### P1 - High Priority
+- **[P1, small]** Document test/build/release process
+- **[P1, small]** Document how to run evaluations (but don't share the data)
 
-1. Parse natural language into a `SearchQuery`. (_searchlang.py_)
-2. Transform this to a `SearchQueryExpr`. (_search.py_)
-3. In `search_conversation` (in _search.py_):
-   a. compile to `GetScoredMessageExpr` and run that query.
-   b. compile to `GroupSearchResultsExpr` and run that query.
-   c. Combine the results into a `ConversationSearchResult`.
-4. Turn the results into human language, using an prompt that
-   asks the model to generate an answer from the context
-   (messages and knowledge from 3c) and he original raw query.
-   a. There may be multiple search results; if so, another prompt
-      is used to combine the answers.
-   b. Similarly, the context from a single search result may be
-      too large for a model's token buffer. In that case we split
-      the contexts into multiple requests and combine the answers
-      in the same way.
+### P2 - Medium Priority
+- **[P2, large]** Document low-level APIs (key parts used directly by high-level APIs, e.g. ConversationSettings)
 
-All of these stages are at least partially implemented,
-so we have some end-to-end functionality.
+---
 
-The TODO items include (in no particular order):
+## Development Infrastructure
 
-- Implement token budgets -- may leave out messages, favoring only knowledge,
-  if it answers the question.
-- Change the context to be text, including message texts and timestamps,
-  rather than JSON (and especially not just semantic ref ordinals).
-- Split large contexts to avoid overflowing the answer generator's
-  context buffer (4b).
-- Redesign the whole pipeline now that I understand the archtecture better;
-  notably make each stage its own function with simpler API.
+### P3 - Low Priority
+- **[P3, small]** Move `typeagent` into `src/`
+- **[P3, tiny]** Move `test/` to `tests/`
 
-# Older TODO action items
+---
 
-## Refactoring implementations
+## Features & Enhancements
 
-- Change inconsistent module names (Claude uses different naming style)
-- Rewrite podcast parsing without regexes (low priority)
-- Switch from Protocol to ABC
+### P2 - Medium Priority
+- **[P2, medium]** Use pydantic.ai for model drivers, to support non-openai models
 
-## Type checking stuff
+---
 
-- Fix need for `# type: ignore` comments (usually need to make some
-  I-interface generic in actual message/index/etc.) I see 22 in typeagent/.
+## Architecture Decisions
 
-## Deletions
-
-- A consistent approach to deletions. Deleting a message should remove
-  all semrefs referencing it and all index entries reference those.
-  Probably the only way is tombstoning (in sqlite can just delete rows)
-
-## Questions
-
-- Do the serialization data formats (which are TypedDicts, not Protocols):
-  - Really belong in interfaces.py? [UMESH: No] [me: NO; TODO]
+### P2 - Medium Priority
+- **[P2, medium]** Keep in-memory version (with some compromises) for comparison
