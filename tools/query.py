@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import difflib
 import json
 import re
+import shlex
 import shutil
 import sys
 import typing
@@ -110,6 +111,290 @@ class ProcessingContext:
         parts.append(f"lang_search_options={self.lang_search_options}")
         parts.append(f"answer_context_options={self.answer_context_options}")
         return f"Context({', '.join(parts)})"
+
+
+CommandHandler = typing.Callable[[ProcessingContext, list[str]], typing.Awaitable[None]]
+
+
+def _parse_command_args(
+    parser: argparse.ArgumentParser, args: list[str]
+) -> argparse.Namespace | None:
+    """Parse argv for a command, returning None on error instead of exiting."""
+
+    try:
+        return parser.parse_args(args)
+    except SystemExit:
+        return None
+
+
+async def cmd_help(context: ProcessingContext, args: list[str]) -> None:
+    """Show available @-commands. Usage: @help [command]
+
+    Without arguments, lists all commands with short help.
+    With one argument, shows long help for that command.
+    """
+
+    if not args:
+        print("Available commands:")
+        for name in sorted(commands):
+            func = commands[name]
+            doc = func.__doc__ or "(no documentation available)"
+            summary = doc.strip().splitlines()[0]
+            print(f"  @{name:<10} {summary}")
+        print("Type @help <command> for details.")
+        return
+
+    cmd_name = args[0].lstrip("@")
+    func = commands.get(cmd_name)
+    if func is None:
+        print(f"Unknown command @{cmd_name!s}. Try @help.")
+        return
+
+    doc = func.__doc__
+    if not doc:
+        print(f"No documentation available for @{cmd_name}.")
+        return
+    print(doc.strip())
+
+
+async def cmd_debug(context: ProcessingContext, args: list[str]) -> None:
+    """Show or update debug flags. Usage: @debug [--show] [--reset] [FLAG=VALUE ...]
+
+    Flags: debug1-debug4, all
+    Values: none, diff, full, skip, nice
+    """
+
+    parser = argparse.ArgumentParser(prog="@debug", add_help=True)
+    parser.add_argument(
+        "--reset", action="store_true", help="Reset to interactive defaults"
+    )
+    parser.add_argument("items", nargs="*", help="FLAG=VALUE items")
+    ns = _parse_command_args(parser, args)
+    if ns is None:
+        return
+
+    print(
+        "Current debug levels: "
+        f"debug1={context.debug1}, debug2={context.debug2}, "
+        f"debug3={context.debug3}, debug4={context.debug4}"
+    )
+
+    if not ns.reset and not ns.items:
+        return
+
+    if ns.reset:
+        debug_values = {
+            "debug1": "none",
+            "debug2": "none",
+            "debug3": "none",
+            "debug4": "nice",  # Not "none", which would suppress the answer
+        }
+    else:
+        # Start out with existing values from context
+        debug_values = {
+            "debug1": context.debug1,
+            "debug2": context.debug2,
+            "debug3": context.debug3,
+            "debug4": context.debug4,
+        }
+
+    if ns.items:
+        updates: dict[str, str] = {}
+        for item in ns.items:
+            pair = item.split("=", maxsplit=1)
+            if len(pair) != 2:
+                print(f"Invalid item format: {item!r}. Expected FORMAT=VALUE.")
+                return
+            flag = pair[0].lower()
+            value = pair[1].lower()
+            if flag == "all":
+                updates = {
+                    "debug1": value,
+                    "debug2": value,
+                    "debug3": value,
+                    "debug4": value,
+                }
+            else:
+                if flag not in debug_values:
+                    print(f"Unknown debug flag {flag!r}. Use debug[1-4] or all.")
+                    return
+                updates[flag] = value
+
+        for flag, value in updates.items():
+            allowed = ProcessingContext.__annotations__[flag].__args__  # DRY
+            if value not in allowed:
+                allowed_list = ", ".join(sorted(allowed))
+                print(f"Invalid value {value!r} for {flag}. Allowed: {allowed_list}.")
+                return
+            debug_values[flag] = value
+
+        if debug_values["debug2"] == "skip":
+            debug_values["debug1"] = "skip"
+
+    context.debug1 = debug_values["debug1"]  # type: ignore[assignment]
+    context.debug2 = debug_values["debug2"]  # type: ignore[assignment]
+    context.debug3 = debug_values["debug3"]  # type: ignore[assignment]
+    context.debug4 = debug_values["debug4"]  # type: ignore[assignment]
+
+    print(
+        "    New debug levels: "
+        f"debug1={context.debug1}, debug2={context.debug2}, "
+        f"debug3={context.debug3}, debug4={context.debug4}"
+    )
+
+
+async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
+    """Run only the first N pipeline stages. Usage: @stage COUNT [--diff] QUESTION
+
+    COUNT is 1-4 indicating how many stages to run.
+    """
+
+    parser = argparse.ArgumentParser(prog="@stage", add_help=True)
+    parser.add_argument("count", type=int, choices=range(1, 5))
+    parser.add_argument(
+        "--diff", action="store_true", help="Compare with cached results if available"
+    )
+    parser.add_argument(
+        "question",
+        nargs=argparse.REMAINDER,
+        help="Question to run through the pipeline",
+    )
+    ns = _parse_command_args(parser, args)
+    if ns is None:
+        return
+
+    question = " ".join(ns.question).strip()
+    if not question:
+        print("Error: question text required.")
+        return
+
+    debug_context = searchlang.LanguageSearchDebugContext()
+    record = context.sr_index.get(question)
+
+    result = await searchlang.search_conversation_with_language(
+        context.query_context.conversation,
+        context.query_translator,
+        question,
+        context.lang_search_options,
+        debug_context=debug_context,
+    )
+    if isinstance(result, typechat.Failure):
+        print("Stages 1-3 failed:")
+        print(Fore.RED + str(result) + Fore.RESET)
+        return
+
+    search_results = result.value
+    stage = ns.count
+
+    if stage >= 1:
+        actual1 = debug_context.search_query
+        if actual1 is None:
+            print("Stage 1 produced no search query.")
+        else:
+            if ns.diff and record and "searchQueryExpr" in record:
+                expected1 = serialization.deserialize_object(
+                    search_query_schema.SearchQuery, record["searchQueryExpr"]
+                )
+                if compare_and_print_diff(expected1, actual1):
+                    print("Stage 1 matches cached result.")
+            utils.pretty_print(actual1, Fore.GREEN, Fore.RESET)
+        if stage == 1:
+            return
+
+    if stage >= 2:
+        actual2 = debug_context.search_query_expr
+        if actual2 is None:
+            print("Stage 2 produced no compiled query expression.")
+        else:
+            if ns.diff and record and "compiledQueryExpr" in record:
+                expected2 = serialization.deserialize_object(
+                    list[search.SearchQueryExpr], record["compiledQueryExpr"]
+                )
+                if compare_and_print_diff(expected2, actual2):
+                    print("Stage 2 matches cached result.")
+            utils.pretty_print(actual2, Fore.GREEN, Fore.RESET)
+        if stage == 2:
+            return
+
+    if stage >= 3:
+        if ns.diff and record and "results" in record:
+            expected3 = typing.cast(list[RawSearchResultData], record["results"])
+            compare_results(expected3, search_results)
+        print("Stage 3 results:")
+        for sr in search_results:
+            await print_result(sr, context.query_context.conversation)
+        if stage == 3:
+            return
+
+    all_answers, combined_answer = await answers.generate_answers(
+        context.answer_translator,
+        search_results,
+        context.query_context.conversation,
+        question,
+        options=context.answer_context_options,
+    )
+
+    if ns.diff:
+        record4 = context.ar_index.get(question)
+        if record4:
+            expected4 = (record4["answer"], not record4["hasNoAnswer"])
+            match combined_answer.type:
+                case "NoAnswer":
+                    actual4 = (combined_answer.whyNoAnswer or "", False)
+                case "Answered":
+                    actual4 = (combined_answer.answer or "", True)
+            await compare_answers(context, expected4, actual4)
+        else:
+            print("No cached answer available for diff.")
+
+    print("Stage 4 combined answer:")
+    if combined_answer.type == "NoAnswer":
+        print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+    else:
+        print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
+    print("All intermediate answers:")
+    utils.pretty_print(all_answers, Fore.GREEN, Fore.RESET)
+
+
+async def cmd_stats(context: ProcessingContext, args: list[str]) -> None:
+    """Print conversation statistics. Usage: @stats"""
+
+    if args:
+        print("@stats does not take arguments. Usage: @stats")
+        return
+    await print_conversation_stats(context.query_context.conversation)
+
+
+commands: dict[str, CommandHandler] = {
+    "help": cmd_help,
+    "debug": cmd_debug,
+    "stage": cmd_stage,
+    "stats": cmd_stats,
+}
+
+
+async def handle_at_command(context: ProcessingContext, line: str) -> None:
+    """Handle @-commands. Returns True if the line was a command.
+
+    Input line includes leading '@'.
+    """
+
+    try:
+        parts = shlex.split(line[1:])
+    except ValueError as err:
+        print(f"Command parse error: {err}")
+        return
+    if not parts:
+        print("Empty command. Try @help.")
+        return
+
+    name, *args = parts
+    handler = commands.get(name)
+    if handler is None:
+        print(f"Unknown command @{name}. Try @help.")
+        return
+
+    await handler(context, args)
 
 
 ### Main logic ###
@@ -301,7 +586,10 @@ async def interactive_loop(context: ProcessingContext) -> None:
             line = line.strip()
             if not line:
                 continue
-            await process_query(context, line)
+            if line.startswith("@"):
+                await handle_at_command(context, line)
+            else:
+                await process_query(context, line)
         return
 
     print(f"TypeAgent demo UI {__version__} (type 'q' to exit)")
@@ -327,7 +615,10 @@ async def interactive_loop(context: ProcessingContext) -> None:
                     )
                 break
             prsep()
-            await process_query(context, line)
+            if line.startswith("@"):
+                await handle_at_command(context, line)
+            else:
+                await process_query(context, line)
 
     finally:
         if readline:
