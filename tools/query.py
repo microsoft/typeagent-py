@@ -284,47 +284,52 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
         return
 
     search_results = result.value
-    stage = ns.count
+    last_stage = ns.count
 
-    if stage >= 1:
-        actual1 = debug_context.search_query
-        if actual1 is None:
-            print("Stage 1 produced no search query.")
-        else:
-            if ns.diff and record and "searchQueryExpr" in record:
-                expected1 = serialization.deserialize_object(
-                    search_query_schema.SearchQuery, record["searchQueryExpr"]
-                )
-                if compare_and_print_diff(expected1, actual1):
-                    print("Stage 1 matches cached result.")
-            utils.pretty_print(actual1, Fore.GREEN, Fore.RESET)
-        if stage == 1:
-            return
+    actual1 = debug_context.search_query
+    if actual1 is None:
+        print("Stage 1 produced no search query.")
+    else:
+        print("Stage 1 search query:")
+        if ns.diff and record and "searchQueryExpr" in record:
+            expected1 = serialization.deserialize_object(
+                search_query_schema.SearchQuery, record["searchQueryExpr"]
+            )
+            if compare_and_print_diff(expected1, actual1):
+                print("Stage 1 matches cached result.")
+        utils.pretty_print(actual1, Fore.GREEN, Fore.RESET)
+    prsep()
 
-    if stage >= 2:
-        actual2 = debug_context.search_query_expr
-        if actual2 is None:
-            print("Stage 2 produced no compiled query expression.")
-        else:
-            if ns.diff and record and "compiledQueryExpr" in record:
-                expected2 = serialization.deserialize_object(
-                    list[search.SearchQueryExpr], record["compiledQueryExpr"]
-                )
-                if compare_and_print_diff(expected2, actual2):
-                    print("Stage 2 matches cached result.")
-            utils.pretty_print(actual2, Fore.GREEN, Fore.RESET)
-        if stage == 2:
-            return
+    if last_stage < 2:
+        return
 
-    if stage >= 3:
-        if ns.diff and record and "results" in record:
-            expected3 = typing.cast(list[RawSearchResultData], record["results"])
-            compare_results(expected3, search_results)
-        print("Stage 3 results:")
-        for sr in search_results:
-            await print_result(sr, context.query_context.conversation)
-        if stage == 3:
-            return
+    actual2 = debug_context.search_query_expr
+    if actual2 is None:
+        print("Stage 2 produced no compiled query expression.")
+    else:
+        print("Stage 2 compiled query expression:")
+        if ns.diff and record and "compiledQueryExpr" in record:
+            expected2 = serialization.deserialize_object(
+                list[search.SearchQueryExpr], record["compiledQueryExpr"]
+            )
+            if compare_and_print_diff(expected2, actual2):
+                print("Stage 2 matches cached result.")
+        utils.pretty_print(actual2, Fore.GREEN, Fore.RESET)
+    prsep()
+
+    if last_stage < 3:
+        return
+
+    print("Stage 3 results:")
+    if ns.diff and record and "results" in record:
+        expected3 = typing.cast(list[RawSearchResultData], record["results"])
+        compare_results(expected3, search_results)
+    for sr in search_results:
+        await print_result(sr, context.query_context.conversation)
+    prsep()
+
+    if last_stage < 4:
+        return
 
     all_answers, combined_answer = await answers.generate_answers(
         context.answer_translator,
@@ -337,6 +342,7 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
     if ns.diff:
         record4 = context.ar_index.get(question)
         if record4:
+            print("Stage 4 diff with cached answer:")
             expected4 = (record4["answer"], not record4["hasNoAnswer"])
             match combined_answer.type:
                 case "NoAnswer":
@@ -345,15 +351,17 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
                     actual4 = (combined_answer.answer or "", True)
             await compare_answers(context, expected4, actual4)
         else:
-            print("No cached answer available for diff.")
+            print("No cached answer available for stage 4 diff.")
 
-    print("Stage 4 combined answer:")
+    print("Stage 4 answers:")
+    utils.pretty_print(all_answers, Fore.GREEN, Fore.RESET)
+    prsep()
+
     if combined_answer.type == "NoAnswer":
         print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
     else:
         print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
-    print("All intermediate answers:")
-    utils.pretty_print(all_answers, Fore.GREEN, Fore.RESET)
+    prsep()
 
 
 async def cmd_stats(context: ProcessingContext, args: list[str]) -> None:
