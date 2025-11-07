@@ -6,26 +6,24 @@
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
-from .reltermsindex import SqliteRelatedTermsIndex
-from .semrefindex import SqliteTermToSemanticRefIndex
-from .timestampindex import SqliteTimestampToTextRangeIndex
 from .provider import SqliteStorageProvider
+from .reltermsindex import SqliteRelatedTermsIndex
 from .schema import (
-    ConversationMetadata,
     init_db_schema,
     get_db_schema_version,
 )
+from .semrefindex import SqliteTermToSemanticRefIndex
+from .timestampindex import SqliteTimestampToTextRangeIndex
 
 __all__ = [
+    "get_db_schema_version",
+    "init_db_schema",
     "SqliteMessageCollection",
-    "SqliteSemanticRefCollection",
     "SqliteMessageTextIndex",
     "SqlitePropertyIndex",
     "SqliteRelatedTermsIndex",
+    "SqliteSemanticRefCollection",
+    "SqliteStorageProvider",
     "SqliteTermToSemanticRefIndex",
     "SqliteTimestampToTextRangeIndex",
-    "SqliteStorageProvider",
-    "ConversationMetadata",
-    "init_db_schema",
-    "get_db_schema_version",
 ]

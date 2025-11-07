@@ -1,7 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Memory storage provider implementation."""
+"""In-memory storage provider implementation."""
+
+
+from datetime import datetime
+
+from ...knowpro import interfaces
 
 from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .semrefindex import TermToSemanticRefIndex
@@ -94,4 +99,38 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
     async def close(self) -> None:
         """Close the storage provider."""
+        pass
+
+    def get_conversation_metadata(self) -> None:
+        """Get conversation metadata (no-op for in-memory storage).
+
+        Returns None since in-memory storage doesn't persist metadata.
+        """
+        return None
+
+    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+        """Set conversation metadata (no-op for in-memory storage).
+
+        This method exists for API compatibility with SqliteStorageProvider
+        but does nothing since in-memory storage doesn't persist metadata.
+
+        Args:
+            **kwds: Metadata keys and values (ignored)
+        """
+        pass
+
+    def update_conversation_timestamps(
+        self,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+    ) -> None:
+        """Update conversation timestamps (no-op for in-memory storage).
+
+        This method exists for API compatibility with SqliteStorageProvider
+        but does nothing since in-memory storage doesn't persist metadata.
+
+        Args:
+            created_at: Optional creation timestamp (ignored)
+            updated_at: Optional last updated timestamp (ignored)
+        """
         pass

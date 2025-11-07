@@ -3,11 +3,12 @@
 
 """SQLite storage provider implementation."""
 
-import json
 import sqlite3
+from datetime import datetime, timezone
 
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
+from ...knowpro.interfaces import ConversationMetadata
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
@@ -16,6 +17,7 @@ from .semrefindex import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex
 from .schema import (
     CONVERSATIONS_SCHEMA,
+    CONVERSATION_SCHEMA_VERSION,
     MESSAGE_TEXT_INDEX_SCHEMA,
     MESSAGES_SCHEMA,
     PROPERTY_INDEX_SCHEMA,
@@ -23,9 +25,9 @@ from .schema import (
     RELATED_TERMS_FUZZY_SCHEMA,
     SEMANTIC_REF_INDEX_SCHEMA,
     SEMANTIC_REFS_SCHEMA,
-    ConversationMetadata,
     get_db_schema_version,
     init_db_schema,
+    _set_conversation_metadata,
 )
 
 
@@ -84,6 +86,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         # Initialize schema
         init_db_schema(self.db)
+
+        # Initialize conversation metadata if this is a new database
+        self._init_conversation_metadata_if_needed()
 
         # Check embedding consistency before initializing indexes
         self._check_embedding_consistency()
@@ -156,6 +161,34 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
                     f"The database was likely created with a different embedding model. "
                     f"Please use the same embedding model or create a new database."
                 )
+
+    def _init_conversation_metadata_if_needed(self) -> None:
+        """Initialize conversation metadata if the database is new (empty metadata table).
+
+        This is called once during provider initialization to set up default metadata
+        including name_tag, schema_version, and timestamps. If metadata already exists,
+        this does nothing.
+        """
+        from ...knowpro.universal_message import format_timestamp_utc
+
+        # Initialize with default values in a transaction
+        current_time = datetime.now(timezone.utc)
+        with self.db:
+            cursor = self.db.cursor()
+
+            # Check if metadata already exists (inside transaction to avoid race conditions)
+            cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")
+            if cursor.fetchone() is not None:
+                # Metadata already exists, don't overwrite
+                return
+
+            _set_conversation_metadata(
+                self.db,
+                name_tag=f"conversation_{self.conversation_id}",
+                schema_version=str(get_db_schema_version(self.db)),
+                created_at=format_timestamp_utc(current_time),
+                updated_at=format_timestamp_utc(current_time),
+            )
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
         """Enter transaction context."""
@@ -300,62 +333,141 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     def get_conversation_metadata(self) -> ConversationMetadata | None:
         """Get conversation metadata."""
         cursor = self.db.cursor()
-        cursor.execute(
-            "SELECT name_tag, schema_version, created_at, updated_at, tags, extra FROM ConversationMetadata LIMIT 1"
+
+        # Get all key-value pairs
+        cursor.execute("SELECT key, value FROM ConversationMetadata")
+        rows = cursor.fetchall()
+
+        if not rows:
+            return None
+
+        # Build metadata structure - always use list for consistency
+        metadata_dict: dict[str, list[str]] = {}
+        for key, value in rows:
+            if key not in metadata_dict:
+                metadata_dict[key] = []
+            metadata_dict[key].append(value)
+
+        # Helper to get single value from list (for well-known keys)
+        def get_single(key: str, default: str = "") -> str:
+            values = metadata_dict.get(key, [])
+            if len(values) > 1:
+                raise ValueError(
+                    f"Expected single value for key '{key}', got {len(values)}"
+                )
+            return values[0] if values else default
+
+        # Helper to parse datetime from ISO string
+        def parse_datetime(key: str) -> datetime:
+            value_str = get_single(key)
+            if not value_str:
+                return datetime.now(timezone.utc)
+            # Handle both formats: with and without timezone
+            if value_str.endswith("Z"):
+                value_str = value_str[:-1] + "+00:00"
+            try:
+                return datetime.fromisoformat(value_str)
+            except ValueError:
+                # Fallback for other formats
+                return datetime.now(timezone.utc)
+
+        # Extract standard fields (single values expected)
+        name_tag = get_single("name_tag")
+        schema_version_str = get_single("schema_version", "1")
+        try:
+            schema_version = int(schema_version_str)
+        except ValueError:
+            schema_version = CONVERSATION_SCHEMA_VERSION
+        created_at = parse_datetime("created_at")
+        updated_at = parse_datetime("updated_at")
+
+        # Handle tags (multiple values allowed)
+        tags = metadata_dict.get("tag", [])
+
+        # Build extra dict from remaining keys
+        standard_keys = {
+            "name_tag",
+            "schema_version",
+            "created_at",
+            "updated_at",
+            "tag",
+        }
+        extra = {}
+        for key, values in metadata_dict.items():
+            if key not in standard_keys:
+                # For extra fields, join multiple values
+                extra[key] = ", ".join(values)
+
+        return ConversationMetadata(
+            name_tag=name_tag,
+            schema_version=schema_version,
+            created_at=created_at,
+            updated_at=updated_at,
+            tags=tags,
+            extra=extra,
         )
-        row = cursor.fetchone()
-        if row:
-            return ConversationMetadata(
-                name_tag=row[0],
-                schema_version=row[1],
-                created_at=row[2],
-                updated_at=row[3],
-                tags=json.loads(row[4]) if row[4] else [],
-                extra=json.loads(row[5]) if row[5] else {},
+
+    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+        """Set or update conversation metadata key-value pairs.
+
+        Args:
+            **kwds: Metadata keys and values where:
+                - str value: Sets a single key-value pair (replaces existing)
+                - list[str] value: Sets multiple values for the same key
+                - None value: Deletes all rows for the given key
+
+        Example:
+            provider.set_conversation_metadata(
+                name_tag="my_conversation",
+                schema_version="1",
+                created_at="2024-01-01T00:00:00Z",
+                tag=["python", "ai"],  # Multiple tags
+                custom_field="value"
             )
-        return None
+        """
+        _set_conversation_metadata(self.db, **kwds)
 
-    def update_conversation_metadata(
-        self, created_at: str | None = None, updated_at: str | None = None
+    def update_conversation_timestamps(
+        self,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
     ) -> None:
-        """Update conversation metadata."""
-        cursor = self.db.cursor()
+        """Update conversation timestamps.
 
-        # Check if conversation metadata exists
+        Args:
+            created_at: Optional creation timestamp
+            updated_at: Optional last updated timestamp
+        """
+        from ...knowpro.universal_message import format_timestamp_utc
+
+        # Check if any metadata exists
+        cursor = self.db.cursor()
         cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")
 
-        if cursor.fetchone():
-            # Update existing
-            updates = []
-            params = []
-            if created_at is not None:
-                updates.append("created_at = ?")
-                params.append(created_at)
-            if updated_at is not None:
-                updates.append("updated_at = ?")
-                params.append(updated_at)
-
-            if updates:
-                cursor.execute(
-                    f"UPDATE ConversationMetadata SET {', '.join(updates)}",
-                    params,
-                )
-        else:
-            # Insert new with default values
+        if not cursor.fetchone():
+            # Insert default values if no metadata exists
             name_tag = f"conversation_{self.conversation_id}"
-            schema_version = "1.0"
-            tags = json.dumps([])
-            extra = json.dumps({})
+            schema_version = str(CONVERSATION_SCHEMA_VERSION)
 
-            cursor.execute(
-                "INSERT INTO ConversationMetadata (name_tag, schema_version, created_at, updated_at, tags, extra) VALUES (?, ?, ?, ?, ?, ?)",
-                (name_tag, schema_version, created_at, updated_at, tags, extra),
-            )
+            metadata_kwds: dict[str, str | None] = {
+                "name_tag": name_tag,
+                "schema_version": schema_version,
+            }
+            if created_at is not None:
+                metadata_kwds["created_at"] = format_timestamp_utc(created_at)
+            if updated_at is not None:
+                metadata_kwds["updated_at"] = format_timestamp_utc(updated_at)
+            _set_conversation_metadata(self.db, **metadata_kwds)
+        else:
+            # Update only the specified fields
+            metadata_kwds = {}
+            if created_at is not None:
+                metadata_kwds["created_at"] = format_timestamp_utc(created_at)
+            if updated_at is not None:
+                metadata_kwds["updated_at"] = format_timestamp_utc(updated_at)
+            if metadata_kwds:
+                _set_conversation_metadata(self.db, **metadata_kwds)
 
     def get_db_version(self) -> int:
         """Get the database schema version."""
-        version_str = get_db_schema_version(self.db)
-        try:
-            return int(version_str.split(".")[0])  # Get major version as int
-        except (ValueError, AttributeError):
-            return 1  # Default version
+        return get_db_schema_version(self.db)
