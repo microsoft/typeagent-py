@@ -19,7 +19,7 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.knowpro.interfaces import IMessage
+from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
 from typeagent.knowpro.kplib import KnowledgeResponse
 
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
@@ -57,7 +57,6 @@ async def storage_provider(
 
     provider = SqliteStorageProvider(
         db_path=temp_db_path,
-        conversation_id="test_conversation",
         message_type=DummyMessage,
         message_text_index_settings=message_text_settings,
         related_term_index_settings=related_terms_settings,
@@ -81,7 +80,6 @@ async def storage_provider_memory() -> (
 
     provider = SqliteStorageProvider(
         db_path=":memory:",
-        conversation_id="test_conversation",
         message_type=DummyMessage,
         message_text_index_settings=message_text_settings,
         related_term_index_settings=related_terms_settings,
@@ -96,15 +94,15 @@ class TestConversationMetadata:
     def test_get_conversation_metadata_nonexistent(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
-        """Test getting metadata for a new database has default values."""
+        """Test getting metadata before any writes returns empty metadata."""
         metadata = storage_provider.get_conversation_metadata()
-        assert metadata is not None
-        assert metadata.name_tag == "conversation_test_conversation"
-        assert metadata.schema_version == 1
-        assert isinstance(metadata.created_at, datetime)
-        assert isinstance(metadata.updated_at, datetime)
-        assert metadata.tags == []
-        assert metadata.extra == {}
+        # Metadata is not initialized until first write, so all fields are None
+        assert metadata.name_tag is None
+        assert metadata.schema_version is None
+        assert metadata.created_at is None
+        assert metadata.updated_at is None
+        assert metadata.tags is None
+        assert metadata.extra is None
 
     def test_update_conversation_timestamps_new(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
@@ -120,12 +118,12 @@ class TestConversationMetadata:
 
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is not None
-        assert metadata.name_tag == "conversation_test_conversation"
+        assert metadata.name_tag == "conversation"
         assert metadata.schema_version == 1
         assert metadata.created_at == created_at
         assert metadata.updated_at == updated_at
-        assert metadata.tags == []
-        assert metadata.extra == {}
+        assert metadata.tags is None
+        assert metadata.extra is None
 
     def test_update_conversation_timestamps_existing(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
@@ -275,25 +273,27 @@ class TestConversationMetadata:
 
         try:
             # Create first provider with conversation "conv1"
+            metadata1 = ConversationMetadata(name_tag="conversation_conv1")
             provider1 = SqliteStorageProvider(
                 db_path=db_path1,
-                conversation_id="conv1",
                 message_type=DummyMessage,
                 message_text_index_settings=message_text_settings,
                 related_term_index_settings=related_terms_settings,
+                metadata=metadata1,
             )
 
             # Create second provider with conversation "conv2" on different DB
+            metadata2 = ConversationMetadata(name_tag="conversation_conv2")
             provider2 = SqliteStorageProvider(
                 db_path=db_path2,
-                conversation_id="conv2",
                 message_type=DummyMessage,
                 message_text_index_settings=message_text_settings,
                 related_term_index_settings=related_terms_settings,
+                metadata=metadata2,
             )
 
             try:
-                # Add metadata for both conversations
+                # Update timestamps for both conversations
                 provider1.update_conversation_timestamps(
                     created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                     updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -305,19 +305,16 @@ class TestConversationMetadata:
                 )
 
                 # Verify each conversation sees its own metadata
-                metadata1 = provider1.get_conversation_metadata()
-                metadata2 = provider2.get_conversation_metadata()
+                read_metadata1 = provider1.get_conversation_metadata()
+                read_metadata2 = provider2.get_conversation_metadata()
 
-                assert metadata1 is not None
-                assert metadata2 is not None
+                assert read_metadata1.name_tag == "conversation_conv1"
+                assert read_metadata2.name_tag == "conversation_conv2"
 
-                assert metadata1.name_tag == "conversation_conv1"
-                assert metadata2.name_tag == "conversation_conv2"
-
-                assert metadata1.created_at == parse_iso_datetime(
+                assert read_metadata1.created_at == parse_iso_datetime(
                     "2024-01-01T12:00:00+00:00"
                 )
-                assert metadata2.created_at == parse_iso_datetime(
+                assert read_metadata2.created_at == parse_iso_datetime(
                     "2024-01-02T14:00:00+00:00"
                 )
 
@@ -340,25 +337,28 @@ class TestConversationMetadata:
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-        # Create providers for different conversation IDs but same DB
+        # Create first provider with specific metadata
+        metadata_alpha = ConversationMetadata(name_tag="conversation_alpha")
         provider_alpha = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="alpha",
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
+            metadata=metadata_alpha,
         )
 
+        # Create second provider on same DB (different metadata preference)
+        metadata_beta = ConversationMetadata(name_tag="conversation_beta")
         provider_beta = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="beta",
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
+            metadata=metadata_beta,
         )
 
         try:
-            # Create metadata with alpha provider
+            # Write metadata with alpha provider (first write wins)
             provider_alpha.update_conversation_timestamps(
                 created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
@@ -369,13 +369,8 @@ class TestConversationMetadata:
             alpha_metadata = provider_alpha.get_conversation_metadata()
             beta_metadata = provider_beta.get_conversation_metadata()
 
-            assert alpha_metadata is not None
-            assert beta_metadata is not None
-
-            # They should be the same since there's only one row in the table
-            assert (
-                alpha_metadata.name_tag == "conversation_alpha"
-            )  # Uses alpha's conversation_id
+            # They should be the same since there's only one metadata row per DB
+            assert alpha_metadata.name_tag == "conversation_alpha"  # First write wins
             assert beta_metadata.name_tag == alpha_metadata.name_tag  # Same metadata
             assert alpha_metadata.created_at == beta_metadata.created_at
             assert alpha_metadata.updated_at == beta_metadata.updated_at
@@ -421,12 +416,13 @@ class TestConversationMetadata:
         updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         # Create first provider and add metadata
+        metadata_input = ConversationMetadata(name_tag="conversation_persistent_test")
         provider1 = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="persistent_test",
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
+            metadata=metadata_input,
         )
 
         provider1.update_conversation_timestamps(
@@ -435,10 +431,9 @@ class TestConversationMetadata:
         )
         await provider1.close()
 
-        # Create second provider with same conversation_id and check metadata persists
+        # Create second provider on same DB (doesn't need metadata, will read from DB)
         provider2 = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="persistent_test",
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
@@ -446,7 +441,6 @@ class TestConversationMetadata:
 
         try:
             metadata = provider2.get_conversation_metadata()
-            assert metadata is not None
             assert metadata.name_tag == "conversation_persistent_test"
             assert metadata.created_at == created_at
             assert metadata.updated_at == updated_at
@@ -461,34 +455,36 @@ class TestConversationMetadataEdgeCases:
     def test_empty_string_timestamps(
         self, storage_provider_memory: SqliteStorageProvider[DummyMessage]
     ):
-        """Test behavior with empty string timestamps."""
+        """Test behavior with None timestamps (should remain None)."""
         storage_provider_memory.update_conversation_timestamps(
             created_at=None, updated_at=None
         )
 
         metadata = storage_provider_memory.get_conversation_metadata()
-        assert metadata is not None
-        # Empty strings fall back to current time
-        assert isinstance(metadata.created_at, datetime)
-        assert isinstance(metadata.updated_at, datetime)
+        # Calling with None values creates a row but leaves timestamps None
+        assert metadata.name_tag == "conversation"
+        assert metadata.schema_version == 1
+        assert metadata.created_at is None
+        assert metadata.updated_at is None
 
     @pytest.mark.asyncio
-    async def test_very_long_conversation_id(
+    async def test_very_long_name_tag(
         self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
     ):
-        """Test conversation metadata with very long conversation ID."""
+        """Test conversation metadata with very long name_tag."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-        long_id = "a" * 1000  # Very long conversation ID
+        long_name = "conversation_" + ("a" * 1000)  # Very long name_tag
 
+        metadata_input = ConversationMetadata(name_tag=long_name)
         provider = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id=long_id,
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
+            metadata=metadata_input,
         )
 
         try:
@@ -498,29 +494,29 @@ class TestConversationMetadataEdgeCases:
             )
 
             metadata = provider.get_conversation_metadata()
-            assert metadata is not None
-            assert metadata.name_tag == f"conversation_{long_id}"
+            assert metadata.name_tag == long_name
 
         finally:
             await provider.close()
 
     @pytest.mark.asyncio
-    async def test_unicode_conversation_id(
+    async def test_unicode_name_tag(
         self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
     ):
-        """Test conversation metadata with Unicode conversation ID."""
+        """Test conversation metadata with Unicode name_tag."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-        unicode_id = "конверсация_🚀_测试"  # Mixed Unicode
+        unicode_name = "conversation_конверсация_🚀_测试"  # Mixed Unicode
 
+        metadata_input = ConversationMetadata(name_tag=unicode_name)
         provider = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id=unicode_id,
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
+            metadata=metadata_input,
         )
 
         try:
@@ -530,8 +526,7 @@ class TestConversationMetadataEdgeCases:
             )
 
             metadata = provider.get_conversation_metadata()
-            assert metadata is not None
-            assert metadata.name_tag == f"conversation_{unicode_id}"
+            assert metadata.name_tag == unicode_name
 
         finally:
             await provider.close()
@@ -548,7 +543,6 @@ class TestConversationMetadataEdgeCases:
         # Create two providers pointing to same database
         provider1 = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="shared_test1",
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
@@ -556,7 +550,6 @@ class TestConversationMetadataEdgeCases:
 
         provider2 = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="shared_test2",
             message_type=DummyMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
@@ -609,17 +602,16 @@ class TestConversationMetadataEdgeCases:
 
         provider = SqliteStorageProvider(
             db_path=temp_db_path,
-            conversation_id="message_test",
             message_type=TranscriptMessage,
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
         )
 
         try:
-            # Get initial metadata
+            # Get initial metadata (should be empty due to lazy initialization)
             initial_metadata = provider.get_conversation_metadata()
-            assert initial_metadata is not None
             initial_updated_at = initial_metadata.updated_at
+            assert initial_updated_at is None  # No writes yet
 
             # Wait a tiny bit to ensure timestamp difference
             time.sleep(0.01)
@@ -640,13 +632,12 @@ class TestConversationMetadataEdgeCases:
 
             await transcript.add_messages_with_indexing(messages)
 
-            # Get updated metadata
+            # Get updated metadata (should now have timestamps)
             updated_metadata = provider.get_conversation_metadata()
-            assert updated_metadata is not None
             updated_updated_at = updated_metadata.updated_at
 
-            # The updated_at timestamp should have changed
-            assert updated_updated_at > initial_updated_at
+            # The updated_at timestamp should now be set
+            assert updated_updated_at is not None
 
         finally:
             await provider.close()
