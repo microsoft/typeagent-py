@@ -17,6 +17,7 @@ from .semrefindex import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex
 from .schema import (
     CONVERSATIONS_SCHEMA,
+    CONVERSATION_SCHEMA_VERSION,
     MESSAGE_TEXT_INDEX_SCHEMA,
     MESSAGES_SCHEMA,
     PROPERTY_INDEX_SCHEMA,
@@ -377,7 +378,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         try:
             schema_version = int(schema_version_str)
         except ValueError:
-            schema_version = 1  # Default to version 1 if parsing fails
+            schema_version = CONVERSATION_SCHEMA_VERSION
         created_at = parse_datetime("created_at")
         updated_at = parse_datetime("updated_at")
 
@@ -447,7 +448,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         if not cursor.fetchone():
             # Insert default values if no metadata exists
             name_tag = f"conversation_{self.conversation_id}"
-            schema_version = "1.0"
+            schema_version = str(CONVERSATION_SCHEMA_VERSION)
 
             metadata_kwds: dict[str, str | None] = {
                 "name_tag": name_tag,
