@@ -171,7 +171,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         from ...knowpro.universal_message import format_timestamp_utc
 
-
         # Initialize with default values in a transaction
         current_time = datetime.now(timezone.utc)
         with self.db:
