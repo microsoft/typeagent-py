@@ -19,11 +19,10 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
+from typeagent.knowpro.interfaces import IMessage
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.universal_message import format_timestamp_utc
+
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
-from typeagent.storage.sqlite.schema import _set_conversation_metadata, init_db_schema
 
 from fixtures import embedding_model, temp_db_path
 

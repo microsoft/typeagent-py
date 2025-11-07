@@ -169,7 +169,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         this does nothing.
         """
         from ...knowpro.universal_message import format_timestamp_utc
-        from datetime import datetime, timezone
+
 
         # Initialize with default values in a transaction
         current_time = datetime.now(timezone.utc)

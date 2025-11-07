@@ -3,7 +3,7 @@
 
 """In-memory storage provider implementation."""
 
-from collections.abc import AsyncIterator
+
 from datetime import datetime
 
 from ...knowpro import interfaces
