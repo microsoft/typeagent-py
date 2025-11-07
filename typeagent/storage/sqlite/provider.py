@@ -419,7 +419,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         Example:
             provider.set_conversation_metadata(
                 name_tag="my_conversation",
-                schema_version="0.1",
+                schema_version="1",
                 created_at="2024-01-01T00:00:00Z",
                 tag=["python", "ai"],  # Multiple tags
                 custom_field="value"
