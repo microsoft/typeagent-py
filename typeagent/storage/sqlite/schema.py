@@ -12,7 +12,7 @@ from ...aitools.embeddings import NormalizedEmbedding
 from ...knowpro.interfaces import ConversationMetadata
 
 # Constants
-CONVERSATION_SCHEMA_VERSION = "0.1"
+CONVERSATION_SCHEMA_VERSION = 1
 
 MESSAGES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS Messages (
@@ -270,7 +270,7 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(RELATED_TERMS_FUZZY_TERM_INDEX)
 
 
-def get_db_schema_version(db: sqlite3.Connection) -> str:
+def get_db_schema_version(db: sqlite3.Connection) -> int:
     """Get the database schema version."""
     try:
         cursor = db.cursor()
@@ -278,7 +278,9 @@ def get_db_schema_version(db: sqlite3.Connection) -> str:
             "SELECT value FROM ConversationMetadata WHERE key = 'schema_version' LIMIT 1"
         )
         row = cursor.fetchone()
-        return row[0] if row else CONVERSATION_SCHEMA_VERSION
+        if row:
+            return int(row[0])
+        return CONVERSATION_SCHEMA_VERSION
     except sqlite3.OperationalError:
         # Table doesn't exist, return current version
         return CONVERSATION_SCHEMA_VERSION

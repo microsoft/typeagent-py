@@ -18,33 +18,14 @@ from ..knowpro.field_helpers import CamelCaseField
 from ..storage.memory.convthreads import ConversationThreads
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import (
-    AddMessagesResult,
     ConversationDataWithIndexes,
-    Datetime,
-    ICollection,
-    IConversation,
-    IConversationSecondaryIndexes,
-    IKnowledgeSource,
-    IMessage,
-    IMessageCollection,
-    IMessageMetadata,
-    ISemanticRefCollection,
-    IStorageProvider,
-    ITermToSemanticRefIndex,
-    IndexingStartPoints,
-    MessageOrdinal,
     SemanticRef,
     Term,
-    Timedelta,
 )
 from ..storage.memory.messageindex import MessageTextIndex
 from ..storage.memory.reltermsindex import TermToRelatedTermsMap
 from ..storage.utils import create_storage_provider
 from ..knowpro import serialization
-from ..storage.memory.collections import (
-    MemoryMessageCollection,
-    MemorySemanticRefCollection,
-)
 from ..knowpro.universal_message import (
     ConversationMessage,
     ConversationMessageMeta,

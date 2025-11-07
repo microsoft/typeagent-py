@@ -97,14 +97,20 @@ class TestConversationMetadata:
     def test_get_conversation_metadata_nonexistent(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
-        """Test getting metadata for a non-existent conversation returns None."""
+        """Test getting metadata for a new database has default values."""
         metadata = storage_provider.get_conversation_metadata()
-        assert metadata is None
+        assert metadata is not None
+        assert metadata.name_tag == "conversation_test_conversation"
+        assert metadata.schema_version == 1
+        assert isinstance(metadata.created_at, datetime)
+        assert isinstance(metadata.updated_at, datetime)
+        assert metadata.tags == []
+        assert metadata.extra == {}
 
     def test_update_conversation_timestamps_new(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
-        """Test creating new conversation metadata."""
+        """Test updating conversation metadata timestamps."""
         created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
@@ -116,7 +122,7 @@ class TestConversationMetadata:
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.name_tag == "conversation_test_conversation"
-        assert metadata.schema_version == "1.0"
+        assert metadata.schema_version == 1
         assert metadata.created_at == created_at
         assert metadata.updated_at == updated_at
         assert metadata.tags == []
@@ -237,25 +243,16 @@ class TestConversationMetadata:
         """Test getting database schema version."""
         version = storage_provider.get_db_version()
         assert isinstance(version, int)
-        assert (
-            version >= 0
-        )  # Should be at least version 0 (since schema version is "0.1")
+        assert version >= 1  # Schema version is now 1
 
     def test_get_db_version_with_metadata(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test getting database version after creating metadata."""
-        # Create metadata first
-        created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
-            created_at=created_at,
-            updated_at=updated_at,
-        )
-
+        # Metadata is automatically initialized, so version should be available
         version = storage_provider.get_db_version()
         assert isinstance(version, int)
-        assert version >= 1
+        assert version >= 1  # Schema version is now 1
 
     @pytest.mark.asyncio
     async def test_multiple_conversations_different_dbs(
@@ -593,3 +590,64 @@ class TestConversationMetadataEdgeCases:
         finally:
             await provider1.close()
             await provider2.close()
+
+    @pytest.mark.asyncio
+    async def test_updated_at_changes_on_add_messages(
+        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    ):
+        """Test that updated_at timestamp is updated when messages are added."""
+        from typeagent.knowpro.convsettings import ConversationSettings
+        from typeagent.transcripts.transcript import (
+            Transcript,
+            TranscriptMessage,
+            TranscriptMessageMeta,
+        )
+        import time
+
+        embedding_settings = TextEmbeddingIndexSettings(embedding_model)
+        message_text_settings = MessageTextIndexSettings(embedding_settings)
+        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+        provider = SqliteStorageProvider(
+            db_path=temp_db_path,
+            conversation_id="message_test",
+            message_type=TranscriptMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
+        )
+
+        try:
+            # Get initial metadata
+            initial_metadata = provider.get_conversation_metadata()
+            assert initial_metadata is not None
+            initial_updated_at = initial_metadata.updated_at
+
+            # Wait a tiny bit to ensure timestamp difference
+            time.sleep(0.01)
+
+            # Create a conversation and add messages
+            settings = ConversationSettings(model=embedding_model)
+            settings.storage_provider = provider
+            settings.semantic_ref_index_settings.auto_extract_knowledge = False
+            transcript = await Transcript.create(settings, name="test")
+
+            messages = [
+                TranscriptMessage(
+                    text_chunks=["Test message"],
+                    metadata=TranscriptMessageMeta(speaker="Alice"),
+                    tags=["test"],
+                ),
+            ]
+
+            await transcript.add_messages_with_indexing(messages)
+
+            # Get updated metadata
+            updated_metadata = provider.get_conversation_metadata()
+            assert updated_metadata is not None
+            updated_updated_at = updated_metadata.updated_at
+
+            # The updated_at timestamp should have changed
+            assert updated_updated_at > initial_updated_at
+
+        finally:
+            await provider.close()

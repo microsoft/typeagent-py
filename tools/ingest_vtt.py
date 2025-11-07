@@ -26,7 +26,6 @@ import webvtt
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.storage.utils import create_storage_provider
-from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript_ingest import (
     get_transcript_duration,
     get_transcript_speakers,

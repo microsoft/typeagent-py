@@ -788,7 +788,7 @@ class ConversationMetadata:
     """
 
     name_tag: str
-    schema_version: str
+    schema_version: int
     created_at: Datetime
     updated_at: Datetime
     tags: list[str]

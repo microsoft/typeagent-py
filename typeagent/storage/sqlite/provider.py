@@ -86,6 +86,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         # Initialize schema
         init_db_schema(self.db)
 
+        # Initialize conversation metadata if this is a new database
+        self._init_conversation_metadata_if_needed()
+
         # Check embedding consistency before initializing indexes
         self._check_embedding_consistency()
 
@@ -157,6 +160,35 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
                     f"The database was likely created with a different embedding model. "
                     f"Please use the same embedding model or create a new database."
                 )
+
+    def _init_conversation_metadata_if_needed(self) -> None:
+        """Initialize conversation metadata if the database is new (empty metadata table).
+
+        This is called once during provider initialization to set up default metadata
+        including name_tag, schema_version, and timestamps. If metadata already exists,
+        this does nothing.
+        """
+        from ...knowpro.universal_message import format_timestamp_utc
+        from datetime import datetime, timezone
+
+        # Initialize with default values in a transaction
+        current_time = datetime.now(timezone.utc)
+        with self.db:
+            cursor = self.db.cursor()
+
+            # Check if metadata already exists (inside transaction to avoid race conditions)
+            cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")
+            if cursor.fetchone() is not None:
+                # Metadata already exists, don't overwrite
+                return
+
+            _set_conversation_metadata(
+                self.db,
+                name_tag=f"conversation_{self.conversation_id}",
+                schema_version=str(get_db_schema_version(self.db)),
+                created_at=format_timestamp_utc(current_time),
+                updated_at=format_timestamp_utc(current_time),
+            )
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
         """Enter transaction context."""
@@ -341,7 +373,11 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         # Extract standard fields (single values expected)
         name_tag = get_single("name_tag")
-        schema_version = get_single("schema_version")
+        schema_version_str = get_single("schema_version", "1")
+        try:
+            schema_version = int(schema_version_str)
+        except ValueError:
+            schema_version = 1  # Default to version 1 if parsing fails
         created_at = parse_datetime("created_at")
         updated_at = parse_datetime("updated_at")
 
@@ -434,8 +470,4 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
     def get_db_version(self) -> int:
         """Get the database schema version."""
-        version_str = get_db_schema_version(self.db)
-        try:
-            return int(version_str.split(".")[0])  # Get major version as int
-        except (ValueError, AttributeError):
-            return 1  # Default version
+        return get_db_schema_version(self.db)

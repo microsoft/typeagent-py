@@ -4,6 +4,7 @@
 """Base class for conversations with incremental indexing support."""
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Generic, Self, TypeVar
 
 import typechat
@@ -158,6 +159,11 @@ class ConversationBase(
                 messages_added=await self.messages.size() - start_points.message_count,
                 semrefs_added=await self.semantic_refs.size()
                 - start_points.semref_count,
+            )
+
+            # Update the updated_at timestamp
+            storage.update_conversation_timestamps(
+                updated_at=datetime.now(timezone.utc)
             )
 
             return result
