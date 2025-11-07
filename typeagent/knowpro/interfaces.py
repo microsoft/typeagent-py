@@ -777,6 +777,24 @@ class ConversationDataWithIndexes[TMessageData](ConversationData[TMessageData]):
 # --------
 
 
+@dataclass
+class ConversationMetadata:
+    """Storage-provider-agnostic metadata for a conversation.
+
+    This dataclass represents metadata that can be read from and written to
+    any storage provider (SQLite, in-memory, etc.). Providers may store this
+    internally in different formats (e.g., key-value pairs), but this provides
+    a uniform interface for accessing conversation metadata.
+    """
+
+    name_tag: str
+    schema_version: str
+    created_at: Datetime
+    updated_at: Datetime
+    tags: list[str]
+    extra: dict[str, str]  # All extra values stored as strings
+
+
 class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
     async def size(self) -> int: ...
 
@@ -831,6 +849,39 @@ class IStorageProvider[TMessage: IMessage](Protocol):
     async def get_related_terms_index(self) -> ITermToRelatedTermsIndex: ...
 
     async def get_conversation_threads(self) -> IConversationThreads: ...
+
+    # Metadata management
+    def get_conversation_metadata(self) -> Any | None:
+        """Get conversation metadata.
+
+        Returns ConversationMetadata or None if no metadata exists.
+        Return type is Any to avoid circular import with storage layer.
+        """
+        ...
+
+    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+        """Set or update conversation metadata key-value pairs.
+
+        Args:
+            **kwds: Metadata keys and values where:
+                - str value: Sets a single key-value pair (replaces existing)
+                - list[str] value: Sets multiple values for the same key
+                - None value: Deletes all rows for the given key
+        """
+        ...
+
+    def update_conversation_timestamps(
+        self,
+        created_at: Datetime | None = None,
+        updated_at: Datetime | None = None,
+    ) -> None:
+        """Update conversation timestamps.
+
+        Args:
+            created_at: Optional creation timestamp
+            updated_at: Optional last updated timestamp
+        """
+        ...
 
     # Transaction management
     async def __aenter__(self) -> Self:

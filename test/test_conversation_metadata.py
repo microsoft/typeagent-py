@@ -19,12 +19,21 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.knowpro.interfaces import IMessage
+from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
 from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.universal_message import format_timestamp_utc
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
-from typeagent.storage.sqlite.schema import ConversationMetadata
+from typeagent.storage.sqlite.schema import _set_conversation_metadata, init_db_schema
 
 from fixtures import embedding_model, temp_db_path
+
+
+def parse_iso_datetime(iso_string: str) -> datetime:
+    """Helper to parse ISO datetime strings to datetime objects."""
+    # Handle Z timezone marker
+    if iso_string.endswith("Z"):
+        iso_string = iso_string[:-1] + "+00:00"
+    return datetime.fromisoformat(iso_string)
 
 
 # Dummy IMessage for testing
@@ -92,15 +101,16 @@ class TestConversationMetadata:
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is None
 
-    def test_update_conversation_metadata_new(
+    def test_update_conversation_timestamps_new(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test creating new conversation metadata."""
-        created_at = "2024-01-01T12:00:00+00:00"
-        updated_at = "2024-01-01T12:00:00+00:00"
+        created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
-        storage_provider.update_conversation_metadata(
-            created_at=created_at, updated_at=updated_at
+        storage_provider.update_conversation_timestamps(
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
         metadata = storage_provider.get_conversation_metadata()
@@ -112,62 +122,66 @@ class TestConversationMetadata:
         assert metadata.tags == []
         assert metadata.extra == {}
 
-    def test_update_conversation_metadata_existing(
+    def test_update_conversation_timestamps_existing(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating existing conversation metadata."""
         # Create initial metadata
-        initial_created = "2024-01-01T12:00:00+00:00"
-        initial_updated = "2024-01-01T12:00:00+00:00"
-        storage_provider.update_conversation_metadata(
-            created_at=initial_created, updated_at=initial_updated
+        initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=initial_created,
+            updated_at=initial_updated,
         )
 
         # Update only the updated_at timestamp
-        new_updated = "2024-01-02T15:30:00+00:00"
-        storage_provider.update_conversation_metadata(updated_at=new_updated)
+        new_updated = datetime(2024, 1, 2, 15, 30, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(updated_at=new_updated)
 
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == initial_created  # Unchanged
         assert metadata.updated_at == new_updated  # Changed
 
-    def test_update_conversation_metadata_partial_created_at(
+    def test_update_conversation_timestamps_partial_created_at(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating only created_at of existing conversation metadata."""
         # Create initial metadata
-        initial_created = "2024-01-01T12:00:00+00:00"
-        initial_updated = "2024-01-01T12:00:00+00:00"
-        storage_provider.update_conversation_metadata(
-            created_at=initial_created, updated_at=initial_updated
+        initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=initial_created,
+            updated_at=initial_updated,
         )
 
         # Update only the created_at timestamp
-        new_created = "2023-12-01T10:00:00+00:00"
-        storage_provider.update_conversation_metadata(created_at=new_created)
+        new_created = datetime(2023, 12, 1, 10, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(created_at=new_created)
 
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == new_created  # Changed
         assert metadata.updated_at == initial_updated  # Unchanged
 
-    def test_update_conversation_metadata_both_timestamps(
+    def test_update_conversation_timestamps_both_timestamps(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating both timestamps of existing conversation metadata."""
         # Create initial metadata
-        initial_created = "2024-01-01T12:00:00+00:00"
-        initial_updated = "2024-01-01T12:00:00+00:00"
-        storage_provider.update_conversation_metadata(
-            created_at=initial_created, updated_at=initial_updated
+        initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=initial_created,
+            updated_at=initial_updated,
         )
 
         # Update both timestamps
-        new_created = "2023-12-01T10:00:00+00:00"
-        new_updated = "2024-01-02T15:30:00+00:00"
-        storage_provider.update_conversation_metadata(
-            created_at=new_created, updated_at=new_updated
+        new_created = datetime(2023, 12, 1, 10, 0, 0, tzinfo=timezone.utc)
+        new_updated = datetime(2024, 1, 2, 15, 30, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=new_created,
+            updated_at=new_updated,
         )
 
         metadata = storage_provider.get_conversation_metadata()
@@ -175,38 +189,42 @@ class TestConversationMetadata:
         assert metadata.created_at == new_created
         assert metadata.updated_at == new_updated
 
-    def test_update_conversation_metadata_no_params(
+    def test_update_conversation_timestamps_no_params(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test calling update with no parameters on existing conversation."""
         # Create initial metadata
-        initial_created = "2024-01-01T12:00:00+00:00"
-        initial_updated = "2024-01-01T12:00:00+00:00"
-        storage_provider.update_conversation_metadata(
-            created_at=initial_created, updated_at=initial_updated
+        initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=initial_created,
+            updated_at=initial_updated,
         )
 
         # Call update with no parameters - should not change anything
-        storage_provider.update_conversation_metadata()
+        storage_provider.update_conversation_timestamps()
 
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == initial_created
         assert metadata.updated_at == initial_updated
 
-    def test_update_conversation_metadata_none_values(
+    def test_update_conversation_timestamps_none_values(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating with explicit None values."""
         # Create initial metadata
-        initial_created = "2024-01-01T12:00:00+00:00"
-        initial_updated = "2024-01-01T12:00:00+00:00"
-        storage_provider.update_conversation_metadata(
-            created_at=initial_created, updated_at=initial_updated
+        initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=initial_created,
+            updated_at=initial_updated,
         )
 
         # Update with None values - should not change anything
-        storage_provider.update_conversation_metadata(created_at=None, updated_at=None)
+        storage_provider.update_conversation_timestamps(
+            created_at=None, updated_at=None
+        )
 
         metadata = storage_provider.get_conversation_metadata()
         assert metadata is not None
@@ -228,9 +246,11 @@ class TestConversationMetadata:
     ):
         """Test getting database version after creating metadata."""
         # Create metadata first
-        storage_provider.update_conversation_metadata(
-            created_at="2024-01-01T12:00:00+00:00",
-            updated_at="2024-01-01T12:00:00+00:00",
+        created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        storage_provider.update_conversation_timestamps(
+            created_at=created_at,
+            updated_at=updated_at,
         )
 
         version = storage_provider.get_db_version()
@@ -278,14 +298,14 @@ class TestConversationMetadata:
 
             try:
                 # Add metadata for both conversations
-                provider1.update_conversation_metadata(
-                    created_at="2024-01-01T12:00:00+00:00",
-                    updated_at="2024-01-01T12:00:00+00:00",
+                provider1.update_conversation_timestamps(
+                    created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                    updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 )
 
-                provider2.update_conversation_metadata(
-                    created_at="2024-01-02T14:00:00+00:00",
-                    updated_at="2024-01-02T14:00:00+00:00",
+                provider2.update_conversation_timestamps(
+                    created_at=datetime(2024, 1, 2, 14, 0, 0, tzinfo=timezone.utc),
+                    updated_at=datetime(2024, 1, 2, 14, 0, 0, tzinfo=timezone.utc),
                 )
 
                 # Verify each conversation sees its own metadata
@@ -298,8 +318,12 @@ class TestConversationMetadata:
                 assert metadata1.name_tag == "conversation_conv1"
                 assert metadata2.name_tag == "conversation_conv2"
 
-                assert metadata1.created_at == "2024-01-01T12:00:00+00:00"
-                assert metadata2.created_at == "2024-01-02T14:00:00+00:00"
+                assert metadata1.created_at == parse_iso_datetime(
+                    "2024-01-01T12:00:00+00:00"
+                )
+                assert metadata2.created_at == parse_iso_datetime(
+                    "2024-01-02T14:00:00+00:00"
+                )
 
             finally:
                 await provider1.close()
@@ -339,9 +363,9 @@ class TestConversationMetadata:
 
         try:
             # Create metadata with alpha provider
-            provider_alpha.update_conversation_metadata(
-                created_at="2024-01-01T12:00:00+00:00",
-                updated_at="2024-01-01T12:00:00+00:00",
+            provider_alpha.update_conversation_timestamps(
+                created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
             provider_alpha.db.commit()
 
@@ -376,15 +400,17 @@ class TestConversationMetadata:
             "2024-12-31T23:59:59-08:00",  # Different timezone
         ]
 
-        for i, timestamp in enumerate(test_timestamps):
-            storage_provider.update_conversation_metadata(
-                created_at=timestamp, updated_at=timestamp
+        # Convert test timestamps to datetime objects for the API
+        for timestamp_str in test_timestamps:
+            timestamp_dt = parse_iso_datetime(timestamp_str)
+            storage_provider.update_conversation_timestamps(
+                created_at=timestamp_dt, updated_at=timestamp_dt
             )
 
             metadata = storage_provider.get_conversation_metadata()
             assert metadata is not None
-            assert metadata.created_at == timestamp
-            assert metadata.updated_at == timestamp
+            assert metadata.created_at == timestamp_dt
+            assert metadata.updated_at == timestamp_dt
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_persistence(
@@ -395,8 +421,8 @@ class TestConversationMetadata:
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-        created_at = "2024-01-01T12:00:00+00:00"
-        updated_at = "2024-01-01T12:00:00+00:00"
+        created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
         # Create first provider and add metadata
         provider1 = SqliteStorageProvider(
@@ -407,8 +433,9 @@ class TestConversationMetadata:
             related_term_index_settings=related_terms_settings,
         )
 
-        provider1.update_conversation_metadata(
-            created_at=created_at, updated_at=updated_at
+        provider1.update_conversation_timestamps(
+            created_at=created_at,
+            updated_at=updated_at,
         )
         await provider1.close()
 
@@ -439,14 +466,15 @@ class TestConversationMetadataEdgeCases:
         self, storage_provider_memory: SqliteStorageProvider[DummyMessage]
     ):
         """Test behavior with empty string timestamps."""
-        storage_provider_memory.update_conversation_metadata(
-            created_at="", updated_at=""
+        storage_provider_memory.update_conversation_timestamps(
+            created_at=None, updated_at=None
         )
 
         metadata = storage_provider_memory.get_conversation_metadata()
         assert metadata is not None
-        assert metadata.created_at == ""
-        assert metadata.updated_at == ""
+        # Empty strings fall back to current time
+        assert isinstance(metadata.created_at, datetime)
+        assert isinstance(metadata.updated_at, datetime)
 
     @pytest.mark.asyncio
     async def test_very_long_conversation_id(
@@ -468,9 +496,9 @@ class TestConversationMetadataEdgeCases:
         )
 
         try:
-            provider.update_conversation_metadata(
-                created_at="2024-01-01T12:00:00+00:00",
-                updated_at="2024-01-01T12:00:00+00:00",
+            provider.update_conversation_timestamps(
+                created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
 
             metadata = provider.get_conversation_metadata()
@@ -500,9 +528,9 @@ class TestConversationMetadataEdgeCases:
         )
 
         try:
-            provider.update_conversation_metadata(
-                created_at="2024-01-01T12:00:00+00:00",
-                updated_at="2024-01-01T12:00:00+00:00",
+            provider.update_conversation_timestamps(
+                created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
 
             metadata = provider.get_conversation_metadata()
@@ -540,15 +568,15 @@ class TestConversationMetadataEdgeCases:
 
         try:
             # Update from provider1
-            provider1.update_conversation_metadata(
-                created_at="2024-01-01T12:00:00+00:00",
-                updated_at="2024-01-01T12:00:00+00:00",
+            provider1.update_conversation_timestamps(
+                created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
             provider1.db.commit()
 
             # Update from provider2 - should update the same metadata row
-            provider2.update_conversation_metadata(
-                updated_at="2024-01-01T13:00:00+00:00"
+            provider2.update_conversation_timestamps(
+                updated_at=datetime(2024, 1, 1, 13, 0, 0, tzinfo=timezone.utc)
             )
             provider2.db.commit()
 
@@ -559,11 +587,8 @@ class TestConversationMetadataEdgeCases:
             assert metadata1 is not None
             assert metadata2 is not None
             assert metadata1.created_at == metadata2.created_at
-            assert (
-                metadata1.updated_at
-                == metadata2.updated_at
-                == "2024-01-01T13:00:00+00:00"
-            )
+            expected_updated = parse_iso_datetime("2024-01-01T13:00:00+00:00")
+            assert metadata1.updated_at == metadata2.updated_at == expected_updated
 
         finally:
             await provider1.close()

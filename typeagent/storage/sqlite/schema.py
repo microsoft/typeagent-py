@@ -4,12 +4,12 @@
 """SQLite database schema definitions."""
 
 import sqlite3
-from dataclasses import dataclass
 from datetime import datetime, timezone
 import typing
 import numpy as np
 
 from ...aitools.embeddings import NormalizedEmbedding
+from ...knowpro.interfaces import ConversationMetadata
 
 # Constants
 CONVERSATION_SCHEMA_VERSION = "0.1"
@@ -36,15 +36,12 @@ TIMESTAMP_INDEX_SCHEMA = """
 CREATE INDEX IF NOT EXISTS idx_messages_start_timestamp ON Messages(start_timestamp);
 """
 
-# Conversation metadata table (single row)
+# Conversation metadata table (key-value pairs)
 CONVERSATION_METADATA_SCHEMA = """
 CREATE TABLE IF NOT EXISTS ConversationMetadata (
-    name_tag TEXT NOT NULL,           -- User-defined name for this conversation
-    schema_version TEXT NOT NULL,     -- Version of the metadata schema
-    created_at TEXT NOT NULL,         -- UTC timestamp when conversation was created
-    updated_at TEXT NOT NULL,         -- UTC timestamp when metadata was last updated
-    tags JSON NOT NULL,               -- JSON array of string tags
-    extra JSON NOT NULL               -- JSON object for additional metadata
+    key TEXT NOT NULL,                -- Metadata key (e.g., 'name_tag', 'schema_version', 'tag')
+    value TEXT NOT NULL,              -- Metadata value (always stored as string)
+    PRIMARY KEY (key, value)          -- Allow multiple values per key (e.g., multiple tags)
 );
 """
 
@@ -153,18 +150,6 @@ type ShreddedRelatedTermsAlias = tuple[str, str]
 type ShreddedRelatedTermsFuzzy = tuple[str, float, bytes]
 
 
-@dataclass
-class ConversationMetadata:
-    """Metadata for the current conversation stored in SQLite."""
-
-    name_tag: str
-    schema_version: str
-    created_at: datetime
-    updated_at: datetime
-    tags: list[str]
-    extra: dict[str, typing.Any]
-
-
 @typing.overload
 def serialize_embedding(embedding: NormalizedEmbedding) -> bytes: ...
 
@@ -208,6 +193,59 @@ def _create_default_metadata() -> ConversationMetadata:
     )
 
 
+def _set_conversation_metadata(
+    db: sqlite3.Connection, **kwds: str | list[str] | None
+) -> None:
+    """Set or update conversation metadata key-value pairs.
+
+    This function sets metadata keys to the provided values. It should be called
+    within a transaction context.
+
+    Args:
+        db: SQLite database connection
+        **kwds: Metadata keys and values where:
+            - str value: Sets a single key-value pair (replaces existing)
+            - list[str] value: Sets multiple values for the same key
+            - None value: Deletes all rows for the given key
+
+    Example:
+        set_conversation_metadata(
+            db,
+            name_tag="my_conversation",
+            schema_version="0.1",
+            created_at="2024-01-01T00:00:00Z",
+            tag=["python", "ai"],  # Multiple tags
+            custom_field="value"
+        )
+
+        # Delete a key
+        set_conversation_metadata(db, old_key=None)
+    """
+    cursor = db.cursor()
+
+    for key, value in kwds.items():
+        # First, delete all existing rows for this key
+        cursor.execute("DELETE FROM ConversationMetadata WHERE key = ?", (key,))
+
+        # Then insert new values if not None
+        if value is None:
+            # Deletion case - already handled above
+            continue
+        elif isinstance(value, list):
+            # Multiple values for the same key
+            for v in value:
+                cursor.execute(
+                    "INSERT INTO ConversationMetadata (key, value) VALUES (?, ?)",
+                    (key, v),
+                )
+        else:
+            # Single value
+            cursor.execute(
+                "INSERT INTO ConversationMetadata (key, value) VALUES (?, ?)",
+                (key, value),
+            )
+
+
 def init_db_schema(db: sqlite3.Connection) -> None:
     """Initialize the database schema with all required tables."""
     cursor = db.cursor()
@@ -236,7 +274,9 @@ def get_db_schema_version(db: sqlite3.Connection) -> str:
     """Get the database schema version."""
     try:
         cursor = db.cursor()
-        cursor.execute("SELECT schema_version FROM ConversationMetadata LIMIT 1")
+        cursor.execute(
+            "SELECT value FROM ConversationMetadata WHERE key = 'schema_version' LIMIT 1"
+        )
         row = cursor.fetchone()
         return row[0] if row else CONVERSATION_SCHEMA_VERSION
     except sqlite3.OperationalError:
