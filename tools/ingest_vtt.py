@@ -194,12 +194,27 @@ async def ingest_vtt_files(
         print("Loading environment...")
     utils.load_dotenv()
 
+    # Determine transcript name before creating storage provider
+    if not name:
+        if len(vtt_files) == 1:
+            name = Path(vtt_files[0]).stem
+        else:
+            name = "combined-transcript"
+
     # Create conversation settings and storage provider
     if verbose:
         print("Setting up conversation settings...")
     try:
+        from typeagent.knowpro.interfaces import ConversationMetadata
+
         embedding_model = AsyncEmbeddingModel(model_name=embedding_name)
         settings = ConversationSettings(embedding_model)
+
+        # Create metadata with the conversation name
+        metadata = ConversationMetadata(
+            name_tag=name,
+            tags=[name, "vtt-transcript"],
+        )
 
         # Create storage provider explicitly with the database
         storage_provider = await create_storage_provider(
@@ -207,6 +222,7 @@ async def ingest_vtt_files(
             settings.related_term_index_settings,
             database,
             TranscriptMessage,
+            metadata=metadata,
         )
 
         # Update settings to use our storage provider
@@ -221,13 +237,6 @@ async def ingest_vtt_files(
     except Exception as e:
         print(f"Error creating settings: {e}", file=sys.stderr)
         sys.exit(1)
-
-    # Determine transcript name
-    if not name:
-        if len(vtt_files) == 1:
-            name = Path(vtt_files[0]).stem
-        else:
-            name = "combined-transcript"
 
     # Import the transcripts
     if verbose:

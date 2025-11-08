@@ -15,8 +15,7 @@ __pycache__
 .ui_history
 
 # Databases
-*.db
-*.db.index_log
+*.db*
 
 # Coverage
 .coverage
