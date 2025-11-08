@@ -21,6 +21,7 @@ Don't use it to index confidential information.
 - Quick install: `pip install typeagent`
 - Download [PyBay '25 PowerPoint slides](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pptx)
 - Download [PyBay '25 slides as PDF](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pdf)
+- Watch the [video](https://youtu.be/-klESD7iB-s)
 
 ## Trademarks
 
