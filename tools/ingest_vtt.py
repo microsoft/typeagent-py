@@ -25,6 +25,12 @@ import webvtt
 
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.interfaces import ConversationMetadata
+from typeagent.knowpro.universal_message import (
+    UNIX_EPOCH,
+    format_timestamp_utc,
+)
 from typeagent.storage.utils import create_storage_provider
 from typeagent.transcripts.transcript_ingest import (
     get_transcript_duration,
@@ -37,11 +43,6 @@ from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
-from typeagent.knowpro.universal_message import (
-    UNIX_EPOCH,
-    format_timestamp_utc,
-)
-from typeagent.knowpro.convsettings import ConversationSettings
 
 
 def create_arg_parser() -> argparse.ArgumentParser:
@@ -205,8 +206,6 @@ async def ingest_vtt_files(
     if verbose:
         print("Setting up conversation settings...")
     try:
-        from typeagent.knowpro.interfaces import ConversationMetadata
-
         embedding_model = AsyncEmbeddingModel(model_name=embedding_name)
         settings = ConversationSettings(embedding_model)
 
