@@ -785,14 +785,23 @@ class ConversationMetadata:
     any storage provider (SQLite, in-memory, etc.). Providers may store this
     internally in different formats (e.g., key-value pairs), but this provides
     a uniform interface for accessing conversation metadata.
+
+    When passed to a storage provider during initialization:
+    - None values indicate the provider should auto-generate/use defaults
+    - Non-None values are used as-is
+
+    When returned from get_conversation_metadata():
+    - None values indicate the field was not found in the database
+    - Non-None values are the actual stored values
+    - If the database has no metadata rows, returns an instance with all fields None
     """
 
-    name_tag: str
-    schema_version: int
-    created_at: Datetime
-    updated_at: Datetime
-    tags: list[str]
-    extra: dict[str, str]  # All extra values stored as strings
+    name_tag: str | None = None
+    schema_version: int | None = None
+    created_at: Datetime | None = None
+    updated_at: Datetime | None = None
+    tags: list[str] | None = None
+    extra: dict[str, str] | None = None
 
 
 class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
@@ -851,11 +860,12 @@ class IStorageProvider[TMessage: IMessage](Protocol):
     async def get_conversation_threads(self) -> IConversationThreads: ...
 
     # Metadata management
-    def get_conversation_metadata(self) -> Any | None:
+    def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata.
 
-        Returns ConversationMetadata or None if no metadata exists.
-        Return type is Any to avoid circular import with storage layer.
+        Always returns a ConversationMetadata instance. Fields not found in
+        the database will be None. If no metadata exists at all, returns
+        an instance with all fields None.
         """
         ...
 

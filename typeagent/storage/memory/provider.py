@@ -17,6 +17,7 @@ from .propindex import PropertyIndex
 from .timestampindex import TimestampToTextRangeIndex
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
+    ConversationMetadata,
     IConversationThreads,
     IMessage,
     IMessageTextIndex,
@@ -45,8 +46,10 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         self,
         message_text_settings: MessageTextIndexSettings,
         related_terms_settings: RelatedTermIndexSettings,
+        metadata: ConversationMetadata | None = None,
     ) -> None:
         """Create and initialize a MemoryStorageProvider with all indexes."""
+        self._metadata = metadata or ConversationMetadata()
         self._message_collection = MemoryMessageCollection[TMessage]()
         self._semantic_ref_collection = MemorySemanticRefCollection()
 
@@ -101,12 +104,13 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """Close the storage provider."""
         pass
 
-    def get_conversation_metadata(self) -> None:
-        """Get conversation metadata (no-op for in-memory storage).
+    def get_conversation_metadata(self) -> ConversationMetadata:
+        """Get conversation metadata.
 
-        Returns None since in-memory storage doesn't persist metadata.
+        For in-memory storage, returns the metadata provided during initialization
+        or an empty ConversationMetadata instance if none was provided.
         """
-        return None
+        return self._metadata
 
     def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set conversation metadata (no-op for in-memory storage).

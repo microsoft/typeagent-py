@@ -44,16 +44,16 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     def __init__(
         self,
         db_path: str = ":memory:",
-        conversation_id: str = "default",
         message_type: type[TMessage] = None,  # type: ignore
         semantic_ref_type: type[interfaces.SemanticRef] = None,  # type: ignore
         message_text_index_settings: MessageTextIndexSettings | None = None,
         related_term_index_settings: RelatedTermIndexSettings | None = None,
+        metadata: ConversationMetadata | None = None,
     ):
         self.db_path = db_path
-        self.conversation_id = conversation_id
         self.message_type = message_type
         self.semantic_ref_type = semantic_ref_type
+        self._metadata = metadata
 
         # Settings with defaults (require embedding settings)
         if message_text_index_settings is None:
@@ -86,9 +86,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         # Initialize schema
         init_db_schema(self.db)
-
-        # Initialize conversation metadata if this is a new database
-        self._init_conversation_metadata_if_needed()
 
         # Check embedding consistency before initializing indexes
         self._check_embedding_consistency()
@@ -165,34 +162,47 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     def _init_conversation_metadata_if_needed(self) -> None:
         """Initialize conversation metadata if the database is new (empty metadata table).
 
-        This is called once during provider initialization to set up default metadata
-        including name_tag, schema_version, and timestamps. If metadata already exists,
-        this does nothing.
+        This does NOT start a transaction - the metadata will be committed
+        when the first actual write operation (e.g., adding messages) commits.
+        This ensures we don't create empty databases with only metadata.
         """
         from ...knowpro.universal_message import format_timestamp_utc
 
-        # Initialize with default values in a transaction
         current_time = datetime.now(timezone.utc)
-        with self.db:
-            cursor = self.db.cursor()
+        cursor = self.db.cursor()
 
-            # Check if metadata already exists (inside transaction to avoid race conditions)
-            cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")
-            if cursor.fetchone() is not None:
-                # Metadata already exists, don't overwrite
-                return
+        # Check if metadata already exists
+        cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")
+        if cursor.fetchone() is not None:
+            return
 
-            _set_conversation_metadata(
-                self.db,
-                name_tag=f"conversation_{self.conversation_id}",
-                schema_version=str(get_db_schema_version(self.db)),
-                created_at=format_timestamp_utc(current_time),
-                updated_at=format_timestamp_utc(current_time),
-            )
+        # Use provided metadata values, or generate defaults for None
+        if self._metadata:
+            name_tag = self._metadata.name_tag or "conversation"
+            tags = self._metadata.tags
+            extras = self._metadata.extra or {}
+        else:
+            name_tag = "conversation"
+            tags = None
+            extras = {}
+
+        # Always auto-generate schema_version and timestamps
+        # Don't use 'with self.db:' - let first write operation commit
+        _set_conversation_metadata(
+            self.db,
+            name_tag=name_tag,
+            schema_version=str(get_db_schema_version(self.db)),
+            created_at=format_timestamp_utc(current_time),
+            updated_at=format_timestamp_utc(current_time),
+            tag=tags,  # None or list of tags
+            **extras,
+        )
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
         """Enter transaction context."""
         self.db.execute("BEGIN IMMEDIATE")
+        # Initialize metadata on first write transaction
+        self._init_conversation_metadata_if_needed()
         return self
 
     async def __aexit__(
@@ -330,7 +340,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         if data.get("messageIndexData"):
             await self._message_text_index.deserialize(data["messageIndexData"])
 
-    def get_conversation_metadata(self) -> ConversationMetadata | None:
+    def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata."""
         cursor = self.db.cursor()
 
@@ -338,8 +348,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         cursor.execute("SELECT key, value FROM ConversationMetadata")
         rows = cursor.fetchall()
 
+        # If no rows at all, return empty instance (all fields None)
         if not rows:
-            return None
+            return ConversationMetadata()
 
         # Build metadata structure - always use list for consistency
         metadata_dict: dict[str, list[str]] = {}
@@ -348,20 +359,19 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
                 metadata_dict[key] = []
             metadata_dict[key].append(value)
 
-        # Helper to get single value from list (for well-known keys)
-        def get_single(key: str, default: str = "") -> str:
-            values = metadata_dict.get(key, [])
+        # Helper to get single value from list (returns None if key missing)
+        def get_single(key: str) -> str | None:
+            values = metadata_dict.get(key)
+            if values is None:
+                return None
             if len(values) > 1:
                 raise ValueError(
                     f"Expected single value for key '{key}', got {len(values)}"
                 )
-            return values[0] if values else default
+            return values[0]
 
         # Helper to parse datetime from ISO string
-        def parse_datetime(key: str) -> datetime:
-            value_str = get_single(key)
-            if not value_str:
-                return datetime.now(timezone.utc)
+        def parse_datetime(value_str: str) -> datetime:
             # Handle both formats: with and without timezone
             if value_str.endswith("Z"):
                 value_str = value_str[:-1] + "+00:00"
@@ -371,18 +381,20 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
                 # Fallback for other formats
                 return datetime.now(timezone.utc)
 
-        # Extract standard fields (single values expected)
+        # Extract standard fields (None if not found)
         name_tag = get_single("name_tag")
-        schema_version_str = get_single("schema_version", "1")
-        try:
-            schema_version = int(schema_version_str)
-        except ValueError:
-            schema_version = CONVERSATION_SCHEMA_VERSION
-        created_at = parse_datetime("created_at")
-        updated_at = parse_datetime("updated_at")
 
-        # Handle tags (multiple values allowed)
-        tags = metadata_dict.get("tag", [])
+        schema_version_str = get_single("schema_version")
+        schema_version = int(schema_version_str) if schema_version_str else None
+
+        created_at_str = get_single("created_at")
+        created_at = parse_datetime(created_at_str) if created_at_str else None
+
+        updated_at_str = get_single("updated_at")
+        updated_at = parse_datetime(updated_at_str) if updated_at_str else None
+
+        # Handle tags (multiple values allowed, None if key doesn't exist)
+        tags = metadata_dict.get("tag")
 
         # Build extra dict from remaining keys
         standard_keys = {
@@ -404,7 +416,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             created_at=created_at,
             updated_at=updated_at,
             tags=tags,
-            extra=extra,
+            extra=extra if extra else None,
         )
 
     def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
@@ -446,11 +458,11 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         if not cursor.fetchone():
             # Insert default values if no metadata exists
-            name_tag = f"conversation_{self.conversation_id}"
+            name_tag = self._metadata.name_tag if self._metadata else "conversation"
             schema_version = str(CONVERSATION_SCHEMA_VERSION)
 
             metadata_kwds: dict[str, str | None] = {
-                "name_tag": name_tag,
+                "name_tag": name_tag or "conversation",
                 "schema_version": schema_version,
             }
             if created_at is not None:

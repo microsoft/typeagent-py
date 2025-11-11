@@ -7,7 +7,7 @@ from ..storage.utils import create_storage_provider
 from . import secindex
 from .conversation_base import ConversationBase
 from .convsettings import ConversationSettings
-from .interfaces import IMessage
+from .interfaces import IMessage, ConversationMetadata
 
 
 async def create_conversation[TMessage: IMessage](
@@ -16,6 +16,7 @@ async def create_conversation[TMessage: IMessage](
     name: str = "",
     tags: list[str] | None = None,
     settings: ConversationSettings | None = None,
+    extras: dict[str, str] | None = None,
 ) -> ConversationBase[TMessage]:
     """
     Create a conversation with the given message type and settings.
@@ -26,6 +27,7 @@ async def create_conversation[TMessage: IMessage](
         name: Optional name for the conversation
         tags: Optional list of tags for the conversation
         settings: Optional conversation settings (creates default if None)
+        extras: Optional dictionary of custom metadata key-value pairs
 
     Returns:
         A fully initialized conversation ready to accept messages
@@ -35,11 +37,19 @@ async def create_conversation[TMessage: IMessage](
         # Enable knowledge extraction by default for new conversations
         settings.semantic_ref_index_settings.auto_extract_knowledge = True
 
+    # Build ConversationMetadata from provided parameters
+    metadata = ConversationMetadata(
+        name_tag=name if name else None,
+        tags=tags,
+        extra=extras,
+    )
+
     storage_provider = await create_storage_provider(
         message_text_settings=settings.message_text_index_settings,
         related_terms_settings=settings.related_term_index_settings,
         dbname=dbname,
         message_type=message_type,
+        metadata=metadata,
     )
 
     settings.storage_provider = storage_provider
