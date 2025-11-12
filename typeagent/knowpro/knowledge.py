@@ -6,6 +6,7 @@ from typechat import Result, TypeChatLanguageModel
 from . import convknowledge
 from . import kplib
 from .interfaces import IKnowledgeExtractor
+import asyncio
 
 
 def create_knowledge_extractor(
@@ -36,14 +37,16 @@ async def extract_knowledge_from_text_batch(
     max_retries: int = 3,
 ) -> list[Result[kplib.KnowledgeResponse]]:
     """Extract knowledge from a batch of text inputs concurrently."""
-    # TODO: Use concurrency.
-    results: list[Result[kplib.KnowledgeResponse]] = []
-    for text in text_batch:
-        result = await extract_knowledge_from_text(
-            knowledge_extractor, text, max_retries
-        )
-        results.append(result)
-    return results
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def extract_with_semaphore(text: str) -> Result[kplib.KnowledgeResponse]:
+        async with semaphore:
+            return await extract_knowledge_from_text(
+                knowledge_extractor, text, max_retries
+            )
+
+    tasks = [asyncio.create_task(extract_with_semaphore(text)) for text in text_batch]
+    return await asyncio.gather(*tasks)
 
 
 def merge_concrete_entities(
