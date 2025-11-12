@@ -3,6 +3,7 @@
 
 import os
 import re
+import time
 from datetime import timedelta
 
 from ..knowpro.convsettings import ConversationSettings
@@ -22,6 +23,9 @@ async def ingest_podcast(
     start_date: Datetime | None = None,
     length_minutes: float = 60.0,
     dbname: str | None = None,
+    batch_size: int = 0,
+    start_message: int = 0,
+    verbose: bool = False,
 ) -> Podcast:
     """
     Ingest a podcast transcript file into a Podcast object.
@@ -107,8 +111,10 @@ async def ingest_podcast(
     settings.storage_provider = provider
     msg_coll = await provider.get_message_collection()
     semref_coll = await provider.get_semantic_ref_collection()
-    if await msg_coll.size() or await semref_coll.size():
-        raise RuntimeError(f"{dbname!r} already has messages or semantic refs.")
+    if (msg_size := await msg_coll.size()) > start_message:
+        raise RuntimeError(
+            f"{dbname!r} should have at most {start_message} messages, but has {msg_size}."
+        )
 
     pod = await Podcast.create(
         settings,
@@ -116,8 +122,18 @@ async def ingest_podcast(
         tags=[podcast_name],
     )
 
-    # Add messages with indexing to build embeddings
-    await pod.add_messages_with_indexing(msgs)
+    # Add messages with indexing to build embeddings, using batch_size
+    batch_size = batch_size or len(msgs)
+    for i in range(start_message, len(msgs), batch_size):
+        batch = msgs[i : i + batch_size]
+        t0 = time.time()
+        await pod.add_messages_with_indexing(batch)
+        t1 = time.time()
+        if verbose:
+            print(
+                f"Indexed messages {i} to {i + len(batch) - 1} "
+                f"in {t1 - t0:.1f} seconds."
+            )
 
     return pod
 
@@ -169,3 +185,63 @@ def assign_timestamps_proportionally(
             base_date + timedelta(seconds=current_offset)
         )
         current_offset += seconds_per_char * length
+
+
+async def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Ingest a podcast transcript into a database"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Suppress verbose output"
+    )
+    parser.add_argument(
+        "-d", "--database", type=str, default=None, help="Database name (default None)"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=10,
+        help="Batch size for message indexing (default 10)",
+    )
+    parser.add_argument(
+        "--start-message",
+        type=int,
+        default=0,
+        help="Start indexing at this message ordinal (default 0)",
+    )
+    parser.add_argument(
+        "--json-output",
+        type=str,
+        default=None,
+        help="Output JSON file path (default None)",
+    )
+    parser.add_argument("transcript", type=str, help="Path to the transcript file")
+
+    args = parser.parse_args()
+
+    from typeagent.aitools.utils import load_dotenv
+
+    load_dotenv()
+
+    settings = ConversationSettings()
+
+    podcast = await ingest_podcast(
+        args.transcript,
+        settings,
+        podcast_name=os.path.basename(args.transcript) or "Unnamed Podcast",
+        start_date=None,
+        length_minutes=os.path.getsize(args.transcript)
+        / 1049.0,  # Heuristic, approx 1KB per minute
+        dbname=args.database,
+        batch_size=args.batch_size,
+        start_message=args.start_message,
+        verbose=not args.quiet,
+    )
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
