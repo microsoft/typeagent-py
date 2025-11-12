@@ -18,14 +18,12 @@ Gradually move work items from here to repo Issues.
 
 ### P0 - Critical
 - **[P0, large]** Fix all bugs related to ordinals/ids relying on starting at 0 and no gaps
-- **[P0, small]** Conversation metadata isn't written -- needs a separate call
 - **[P0, small]** Need embedding size and embedding name in metadata
 
 ### P1 - High Priority
 - **[P1, medium]** Scrutinize sqlite/reltermsindex.py
 - **[P1, medium]** Review the new storage code more carefully, adding notes
 - **[P1, large]** Unify tests for storage APIs
-- **[P1, small]** Conversation id in conversation metadata table feels wrong
 - **[P1, medium]** Make (de)serialize methods async in interfaces.py if they might execute SQL statements
 
 ### P2 - Medium Priority
@@ -101,6 +99,7 @@ Gradually move work items from here to repo Issues.
 - **[P3, medium]** Rewrite podcast parsing without regexes
 - **[P3, medium]** Switch from Protocol to ABC
 - **[P3, medium]** Reduce duplication between ingest_vtt.py and typeagent/transcripts/
+- **[P3, small]** Rename `kplib.py` to something ending in `_schema.py`
 
 ---
 
