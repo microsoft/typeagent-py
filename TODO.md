@@ -27,6 +27,7 @@ Gradually move work items from here to repo Issues.
 - **[P1, large]** Unify tests for storage APIs
 - **[P1, small]** Conversation id in conversation metadata table feels wrong
 - **[P1, medium]** Make (de)serialize methods async in interfaces.py if they might execute SQL statements
+- **[P1, medium]** Implement SqliteRelatedTermsAliases.serialize()
 
 ### P2 - Medium Priority
 - **[P2, large]** Refactor memory and sqlite indexes to share more code (e.g. population and query logic)
