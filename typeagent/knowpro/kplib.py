@@ -17,6 +17,8 @@ from .field_helpers import CamelCaseField
 
 @dataclass
 class Quantity:
+    """'amount' must be a number; do not infer amounts."""
+
     amount: float
     units: str
 
@@ -24,7 +26,18 @@ class Quantity:
         return f"{self.amount:g} {self.units}"
 
 
-type Value = str | float | bool | Quantity
+@dataclass
+class Quantifier:
+    """'amount' is a descriptive string, not a number; e.g. 'many', 'few', 'several', 'a lot of', 'some', 'dozens'."""
+
+    amount: str
+    units: str
+
+    def __str__(self) -> str:
+        return f"{self.amount} {self.units}"
+
+
+type Value = str | float | bool | Quantity | Quantifier
 
 
 @dataclass
@@ -97,7 +110,8 @@ class Action:
     )
     params: list[str | ActionParam] | None = None
     subject_entity_facet: Facet | None = CamelCaseField(
-        "If the action implies this additional facet or property of the subject entity, such as hobbies, activities, interests, personality",
+        "If the action implies this additional facet or property of the subject entity, "
+        "such as hobbies, activities, interests, personality",
         default=None,
     )
 
