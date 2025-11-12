@@ -4,6 +4,7 @@
 """End-to-end tests for the MCP server."""
 
 import os
+import sys
 from typing import Any
 
 import pytest
@@ -23,7 +24,7 @@ def server_params() -> StdioServerParameters:
         env["COVERAGE_PROCESS_START"] = os.environ["COVERAGE_PROCESS_START"]
 
     return StdioServerParameters(
-        command=".venv/bin/python",
+        command=sys.executable,
         args=["-m", "typeagent.mcp.server"],
         env=env,
     )
