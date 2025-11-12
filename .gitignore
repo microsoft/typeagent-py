@@ -17,6 +17,10 @@ __pycache__
 # Databases
 *.db*
 
+# Serialized data in root folder
+/*_data.json
+/*_embeddings.bin
+
 # Coverage
 .coverage
 .coverage.*

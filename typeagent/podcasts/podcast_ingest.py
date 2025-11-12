@@ -35,11 +35,14 @@ async def ingest_podcast(
         settings: Conversation settings
         podcast_name: Name for the podcast (defaults to filename)
         start_date: Base datetime for timestamp generation.
-                   If None, uses Unix epoch (1970-01-01 00:00:00 UTC),
-                   preserving relative timing while signaling that the actual
-                   date is unknown (Unix "timestamp left at zero" convention).
+                    If None, uses Unix epoch (1970-01-01 00:00:00 UTC),
+                    preserving relative timing while signaling that the actual
+                    date is unknown (Unix "timestamp left at zero" convention).
         length_minutes: Total length of podcast in minutes (for proportional timestamp allocation)
-        dbname: Database name
+        dbname: Database name or None (to use in-memory non-persistent storage)
+        batch_size: Number of messages to index per batch (default all messages)
+        start_message: Number of initial messages to skip (for resuming interrupted ingests)
+        verbose: Whether to print progress information (default False)
 
     Returns:
         Podcast object with imported data
@@ -194,10 +197,17 @@ async def main():
         description="Ingest a podcast transcript into a database"
     )
     parser.add_argument(
+        "transcript", type=str, help="Transcript file to index (required)"
+    )
+    parser.add_argument(
         "-q", "--quiet", action="store_true", help="Suppress verbose output"
     )
     parser.add_argument(
-        "-d", "--database", type=str, default=None, help="Database name (default None)"
+        "-d",
+        "--database",
+        type=str,
+        default=None,
+        help="Database file (default: use an in-memory database)",
     )
     parser.add_argument(
         "--batch-size",
@@ -209,19 +219,22 @@ async def main():
         "--start-message",
         type=int,
         default=0,
-        help="Start indexing at this message ordinal (default 0)",
+        help="Message number (0-based) to start indexing, for restart after failure (default 0)",
     )
     parser.add_argument(
         "--json-output",
         type=str,
         default=None,
-        help="Output JSON file path (default None)",
+        help="Output JSON file (default None), minus '_data.json' suffix",
     )
-    parser.add_argument("transcript", type=str, help="Path to the transcript file")
 
     args = parser.parse_args()
+    if args.database is not None and args.json_output is not None:
+        raise SystemExit("Please use at most one of --database and --json-output")
 
     from typeagent.aitools.utils import load_dotenv
+
+    CHARS_PER_MINUTE = 1050  # My guess for average speech rate incl. overhead
 
     load_dotenv()
 
@@ -232,13 +245,17 @@ async def main():
         settings,
         podcast_name=os.path.basename(args.transcript) or "Unnamed Podcast",
         start_date=None,
-        length_minutes=os.path.getsize(args.transcript)
-        / 1049.0,  # Heuristic, approx 1KB per minute
+        length_minutes=os.path.getsize(args.transcript) / CHARS_PER_MINUTE,
         dbname=args.database,
         batch_size=args.batch_size,
         start_message=args.start_message,
         verbose=not args.quiet,
     )
+
+    if args.json_output is not None:
+        await podcast.write_to_file(args.json_output)
+        if not args.quiet:
+            print(f"Exported podcast to JSON file: {args.json_output}")
 
 
 if __name__ == "__main__":
