@@ -58,9 +58,9 @@ async def main():
 
     load_dotenv()
 
-    settings = ConversationSettings()
-
     try:
+        settings = ConversationSettings()
+
         podcast = await ingest_podcast(
             args.transcript,
             settings,
@@ -72,8 +72,8 @@ async def main():
             start_message=args.start_message,
             verbose=not args.quiet,
         )
-    except RuntimeError as err:
-        raise SystemExit(str(err))
+    except (RuntimeError, ValueError) as err:
+        raise SystemExit(repr(err))
 
     if args.json_output is not None:
         await podcast.write_to_file(args.json_output)
