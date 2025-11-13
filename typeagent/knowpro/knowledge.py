@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import asyncio
+
 from typechat import Result, TypeChatLanguageModel
 
 from . import convknowledge
@@ -29,6 +31,20 @@ async def extract_knowledge_from_text(
     return await knowledge_extractor.extract(text)
 
 
+async def batch_worker(
+    q: asyncio.Queue[tuple[int, str] | None],
+    knowledge_extractor: IKnowledgeExtractor,
+    results: dict[int, Result[kplib.KnowledgeResponse]],
+    max_retries: int,
+) -> None:
+    while item := await q.get():
+        index, text = item
+        result = await extract_knowledge_from_text(
+            knowledge_extractor, text, max_retries
+        )
+        results[index] = result
+
+
 async def extract_knowledge_from_text_batch(
     knowledge_extractor: IKnowledgeExtractor,
     text_batch: list[str],
@@ -36,14 +52,24 @@ async def extract_knowledge_from_text_batch(
     max_retries: int = 3,
 ) -> list[Result[kplib.KnowledgeResponse]]:
     """Extract knowledge from a batch of text inputs concurrently."""
-    # TODO: Use concurrency.
-    results: list[Result[kplib.KnowledgeResponse]] = []
-    for text in text_batch:
-        result = await extract_knowledge_from_text(
-            knowledge_extractor, text, max_retries
-        )
-        results.append(result)
-    return results
+    if not text_batch:
+        return []
+
+    q: asyncio.Queue[tuple[int, str] | None] = asyncio.Queue(
+        maxsize=2 * concurrency + 2
+    )
+    results: dict[int, Result[kplib.KnowledgeResponse]] = {}
+
+    async with asyncio.TaskGroup() as tg:
+        for _ in range(concurrency):
+            tg.create_task(batch_worker(q, knowledge_extractor, results, max_retries))
+
+        for index, text in enumerate(text_batch):
+            await q.put((index, text))
+        for _ in range(concurrency):
+            await q.put(None)
+
+    return [results[i] for i in range(len(text_batch))]
 
 
 def merge_concrete_entities(
