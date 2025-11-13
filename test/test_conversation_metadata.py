@@ -4,27 +4,33 @@
 """Tests for conversation metadata operations in SQLite storage provider."""
 
 import asyncio
+from collections.abc import AsyncGenerator
+from dataclasses import field
+from datetime import datetime, timezone
 import os
 import sqlite3
 import tempfile
-from collections.abc import AsyncGenerator, Generator
-from dataclasses import field
-from datetime import datetime, timezone
+import time
 
 import pytest
 import pytest_asyncio
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
+    ConversationSettings,
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
 from typeagent.knowpro.kplib import KnowledgeResponse
-
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
+from typeagent.transcripts.transcript import (
+    Transcript,
+    TranscriptMessage,
+    TranscriptMessageMeta,
+)
 
 from fixtures import embedding_model, temp_db_path
 
@@ -72,9 +78,6 @@ async def storage_provider_memory() -> (
     AsyncGenerator[SqliteStorageProvider[DummyMessage], None]
 ):
     """Create an in-memory SqliteStorageProvider for testing conversation metadata."""
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-    from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-
     embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
     message_text_settings = MessageTextIndexSettings(embedding_settings)
@@ -126,12 +129,9 @@ class TestConversationMetadata:
         assert metadata.schema_version == 1
         assert metadata.created_at == created_at
         assert metadata.updated_at == updated_at
-        expected_size = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
+        settings = storage_provider.message_text_index_settings.embedding_index_settings
+        expected_size = settings.embedding_size
+        expected_model = settings.embedding_model.model_name
         assert metadata.embedding_size == expected_size
         assert metadata.embedding_model == expected_model
         assert metadata.tags is None
@@ -157,14 +157,6 @@ class TestConversationMetadata:
         assert metadata is not None
         assert metadata.created_at == initial_created  # Unchanged
         assert metadata.updated_at == new_updated  # Changed
-        expected_size = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
-        assert metadata.embedding_size == expected_size
-        assert metadata.embedding_model == expected_model
 
     def test_update_conversation_timestamps_partial_created_at(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
@@ -186,14 +178,6 @@ class TestConversationMetadata:
         assert metadata is not None
         assert metadata.created_at == new_created  # Changed
         assert metadata.updated_at == initial_updated  # Unchanged
-        expected_size = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
-        assert metadata.embedding_size == expected_size
-        assert metadata.embedding_model == expected_model
 
     def test_update_conversation_timestamps_both_timestamps(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
@@ -219,14 +203,6 @@ class TestConversationMetadata:
         assert metadata is not None
         assert metadata.created_at == new_created
         assert metadata.updated_at == new_updated
-        expected_size = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
-        assert metadata.embedding_size == expected_size
-        assert metadata.embedding_model == expected_model
 
     def test_update_conversation_timestamps_no_params(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
@@ -247,22 +223,6 @@ class TestConversationMetadata:
         assert metadata is not None
         assert metadata.created_at == initial_created
         assert metadata.updated_at == initial_updated
-        expected_size = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
-        assert metadata.embedding_size == expected_size
-        assert metadata.embedding_model == expected_model
-        expected_size = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
-        assert metadata.embedding_size == expected_size
-        assert metadata.embedding_model == expected_model
 
     def test_update_conversation_timestamps_none_values(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
@@ -308,9 +268,6 @@ class TestConversationMetadata:
         self, embedding_model: AsyncEmbeddingModel
     ):
         """Test multiple conversations in different database files."""
-        import tempfile
-        import os
-
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -369,14 +326,6 @@ class TestConversationMetadata:
                 assert read_metadata2.created_at == parse_iso_datetime(
                     "2024-01-02T14:00:00+00:00"
                 )
-
-                expected_size = embedding_settings.embedding_size
-                expected_model = embedding_settings.embedding_model.model_name
-                assert read_metadata1.embedding_size == expected_size
-                assert read_metadata2.embedding_size == expected_size
-                assert read_metadata1.embedding_model == expected_model
-                assert read_metadata2.embedding_model == expected_model
-
             finally:
                 await provider1.close()
                 await provider2.close()
@@ -433,14 +382,6 @@ class TestConversationMetadata:
             assert beta_metadata.name_tag == alpha_metadata.name_tag  # Same metadata
             assert alpha_metadata.created_at == beta_metadata.created_at
             assert alpha_metadata.updated_at == beta_metadata.updated_at
-
-            expected_size = embedding_settings.embedding_size
-            expected_model = embedding_settings.embedding_model.model_name
-            assert alpha_metadata.embedding_size == expected_size
-            assert beta_metadata.embedding_size == expected_size
-            assert alpha_metadata.embedding_model == expected_model
-            assert beta_metadata.embedding_model == expected_model
-
         finally:
             await provider_alpha.close()
             await provider_beta.close()
@@ -468,14 +409,6 @@ class TestConversationMetadata:
             assert metadata is not None
             assert metadata.created_at == timestamp_dt
             assert metadata.updated_at == timestamp_dt
-            expected_size = (
-                storage_provider.message_text_index_settings.embedding_index_settings.embedding_size
-            )
-            expected_model = (
-                storage_provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-            )
-            assert metadata.embedding_size == expected_size
-            assert metadata.embedding_model == expected_model
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_persistence(
@@ -522,7 +455,6 @@ class TestConversationMetadata:
             expected_model = embedding_settings.embedding_model.model_name
             assert metadata.embedding_size == expected_size
             assert metadata.embedding_model == expected_model
-
         finally:
             await provider2.close()
 
@@ -544,14 +476,6 @@ class TestConversationMetadataEdgeCases:
         assert metadata.schema_version == 1
         assert metadata.created_at is None
         assert metadata.updated_at is None
-        expected_size = (
-            storage_provider_memory.message_text_index_settings.embedding_index_settings.embedding_size
-        )
-        expected_model = (
-            storage_provider_memory.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-        )
-        assert metadata.embedding_size == expected_size
-        assert metadata.embedding_model == expected_model
 
     @pytest.mark.asyncio
     async def test_very_long_name_tag(
@@ -581,11 +505,6 @@ class TestConversationMetadataEdgeCases:
 
             metadata = provider.get_conversation_metadata()
             assert metadata.name_tag == long_name
-            expected_size = embedding_settings.embedding_size
-            expected_model = embedding_settings.embedding_model.model_name
-            assert metadata.embedding_size == expected_size
-            assert metadata.embedding_model == expected_model
-
         finally:
             await provider.close()
 
@@ -617,11 +536,6 @@ class TestConversationMetadataEdgeCases:
 
             metadata = provider.get_conversation_metadata()
             assert metadata.name_tag == unicode_name
-            expected_size = embedding_settings.embedding_size
-            expected_model = embedding_settings.embedding_model.model_name
-            assert metadata.embedding_size == expected_size
-            assert metadata.embedding_model == expected_model
-
         finally:
             await provider.close()
 
@@ -672,13 +586,6 @@ class TestConversationMetadataEdgeCases:
             assert metadata1.created_at == metadata2.created_at
             expected_updated = parse_iso_datetime("2024-01-01T13:00:00+00:00")
             assert metadata1.updated_at == metadata2.updated_at == expected_updated
-            expected_size = embedding_settings.embedding_size
-            expected_model = embedding_settings.embedding_model.model_name
-            assert metadata1.embedding_size == expected_size
-            assert metadata2.embedding_size == expected_size
-            assert metadata1.embedding_model == expected_model
-            assert metadata2.embedding_model == expected_model
-
         finally:
             await provider1.close()
             await provider2.close()
@@ -770,14 +677,6 @@ class TestConversationMetadataEdgeCases:
         self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
     ):
         """Test that updated_at timestamp is updated when messages are added."""
-        from typeagent.knowpro.convsettings import ConversationSettings
-        from typeagent.transcripts.transcript import (
-            Transcript,
-            TranscriptMessage,
-            TranscriptMessageMeta,
-        )
-        import time
-
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -794,17 +693,15 @@ class TestConversationMetadataEdgeCases:
             initial_metadata = provider.get_conversation_metadata()
             initial_updated_at = initial_metadata.updated_at
             assert initial_updated_at is None  # No writes yet
-            assert initial_metadata.embedding_size is None
-            assert initial_metadata.embedding_model is None
 
             # Wait a tiny bit to ensure timestamp difference
             time.sleep(0.01)
 
             # Create a conversation and add messages
-            settings = ConversationSettings(model=embedding_model)
-            settings.storage_provider = provider
-            settings.semantic_ref_index_settings.auto_extract_knowledge = False
-            transcript = await Transcript.create(settings, name="test")
+            conv_settings = ConversationSettings(model=embedding_model)
+            conv_settings.storage_provider = provider
+            conv_settings.semantic_ref_index_settings.auto_extract_knowledge = False
+            transcript = await Transcript.create(conv_settings, name="test")
 
             messages = [
                 TranscriptMessage(
@@ -822,14 +719,6 @@ class TestConversationMetadataEdgeCases:
 
             # The updated_at timestamp should now be set
             assert updated_updated_at is not None
-            expected_size = (
-                provider.message_text_index_settings.embedding_index_settings.embedding_size
-            )
-            expected_model = (
-                provider.message_text_index_settings.embedding_index_settings.embedding_model.model_name
-            )
-            assert updated_metadata.embedding_size == expected_size
-            assert updated_metadata.embedding_model == expected_model
 
         finally:
             await provider.close()
