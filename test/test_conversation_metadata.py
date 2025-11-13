@@ -698,10 +698,10 @@ class TestConversationMetadataEdgeCases:
             time.sleep(0.01)
 
             # Create a conversation and add messages
-            conv_settings = ConversationSettings(model=embedding_model)
-            conv_settings.storage_provider = provider
-            conv_settings.semantic_ref_index_settings.auto_extract_knowledge = False
-            transcript = await Transcript.create(conv_settings, name="test")
+            settings = ConversationSettings(model=embedding_model)
+            settings.storage_provider = provider
+            settings.semantic_ref_index_settings.auto_extract_knowledge = False
+            transcript = await Transcript.create(settings, name="test")
 
             messages = [
                 TranscriptMessage(
