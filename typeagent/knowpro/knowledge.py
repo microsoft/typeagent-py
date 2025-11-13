@@ -48,10 +48,7 @@ async def batch_worker(
     results: dict[int, Result[kplib.KnowledgeResponse]],
     max_retries: int,
 ) -> None:
-    while True:
-        item = await q.get()
-        if item is None:
-            return
+    while item := await q.get():
         index, text = item
         result = await extract_knowledge_from_text(
             knowledge_extractor, text, max_retries
