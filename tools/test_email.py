@@ -255,10 +255,10 @@ async def add_messages(context: EmailContext, args: list[str]):
 
 
 async def search_index(context: EmailContext, args: list[str]):
-    if len(args) == 0:
+    if not args:
         return
     search_text = args[0].strip()
-    if len(search_text) == 0:
+    if not search_text:
         print_error("No search text")
         return
 
