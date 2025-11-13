@@ -117,13 +117,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         cursor = self.db.cursor()
         cursor.execute("SELECT value FROM ConversationMetadata WHERE key = ?", (key,))
         rows = cursor.fetchall()
-        if not rows:
-            return None
-        if len(rows) > 1:
-            raise ValueError(
-                f"Conversation metadata key '{key}' has multiple values; expected a single entry"
-            )
-        return rows[0][0]
+        return rows[0][0] if rows else None
 
     def _resolve_embedding_settings(
         self,
@@ -133,16 +127,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         metadata_exists = self._conversation_metadata_exists()
         stored_size_str = self._get_single_metadata_value("embedding_size")
         stored_name = self._get_single_metadata_value("embedding_name")
-
-        if stored_size_str is not None:
-            try:
-                stored_size = int(stored_size_str)
-            except ValueError as exc:
-                raise ValueError(
-                    f"Conversation metadata embedding_size value '{stored_size_str}' is not a valid integer"
-                ) from exc
-        else:
-            stored_size = None
+        stored_size = int(stored_size_str) if stored_size_str else None
 
         if provided_message_settings is None:
             if stored_size is not None or stored_name is not None:
@@ -164,12 +149,12 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             provided_name = base_embedding_settings.embedding_model.model_name
             if stored_size is not None and stored_size != provided_size:
                 raise ValueError(
-                    "Conversation metadata embedding_size "
+                    f"Conversation metadata embedding_size "
                     f"({stored_size}) does not match provided embedding size ({provided_size})."
                 )
             if stored_name is not None and stored_name != provided_name:
                 raise ValueError(
-                    "Conversation metadata embedding_model "
+                    f"Conversation metadata embedding_model "
                     f"({stored_name}) does not match provided embedding model ({provided_name})."
                 )
 
