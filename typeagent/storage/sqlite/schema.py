@@ -204,8 +204,8 @@ def _set_conversation_metadata(
     Args:
         db: SQLite database connection
         **kwds: Metadata keys and values where:
-            - str value: Sets a single key-value pair (replaces existing)
-            - list[str] value: Sets multiple values for the same key
+            - str | int value: Sets a single key-value pair (replaces existing)
+            - list[str | int] value: Sets multiple values for the same key
             - None value: Deletes all rows for the given key
 
     Example:
@@ -236,13 +236,13 @@ def _set_conversation_metadata(
             for v in value:
                 cursor.execute(
                     "INSERT INTO ConversationMetadata (key, value) VALUES (?, ?)",
-                    (key, v),
+                    (key, str(v)),
                 )
         else:
             # Single value
             cursor.execute(
                 "INSERT INTO ConversationMetadata (key, value) VALUES (?, ?)",
-                (key, value),
+                (key, str(value)),
             )
 
 
