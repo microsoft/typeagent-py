@@ -116,7 +116,7 @@ async def ingest_podcast(
     semref_coll = await provider.get_semantic_ref_collection()
     if (msg_size := await msg_coll.size()) > start_message:
         raise RuntimeError(
-            f"{dbname!r} should have at most {start_message} messages, but has {msg_size}."
+            f"{dbname!r} has {msg_size} messages; start_message ({start_message}) should be at least that."
         )
 
     pod = await Podcast.create(
@@ -188,77 +188,3 @@ def assign_timestamps_proportionally(
             base_date + timedelta(seconds=current_offset)
         )
         current_offset += seconds_per_char * length
-
-
-async def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Ingest a podcast transcript into a database"
-    )
-    parser.add_argument(
-        "transcript", type=str, help="Transcript file to index (required)"
-    )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="Suppress verbose output"
-    )
-    parser.add_argument(
-        "-d",
-        "--database",
-        type=str,
-        default=None,
-        help="Database file (default: use an in-memory database)",
-    )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=10,
-        help="Batch size for message indexing (default 10)",
-    )
-    parser.add_argument(
-        "--start-message",
-        type=int,
-        default=0,
-        help="Message number (0-based) to start indexing, for restart after failure (default 0)",
-    )
-    parser.add_argument(
-        "--json-output",
-        type=str,
-        default=None,
-        help="Output JSON file (default None), minus '_data.json' suffix",
-    )
-
-    args = parser.parse_args()
-    if args.database is not None and args.json_output is not None:
-        raise SystemExit("Please use at most one of --database and --json-output")
-
-    from typeagent.aitools.utils import load_dotenv
-
-    CHARS_PER_MINUTE = 1050  # My guess for average speech rate incl. overhead
-
-    load_dotenv()
-
-    settings = ConversationSettings()
-
-    podcast = await ingest_podcast(
-        args.transcript,
-        settings,
-        podcast_name=os.path.basename(args.transcript) or "Unnamed Podcast",
-        start_date=None,
-        length_minutes=os.path.getsize(args.transcript) / CHARS_PER_MINUTE,
-        dbname=args.database,
-        batch_size=args.batch_size,
-        start_message=args.start_message,
-        verbose=not args.quiet,
-    )
-
-    if args.json_output is not None:
-        await podcast.write_to_file(args.json_output)
-        if not args.quiet:
-            print(f"Exported podcast to JSON file: {args.json_output}")
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(main())
