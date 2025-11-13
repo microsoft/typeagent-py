@@ -1,12 +1,13 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import asyncio
+
 from typechat import Result, TypeChatLanguageModel
 
 from . import convknowledge
 from . import kplib
 from .interfaces import IKnowledgeExtractor
-import asyncio
 
 
 def create_knowledge_extractor(
@@ -44,7 +45,7 @@ async def batch_producer(
 async def batch_worker(
     q: asyncio.Queue[tuple[int, str] | None],
     knowledge_extractor: IKnowledgeExtractor,
-    results: list[Result[kplib.KnowledgeResponse] | None],
+    results: dict[int, Result[kplib.KnowledgeResponse]],
     max_retries: int,
 ) -> None:
     while True:
@@ -71,14 +72,14 @@ async def extract_knowledge_from_text_batch(
     q: asyncio.Queue[tuple[int, str] | None] = asyncio.Queue(
         maxsize=2 * concurrency + 2
     )
-    results: list[Result[kplib.KnowledgeResponse] | None] = [None] * len(text_batch)
+    results: dict[int, Result[kplib.KnowledgeResponse]] = {}
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(batch_producer(q, text_batch, concurrency))
         for _ in range(concurrency):
             tg.create_task(batch_worker(q, knowledge_extractor, results, max_retries))
 
-    return results
+    return [results[i] for i in range(len(text_batch))]
 
 
 def merge_concrete_entities(
