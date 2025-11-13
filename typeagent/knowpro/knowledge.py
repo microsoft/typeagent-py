@@ -31,17 +31,6 @@ async def extract_knowledge_from_text(
     return await knowledge_extractor.extract(text)
 
 
-async def batch_producer(
-    q: asyncio.Queue[tuple[int, str] | None],
-    text_batch: list[str],
-    concurrency: int,
-) -> None:
-    for index, text in enumerate(text_batch):
-        await q.put((index, text))
-    for _ in range(concurrency):
-        await q.put(None)
-
-
 async def batch_worker(
     q: asyncio.Queue[tuple[int, str] | None],
     knowledge_extractor: IKnowledgeExtractor,
@@ -72,9 +61,13 @@ async def extract_knowledge_from_text_batch(
     results: dict[int, Result[kplib.KnowledgeResponse]] = {}
 
     async with asyncio.TaskGroup() as tg:
-        tg.create_task(batch_producer(q, text_batch, concurrency))
         for _ in range(concurrency):
             tg.create_task(batch_worker(q, knowledge_extractor, results, max_retries))
+
+        for index, text in enumerate(text_batch):
+            await q.put((index, text))
+        for _ in range(concurrency):
+            await q.put(None)
 
     return [results[i] for i in range(len(text_batch))]
 
