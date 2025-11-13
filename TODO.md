@@ -17,8 +17,7 @@ Gradually move work items from here to repo Issues.
 ## Storage & Persistence
 
 ### P0 - Critical
-- **[P0, large]** Fix all bugs related to ordinals/ids relying on starting at 0 and no gaps
-- **[P0, small]** Need embedding size and embedding name in metadata
+- **[P0, large]** Fix all bugs related to ordinals/ids relying on starting at 0 and no gaps (prepare for deletions)
 
 ### P1 - High Priority
 - **[P1, medium]** Scrutinize sqlite/reltermsindex.py
@@ -137,10 +136,3 @@ Gradually move work items from here to repo Issues.
 
 ### P2 - Medium Priority
 - **[P2, medium]** Use pydantic.ai for model drivers, to support non-openai models
-
----
-
-## Architecture Decisions
-
-### P2 - Medium Priority
-- **[P2, medium]** Keep in-memory version (with some compromises) for comparison
