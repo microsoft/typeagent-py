@@ -14,20 +14,21 @@ Gradually move work items from here to repo Issues.
 
 ---
 
-## Storage & Persistence
-
-### P0 - Critical
-- **[P0, large]** Fix all bugs related to ordinals/ids relying on starting at 0 and no gaps
-- **[P0, small]** Need embedding size and embedding name in metadata
+## Additional code reviews (of AI-vibe-coded things)
 
 ### P1 - High Priority
 - **[P1, medium]** Scrutinize sqlite/reltermsindex.py
 - **[P1, medium]** Review the new storage code more carefully, adding notes
+
+## Storage & Persistence
+
+### P1 - High Priority
 - **[P1, large]** Unify tests for storage APIs
 - **[P1, medium]** Make (de)serialize methods async in interfaces.py if they might execute SQL statements
-- **[P1, medium]** Implement SqliteRelatedTermsAliases.serialize()
+- **[P1, medium]** Implement SqliteRelatedTermsAliases.serialize() and other missing serialize()/deserialize() methods
 
 ### P2 - Medium Priority
+- **[P2, large]** Fix all bugs related to ordinals/ids relying on starting at 0 and no gaps (prepare for deletions)
 - **[P2, large]** Refactor memory and sqlite indexes to share more code (e.g. population and query logic)
 - **[P2, medium]** Make the collection/index accessors in StorageProvider synchronous (the async work is all done in create())
 - **[P2, medium]** Replace the storage accessors with readonly @property functions
@@ -130,17 +131,3 @@ Gradually move work items from here to repo Issues.
 ### P3 - Low Priority
 - **[P3, small]** Move `typeagent` into `src/`
 - **[P3, tiny]** Move `test/` to `tests/`
-
----
-
-## Features & Enhancements
-
-### P2 - Medium Priority
-- **[P2, medium]** Use pydantic.ai for model drivers, to support non-openai models
-
----
-
-## Architecture Decisions
-
-### P2 - Medium Priority
-- **[P2, medium]** Keep in-memory version (with some compromises) for comparison

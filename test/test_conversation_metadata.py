@@ -3,26 +3,34 @@
 
 """Tests for conversation metadata operations in SQLite storage provider."""
 
-import os
-import tempfile
-from collections.abc import AsyncGenerator, Generator
+import asyncio
+from collections.abc import AsyncGenerator
 from dataclasses import field
 from datetime import datetime, timezone
+import os
+import sqlite3
+import tempfile
+import time
 
 import pytest
 import pytest_asyncio
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
+    ConversationSettings,
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
 from typeagent.knowpro.kplib import KnowledgeResponse
-
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
+from typeagent.transcripts.transcript import (
+    Transcript,
+    TranscriptMessage,
+    TranscriptMessageMeta,
+)
 
 from fixtures import embedding_model, temp_db_path
 
@@ -70,9 +78,6 @@ async def storage_provider_memory() -> (
     AsyncGenerator[SqliteStorageProvider[DummyMessage], None]
 ):
     """Create an in-memory SqliteStorageProvider for testing conversation metadata."""
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-    from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-
     embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
     message_text_settings = MessageTextIndexSettings(embedding_settings)
@@ -101,6 +106,8 @@ class TestConversationMetadata:
         assert metadata.schema_version is None
         assert metadata.created_at is None
         assert metadata.updated_at is None
+        assert metadata.embedding_size is None
+        assert metadata.embedding_model is None
         assert metadata.tags is None
         assert metadata.extra is None
 
@@ -122,6 +129,11 @@ class TestConversationMetadata:
         assert metadata.schema_version == 1
         assert metadata.created_at == created_at
         assert metadata.updated_at == updated_at
+        settings = storage_provider.message_text_index_settings.embedding_index_settings
+        expected_size = settings.embedding_size
+        expected_model = settings.embedding_model.model_name
+        assert metadata.embedding_size == expected_size
+        assert metadata.embedding_model == expected_model
         assert metadata.tags is None
         assert metadata.extra is None
 
@@ -256,9 +268,6 @@ class TestConversationMetadata:
         self, embedding_model: AsyncEmbeddingModel
     ):
         """Test multiple conversations in different database files."""
-        import tempfile
-        import os
-
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -317,7 +326,6 @@ class TestConversationMetadata:
                 assert read_metadata2.created_at == parse_iso_datetime(
                     "2024-01-02T14:00:00+00:00"
                 )
-
             finally:
                 await provider1.close()
                 await provider2.close()
@@ -374,7 +382,6 @@ class TestConversationMetadata:
             assert beta_metadata.name_tag == alpha_metadata.name_tag  # Same metadata
             assert alpha_metadata.created_at == beta_metadata.created_at
             assert alpha_metadata.updated_at == beta_metadata.updated_at
-
         finally:
             await provider_alpha.close()
             await provider_beta.close()
@@ -444,7 +451,10 @@ class TestConversationMetadata:
             assert metadata.name_tag == "conversation_persistent_test"
             assert metadata.created_at == created_at
             assert metadata.updated_at == updated_at
-
+            expected_size = embedding_settings.embedding_size
+            expected_model = embedding_settings.embedding_model.model_name
+            assert metadata.embedding_size == expected_size
+            assert metadata.embedding_model == expected_model
         finally:
             await provider2.close()
 
@@ -495,7 +505,6 @@ class TestConversationMetadataEdgeCases:
 
             metadata = provider.get_conversation_metadata()
             assert metadata.name_tag == long_name
-
         finally:
             await provider.close()
 
@@ -527,7 +536,6 @@ class TestConversationMetadataEdgeCases:
 
             metadata = provider.get_conversation_metadata()
             assert metadata.name_tag == unicode_name
-
         finally:
             await provider.close()
 
@@ -578,24 +586,97 @@ class TestConversationMetadataEdgeCases:
             assert metadata1.created_at == metadata2.created_at
             expected_updated = parse_iso_datetime("2024-01-01T13:00:00+00:00")
             assert metadata1.updated_at == metadata2.updated_at == expected_updated
-
         finally:
             await provider1.close()
             await provider2.close()
+
+    def test_embedding_metadata_mismatch_raises(
+        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    ):
+        """Ensure a mismatch between stored metadata and provided settings raises."""
+        embedding_settings = TextEmbeddingIndexSettings(embedding_model)
+        message_text_settings = MessageTextIndexSettings(embedding_settings)
+        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+        provider = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=DummyMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
+        )
+
+        provider.update_conversation_timestamps(
+            created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        provider.db.commit()
+        asyncio.run(provider.close())
+
+        mismatched_model = AsyncEmbeddingModel(
+            embedding_size=embedding_settings.embedding_size + 1,
+            model_name=embedding_model.model_name,
+        )
+        mismatched_settings = TextEmbeddingIndexSettings(
+            embedding_model=mismatched_model,
+            embedding_size=mismatched_model.embedding_size,
+        )
+
+        with pytest.raises(ValueError, match="embedding_size"):
+            SqliteStorageProvider(
+                db_path=temp_db_path,
+                message_type=DummyMessage,
+                message_text_index_settings=MessageTextIndexSettings(
+                    mismatched_settings
+                ),
+                related_term_index_settings=RelatedTermIndexSettings(
+                    mismatched_settings
+                ),
+            )
+
+    def test_embedding_model_mismatch_raises(
+        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    ):
+        """Ensure providing a different embedding model name raises."""
+        embedding_settings = TextEmbeddingIndexSettings(embedding_model)
+        message_text_settings = MessageTextIndexSettings(embedding_settings)
+        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
+
+        provider = SqliteStorageProvider(
+            db_path=temp_db_path,
+            message_type=DummyMessage,
+            message_text_index_settings=message_text_settings,
+            related_term_index_settings=related_terms_settings,
+        )
+
+        provider.update_conversation_timestamps(
+            created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        provider.db.commit()
+        asyncio.run(provider.close())
+
+        with sqlite3.connect(temp_db_path) as conn:
+            conn.execute(
+                "UPDATE ConversationMetadata SET value = ? WHERE key = 'embedding_name'",
+                ("mismatched-model",),
+            )
+            conn.commit()
+
+        mismatch_settings = TextEmbeddingIndexSettings(embedding_model)
+
+        with pytest.raises(ValueError, match="embedding_model"):
+            SqliteStorageProvider(
+                db_path=temp_db_path,
+                message_type=DummyMessage,
+                message_text_index_settings=MessageTextIndexSettings(mismatch_settings),
+                related_term_index_settings=RelatedTermIndexSettings(mismatch_settings),
+            )
 
     @pytest.mark.asyncio
     async def test_updated_at_changes_on_add_messages(
         self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
     ):
         """Test that updated_at timestamp is updated when messages are added."""
-        from typeagent.knowpro.convsettings import ConversationSettings
-        from typeagent.transcripts.transcript import (
-            Transcript,
-            TranscriptMessage,
-            TranscriptMessageMeta,
-        )
-        import time
-
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)

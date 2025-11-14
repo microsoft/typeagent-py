@@ -47,7 +47,7 @@ async def test_embedding_size_mismatch_in_message_index():
             model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
         )
 
-        with pytest.raises(ValueError, match="embedding size mismatch"):
+        with pytest.raises(ValueError, match="embedding_size"):
             provider = SqliteStorageProvider(
                 db_path=db_path,
                 message_type=TranscriptMessage,
@@ -96,7 +96,7 @@ async def test_embedding_size_mismatch_in_related_terms():
             model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
         )
 
-        with pytest.raises(ValueError, match="embedding size mismatch"):
+        with pytest.raises(ValueError, match="embedding_size"):
             provider = SqliteStorageProvider(
                 db_path=db_path,
                 message_type=TranscriptMessage,
