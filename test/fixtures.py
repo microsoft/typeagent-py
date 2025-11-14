@@ -75,9 +75,14 @@ def temp_db_path() -> Iterator[str]:
     temp_file = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
     path = temp_file.name
     temp_file.close()
+
     yield path
+
     if os.path.exists(path):
-        os.remove(path)
+        try:
+            os.remove(path)
+        except PermissionError:
+            pass  # On Windows, the file might still be in use
 
 
 @pytest.fixture
