@@ -16,7 +16,7 @@ import dotenv
 import typechat
 
 from pydantic_ai import Agent
-
+import litellm 
 
 @contextmanager
 def timelog(label: str, verbose: bool = True):
@@ -228,74 +228,31 @@ def create_async_openai_client(
     endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
     base_url: str | None = None,
 ):
-    """Create AsyncOpenAI or AsyncAzureOpenAI client based on environment variables.
-
-    Returns the appropriate async OpenAI client based on what credentials are available.
-    Prefers OPENAI_API_KEY over AZURE_OPENAI_API_KEY.
-
-    Args:
-        endpoint_envvar: Environment variable name for Azure endpoint (default: AZURE_OPENAI_ENDPOINT).
-        base_url: Optional base URL override for OpenAI client.
+    """
+    Create a LiteLLM async client.
+    LiteLLM handles OpenAI / Azure / OpenRouter / Anthropic automatically.
 
     Returns:
-        AsyncOpenAI or AsyncAzureOpenAI client instance.
-
-    Raises:
-        RuntimeError: If neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set.
+        a litellm.completion / embedding compatible function.
     """
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
-
-    if openai_api_key := os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
-
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
-
-        return AsyncAzureOpenAI(
-            api_version=api_version,
-            azure_endpoint=azure_endpoint,
-            api_key=azure_api_key,
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
+    return litellm
 
 
 def make_agent[T](cls: type[T]) -> Agent[None, T]:
-    """Create Pydantic AI agent using hardcoded preferences."""
+    """
+    Create PydanticAI agent using LiteLLM as the backend.
+    """
     from pydantic_ai import NativeOutput, ToolOutput
-    from pydantic_ai.models.openai import OpenAIModel
-    from pydantic_ai.providers.azure import AzureProvider
+    from pydantic_ai.models.litellm import LiteLLMModel  # <-- key change
 
-    # Prefer straight OpenAI over Azure OpenAI.
-    if os.getenv("OPENAI_API_KEY"):
-        Wrapper = NativeOutput
-        print(f"## Using OpenAI with {Wrapper.__name__} ##")
-        model = OpenAIModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
+    # Prefer straight OpenAI models, but LiteLLM handles routing.
+    Wrapper = NativeOutput
 
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
+    print("## Using LiteLLM backend ##")
 
-        print(f"## {azure_endpoint} ##")
-        Wrapper = ToolOutput
-
-        print(f"## Using Azure {api_version} with {Wrapper.__name__} ##")
-        model = OpenAIModel(
-            "gpt-4o",
-            provider=AzureProvider(
-                azure_endpoint=azure_endpoint,
-                api_version=api_version,
-                api_key=azure_api_key,
-            ),
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
+    model = LiteLLMModel(
+        model="gpt-4o",       
+        max_retries=3,
+    )
 
     return Agent(model, output_type=Wrapper(cls, strict=True), retries=3)
