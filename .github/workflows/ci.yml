@@ -8,8 +8,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.12', '3.13', '3.14']
         task: [check, test, format]
+        exclude:
+        - os: windows-latest
+          python-version: '3.13'
+        - os: windows-latest
+          python-version: '3.14'
     name: ${{ matrix.task }} (py ${{ matrix.python-version }})
 
     steps:
