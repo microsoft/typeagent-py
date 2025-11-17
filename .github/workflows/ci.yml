@@ -30,39 +30,12 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
 
-      - name: Install make (Windows)
-        if: runner.os == 'Windows'
-        run: choco install make
-        shell: pwsh
-
-      # Linux/macOS version of command selection
-      - name: Select command (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Run commands
         run: |
-          case "${{ matrix.task }}" in
-            check)  echo "CMD=make check" >> $GITHUB_ENV ;;
-            test)   echo "CMD=make test" >> $GITHUB_ENV ;;
-            format) echo "CMD=make format FLAGS=--check" >> $GITHUB_ENV ;;
-          esac
-
-      # Windows version of command selection
-      - name: Select command (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          if ("${{ matrix.task }}" -eq "check")  { echo "CMD=make check" >> $env:GITHUB_ENV }
-          if ("${{ matrix.task }}" -eq "test")   { echo "CMD=make test" >> $env:GITHUB_ENV }
-          if ("${{ matrix.task }}" -eq "format") { echo "CMD=make format FLAGS=--check" >> $env:GITHUB_ENV }
-        shell: pwsh
-
-      - name: Run
-        run: |
-          echo "Running: $env:CMD"
-          $env:CMD
-        shell: pwsh
-        if: runner.os == 'Windows'
-
-      - name: Run
-        run: |
-          echo "Running: $CMD"
-          $CMD
-        if: runner.os != 'Windows'
+          if [ "${{ matrix.task }}" = "check" ]; then
+            uv run pyright typeagent test tools gmail
+          elif [ "${{ matrix.task }}" = "test" ]; then
+            uv run pytest
+          elif [ "${{ matrix.task }}" = "format" ]; then
+            uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
+          fi
