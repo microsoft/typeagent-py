@@ -31,19 +31,19 @@ goto end
 
 :check
 if not exist ".venv\" call make.bat venv
-echo Running checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python typeagent test
+echo Running type checks...
+.venv\Scripts\pyright --pythonpath .venv\Scripts\python typeagent test tools gmail demo
 goto end
 
 :test
 if not exist ".venv\" call make.bat venv
-echo Running tests...
+echo Running unit tests...
 .venv\Scripts\python -m pytest
 goto end
 
 :demo
 if not exist ".venv\" call make.bat venv
-echo Running demo...
+echo Running query tool...
 .venv\Scripts\python -m tools.query
 goto end
 
@@ -73,6 +73,7 @@ echo    (Sorry, I have no idea how to do that in cmd.exe.)
 goto end
 
 :clean
+echo Cleaning out build and dev artifacts...
 if exist build rmdir /s /q build
 if exist dist rmdir /s /q dist
 if exist typeagent.egg-info rmdir /s /q typeagent.egg-info
