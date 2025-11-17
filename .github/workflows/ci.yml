@@ -4,13 +4,19 @@ on: [push, pull_request]
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python-version: ['3.12', '3.13', '3.14']
         task: [check, test, format]
-    name: ${{ matrix.task }} (py ${{ matrix.python-version }})
+        exclude:
+        - os: windows-latest
+          python-version: '3.13'
+        - os: windows-latest
+          python-version: '3.14'
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} ${{ matrix.task }} (py ${{ matrix.python-version }})
 
     steps:
       - uses: actions/checkout@v4
@@ -21,18 +27,27 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        run: |
-          set -euxo pipefail
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v7
 
-      - name: Select command
+      - name: Install Dependencies
+        shell: bash
         run: |
-          case "${{ matrix.task }}" in
-            check)  echo "CMD=make check" >> $GITHUB_ENV ;;
-            test)   echo "CMD=make test" >> $GITHUB_ENV ;;
-            format) echo "CMD=make format FLAGS=--check" >> $GITHUB_ENV ;;
-          esac
+            uv sync --extra dev
 
-      - name: Run
-        run: $CMD
+      - name: Run Check
+        shell: bash
+        if: matrix.task == 'check'
+        run: |
+            uv run pyright typeagent test tools gmail
+
+      - name: Run Format
+        shell: bash
+        if: matrix.task == 'format'
+        run: |
+            uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
+
+      - name: Run Test
+        shell: bash
+        if: matrix.task == 'test'
+        run: |
+            uv run pytest
