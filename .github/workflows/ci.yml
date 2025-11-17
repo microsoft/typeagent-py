@@ -29,30 +29,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Run commands
+      - name: Run Check
         shell: bash
-        if: runner.os != 'Windows'
+        if: matrix.task == 'check'
         run: |
-          uv sync --extra dev
-          if [ "${{ matrix.task }}" = "check" ]; then
             uv run pyright typeagent test tools gmail
-          elif [ "${{ matrix.task }}" = "test" ]; then
-            uv run pytest
-          elif [ "${{ matrix.task }}" = "format" ]; then
-            uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
-          fi
 
-      - name: Run commands (Windows)
-        shell: pwsh
-        if: runner.os == 'Windows'
+      - name: Run Format
+        shell: bash
+        if: matrix.task == 'format'
         run: |
-          uv sync --extra dev
-          if ("${{ matrix.task }}" -eq "check") {
-            uv run pyright typeagent test tools gmail
-          }
-          elseif ("${{ matrix.task }}" -eq "test") {
-            uv run pytest
-          }
-          elseif ("${{ matrix.task }}" -eq "format") {
             uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
-          }
+
+      - name: Run Test
+        shell: bash
+        if: matrix.task == 'test'
+        run: |
+            uv run pytest
