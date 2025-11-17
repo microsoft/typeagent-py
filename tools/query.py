@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 import difflib
 import json
+import os
 import re
 import shlex
 import shutil
@@ -20,10 +21,13 @@ import typing
 from colorama import init as colorama_init, Fore
 import numpy as np
 
+readline = None
 try:
-    import readline
+    if os.name != "nt":
+        import readline
 except ImportError:
-    readline = None
+    pass
+
 import typechat
 
 from typeagent.aitools import embeddings
