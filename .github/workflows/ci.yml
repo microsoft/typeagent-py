@@ -16,7 +16,8 @@ jobs:
           python-version: '3.13'
         - os: windows-latest
           python-version: '3.14'
-    name: ${{ matrix.task }} (py ${{ matrix.python-version }})
+
+    name: ${{ matrix.task }} (py ${{ matrix.python-version }}) ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
