@@ -32,6 +32,7 @@ jobs:
 
       - name: Run commands
         run: |
+          uv sync --extra dev
           if [ "${{ matrix.task }}" = "check" ]; then
             uv run pyright typeagent test tools gmail
           elif [ "${{ matrix.task }}" = "test" ]; then
