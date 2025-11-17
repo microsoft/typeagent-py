@@ -55,4 +55,14 @@ jobs:
         shell: pwsh
 
       - name: Run
-        run: $CMD
+        run: |
+          echo "Running: $env:CMD"
+          $env:CMD
+        shell: pwsh
+        if: runner.os == 'Windows'
+
+      - name: Run
+        run: |
+          echo "Running: $CMD"
+          $CMD
+        if: runner.os != 'Windows'
