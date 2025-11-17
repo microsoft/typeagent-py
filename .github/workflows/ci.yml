@@ -29,13 +29,30 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Select command
+
+      - name: Install make (Windows)
+        if: runner.os == 'Windows'
+        run: choco install make
+        shell: pwsh
+
+      # Linux/macOS version of command selection
+      - name: Select command (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           case "${{ matrix.task }}" in
             check)  echo "CMD=make check" >> $GITHUB_ENV ;;
             test)   echo "CMD=make test" >> $GITHUB_ENV ;;
             format) echo "CMD=make format FLAGS=--check" >> $GITHUB_ENV ;;
           esac
+
+      # Windows version of command selection
+      - name: Select command (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if ("${{ matrix.task }}" -eq "check")  { echo "CMD=make check" >> $env:GITHUB_ENV }
+          if ("${{ matrix.task }}" -eq "test")   { echo "CMD=make test" >> $env:GITHUB_ENV }
+          if ("${{ matrix.task }}" -eq "format") { echo "CMD=make format FLAGS=--check" >> $env:GITHUB_ENV }
+        shell: pwsh
 
       - name: Run
         run: $CMD
