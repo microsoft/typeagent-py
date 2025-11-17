@@ -4,7 +4,6 @@ on: [push, pull_request]
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -16,8 +15,8 @@ jobs:
           python-version: '3.13'
         - os: windows-latest
           python-version: '3.14'
-
-    name: ${{ matrix.task }} (py ${{ matrix.python-version }}) ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} ${{ matrix.task }} (py ${{ matrix.python-version }})
 
     steps:
       - uses: actions/checkout@v4
