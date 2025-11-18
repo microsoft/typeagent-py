@@ -95,7 +95,7 @@ async def test_all_index_creation(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test that all 6 index types are created and accessible in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     # Test all index types are created and return proper interface objects
     conv_index = await storage_provider.get_semantic_ref_index()
@@ -128,7 +128,7 @@ async def test_index_persistence(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test that same index instance is returned across calls in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     # All index types should return same instance across calls
     conv1 = await storage_provider.get_semantic_ref_index()
@@ -149,7 +149,7 @@ async def test_message_collection_basic_operations(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test basic message collection operations work identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     # Create message collection
     collection = await storage_provider.get_message_collection()
@@ -189,7 +189,7 @@ async def test_semantic_ref_collection_basic_operations(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test basic semantic ref collection operations work identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     # Create semantic ref collection
     collection = await storage_provider.get_semantic_ref_collection()
@@ -198,17 +198,17 @@ async def test_semantic_ref_collection_basic_operations(
     assert await collection.size() == 0
 
     # Test adding semantic refs
-    ref1 = make_test_semantic_ref(0)
-    ref2 = make_test_semantic_ref(1)
-    ref3 = make_test_semantic_ref(2)
+    ref0 = make_test_semantic_ref(0)
+    ref1 = make_test_semantic_ref(1)
+    ref2 = make_test_semantic_ref(2)
 
-    await collection.append(ref1)
+    await collection.append(ref0)
     assert await collection.size() == 1
 
-    await collection.append(ref2)
+    await collection.append(ref1)
     assert await collection.size() == 2
 
-    await collection.append(ref3)
+    await collection.append(ref2)
     assert await collection.size() == 3
 
     # Test basic retrieval
@@ -245,7 +245,7 @@ async def test_semantic_ref_index_behavior_parity(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth
 ):
     """Test that semantic ref index behaves identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     conv_index = await storage_provider.get_semantic_ref_index()
 
@@ -282,7 +282,7 @@ async def test_message_text_index_interface_parity(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test that message text index interface works identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     msg_index = await storage_provider.get_message_text_index()
 
@@ -297,7 +297,7 @@ async def test_related_terms_index_interface_parity(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test that related terms index interface works identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     rel_index = await storage_provider.get_related_terms_index()
 
@@ -315,7 +315,7 @@ async def test_conversation_threads_interface_parity(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test that conversation threads interface works identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     threads = await storage_provider.get_conversation_threads()
 
@@ -326,7 +326,7 @@ async def test_conversation_threads_interface_parity(
 # Cross-provider validation tests
 @pytest.mark.asyncio
 async def test_cross_provider_message_collection_equivalence(
-    embedding_model, temp_db_path, needs_auth
+    embedding_model: AsyncEmbeddingModel, temp_db_path: str, needs_auth: None
 ):
     """Test that both providers handle message collections equivalently."""
     # Create both providers with identical settings
@@ -470,7 +470,7 @@ async def test_property_index_basic_operations(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test basic property index operations work identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     prop_index = await storage_provider.get_property_index()
 
@@ -489,7 +489,7 @@ async def test_timestamp_index_range_queries(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test timestamp index range query functionality in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     timestamp_index = await storage_provider.get_timestamp_index()
 
@@ -677,7 +677,7 @@ async def test_collection_operations_comprehensive(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Comprehensive test of collection operations in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _ = storage_provider_type
 
     # Test message collection operations
     message_collection = await storage_provider.get_message_collection()
@@ -696,7 +696,13 @@ async def test_collection_operations_comprehensive(
         await message_collection.append(msg)
 
     # Test final size
-    assert await message_collection.size() == 3
+    assert await message_collection.size() == len(test_messages)
+
+    # Test iteration
+    collection_list = [item async for item in message_collection]
+    assert len(collection_list) == 3
+    for i, msg in enumerate(collection_list):
+        assert msg.text_chunks == test_messages[i].text_chunks
 
     # Test get_item for all messages
     for i, expected_msg in enumerate(test_messages):
@@ -704,11 +710,26 @@ async def test_collection_operations_comprehensive(
         assert isinstance(retrieved_msg, DummyTestMessage)
         assert retrieved_msg.text_chunks == expected_msg.text_chunks
 
+    # Test get_item with out-of-bounds index
+    with pytest.raises(IndexError):
+        await message_collection.get_item(-1)
+        await message_collection.get_item(len(test_messages) + 1)
+
     # Test get_slice
     slice_result = await message_collection.get_slice(1, 3)
     assert len(slice_result) == 2
     assert slice_result[0].text_chunks == test_messages[1].text_chunks
     assert slice_result[1].text_chunks == test_messages[2].text_chunks
+    # Edge case: slice to end
+    slice_to_end = await message_collection.get_slice(2, 10)
+    assert len(slice_to_end) == 1
+    assert slice_to_end[0].text_chunks == test_messages[2].text_chunks
+    # Edge case: empty slice
+    empty_slice = await message_collection.get_slice(1, 1)
+    assert len(empty_slice) == 0
+    # Edge case: empty slice out of bounds
+    out_of_bounds_slice = await message_collection.get_slice(5, 10)
+    assert len(out_of_bounds_slice) == 0
 
     # Test get_multiple
     multiple_result = await message_collection.get_multiple([2, 0])
@@ -722,9 +743,15 @@ async def test_collection_operations_comprehensive(
     # Edge case: empty list
     no_result = await message_collection.get_multiple([])
     assert len(no_result) == 0
+    # Edge case: duplicate index
+    result = await message_collection.get_multiple([0, 0, 1])
+    assert len(result) == 3
+    assert result[0].text_chunks == test_messages[0].text_chunks
+    assert result[1].text_chunks == test_messages[0].text_chunks
+    assert result[2].text_chunks == test_messages[1].text_chunks
 
-    # Test iteration
-    collection_list = [item async for item in message_collection]
-    assert len(collection_list) == 3
-    for i, msg in enumerate(collection_list):
-        assert msg.text_chunks == test_messages[i].text_chunks
+    # Test that out-of-bounds in get_multiple raises IndexError
+    with pytest.raises(IndexError):
+        await message_collection.get_multiple([0, 5])
+    with pytest.raises(IndexError):
+        await message_collection.get_multiple([-1, 1])
