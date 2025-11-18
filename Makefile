@@ -64,21 +64,14 @@ venv: .venv
 	@.venv/bin/pyright --version
 	@.venv/bin/pytest --version
 
+.PHONY: install-uv
 install-uv:
 	curl -Ls https://astral.sh/uv/install.sh | sh
 
+.PHONY: install-libatomic
 install-libatomic:
-	@if ldconfig -p | grep -q libatomic.so.1; then \
-		echo "libatomic already installed"; \
-	else \
-		echo "Installing libatomic..."; \
-		if command -v apt-get >/dev/null 2>&1; then \
-			sudo apt-get update && sudo apt-get install -y libatomic1; \
-		else \
-			echo "No supported package manager found. Please install libatomic manually."; \
-			exit 1; \
-		fi \
-	fi
+	sudo apt-get update
+	sudo apt-get install -y libatomic1
 
 .PHONY: clean
 clean:
