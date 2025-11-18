@@ -5,8 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "typeagent"
 version = "0.3.2"
-description = "Typeagent implements an agentic memory framework"
+description = "Incremental message indexing and querying pipelines using Structured RAG"
 readme = { file = "README.md", content-type = "text/markdown" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
   { name = "Guido van Rossum", email = "gvanrossum@microsoft.com" },
   { name = "Steven Lucco" },
@@ -17,7 +19,6 @@ requires-python = ">=3.12"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
@@ -31,12 +32,10 @@ dependencies = [
   "azure-identity>=1.22.0",
   "black>=25.1.0",
   "colorama>=0.4.6",
-  "logfire>=4.1.0",
   "mcp[cli]>=1.12.1",
   "numpy>=2.2.6",
   "openai>=1.81.0",
   "pydantic>=2.11.4",
-  "pydantic-ai-slim[openai]>=0.5.0",
   "python-dotenv>=1.1.0",
   "tiktoken>=0.12.0",
   "typechat>=0.0.4",
@@ -49,7 +48,9 @@ dev = [
   "google-api-python-client>=2.184.0",
   "google-auth-httplib2>=0.2.0",
   "google-auth-oauthlib>=1.2.2",
+  "logfire>=4.1.0",
   "opentelemetry-instrumentation-httpx>=0.57b0",
+  "pydantic-ai-slim[openai]>=0.5.0",
   "pyright==1.1.406",  # 407 has a regression
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
