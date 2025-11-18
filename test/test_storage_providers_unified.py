@@ -694,12 +694,18 @@ async def test_collection_operations_comprehensive(
     assert slice_result[0].text_chunks == test_messages[1].text_chunks
     assert slice_result[1].text_chunks == test_messages[2].text_chunks
 
-    # Test get_multiple if available (provider-specific)
-    if hasattr(message_collection, "get_multiple"):
-        multiple_result = await message_collection.get_multiple([0, 2])
-        assert len(multiple_result) == 2
-        assert multiple_result[0].text_chunks == test_messages[0].text_chunks
-        assert multiple_result[1].text_chunks == test_messages[2].text_chunks
+    # Test get_multiple
+    multiple_result = await message_collection.get_multiple([0, 2])
+    assert len(multiple_result) == 2
+    assert multiple_result[0].text_chunks == test_messages[0].text_chunks
+    assert multiple_result[1].text_chunks == test_messages[2].text_chunks
+    # Edge case: singleton list
+    single_result = await message_collection.get_multiple([1])
+    assert len(single_result) == 1
+    assert single_result[0].text_chunks == test_messages[1].text_chunks
+    # Edge case: empty list
+    no_result = await message_collection.get_multiple([])
+    assert len(no_result) == 0
 
     # Test iteration
     collection_list = [item async for item in message_collection]

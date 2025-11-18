@@ -315,12 +315,20 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         return [self._deserialize_semantic_ref_from_row(row) for row in rows]
 
     async def get_multiple(self, arg: list[int]) -> list[interfaces.SemanticRef]:
-        # TODO: Do we really want to support this?
-        # If so, we should probably try to optimize it.
-        results = []
-        for i in arg:
-            results.append(await self.get_item(i))
-        return results
+        if not arg:
+            return []
+        if len(arg) == 1:
+            return [await self.get_item(arg[0])]
+        cursor = self.db.cursor()
+        cursor.execute(
+            """
+            SELECT semref_id, range_json, knowledge_type, knowledge_json
+            FROM SemanticRefs WHERE semref_id IN {tuple(arg)}
+            ORDER BY semref_id
+            """
+        )
+        rows = cursor.fetchall()
+        return [self._deserialize_semantic_ref_from_row(row) for row in rows]
 
     async def append(self, item: interfaces.SemanticRef) -> None:
         cursor = self.db.cursor()

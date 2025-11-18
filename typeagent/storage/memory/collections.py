@@ -43,7 +43,7 @@ class MemoryCollection[T, TOrdinal: int](ICollection[T, TOrdinal]):
 
     async def get_multiple(self, arg: list[TOrdinal]) -> list[T]:
         """Retrieve multiple items by their ordinals."""
-        return [await self.get_item(ordinal) for ordinal in arg]
+        return [self.items[ordinal] for ordinal in arg]
 
     @property
     def is_persistent(self) -> bool:
