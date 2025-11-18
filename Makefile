@@ -60,11 +60,25 @@ venv: .venv
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
 	uv sync -q --extra dev
 	@.venv/bin/black --version | sed 's/, / /'
+	@echo "(If 'pyright' fails with 'error while loading shared libraries: libatomic.so.1:', try 'make install-libatomic')"
 	@.venv/bin/pyright --version
 	@.venv/bin/pytest --version
 
 install-uv:
 	curl -Ls https://astral.sh/uv/install.sh | sh
+
+install-libatomic:
+	@if ldconfig -p | grep -q libatomic.so.1; then \
+		echo "libatomic already installed"; \
+	else \
+		echo "Installing libatomic..."; \
+		if command -v apt-get >/dev/null 2>&1; then \
+			sudo apt-get update && sudo apt-get install -y libatomic1; \
+		else \
+			echo "No supported package manager found. Please install libatomic manually."; \
+			exit 1; \
+		fi \
+	fi
 
 .PHONY: clean
 clean:
@@ -88,3 +102,4 @@ help:
 	@echo "make venv        # Create .venv/"
 	@echo "make clean       # Remove build/, dist/, .venv/, *.egg-info/"
 	@echo "make install-uv  # Install uv (if not already installed)"
+	@echo "make install-libatomic  # Install libatomic (if not already installed)"
