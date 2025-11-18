@@ -186,7 +186,7 @@ async def test_message_collection_basic_operations(
 
 @pytest.mark.asyncio
 async def test_semantic_ref_collection_basic_operations(
-    storage_provider_type, needs_auth
+    storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test basic semantic ref collection operations work identically in both providers."""
     storage_provider, provider_type = storage_provider_type
@@ -198,8 +198,9 @@ async def test_semantic_ref_collection_basic_operations(
     assert await collection.size() == 0
 
     # Test adding semantic refs
-    ref1 = make_test_semantic_ref(1)
-    ref2 = make_test_semantic_ref(2)
+    ref1 = make_test_semantic_ref(0)
+    ref2 = make_test_semantic_ref(1)
+    ref3 = make_test_semantic_ref(2)
 
     await collection.append(ref1)
     assert await collection.size() == 1
@@ -207,21 +208,36 @@ async def test_semantic_ref_collection_basic_operations(
     await collection.append(ref2)
     assert await collection.size() == 2
 
-    # Test retrieval - SQLite uses ordinal as ID, memory uses index
-    # Try to get the first semantic ref we added
-    if provider_type == "sqlite":
-        # For SQLite, use the semantic_ref_ordinal as the ID
-        retrieved_ref = await collection.get_item(1)  # ordinal 1
-    else:
-        # For memory, use index
-        retrieved_ref = await collection.get_item(0)  # first item
+    await collection.append(ref3)
+    assert await collection.size() == 3
 
-    assert isinstance(retrieved_ref, SemanticRef)
-    assert retrieved_ref.semantic_ref_ordinal == 1
+    # Test basic retrieval
+    for ordinal in range(3):
+        retrieved_ref = await collection.get_item(ordinal)
+        assert isinstance(retrieved_ref, SemanticRef)
+        assert retrieved_ref.semantic_ref_ordinal == ordinal
 
     # Test iteration
     ref_list = [item async for item in collection]
+    assert len(ref_list) == 3
+    assert all(isinstance(r, SemanticRef) for r in ref_list)
+    assert ref_list[0].semantic_ref_ordinal == 0
+    assert ref_list[1].semantic_ref_ordinal == 1
+    assert ref_list[2].semantic_ref_ordinal == 2
+
+    # Test slicing
+    ref_list = await collection.get_slice(1, 4)  # Note: end is out of bounds
     assert len(ref_list) == 2
+    assert all(isinstance(r, SemanticRef) for r in ref_list)
+    assert ref_list[0].semantic_ref_ordinal == 1
+    assert ref_list[1].semantic_ref_ordinal == 2
+
+    # Test get_multiple
+    ref_list = await collection.get_multiple([2, 0])
+    assert len(ref_list) == 2
+    assert all(isinstance(r, SemanticRef) for r in ref_list)
+    assert ref_list[0].semantic_ref_ordinal == 2
+    assert ref_list[1].semantic_ref_ordinal == 0
 
 
 @pytest.mark.asyncio
@@ -695,10 +711,10 @@ async def test_collection_operations_comprehensive(
     assert slice_result[1].text_chunks == test_messages[2].text_chunks
 
     # Test get_multiple
-    multiple_result = await message_collection.get_multiple([0, 2])
+    multiple_result = await message_collection.get_multiple([2, 0])
     assert len(multiple_result) == 2
-    assert multiple_result[0].text_chunks == test_messages[0].text_chunks
-    assert multiple_result[1].text_chunks == test_messages[2].text_chunks
+    assert multiple_result[0].text_chunks == test_messages[2].text_chunks
+    assert multiple_result[1].text_chunks == test_messages[0].text_chunks
     # Edge case: singleton list
     single_result = await message_collection.get_multiple([1])
     assert len(single_result) == 1
