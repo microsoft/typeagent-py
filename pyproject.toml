@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=67", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.9.10,<0.10.0"]
+build-backend = "uv_build"
 
 [project]
 name = "typeagent"
@@ -60,24 +60,9 @@ dev = [
 [project.urls]
 GitHub = "https://github.com/microsoft/typeagent-py"
 Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README.md"
-[tool.setuptools]
-# Needed so setuptools doesn't complain about testdata.
-packages = [
-    "typeagent",
-    "typeagent.aitools",
-    "typeagent.emails",
-    "typeagent.knowpro",
-    "typeagent.mcp",
-    "typeagent.podcasts",
-    "typeagent.storage",
-    "typeagent.storage.memory",
-    "typeagent.storage.sqlite",
-    "typeagent.transcripts",
-]
 
-[tool.setuptools.package-data]
-"typeagent.podcasts" = ["*.json"]
-"typeagent.emails" = ["*.json", "*.txt"]
+[tool.uv.build-backend]
+module-root = ""
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
