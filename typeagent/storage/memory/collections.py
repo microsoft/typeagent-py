@@ -43,6 +43,9 @@ class MemoryCollection[T, TOrdinal: int](ICollection[T, TOrdinal]):
 
     async def get_multiple(self, arg: list[TOrdinal]) -> list[T]:
         """Retrieve multiple items by their ordinals."""
+        size = len(self.items)
+        if not all((0 <= i < size) for i in arg):
+            raise IndexError("One or more indices are out of bounds")
         return [self.items[ordinal] for ordinal in arg]
 
     @property
