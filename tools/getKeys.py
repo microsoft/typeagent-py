@@ -475,8 +475,8 @@ async def push_secret(
 
     if secret_key in secrets:
         print(f"  {secret_key} changed.")
-        print(f"    Current value: {secret_value}")
-        print(f"    New value: {value}")
+        print(f"    Current value: [REDACTED]")
+        print(f"    New value: [REDACTED]")
         answer = input(
             f"  Are you sure you want to overwrite the value of {secret_key}? (y/n): "
         )
