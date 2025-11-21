@@ -117,7 +117,6 @@ class AzPIMClient:
             options['roleName'],
             scope
         )
-        
         # Get principal ID
         principal_id = await self.get_principal_id(options.get('continueOnFailure', False))
         
@@ -176,7 +175,7 @@ class AzPIMClient:
                 f"ERROR: Unable to find the requested role '{role_name}'. Are you certain you are logged into the correct subscription?",
                 Colors.RED
             ))
-            sys.exit(13)
+            raise Exception(f"Unable to find the role '{role_name}'.")
     
     async def get_principal_id(self, continue_on_failure: bool = False) -> str:
         """Get the principal ID of the current user."""
@@ -324,6 +323,7 @@ async def get_secrets(client: AzCliKeyVaultClient, vault_name: str, shared: bool
             secret_name = secret['id'].split('/')[-1]
             try:
                 response = client.read_secret(vault_name, secret_name)
+                print(colored(f"  Found secret: {secret_name}", Colors.GREEN))
                 return (secret_name, response['value'])
             except Exception as e:
                 print(colored(f"Failed to read secret {secret_name}: {e}", Colors.YELLOW))
