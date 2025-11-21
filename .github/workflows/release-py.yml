@@ -101,7 +101,7 @@ jobs:
 
       - name: Get Keys
         run: |
-            dir dist
+            dir 
             uv run python tools/getKeys.py --vault build-pipeline-kv
         working-directory: dist
 
