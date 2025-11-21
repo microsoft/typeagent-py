@@ -16,21 +16,16 @@ from typing import Dict, List, Optional, Set, Tuple
 # Azure SDK imports
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.authorization import AuthorizationManagementClient
+import colorama
+from colorama import Fore, Style
 
-
-# ANSI color codes for terminal output
-class Colors:
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    CYAN = "\033[96m"
-    RESET = "\033[0m"
+# Initialize colorama for cross-platform color support
+colorama.init(autoreset=True)
 
 
 def colored(text: str, color: str) -> str:
     """Add color to terminal output."""
-    return f"{color}{text}{Colors.RESET}"
+    return f"{color}{text}{Style.RESET_ALL}"
 
 
 # Get script directory and config
@@ -77,9 +72,9 @@ async def get_az_cli_logged_in_info(print_info: bool = True) -> AzCliLoggedInInf
         )
 
         if print_info:
-            print(f"Logged in as {colored(info.user, Colors.CYAN)}")
+            print(f"Logged in as {colored(info.user, Fore.CYAN)}")
             print(
-                f"Subscription: {colored(info.subscription_name, Colors.CYAN)} ({colored(info.subscription_id, Colors.CYAN)})"
+                f"Subscription: {colored(info.subscription_name, Fore.CYAN)} ({colored(info.subscription_id, Fore.CYAN)})"
             )
 
         return info
@@ -142,7 +137,7 @@ class AzPIMClient:
         }
 
         print(
-            f"Elevating {colored(principal_id, Colors.CYAN)} to {colored(options['roleName'], Colors.CYAN)} for {colored(options['expirationDuration'], Colors.CYAN)}"
+            f"Elevating {colored(principal_id, Fore.CYAN)} to {colored(options['roleName'], Fore.CYAN)} for {colored(options['expirationDuration'], Fore.CYAN)}"
         )
 
         try:
@@ -155,15 +150,13 @@ class AzPIMClient:
             print(result)
             print(
                 colored(
-                    f"ELEVATION SUCCESSFUL for role {options['roleName']}", Colors.GREEN
+                    f"ELEVATION SUCCESSFUL for role {options['roleName']}", Fore.GREEN
                 )
             )
         except Exception as e:
             print(e)
             print(
-                colored(
-                    f"Unable to elevate for role {options['roleName']}.", Colors.RED
-                )
+                colored(f"Unable to elevate for role {options['roleName']}.", Fore.RED)
             )
 
     async def get_role_definition_id(
@@ -196,14 +189,14 @@ class AzPIMClient:
             role_id = role.expanded_properties.role_definition.id
             if role_id:
                 print(
-                    f"Found Role Definition {colored(role_name, Colors.CYAN)} with id {colored(role_id, Colors.CYAN)}"
+                    f"Found Role Definition {colored(role_name, Fore.CYAN)} with id {colored(role_id, Fore.CYAN)}"
                 )
                 return role_id
 
         print(
             colored(
                 f"ERROR: Unable to find the requested role '{role_name}'. Are you certain you are logged into the correct subscription?",
-                Colors.RED,
+                Fore.RED,
             )
         )
         raise Exception(f"Unable to find the role '{role_name}'.")
@@ -225,7 +218,7 @@ class AzPIMClient:
                 print(
                     colored(
                         "ERROR: Unable to get principal id of the current user.",
-                        Colors.RED,
+                        Fore.RED,
                     )
                 )
                 sys.exit(12)
@@ -247,13 +240,13 @@ class AzCliKeyVaultClient:
                 check=True,
             )
             account = json.loads(result.stdout)
-            print(f"Logged in as {colored(account['user']['name'], Colors.CYAN)}")
+            print(f"Logged in as {colored(account['user']['name'], Fore.CYAN)}")
             return AzCliKeyVaultClient()
         except subprocess.CalledProcessError:
             print(
                 colored(
                     "ERROR: User not logged in to Azure CLI. Run 'az login'.",
-                    Colors.RED,
+                    Fore.RED,
                 )
             )
             sys.exit(1)
@@ -261,7 +254,7 @@ class AzCliKeyVaultClient:
             print(
                 colored(
                     "ERROR: Azure CLI is not installed. Install it and run 'az login' before running this tool.",
-                    Colors.RED,
+                    Fore.RED,
                 )
             )
             sys.exit(1)
@@ -332,7 +325,7 @@ async def get_secret_list_with_elevation(
 
         # Try to elevate to Key Vault Administrator
         try:
-            print(colored("Elevating to get secrets...", Colors.YELLOW))
+            print(colored("Elevating to get secrets...", Fore.YELLOW))
             pim_client = await AzPIMClient.create()
             await pim_client.elevate(
                 {
@@ -344,8 +337,8 @@ async def get_secret_list_with_elevation(
                 }
             )
 
-            print(colored("Elevation successful.", Colors.GREEN))
-            print(colored("Waiting 5 seconds...", Colors.YELLOW))
+            print(colored("Elevation successful.", Fore.GREEN))
+            print(colored("Waiting 5 seconds...", Fore.YELLOW))
             await asyncio.sleep(5)
 
             return client.get_secrets(vault_name)
@@ -353,13 +346,13 @@ async def get_secret_list_with_elevation(
             print(
                 colored(
                     "Elevation to key vault admin failed...attempting to get secrets as key vault reader.",
-                    Colors.YELLOW,
+                    Fore.YELLOW,
                 )
             )
 
         # Try to elevate to Key Vault Secrets User
         try:
-            print(colored("Elevating to get secrets...", Colors.YELLOW))
+            print(colored("Elevating to get secrets...", Fore.YELLOW))
             pim_client = await AzPIMClient.create()
             await pim_client.elevate(
                 {
@@ -371,14 +364,14 @@ async def get_secret_list_with_elevation(
                 }
             )
 
-            print(colored("Elevation successful.", Colors.GREEN))
-            print(colored("Waiting 5 seconds...", Colors.YELLOW))
+            print(colored("Elevation successful.", Fore.GREEN))
+            print(colored("Waiting 5 seconds...", Fore.YELLOW))
             await asyncio.sleep(5)
         except Exception:
             print(
                 colored(
                     "Elevation failed...attempting to get secrets without elevation.",
-                    Colors.YELLOW,
+                    Fore.YELLOW,
                 )
             )
 
@@ -390,7 +383,7 @@ async def get_secrets(
 ) -> List[Tuple[str, str]]:
     """Get all enabled secrets from a vault."""
     print(
-        f"Getting existing {'shared' if shared else 'private'} secrets from {colored(vault_name, Colors.CYAN)} key vault."
+        f"Getting existing {'shared' if shared else 'private'} secrets from {colored(vault_name, Fore.CYAN)} key vault."
     )
 
     secret_list = await get_secret_list_with_elevation(client, vault_name)
@@ -401,13 +394,13 @@ async def get_secrets(
             secret_name = secret["id"].split("/")[-1]
             try:
                 response = client.read_secret(vault_name, secret_name)
-                print(colored(f"  Found secret: {secret_name[:3]}***", Colors.GREEN))
+                print(colored(f"  Found secret: {secret_name[:3]}***", Fore.GREEN))
                 return (secret_name, response["value"])
             except Exception as e:
                 print(
                     colored(
                         f"Failed to read secret {secret_name[:3]}***: {e}",
-                        Colors.YELLOW,
+                        Fore.YELLOW,
                     )
                 )
                 return None
@@ -574,8 +567,8 @@ async def pull_secrets_from_vault(
     if not secrets:
         print(
             colored(
-                f"WARNING: No secrets found in key vault {colored(vault_name, Colors.CYAN)}.",
-                Colors.YELLOW,
+                f"WARNING: No secrets found in key vault {colored(vault_name, Fore.CYAN)}.",
+                Fore.YELLOW,
             )
         )
         return None
@@ -599,7 +592,7 @@ async def pull_secrets():
     client = await AzCliKeyVaultClient.create()
     vault_names = get_vault_names(dotenv)
 
-    print(f"Pulling secrets to {colored(str(DOTENV_PATH), Colors.CYAN)}")
+    print(f"Pulling secrets to {colored(str(DOTENV_PATH), Fore.CYAN)}")
 
     shared_vault = vault_names["shared"]
     assert shared_vault is not None, "Shared vault name is required"
@@ -638,11 +631,11 @@ async def pull_secrets():
         updated += 1
 
     if updated == 0:
-        print(f"\nAll values up to date in {colored(str(DOTENV_PATH), Colors.CYAN)}")
+        print(f"\nAll values up to date in {colored(str(DOTENV_PATH), Fore.CYAN)}")
         return
 
     print(
-        f"\n{updated} values updated.\nWriting '{colored(str(DOTENV_PATH), Colors.CYAN)}'."
+        f"\n{updated} values updated.\nWriting '{colored(str(DOTENV_PATH), Fore.CYAN)}'."
     )
 
     # Write back to .env file
@@ -708,12 +701,12 @@ async def main():
             print(
                 colored(
                     "ERROR: Azure CLI is not installed. Install it and run 'az login' before running this tool.",
-                    Colors.RED,
+                    Fore.RED,
                 )
             )
             sys.exit(0)
 
-        print(colored(f"FATAL ERROR: {e}", Colors.RED))
+        print(colored(f"FATAL ERROR: {e}", Fore.RED))
         import traceback
 
         traceback.print_exc()
