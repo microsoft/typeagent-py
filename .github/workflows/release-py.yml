@@ -90,6 +90,12 @@ jobs:
         run: |
           node -e "try{require('fs').unlinkSync('./.env');}catch(e){}"
         if: always()          
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/        
   
   publish:
     needs: [ "build"]
