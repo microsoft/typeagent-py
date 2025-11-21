@@ -55,8 +55,6 @@ jobs:
           name: dist
           path: dist/
 
-
-
   test:    
     environment:
       name: build-pipeline
@@ -98,7 +96,7 @@ jobs:
 
       - name: Get Keys
         run: |
-          python tools/getKeys.py --vault build-pipeline-kv
+          python ./tools/getKeys.py --vault build-pipeline-kv
 
       - name: Run Tests
         run: |
