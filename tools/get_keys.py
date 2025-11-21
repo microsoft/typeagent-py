@@ -342,10 +342,10 @@ async def get_secret_list_with_elevation(
             await asyncio.sleep(5)
 
             return client.get_secrets(vault_name)
-        except Exception:
+        except Exception as e:
             print(
                 colored(
-                    "Elevation to key vault admin failed...attempting to get secrets as key vault reader.",
+                    f"Elevation to key vault admin failed...attempting to get secrets as key vault reader.\n{repr(e)}",
                     Fore.YELLOW,
                 )
             )
@@ -367,10 +367,10 @@ async def get_secret_list_with_elevation(
             print(colored("Elevation successful.", Fore.GREEN))
             print(colored("Waiting 5 seconds...", Fore.YELLOW))
             await asyncio.sleep(5)
-        except Exception:
+        except Exception as e:
             print(
                 colored(
-                    "Elevation failed...attempting to get secrets without elevation.",
+                    f"Elevation failed...attempting to get secrets without elevation.\n{repr(e)}",
                     Fore.YELLOW,
                 )
             )
