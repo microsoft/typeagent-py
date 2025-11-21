@@ -94,10 +94,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANTID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
 
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"          
+
       - name: Get Keys
         run: |
             uv run python tools/getKeys.py --vault build-pipeline-kv
-        working-directory: ${{ github.workspace }}
 
       - name: Run Tests
         run: |
