@@ -30,6 +30,8 @@ classifiers = [
 ]
 dependencies = [
   "azure-identity>=1.22.0",
+  "azure-mgmt-authorization>=4.0.0",
+  "azure-mgmt-keyvault>=12.1.1",
   "black>=25.1.0",
   "colorama>=0.4.6",
   "mcp[cli]>=1.12.1",

@@ -39,6 +39,15 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-common"
+version = "1.1.28"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/71/f6f71a276e2e69264a97ad39ef850dca0a04fce67b12570730cb38d0ccac/azure-common-1.1.28.zip", hash = "sha256:4ac0cd3214e36b6a1b6a442686722a5d8cc449603aa833f3f0f40bda836704a3", size = 20914, upload-time = "2022-02-03T19:39:44.373Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/55/7f118b9c1b23ec15ca05d15a578d8207aa1706bc6f7c87218efffbbf875d/azure_common-1.1.28-py2.py3-none-any.whl", hash = "sha256:5c12d3dcf4ec20599ca6b0d3e09e86e146353d443e7fcc050c9a19c1f9df20ad", size = 14462, upload-time = "2022-02-03T19:39:42.417Z" },
+]
+
+[[package]]
 name = "azure-core"
 version = "1.36.0"
 source = { registry = "https://pypi.org/simple" }
@@ -65,6 +74,46 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/06/8d/1a6c41c28a37eab26dc85ab6c86992c700cd3f4a597d9ed174b0e9c69489/azure_identity-1.25.1.tar.gz", hash = "sha256:87ca8328883de6036443e1c37b40e8dc8fb74898240f61071e09d2e369361456", size = 279826, upload-time = "2025-10-06T20:30:02.194Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/83/7b/5652771e24fff12da9dde4c20ecf4682e606b104f26419d139758cc935a6/azure_identity-1.25.1-py3-none-any.whl", hash = "sha256:e9edd720af03dff020223cd269fa3a61e8f345ea75443858273bcb44844ab651", size = 191317, upload-time = "2025-10-06T20:30:04.251Z" },
+]
+
+[[package]]
+name = "azure-mgmt-authorization"
+version = "4.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-common" },
+    { name = "azure-mgmt-core" },
+    { name = "isodate" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9e/ab/e79874f166eed24f4456ce4d532b29a926fb4c798c2c609eefd916a3f73d/azure-mgmt-authorization-4.0.0.zip", hash = "sha256:69b85abc09ae64fc72975bd43431170d8c7eb5d166754b98aac5f3845de57dc4", size = 1134795, upload-time = "2023-07-25T04:47:46.033Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/b3/8ec1268082f4d20cc8bf723a1a8e6b9e330bcc338a4dbcee9c7737e9dc1c/azure_mgmt_authorization-4.0.0-py3-none-any.whl", hash = "sha256:d8feeb3842e6ddf1a370963ca4f61fb6edc124e8997b807dd025bc9b2379cd1a", size = 1072620, upload-time = "2023-07-25T04:47:49.26Z" },
+]
+
+[[package]]
+name = "azure-mgmt-core"
+version = "1.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/99/fa9e7551313d8c7099c89ebf3b03cd31beb12e1b498d575aa19bb59a5d04/azure_mgmt_core-1.6.0.tar.gz", hash = "sha256:b26232af857b021e61d813d9f4ae530465255cb10b3dde945ad3743f7a58e79c", size = 30818, upload-time = "2025-07-03T02:02:24.093Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/26/c79f962fd3172b577b6f38685724de58b6b4337a51d3aad316a43a4558c6/azure_mgmt_core-1.6.0-py3-none-any.whl", hash = "sha256:0460d11e85c408b71c727ee1981f74432bc641bb25dfcf1bb4e90a49e776dbc4", size = 29310, upload-time = "2025-07-03T02:02:25.203Z" },
+]
+
+[[package]]
+name = "azure-mgmt-keyvault"
+version = "12.1.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-mgmt-core" },
+    { name = "msrest" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/82/78/507023e96a057d07bfce7e9f6d72cde1586dcbc79e9d4d63e975937df484/azure_mgmt_keyvault-12.1.1.tar.gz", hash = "sha256:c50d99f48ef3d6540266694dac5436233a42635e1894a02f4700c9acb9d2bd6e", size = 98566, upload-time = "2025-10-09T09:01:21.995Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/62/6b/f2c07b5c45b833a2b74e3e0c2fc0d0d54648318f0b4a0117ffa5d1723935/azure_mgmt_keyvault-12.1.1-py3-none-any.whl", hash = "sha256:48b7dc7d0362fa73eb8ba94edecbadc4cfcb5946d02e1560ffeb8c8554c4869b", size = 142449, upload-time = "2025-10-09T09:01:23.509Z" },
 ]
 
 [[package]]
@@ -591,6 +640,15 @@ wheels = [
 ]
 
 [[package]]
+name = "isodate"
+version = "0.7.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/4d/e940025e2ce31a8ce1202635910747e5a87cc3a6a6bb2d00973375014749/isodate-0.7.2.tar.gz", hash = "sha256:4cd1aa0f43ca76f4a6c6c0292a85f40b35ec2e43e315b59f06e6d32171a953e6", size = 29705, upload-time = "2024-10-08T23:04:11.5Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/aa/0aca39a37d3c7eb941ba736ede56d689e7be91cab5d9ca846bde3999eba6/isodate-0.7.2-py3-none-any.whl", hash = "sha256:28009937d8031054830160fce6d409ed342816b543597cece116d966c6d99e15", size = 22320, upload-time = "2024-10-08T23:04:09.501Z" },
+]
+
+[[package]]
 name = "jiter"
 version = "0.11.1"
 source = { registry = "https://pypi.org/simple" }
@@ -785,6 +843,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/01/99/5d239b6156eddf761a636bded1118414d161bd6b7b37a9335549ed159396/msal_extensions-1.3.1.tar.gz", hash = "sha256:c5b0fd10f65ef62b5f1d62f4251d51cbcaf003fcedae8c91b040a488614be1a4", size = 23315, upload-time = "2025-03-14T23:51:03.902Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5e/75/bd9b7bb966668920f06b200e84454c8f3566b102183bc55c5473d96cb2b9/msal_extensions-1.3.1-py3-none-any.whl", hash = "sha256:96d3de4d034504e969ac5e85bae8106c8373b5c6568e4c8fa7af2eca9dbe6bca", size = 20583, upload-time = "2025-03-14T23:51:03.016Z" },
+]
+
+[[package]]
+name = "msrest"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "certifi" },
+    { name = "isodate" },
+    { name = "requests" },
+    { name = "requests-oauthlib" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/68/77/8397c8fb8fc257d8ea0fa66f8068e073278c65f05acb17dcb22a02bfdc42/msrest-0.7.1.zip", hash = "sha256:6e7661f46f3afd88b75667b7187a92829924446c7ea1d169be8c4bb7eeb788b9", size = 175332, upload-time = "2022-06-13T22:41:25.111Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/cf/f2966a2638144491f8696c27320d5219f48a072715075d168b31d3237720/msrest-0.7.1-py3-none-any.whl", hash = "sha256:21120a810e1233e5e6cc7fe40b474eeb4ec6f757a15d7cf86702c369f9567c32", size = 85384, upload-time = "2022-06-13T22:41:22.42Z" },
 ]
 
 [[package]]
@@ -1708,6 +1782,8 @@ version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
+    { name = "azure-mgmt-authorization" },
+    { name = "azure-mgmt-keyvault" },
     { name = "black" },
     { name = "colorama" },
     { name = "mcp", extra = ["cli"] },
@@ -1738,6 +1814,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
+    { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },
+    { name = "azure-mgmt-keyvault", specifier = ">=12.1.1" },
     { name = "black", specifier = ">=25.1.0" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.9.1" },
