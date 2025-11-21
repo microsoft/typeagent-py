@@ -102,7 +102,7 @@ jobs:
       - name: Get Keys
         run: |
             uv run python tools/getKeys.py --vault build-pipeline-kv
-        workindg-directory: ${{ github.workspace }}
+        working-directory: ${{ github.workspace }}
 
       - name: Run Tests
         run: |
