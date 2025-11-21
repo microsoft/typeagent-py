@@ -23,6 +23,8 @@ permissions:
 
 jobs:
   build:
+    environment:
+      name: build-pipeline
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,7 +57,7 @@ jobs:
 
 
 
-  test:
+  test:    
     needs: build
     runs-on: ubuntu-latest
     steps:
