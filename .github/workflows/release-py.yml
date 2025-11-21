@@ -49,18 +49,6 @@ jobs:
       - name: Build sdist + wheel (via make)
         run: make build                   # runs `uv build`, outputs to dist/
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-  test:    
-    environment:
-      name: build-pipeline
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
       # The following two steps (permissions checks) ensure that only users with write access can run this workflow on a PR (except the merge queue bot)
       # PRs from forks we check the permissions of the user that triggered the workflow (github.triggering_actor)
       # This means that if a user without write access opens a PR from a fork, they cannot run this workflow
@@ -82,10 +70,6 @@ jobs:
           echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
           echo "Job originally triggered by ${{ github.actor }}"
           exit 1  
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
 
       - name: Login to Azure
         uses: azure/login@v2.2.0
@@ -94,24 +78,22 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANTID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"          
-
       - name: Get Keys
         run: |
             dir 
             uv run python tools/getKeys.py --vault build-pipeline-kv
-        working-directory: dist
 
       - name: Run Tests
         run: |
           make test
 
+      - name: Clean up Keys
+        run: |
+          node -e "try{require('fs').unlinkSync('./.env');}catch(e){}"
+        if: always()          
   
   publish:
-    needs: [ "build", "test"]
+    needs: [ "build"]
     runs-on: ubuntu-latest
     environment:
       name: pypi
