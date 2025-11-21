@@ -35,7 +35,7 @@ def colored(text: str, color: str) -> str:
 
 # Get script directory and config
 SCRIPT_DIR = Path(__file__).parent
-CONFIG_PATH = SCRIPT_DIR / "getKeys.config.json"
+CONFIG_PATH = SCRIPT_DIR / "get_keys.config.json"
 
 # Load configuration
 with open(CONFIG_PATH, "r") as f:
@@ -656,7 +656,7 @@ def print_help():
     """Print help message."""
     print(
         """
-Usage: getKeys.py [command] [options]
+Usage: get_keys.py [command] [options]
 
 Commands:
   pull       Pull secrets from Azure Key Vault to .env file (default)
@@ -668,10 +668,10 @@ Options:
   --private VAULT_NAME    Specify private vault name
 
 Examples:
-  python getKeys.py                           # Pull secrets (default)
-  python getKeys.py pull                      # Pull secrets
-  python getKeys.py push                      # Push secrets
-  python getKeys.py pull --vault my-vault    # Pull from specific vault
+  python get_keys.py                           # Pull secrets (default)
+  python get_keys.py pull                      # Pull secrets
+  python get_keys.py push                      # Push secrets
+  python get_keys.py pull --vault my-vault    # Pull from specific vault
 """
     )
 

@@ -80,7 +80,7 @@ jobs:
 
       - name: Get Keys
         run: |
-            uv run python tools/getKeys.py --vault build-pipeline-kv
+            uv run python tools/get_keys.py --vault build-pipeline-kv
 
       - name: Run Tests
         run: |
