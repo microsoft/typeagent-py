@@ -95,10 +95,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/        
+          path: dist/
   
   publish:
-    needs: [ "build"]
+    needs: [ "build" ]
     if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     environment:
