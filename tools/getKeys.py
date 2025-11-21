@@ -584,7 +584,7 @@ async def pull_secrets_from_vault(
     for secret_key, value in secrets:
         env_key = to_env_key(secret_key)
         if env_key in keys and dotenv.get(env_key) != value:
-            print(f"  Updating {env_key}")
+            print(f"  Updating {env_key[:3]}***")
             dotenv[env_key] = value
             updated += 1
 
