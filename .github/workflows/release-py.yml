@@ -80,7 +80,6 @@ jobs:
 
       - name: Get Keys
         run: |
-            dir 
             uv run python tools/getKeys.py --vault build-pipeline-kv
 
       - name: Run Tests
