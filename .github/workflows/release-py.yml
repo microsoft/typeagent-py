@@ -5,7 +5,7 @@ name: Release (PyPI via Trusted Publishing + uv)
 
 on:
   push:
-    branches: [ "main", "dev/robgruen/online_tests" ] 
+    branches: [ "main" ] 
   pull_request_target:
     branches: [ "main" ]
   merge_group:
