@@ -79,9 +79,9 @@ async def get_az_cli_logged_in_info(print_info: bool = True) -> AzCliLoggedInInf
 
         return info
     except subprocess.CalledProcessError:
-        raise Exception("User not logged in to Azure CLI. Run 'az login'.")
+        raise RuntimeError("User not logged in to Azure CLI. Run 'az login'.")
     except FileNotFoundError:
-        raise Exception(
+        raise RuntimeError(
             "Azure CLI is not installed. Install it and run 'az login' before running this tool."
         )
 
@@ -154,7 +154,7 @@ class AzPIMClient:
                 )
             )
         except Exception as e:
-            print(e)
+            print(repr(e))
             print(
                 colored(f"Unable to elevate for role {options['roleName']}.", Fore.RED)
             )
@@ -199,7 +199,7 @@ class AzPIMClient:
                 Fore.RED,
             )
         )
-        raise Exception(f"Unable to find the role '{role_name}'.")
+        raise RuntimeError(f"Unable to find the role '{role_name}'.")
 
     async def get_principal_id(self, continue_on_failure: bool = False) -> str:
         """Get the principal ID of the current user."""
@@ -213,7 +213,7 @@ class AzPIMClient:
             account_details = json.loads(result.stdout)
             return account_details["id"]
         except Exception as e:
-            print(e)
+            print(repr(e))
             if not continue_on_failure:
                 print(
                     colored(
@@ -223,7 +223,7 @@ class AzPIMClient:
                 )
                 sys.exit(12)
             else:
-                raise Exception("Unable to get principal id of the current user.")
+                raise RuntimeError("Unable to get principal id of the current user.")
 
 
 class AzCliKeyVaultClient:
@@ -604,7 +604,7 @@ async def pull_secrets():
         )
 
     if shared_updated is None and private_updated is None:
-        raise Exception("No secrets found in key vaults.")
+        raise RuntimeError("No secrets found in key vaults.")
 
     updated = (shared_updated or 0) + (private_updated or 0)
 
