@@ -58,6 +58,8 @@ jobs:
 
 
   test:    
+    environment:
+      name: build-pipeline
     needs: build
     runs-on: ubuntu-latest
     steps:
