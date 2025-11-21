@@ -405,7 +405,10 @@ async def get_secrets(
                 return (secret_name, response["value"])
             except Exception as e:
                 print(
-                    colored(f"Failed to read secret {secret_name[:3]}***: {e}", Colors.YELLOW)
+                    colored(
+                        f"Failed to read secret {secret_name[:3]}***: {e}",
+                        Colors.YELLOW,
+                    )
                 )
                 return None
         return None
