@@ -47,19 +47,14 @@ def run_command(cmd: list[str], dry_run: bool = False) -> Tuple[int, str]:
 
     print(f"Running: {cmd_str}")
 
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
 
-        if result.stdout:
-            print(result.stdout.strip())
-        if result.stderr:
-            print(f"stderr: {result.stderr.strip()}", file=sys.stderr)
+    if result.stdout:
+        print(result.stdout.strip("\n"))
+    if result.stderr:
+        print(f"stderr: {result.stderr.strip('\n')}", file=sys.stderr)
 
-        return result.returncode, result.stdout.strip()
-
-    except Exception as e:
-        print(f"Error running command: {e}", file=sys.stderr)
-        return 1, str(e)
+    return result.returncode, result.stdout.strip()
 
 
 def parse_version(version_str: str) -> Tuple[int, int, int]:
@@ -226,7 +221,7 @@ Examples:
         "-f",
         "--force",
         action="store_true",
-        help="Force the release even if the working directory is not clean",
+        help="Force the release even if pre-checks fail",
     )
 
     args = parser.parse_args()
@@ -246,97 +241,100 @@ Examples:
     pyproject_path = current_dir / "pyproject.toml"
 
     # Check git status (unless --force)
-    if not args.force and not check_git_status():
-        print(
-            "Error: Git working directory is not clean. Please commit or stash changes first.",
-            file=sys.stderr,
-        )
-        return 1
+    if not check_git_status():
+        if args.force:
+            print(
+                "Warning: Git working directory is not clean (forced)",
+            )
+        else:
+            print(
+                "Error: Git working directory is not clean. Please commit or stash changes first.",
+                file=sys.stderr,
+            )
+            return 1
 
-    try:
-        # Get current version
-        current_version = get_current_version(pyproject_path)
-        print(f"Current version: {current_version}")
+    # Get current version
+    current_version = get_current_version(pyproject_path)
+    print(f"Current version: {current_version}")
 
-        # Parse current version
-        current_major, current_minor, current_patch = parse_version(current_version)
+    # Parse current version
+    current_major, current_minor, current_patch = parse_version(current_version)
 
-        # Determine new version
-        if args.version:
-            # Use provided version
-            try:
-                new_major, new_minor, new_patch = parse_version(args.version)
-            except ValueError as e:
-                print(f"Error: {e}", file=sys.stderr)
-                return 1
+    # Determine new version
+    if args.version:
+        # Use provided version
+        try:
+            new_major, new_minor, new_patch = parse_version(args.version)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
 
-            # Validate that new version is higher than current
-            current_tuple = (current_major, current_minor, current_patch)
-            new_tuple = (new_major, new_minor, new_patch)
-            comparison = compare_versions(new_tuple, current_tuple)
+        # Validate that new version is higher than current (unless --force)
+        current_tuple = (current_major, current_minor, current_patch)
+        new_tuple = (new_major, new_minor, new_patch)
+        comparison = compare_versions(new_tuple, current_tuple)
 
-            if comparison <= 0:
+        if comparison <= 0:
+            if args.force:
                 print(
-                    f"Error: New version {args.version} must be higher than current version {current_version}",
+                    f"Warning: New version {args.version} precedes current version {current_version}. (forced)"
+                )
+            else:
+                print(
+                    f"Error: New version {args.version} precedes current version {current_version}",
                     file=sys.stderr,
                 )
                 return 1
 
-            new_version = args.version
-        else:
-            # Bump patch version
-            new_patch = current_patch + 1
-            new_version = format_version(current_major, current_minor, new_patch)
+        new_version = args.version
+    else:
+        # Bump patch version
+        new_patch = current_patch + 1
+        new_version = format_version(current_major, current_minor, new_patch)
 
-        print(f"New version: {new_version}")
+    print(f"New version: {new_version}")
 
-        # Update pyproject.toml
-        update_version_in_pyproject(pyproject_path, new_version, args.dry_run)
+    # Update pyproject.toml
+    update_version_in_pyproject(pyproject_path, new_version, args.dry_run)
 
-        # Git commit
-        exit_code, _ = run_command(["git", "add", "pyproject.toml"], args.dry_run)
+    # Git commit
+    exit_code, _ = run_command(["git", "add", "pyproject.toml"], args.dry_run)
 
-        if exit_code != 0:
-            print("Error: Failed to stage pyproject.toml", file=sys.stderr)
-            return 1
-
-        commit_message = f"Bump version to {new_version}"
-        exit_code, _ = run_command(
-            ["git", "commit", "-m", commit_message], args.dry_run
-        )
-
-        if exit_code != 0:
-            print("Error: Failed to commit changes", file=sys.stderr)
-            return 1
-
-        # Create git tag
-        tag_name = f"v{new_version}-py"
-        exit_code, _ = run_command(["git", "tag", tag_name], args.dry_run)
-
-        if exit_code != 0:
-            print(f"Error: Failed to create tag {tag_name}", file=sys.stderr)
-            return 1
-
-        # Push tags
-        exit_code, _ = run_command(["git", "push", "--tags"], args.dry_run)
-
-        if exit_code != 0:
-            print("Error: Failed to push tags", file=sys.stderr)
-            return 1
-
-        if args.dry_run:
-            print(f"\n[DRY RUN] Release process completed successfully!")
-            print(f"Would have created tag: {tag_name}")
-        else:
-            print(f"\nRelease process completed successfully!")
-            print(f"Created tag: {tag_name}")
-            print(f"The GitHub Actions release workflow should now be triggered.")
-
-        return 0
-
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+    if exit_code != 0:
+        print("Error: Failed to stage pyproject.toml", file=sys.stderr)
         return 1
+
+    commit_message = f"Bump version to {new_version}"
+    exit_code, _ = run_command(["git", "commit", "-m", commit_message], args.dry_run)
+
+    if exit_code != 0:
+        print("Error: Failed to commit changes", file=sys.stderr)
+        return 1
+
+    # Create git tag
+    tag_name = f"v{new_version}-py"
+    exit_code, _ = run_command(["git", "tag", tag_name], args.dry_run)
+
+    if exit_code != 0:
+        print(f"Error: Failed to create tag {tag_name}", file=sys.stderr)
+        return 1
+
+    # Push tags
+    exit_code, _ = run_command(["git", "push", "--tags"], args.dry_run)
+
+    if exit_code != 0:
+        print("Error: Failed to push tags", file=sys.stderr)
+        return 1
+
+    if args.dry_run:
+        print(f"\n[DRY RUN] Release process completed successfully!")
+        print(f"Would have created tag: {tag_name}")
+    else:
+        print(f"\nRelease process completed successfully!")
+        print(f"Created tag: {tag_name}")
+        print(f"The GitHub Actions release workflow should now be triggered.")
+
+    return 0
 
 
 if __name__ == "__main__":
