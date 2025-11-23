@@ -123,11 +123,14 @@ async def test_mcp_server_query_conversation_slow(
             # Parse response (it should be JSON with success, answer, time_used)
             import json
 
-            response_data = json.loads(response_text)
+            try:
+                response_data = json.loads(response_text)
+            except json.JSONDecodeError as e:
+                pytest.fail(f"Response is not valid JSON: {e}\nResponse text: {response_text}")
+
             assert "success" in response_data
             assert "answer" in response_data
             assert "time_used" in response_data
-
             # If successful, answer should be non-empty
             if response_data["success"]:
                 assert len(response_data["answer"]) > 0
