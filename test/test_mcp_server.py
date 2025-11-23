@@ -126,7 +126,9 @@ async def test_mcp_server_query_conversation_slow(
             try:
                 response_data = json.loads(response_text)
             except json.JSONDecodeError as e:
-                pytest.fail(f"Response is not valid JSON: {e}\nResponse text: {response_text}")
+                pytest.fail(
+                    f"Response is not valid JSON: {e}\nResponse text: {response_text}"
+                )
 
             assert "success" in response_data
             assert "answer" in response_data

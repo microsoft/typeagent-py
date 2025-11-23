@@ -11,7 +11,7 @@ from typeagent.aitools.utils import create_async_openai_client
 @pytest.mark.asyncio
 async def test_why_is_sky_blue(really_needs_auth: None):
     """Test that chat agent responds correctly to 'why is the sky blue?'"""
-    
+
     # Create an async OpenAI client
     try:
         client = create_async_openai_client()
