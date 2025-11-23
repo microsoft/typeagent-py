@@ -89,6 +89,7 @@ jobs:
             uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
 
       - name: Login to Azure
+        if: matrix.task == 'test'
         uses: azure/login@v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENTID }}
@@ -96,6 +97,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
 
       - name: Get Keys
+        if: matrix.task == 'test'
         run: |
             uv run python tools/get_keys.py --vault build-pipeline-kv
 
@@ -108,4 +110,3 @@ jobs:
       - name: Clean up Keys
         run: |
           node -e "try{require('fs').unlinkSync('./.env');}catch(e){}"
-        if: always()                      
