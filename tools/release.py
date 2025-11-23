@@ -6,13 +6,13 @@
 Release automation script for the TypeAgent Python package.
 
 This script:
-1. Bumps the patch version (3rd part) in pyproject.toml, or sets it to a specified version
+1. Bumps the patch version (3rd part) in pyproject.toml, or sets the whole version
 2. Commits the change
-3. Creates a git tag in the format v{major}.{minor}.{patch}-py
+3. Creates a git tag in the format "v{major}.{minor}.{patch}-py"
 4. Pushes the tags to trigger the GitHub Actions release workflow
 
 Usage:
-    python tools/release.py [version] [--dry-run] [--help]
+    python tools/release.py [version] [--dry-run] [--help] [--force]
 
 Examples:
     python tools/release.py              # Bump patch version
@@ -22,6 +22,7 @@ Examples:
 
 import argparse
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -39,7 +40,7 @@ def run_command(cmd: list[str], dry_run: bool = False) -> Tuple[int, str]:
     Returns:
         Tuple of (exit_code, output_string)
     """
-    cmd_str = " ".join(cmd)
+    cmd_str = " ".join(shlex.quote(s) for s in cmd)
 
     if dry_run:
         print(f"[DRY RUN] Would run: {cmd_str}")
@@ -277,11 +278,11 @@ Examples:
         if comparison <= 0:
             if args.force:
                 print(
-                    f"Warning: New version {args.version} precedes current version {current_version}. (forced)"
+                    f"Warning: New version {args.version} matches or precedes current version {current_version} (forced)"
                 )
             else:
                 print(
-                    f"Error: New version {args.version} precedes current version {current_version}",
+                    f"Error: New version {args.version} matches or precedes current version {current_version}",
                     file=sys.stderr,
                 )
                 return 1
