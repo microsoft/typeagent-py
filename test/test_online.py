@@ -11,8 +11,14 @@ from typeagent.aitools.utils import create_async_openai_client
 @pytest.mark.asyncio
 async def test_why_is_sky_blue(really_needs_auth: None):
     """Test that chat agent responds correctly to 'why is the sky blue?'"""
+    
     # Create an async OpenAI client
-    client = create_async_openai_client()
+    try:
+        client = create_async_openai_client()
+    except RuntimeError as e:
+        if "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided." in str(e):
+            pytest.skip("API keys not configured")
+        raise
 
     # Send the user request
     response = await client.chat.completions.create(
