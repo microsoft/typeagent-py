@@ -91,11 +91,18 @@ async def test_mcp_server_query_conversation_slow(
     from mcp import ClientSession
     from mcp.client.stdio import stdio_client
 
+    # Pass through environment variables needed for authentication
+    server_params.env.update({
+        k: v for k, v in os.environ.items()
+        if k.startswith(("AZURE_", "OPENAI_")) or k in ("CREDENTIALS_JSON",)
+    })
+
     # Create client session and connect to server
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(
             read, write, sampling_callback=sampling_callback
         ) as session:
+            
             # Initialize the session
             await session.initialize()
 
@@ -126,9 +133,7 @@ async def test_mcp_server_query_conversation_slow(
             try:
                 response_data = json.loads(response_text)
             except json.JSONDecodeError as e:
-                pytest.fail(
-                    f"Response is not valid JSON: {e}\nResponse text: {response_text}"
-                )
+                pytest.fail(f"Response is not valid JSON: {e}\nResponse text: {response_text}")
 
             assert "success" in response_data
             assert "answer" in response_data
