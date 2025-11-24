@@ -29,7 +29,7 @@
       "OPENAI_API_KEY_LOCAL",
       "OPENAI_MODEL_LOCAL",
       "OPENAI_ORGANIZATION_LOCAL",
-      "OPENAI_RESPONSE_FORMAT_LOCAL",
+      "OPENAI_RESPONSE_FORMAT_LOCAL"
     ],
     "private": [],
     "delete": []
