@@ -93,13 +93,14 @@ async def test_mcp_server_query_conversation_slow(
 
     # Pass through environment variables needed for authentication
     # otherwise this test will fail in the CI on Windows only
-    server_params.env.update(
-        {
-            k: v
-            for k, v in os.environ.items()
-            if k.startswith(("AZURE_", "OPENAI_")) or k in ("CREDENTIALS_JSON",)
-        }
-    )
+    if not (server_params.env) is None:
+        server_params.env.update(
+            {
+                k: v
+                for k, v in os.environ.items()
+                if k.startswith(("AZURE_", "OPENAI_")) or k in ("CREDENTIALS_JSON",)
+            }
+        )
 
     # Create client session and connect to server
     async with stdio_client(server_params) as (read, write):
