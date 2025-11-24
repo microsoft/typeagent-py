@@ -92,6 +92,7 @@ async def test_mcp_server_query_conversation_slow(
     from mcp.client.stdio import stdio_client
 
     # Pass through environment variables needed for authentication
+    # otherwise this test will fail in the CI on Windows only
     server_params.env.update(
         {
             k: v
