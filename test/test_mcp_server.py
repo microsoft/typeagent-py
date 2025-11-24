@@ -144,7 +144,7 @@ async def test_mcp_server_query_conversation_slow(
             assert "success" in response_data
             assert "answer" in response_data
             assert "time_used" in response_data
-            
+
             # If successful, answer should be non-empty
             if response_data["success"]:
                 assert len(response_data["answer"]) > 0
