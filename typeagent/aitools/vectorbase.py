@@ -36,7 +36,7 @@ class TextEmbeddingIndexSettings:
     ):
         self.min_score = min_score if min_score is not None else 0.85
         self.max_matches = max_matches if max_matches and max_matches >= 1 else None
-        self.batch_size = batch_size if batch_size and batch_size >= 1 else 10
+        self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
         self.max_retries = (
             max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
         )
