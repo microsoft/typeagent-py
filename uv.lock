@@ -1782,8 +1782,6 @@ version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
-    { name = "azure-mgmt-authorization" },
-    { name = "azure-mgmt-keyvault" },
     { name = "black" },
     { name = "colorama" },
     { name = "mcp", extra = ["cli"] },
@@ -1798,6 +1796,8 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "azure-mgmt-authorization" },
+    { name = "azure-mgmt-keyvault" },
     { name = "coverage" },
     { name = "google-api-python-client" },
     { name = "google-auth-httplib2" },
@@ -1814,8 +1814,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
-    { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },
-    { name = "azure-mgmt-keyvault", specifier = ">=12.1.1" },
+    { name = "azure-mgmt-authorization", marker = "extra == 'dev'", specifier = ">=4.0.0" },
+    { name = "azure-mgmt-keyvault", marker = "extra == 'dev'", specifier = ">=12.1.1" },
     { name = "black", specifier = ">=25.1.0" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.9.1" },
