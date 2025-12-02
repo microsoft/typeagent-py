@@ -50,10 +50,10 @@ class ConversationSettings:
         )
         self.thread_settings = TextEmbeddingIndexSettings(model, min_score=min_score)
         self.message_text_index_settings = MessageTextIndexSettings(
-            TextEmbeddingIndexSettings(model, min_score=min_score)
+            TextEmbeddingIndexSettings(model, min_score=0.7)
         )
         self.semantic_ref_index_settings = SemanticRefIndexSettings(
-            batch_size=10,
+            batch_size=4,  # Effectively max concurrency
             auto_extract_knowledge=True,  # The high-level API wants this
         )
 

@@ -15,8 +15,6 @@ import colorama
 import dotenv
 import typechat
 
-from pydantic_ai import Agent
-
 
 @contextmanager
 def timelog(label: str, verbose: bool = True):
@@ -264,17 +262,18 @@ def create_async_openai_client(
         )
 
 
-def make_agent[T](cls: type[T]) -> Agent[None, T]:
+# The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
+def make_agent[T](cls: type[T]):
     """Create Pydantic AI agent using hardcoded preferences."""
-    from pydantic_ai import NativeOutput, ToolOutput
-    from pydantic_ai.models.openai import OpenAIModel
+    from pydantic_ai import Agent, NativeOutput, ToolOutput
+    from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.azure import AzureProvider
 
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):
         Wrapper = NativeOutput
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
-        model = OpenAIModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
+        model = OpenAIChatModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
 
     elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
         azure_api_key = get_azure_api_key(azure_api_key)
@@ -284,7 +283,7 @@ def make_agent[T](cls: type[T]) -> Agent[None, T]:
         Wrapper = ToolOutput
 
         print(f"## Using Azure {api_version} with {Wrapper.__name__} ##")
-        model = OpenAIModel(
+        model = OpenAIChatModel(
             "gpt-4o",
             provider=AzureProvider(
                 azure_endpoint=azure_endpoint,

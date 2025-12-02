@@ -137,10 +137,25 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         return [self._deserialize_message_from_row(row) for row in rows]
 
     async def get_multiple(self, arg: list[int]) -> list[TMessage]:
-        results = []
-        for i in arg:
-            results.append(await self.get_item(i))
-        return results
+        size = await self.size()
+        if not all((0 <= i < size) for i in arg):
+            raise IndexError("One or more Message indices are out of bounds")
+        if len(arg) < 2:
+            return [await self.get_item(i) for i in arg]
+        cursor = self.db.cursor()
+        cursor.execute(
+            f"""
+            SELECT msg_id, chunks, chunk_uri, start_timestamp, tags, metadata, extra
+            FROM Messages WHERE msg_id IN {tuple(arg)}
+            """,
+        )
+        rows = cursor.fetchall()
+        rowdict = {}
+        for row in rows:
+            msg_id, row = row[0], row[1:]
+            rowdict[msg_id] = row
+        assert set(rowdict) == set(arg)
+        return [self._deserialize_message_from_row(rowdict[i]) for i in arg]
 
     async def append(self, item: TMessage) -> None:
         cursor = self.db.cursor()
@@ -315,20 +330,22 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         return [self._deserialize_semantic_ref_from_row(row) for row in rows]
 
     async def get_multiple(self, arg: list[int]) -> list[interfaces.SemanticRef]:
-        if not arg:
-            return []
-        if len(arg) == 1:
-            return [await self.get_item(arg[0])]
+        size = await self.size()
+        if not all((0 <= i < size) for i in arg):
+            raise IndexError("One or more SemanticRef indices are out of bounds")
+        if len(arg) < 2:
+            return [await self.get_item(ordinal) for ordinal in arg]
         cursor = self.db.cursor()
         cursor.execute(
-            """
+            f"""
             SELECT semref_id, range_json, knowledge_type, knowledge_json
             FROM SemanticRefs WHERE semref_id IN {tuple(arg)}
-            ORDER BY semref_id
             """
         )
         rows = cursor.fetchall()
-        return [self._deserialize_semantic_ref_from_row(row) for row in rows]
+        rowdict = {row[0]: row for row in rows}
+        assert set(rowdict) == set(arg)
+        return [self._deserialize_semantic_ref_from_row(rowdict[ordl]) for ordl in arg]
 
     async def append(self, item: interfaces.SemanticRef) -> None:
         cursor = self.db.cursor()
