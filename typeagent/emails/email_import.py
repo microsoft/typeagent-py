@@ -9,7 +9,9 @@ from email import message_from_string
 from email.utils import parsedate_to_datetime
 from email.message import Message
 
-from .email_message import EmailMessage, EmailMessageMeta
+import quotequail
+
+from .email_message import ChunkAttribution, EmailMessage, EmailMessageMeta
 
 
 def import_emails_from_dir(
@@ -54,9 +56,8 @@ def import_forwarded_email_string(
 
 
 # Imports an email.message.Message object and returns an EmailMessage object
-# If the message is a reply, returns only the latest response.
 def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
-    # Extract metadata from
+    # Extract metadata
     email_meta = EmailMessageMeta(
         sender=msg.get("From", ""),
         recipients=_import_address_headers(msg.get_all("To", [])),
@@ -70,20 +71,71 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     if timestamp_date is not None:
         timestamp = parsedate_to_datetime(timestamp_date).isoformat()
 
-    # Get email body.
-    # If the email was a reply, then ensure we only pick up the latest response
+    # Get email body (plain text only)
     body = _extract_email_body(msg)
     if body is None:
         body = ""
-    elif is_reply(msg):
-        body = get_last_response_in_thread(body)
 
-    if email_meta.subject is not None:
-        body = email_meta.subject + "\n\n" + body
+    # Parse body into quoted and non-quoted chunks using quotequail
+    text_chunks: list[str] = []
+    chunk_info: list[ChunkAttribution] = []
 
-    body_chunks = _text_to_chunks(body, max_chunk_length)
+    # Subject is always the first chunk
+    if email_meta.subject:
+        text_chunks.append(email_meta.subject)
+        chunk_info.append(None)
+
+    # Use quotequail to identify quoted sections
+    quote_results = quotequail.quote(body)
+
+    # Process each quotequail chunk
+    pending_attribution: str | None = None
+    for visible, text in quote_results:
+        text = text.rstrip()
+        if not text:
+            continue
+
+        if visible:
+            # Original content - check for attribution at the end
+            text, attribution = _split_attribution(text)
+            if attribution:
+                pending_attribution = attribution
+            if not text:
+                continue
+
+            # Split into sub-chunks if needed
+            sub_chunks = _text_to_chunks(text, max_chunk_length)
+            for sub_chunk in sub_chunks:
+                text_chunks.append(sub_chunk)
+                chunk_info.append(None)
+        else:
+            # Quoted content: use pending attribution or " " for unknown
+            attr = pending_attribution if pending_attribution else " "
+            sub_chunks = _text_to_chunks(text, max_chunk_length)
+            for sub_chunk in sub_chunks:
+                text_chunks.append(sub_chunk)
+                chunk_info.append(attr)
+            pending_attribution = None
+
+    # Drop trailing signature chunks (original text that looks like a signature)
+    while text_chunks and chunk_info and chunk_info[-1] is None:
+        if _is_signature(text_chunks[-1]):
+            text_chunks.pop()
+            chunk_info.pop()
+        else:
+            break
+
+    # Drop trailing quoted chunks (keep quoted only if followed by original)
+    while text_chunks and chunk_info and chunk_info[-1] is not None:
+        text_chunks.pop()
+        chunk_info.pop()
+
+    # Strip trailing Nones and set to None if all original
+    while chunk_info and chunk_info[-1] is None:
+        chunk_info.pop()
+    email_meta.chunk_info = chunk_info if chunk_info else None
     email: EmailMessage = EmailMessage(
-        metadata=email_meta, text_chunks=body_chunks, timestamp=timestamp
+        metadata=email_meta, text_chunks=text_chunks, timestamp=timestamp
     )
     return email
 
@@ -105,41 +157,74 @@ def get_forwarded_email_parts(email_text: str) -> list[str]:
     return _remove_empty_strings(parts)
 
 
-# Precompiled regex for reply/forward delimiters and quoted reply headers
-_THREAD_DELIMITERS = re.compile(
-    "|".join(
-        [
-            r"^from: .+$",  # From: someone
-            r"^sent: .+$",  # Sent: ...
-            r"^to: .+$",  # To: ...
-            r"^subject: .+$",  # Subject: ...
-            r"^-{2,}\s*Original Message\s*-{2,}$",  # -----Original Message-----
-            r"^-{2,}\s*Forwarded by.*$",  # ----- Forwarded by
-            r"^_{5,}$",  # _________
-            r"^on .+wrote:\s*(?:\r?\n\s*)+>",  # On ... wrote: followed by quoted text
-        ]
-    ),
-    re.IGNORECASE | re.MULTILINE,
-)
+# Attribution patterns for "On ... wrote:" style headers
+# Supports English, German, French, and Outlook-style headers
+_ATTRIBUTION_PATTERNS = [
+    # English: "On Dec 1, 2025, John Smith <john@example.com> wrote:"
+    re.compile(r"^On .+?wrote:\s*$", re.IGNORECASE | re.MULTILINE),
+    # German: "Am 1. Dezember 2025 schrieb John Smith:"
+    re.compile(r"^Am .+?schrieb .+?:\s*$", re.IGNORECASE | re.MULTILINE),
+    # French: "Le 1 décembre 2025 à 10:00, John Smith a écrit :"
+    re.compile(r"^Le .+?a écrit\s*:\s*$", re.IGNORECASE | re.MULTILINE),
+    # Outlook-style header block start
+    re.compile(r"^From:\s*.+$", re.IGNORECASE | re.MULTILINE),
+]
 
-# Precompiled regex for trailing line delimiters (underscores, dashes, equals, spaces)
-_TRAILING_LINE_DELIMITERS = re.compile(r"[\r\n][_\-= ]+\s*$")
+# Patterns to extract the name/email from attribution
+_ATTRIBUTION_NAME_PATTERNS = [
+    re.compile(r"(?:On .+?,\s*)?(.+?)\s*(?:<[^>]+>)?\s*wrote:\s*$", re.IGNORECASE),
+    re.compile(r"Am .+?schrieb\s+(.+?):\s*$", re.IGNORECASE),
+    re.compile(r"Le .+?,\s*(.+?)\s*a écrit\s*:\s*$", re.IGNORECASE),
+]
+
+# Signature patterns (from email_reply_parser)
+_SIGNATURE_PATTERNS = [
+    re.compile(r"^(--|__|-\w)", re.MULTILINE),
+    re.compile(r"^Sent from my", re.IGNORECASE | re.MULTILINE),
+    re.compile(r"^Get Outlook for", re.IGNORECASE | re.MULTILINE),
+]
 
 
-# Simple way to get the last response on an email thread in MIME format
-def get_last_response_in_thread(email_text: str) -> str:
-    if not email_text:
-        return ""
+def _split_attribution(text: str) -> tuple[str, str | None]:
+    """Split text into content and trailing attribution.
 
-    match = _THREAD_DELIMITERS.search(email_text)
-    if match:
-        email_text = email_text[: match.start()]
+    Returns (content, attribution) where attribution is the name of the person
+    being quoted, or None if no attribution was found.
+    """
+    lines = text.rstrip().splitlines()
+    if not lines:
+        return text, None
 
-    email_text = email_text.strip()
-    # Remove trailing line delimiters (e.g. underscores, dashes, equals)
-    _TRAILING_LINE_DELIMITER_REGEX = _TRAILING_LINE_DELIMITERS
-    email_text = _TRAILING_LINE_DELIMITER_REGEX.sub("", email_text)
-    return email_text
+    # Check last few lines for attribution pattern
+    for num_lines in range(min(3, len(lines)), 0, -1):
+        last_lines = "\n".join(lines[-num_lines:])
+        for pattern in _ATTRIBUTION_PATTERNS:
+            match = pattern.search(last_lines)
+            if match:
+                attr_text = match.group(0)
+                # Try to extract the name
+                for name_pattern in _ATTRIBUTION_NAME_PATTERNS:
+                    name_match = name_pattern.search(attr_text)
+                    if name_match:
+                        content = "\n".join(lines[:-num_lines]).rstrip()
+                        attr_name = name_match.group(1).strip()
+                        print(f"=== {content=} {attr_name=}")
+                        return content, attr_name
+                # Matched attribution but couldn't extract name
+                content = "\n".join(lines[:-num_lines]).rstrip()
+                attr_name = " "
+                print(f"=== {content=} {attr_name=} ===")
+                return content, attr_name
+
+    return text, None
+
+
+def _is_signature(text: str) -> bool:
+    """Check if text looks like an email signature."""
+    for pattern in _SIGNATURE_PATTERNS:
+        if pattern.search(text):
+            return True
+    return False
 
 
 # Extracts the plain text body from an email.message.Message object.

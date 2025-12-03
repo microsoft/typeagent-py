@@ -1,9 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
-from enum import Enum
 
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 from pydantic import Field
@@ -19,6 +18,13 @@ from ..knowpro.interfaces import (
 )
 
 
+# Type alias for chunk attribution info:
+# None = original text (not quoted)
+# " " = quoted from unknown source
+# "name" = quoted from person with that name
+ChunkAttribution = str | None
+
+
 @pydantic_dataclass
 class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     """Metadata for email messages."""
@@ -29,6 +35,8 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     bcc: list[str] = Field(default_factory=list)
     subject: str | None = None
     id: str | None = None
+    # None if all chunks are original; otherwise see ChunkAttribution.
+    chunk_info: list[ChunkAttribution] | None = None
 
     @property
     def source(self) -> str | None:  # type: ignore[reportIncompatibleVariableOverride]
