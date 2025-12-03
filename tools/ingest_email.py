@@ -134,9 +134,11 @@ async def ingest_emails(
 
     successful_count = 0
     failed_count = 0
+    skipped_count = 0
     start_time = time.time()
 
     semref_coll = await settings.storage_provider.get_semantic_ref_collection()
+    storage_provider = settings.storage_provider
 
     for i, email_file in enumerate(email_files):
         try:
@@ -144,6 +146,14 @@ async def ingest_emails(
                 print(f"\n[{i + 1}/{len(email_files)}] {email_file}")
 
             email = import_email_from_file(str(email_file))
+            email_id = email.metadata.id
+
+            # Check if this email was already ingested
+            if email_id and storage_provider.is_source_ingested(email_id):
+                skipped_count += 1
+                if verbose:
+                    print(f"    [Already ingested, skipping]")
+                continue
 
             if verbose:
                 print(f"    From: {email.metadata.sender}")
@@ -158,7 +168,11 @@ async def ingest_emails(
                         preview += "..."
                     print(f"      {preview}")
 
-            await email_memory.add_messages_with_indexing([email])
+            # Pass source_id to mark as ingested atomically with the message
+            source_ids = [email_id] if email_id else None
+            await email_memory.add_messages_with_indexing(
+                [email], source_ids=source_ids
+            )
             successful_count += 1
 
             # Print progress periodically
@@ -185,6 +199,8 @@ async def ingest_emails(
     print()
     if verbose:
         print(f"Successfully imported {successful_count} email(s)")
+        if skipped_count:
+            print(f"Skipped {skipped_count} already-ingested email(s)")
         if failed_count:
             print(f"Failed to import {failed_count} email(s)")
         print(f"Extracted {semref_count} semantic references")
@@ -194,6 +210,8 @@ async def ingest_emails(
             f"Imported {successful_count} emails to {database} "
             f"({semref_count} refs, {elapsed:.1f}s)"
         )
+        if skipped_count:
+            print(f"Skipped: {skipped_count} (already ingested)")
         if failed_count:
             print(f"Failed: {failed_count}")
 

@@ -117,6 +117,7 @@ class ConversationBase(
     async def add_messages_with_indexing(
         self,
         messages: list[TMessage],
+        source_ids: list[str] | None = None,
     ) -> AddMessagesResult:
         """
         Add messages and build all indexes incrementally in a single transaction.
@@ -128,6 +129,9 @@ class ConversationBase(
 
         Args:
             messages: Messages to add
+            source_ids: Optional list of source IDs to mark as ingested. These are
+                marked within the same transaction, so if the indexing fails, the
+                source IDs won't be marked as ingested (for SQLite storage).
 
         Returns:
             Result with counts of messages/semrefs added
@@ -138,6 +142,12 @@ class ConversationBase(
         storage = await self.settings.get_storage_provider()
 
         async with storage:
+            # Mark source IDs as ingested before adding messages
+            # This way, if indexing fails, the rollback will also undo the marks
+            if source_ids:
+                for source_id in source_ids:
+                    storage.mark_source_ingested(source_id)
+
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
                 semref_count=await self.semantic_refs.size(),
