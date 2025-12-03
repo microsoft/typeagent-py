@@ -30,18 +30,20 @@ python tools/query.py -d mp.db
 ```
 (You just type questions and it prints answers.)
 
-## How we did the GMail demo
+## How we did the Gmail demo
 
 The demo consisted of loading a large number (around 500) email messages
 into a database, and querying the database about those messages.
 The loading (ingestion) process was done ahead as it takes a long time.
 
-We used the GMail API to download 550 messages from Guido's GMail
+We used the Gmail API to download 550 messages from Guido's Gmail
 (details below).
 
 Given a folder with `*.eml` files in MIME format, we ran our email
 ingestion tool, `tools/test_email.py`. (All these details will change
 in the future, hopefully to be more similar to `ingest_vtt.py`.)
+
+**TODO: Switch to describing ingest_email.py.**
 
 The tool takes one positional argument, a directory, in which it will
 create a SQLite database named `gmail.db`.
@@ -60,16 +62,32 @@ next file.
 We can then query the `gmail.db` database using the same `query.py`
 tool that we used for the Monty Python demo.
 
-### How to use the GMail API to download messages
+### How to use the Gmail API to download messages
 
 In the `gmail/` folder you'll find a tool named `gmail_dump.py` which
-will download any number of messages (default 50) using the GMail API.
-In order to use the GMail API, however, you have to create a
+will download any number of messages (default 50) using the Gmail API.
+In order to use the Gmail API, however, you have to create a (free)
 Google Cloud app and configure it appropriately.
 
-In order to figure out how to set up the (free) Google Cloud app we
-used the instructions at [GeeksForGeeks
-](https://www.geeksforgeeks.org/devops/how-to-create-a-gcp-project/).
+We created  created an app in test mode at
+[Google Cloud Console](https://console.cloud.google.com) and gave it
+access to the Gmail API (I forget how exactly we did this part).
+
+To create the needed client secret, we navigated to Client (side bar)
+and clicked on "+ Create Client" (in the row of actions at the top),
+selected "Desktop app", gave it a name, hit Create, scrolled down in the
+resulting dialog box, and hit "Download JSON". This produced a JSON file
+which should be copied into _client_secret.json_ in the gmail folder.
+(The Cloud Console interface may look different for you.)
+
+The first time you run the gmail_dump.py script, it will take you to
+a browser where you have to log in and agree to various warnings about
+using an app in test mode etc. The gmail_dump.py script then writes a
+file _token.json_ and you're good for a week or so. When token.json
+expires, unfortunately you get a crash and you have to manually delete
+it to trigger the login flow again.
+(Sometimes starting a browser may fail, e.g. under WSL. Take the URL
+that's printed and manually go there.)
 
 The rest of the email ingestion pipeline doesn't care where you got
 your `*.eml` files from -- every email provider has its own quirks.

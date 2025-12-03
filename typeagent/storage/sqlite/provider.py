@@ -608,3 +608,36 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     def get_db_version(self) -> int:
         """Get the database schema version."""
         return get_db_schema_version(self.db)
+
+    def is_source_ingested(self, source_id: str) -> bool:
+        """Check if a source has already been ingested.
+
+        This is a read-only operation that can be called outside of a transaction.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+
+        Returns:
+            True if the source has been ingested, False otherwise.
+        """
+        cursor = self.db.cursor()
+        cursor.execute(
+            "SELECT 1 FROM IngestedSources WHERE source_id = ?", (source_id,)
+        )
+        return cursor.fetchone() is not None
+
+    def mark_source_ingested(self, source_id: str) -> None:
+        """Mark a source as ingested.
+
+        This performs an INSERT but does NOT commit. It should be called within
+        a transaction context (e.g., inside `async with storage_provider:`).
+        The commit happens when the transaction context exits successfully.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+        """
+        cursor = self.db.cursor()
+        cursor.execute(
+            "INSERT OR IGNORE INTO IngestedSources (source_id) VALUES (?)",
+            (source_id,),
+        )

@@ -39,6 +39,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     _message_text_index: MessageTextIndex
     _related_terms_index: RelatedTermsIndex
     _conversation_threads: ConversationThreads
+    _ingested_sources: set[str]
 
     def __init__(
         self,
@@ -58,6 +59,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         self._related_terms_index = RelatedTermsIndex(related_terms_settings)
         thread_settings = message_text_settings.embedding_index_settings
         self._conversation_threads = ConversationThreads(thread_settings)
+        self._ingested_sources = set()
 
     async def __aenter__(self) -> "MemoryStorageProvider[TMessage]":
         """Enter transaction context. No-op for in-memory storage."""
@@ -132,3 +134,23 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
             created_at: Optional creation timestamp (ignored)
             updated_at: Optional last updated timestamp (ignored)
         """
+        pass
+
+    def is_source_ingested(self, source_id: str) -> bool:
+        """Check if a source has already been ingested.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+
+        Returns:
+            True if the source has been ingested, False otherwise.
+        """
+        return source_id in self._ingested_sources
+
+    def mark_source_ingested(self, source_id: str) -> None:
+        """Mark a source as ingested.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+        """
+        self._ingested_sources.add(source_id)
