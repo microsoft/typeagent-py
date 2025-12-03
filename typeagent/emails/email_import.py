@@ -125,21 +125,187 @@ _THREAD_DELIMITERS = re.compile(
 # Precompiled regex for trailing line delimiters (underscores, dashes, equals, spaces)
 _TRAILING_LINE_DELIMITERS = re.compile(r"[\r\n][_\-= ]+\s*$")
 
+# Pattern to detect "On <date> <user> wrote:" header for inline replies
+_INLINE_REPLY_HEADER = re.compile(
+    r"^on\s+.+\s+wrote:\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
-# Simple way to get the last response on an email thread in MIME format
-def get_last_response_in_thread(email_text: str) -> str:
+# Pattern to match quoted lines (starting with > possibly with leading whitespace)
+_QUOTED_LINE = re.compile(r"^\s*>")
+
+# Pattern to detect email signature markers
+_SIGNATURE_MARKER = re.compile(r"^--\s*$", re.MULTILINE)
+
+
+def is_inline_reply(email_text: str) -> bool:
+    """
+    Detect if an email contains inline replies (responses interspersed with quotes).
+
+    An inline reply has:
+    1. An "On ... wrote:" header
+    2. Quoted lines (starting with >) interspersed with non-quoted response lines
+    """
+    if not email_text:
+        return False
+
+    # Must have the "On ... wrote:" header
+    header_match = _INLINE_REPLY_HEADER.search(email_text)
+    if not header_match:
+        return False
+
+    # Check content after the header for mixed quoted/non-quoted lines
+    content_after_header = email_text[header_match.end() :]
+    lines = content_after_header.split("\n")
+
+    has_quoted = False
+    has_non_quoted_after_quoted = False
+
+    for line in lines:
+        # Check for signature marker
+        if _SIGNATURE_MARKER.match(line):
+            break
+
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if _QUOTED_LINE.match(line):
+            has_quoted = True
+        elif has_quoted:
+            # Non-quoted line after we've seen quoted lines = inline reply
+            has_non_quoted_after_quoted = True
+            break
+
+    return has_quoted and has_non_quoted_after_quoted
+
+
+def extract_inline_reply(email_text: str, include_context: bool = False) -> str:
+    """
+    Extract reply content from an email with inline responses.
+
+    For emails where the author responds inline to quoted text, this extracts
+    the non-quoted portions (the actual replies).
+
+    Args:
+        email_text: The full email body text
+        include_context: If True, include abbreviated quoted context before each reply
+
+    Returns:
+        The extracted reply text. If include_context is True, quoted lines are
+        prefixed with "[quoted]" to show what's being replied to.
+    """
     if not email_text:
         return ""
 
+    # Find the "On ... wrote:" header
+    header_match = _INLINE_REPLY_HEADER.search(email_text)
+    if not header_match:
+        # No inline reply pattern, return as-is
+        return email_text
+
+    # Get preamble (content before the "On ... wrote:" header)
+    preamble = email_text[: header_match.start()].strip()
+
+    # Process content after header
+    content_after_header = email_text[header_match.end() :]
+    lines = content_after_header.split("\n")
+
+    result_parts: list[str] = []
+    if preamble:
+        result_parts.append(preamble)
+
+    current_reply_lines: list[str] = []
+    current_quoted_lines: list[str] = []
+    in_signature = False
+
+    for line in lines:
+        # Check for signature marker
+        if _SIGNATURE_MARKER.match(line):
+            in_signature = True
+            # Flush any pending reply
+            if current_reply_lines:
+                if include_context and current_quoted_lines:
+                    result_parts.append(_summarize_quoted(current_quoted_lines))
+                result_parts.append("\n".join(current_reply_lines))
+                current_reply_lines = []
+                current_quoted_lines = []
+            continue
+
+        if in_signature:
+            # Skip signature content
+            continue
+
+        if _QUOTED_LINE.match(line):
+            # This is a quoted line
+            if current_reply_lines:
+                # Flush the current reply block
+                if include_context and current_quoted_lines:
+                    result_parts.append(_summarize_quoted(current_quoted_lines))
+                result_parts.append("\n".join(current_reply_lines))
+                current_reply_lines = []
+                current_quoted_lines = []
+            # Accumulate quoted lines for context (only if needed)
+            if include_context:
+                # Strip the leading > and any space after it
+                unquoted = re.sub(r"^\s*>\s?", "", line)
+                current_quoted_lines.append(unquoted)
+        else:
+            # Non-quoted line - part of the reply
+            stripped = line.strip()
+            if stripped or current_reply_lines:
+                # Include non-empty lines, or preserve blank lines within a reply block
+                current_reply_lines.append(line.rstrip())
+
+    # Flush any remaining reply
+    if current_reply_lines:
+        if include_context and current_quoted_lines:
+            result_parts.append(_summarize_quoted(current_quoted_lines))
+        result_parts.append("\n".join(current_reply_lines))
+
+    result = "\n\n".join(part for part in result_parts if part.strip())
+    return _strip_trailing_delimiters(result)
+
+
+def _summarize_quoted(quoted_lines: list[str]) -> str:
+    """Create a brief summary of quoted content for context."""
+    # Join and truncate to provide context
+    text = " ".join(line.strip() for line in quoted_lines if line.strip())
+    if len(text) > 100:
+        text = text[:97] + "..."
+    return f"[In reply to: {text}]"
+
+
+def _strip_trailing_delimiters(text: str) -> str:
+    """Remove trailing line delimiters (underscores, dashes, equals, spaces)."""
+    text = text.strip()
+    return _TRAILING_LINE_DELIMITERS.sub("", text)
+
+
+# Simple way to get the last response on an email thread in MIME format
+def get_last_response_in_thread(email_text: str) -> str:
+    """
+    Extract the latest response from an email thread.
+
+    Handles two patterns:
+    1. Bottom-posted replies: New content at top, quoted thread at bottom
+    2. Inline replies: Responses interspersed with quoted text
+
+    For inline replies, only the reply portions (non-quoted text) are extracted.
+    """
+    if not email_text:
+        return ""
+
+    # Check for inline reply pattern first
+    if is_inline_reply(email_text):
+        return extract_inline_reply(email_text, include_context=False)
+
+    # Fall back to original behavior for bottom-posted replies
     match = _THREAD_DELIMITERS.search(email_text)
     if match:
         email_text = email_text[: match.start()]
 
-    email_text = email_text.strip()
-    # Remove trailing line delimiters (e.g. underscores, dashes, equals)
-    _TRAILING_LINE_DELIMITER_REGEX = _TRAILING_LINE_DELIMITERS
-    email_text = _TRAILING_LINE_DELIMITER_REGEX.sub("", email_text)
-    return email_text
+    return _strip_trailing_delimiters(email_text)
 
 
 # Extracts the plain text body from an email.message.Message object.
