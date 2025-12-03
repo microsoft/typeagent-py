@@ -54,9 +54,8 @@ def import_forwarded_email_string(
 
 
 # Imports an email.message.Message object and returns an EmailMessage object
-# If the message is a reply, returns only the latest response.
 def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
-    # Extract metadata from
+    # Extract metadata
     email_meta = EmailMessageMeta(
         sender=msg.get("From", ""),
         recipients=_import_address_headers(msg.get_all("To", [])),
@@ -70,20 +69,32 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     if timestamp_date is not None:
         timestamp = parsedate_to_datetime(timestamp_date).isoformat()
 
-    # Get email body.
-    # If the email was a reply, then ensure we only pick up the latest response
+    # Get email body and parse into chunks with source attribution
     body = _extract_email_body(msg)
     if body is None:
         body = ""
-    elif is_reply(msg):
-        body = get_last_response_in_thread(body)
 
+    # Prepend subject to body if available
     if email_meta.subject is not None:
         body = email_meta.subject + "\n\n" + body
 
-    body_chunks = _text_to_chunks(body, max_chunk_length)
+    # Parse into chunks with source attribution (handles inline replies)
+    parsed_chunks = parse_email_chunks(body)
+
+    # Apply max_chunk_length splitting while preserving source attribution
+    text_chunks: list[str] = []
+    chunk_sources: list[str | None] = []
+    for text, source in parsed_chunks:
+        sub_chunks = _text_to_chunks(text, max_chunk_length)
+        for sub_chunk in sub_chunks:
+            text_chunks.append(sub_chunk)
+            chunk_sources.append(source)
+
     email: EmailMessage = EmailMessage(
-        metadata=email_meta, text_chunks=body_chunks, timestamp=timestamp
+        metadata=email_meta,
+        text_chunks=text_chunks,
+        chunk_sources=chunk_sources,
+        timestamp=timestamp,
     )
     return email
 
@@ -126,8 +137,13 @@ _THREAD_DELIMITERS = re.compile(
 _TRAILING_LINE_DELIMITERS = re.compile(r"[\r\n][_\-= ]+\s*$")
 
 # Pattern to detect "On <date> <user> wrote:" header for inline replies
+# Uses alternation to handle different date formats:
+# 1. "On Mon, Dec 10, 2020 at 10:30 AM John Doe wrote:" (AM/PM format)
+# 2. "On Mon, Dec 10, 2020 Someone wrote:" (year followed by name)
+# 3. Fallback: last words before "wrote:"
+# Groups 1, 2, or 3 will capture the person's name depending on format
 _INLINE_REPLY_HEADER = re.compile(
-    r"^on\s+.+\s+wrote:\s*$",
+    r"^on\s+(?:.+[AP]M\s+(.+?)|.+,\s*\d{4}\s+(.+?)|.+\s+(.+?))\s+wrote:\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -136,6 +152,10 @@ _QUOTED_LINE = re.compile(r"^\s*>")
 
 # Pattern to detect email signature markers
 _SIGNATURE_MARKER = re.compile(r"^--\s*$", re.MULTILINE)
+
+
+# Type alias for chunk with source info
+ChunkWithSource = tuple[str, str | None]  # (text, source: None=original, str=quoted)
 
 
 def is_inline_reply(email_text: str) -> bool:
@@ -180,29 +200,36 @@ def is_inline_reply(email_text: str) -> bool:
     return has_quoted and has_non_quoted_after_quoted
 
 
-def extract_inline_reply(email_text: str, include_context: bool = False) -> str:
+def parse_email_chunks(email_text: str) -> list[ChunkWithSource]:
     """
-    Extract reply content from an email with inline responses.
+    Parse email text into chunks with source attribution.
 
-    For emails where the author responds inline to quoted text, this extracts
-    the non-quoted portions (the actual replies).
+    Returns a list of (text, source) tuples where:
+    - source is None for original (unquoted) content
+    - source is the quoted person's name for quoted content, or " " if unknown
 
-    Args:
-        email_text: The full email body text
-        include_context: If True, include abbreviated quoted context before each reply
-
-    Returns:
-        The extracted reply text. If include_context is True, quoted lines are
-        prefixed with "[quoted]" to show what's being replied to.
+    This handles inline replies where the sender responds inline to quoted text,
+    preserving both the quoted and unquoted portions as separate chunks.
     """
     if not email_text:
-        return ""
+        return []
 
     # Find the "On ... wrote:" header
     header_match = _INLINE_REPLY_HEADER.search(email_text)
     if not header_match:
-        # No inline reply pattern, return as-is
-        return email_text
+        # No inline reply pattern, return as a single original chunk
+        text = _strip_trailing_delimiters(email_text)
+        if text:
+            return [(text, None)]
+        return []
+
+    # Extract quoted person from header (first non-None group from groups 1, 2, or 3)
+    quoted_person = (
+        header_match.group(1) or header_match.group(2) or header_match.group(3) or " "
+    )
+    quoted_person = quoted_person.strip() if quoted_person else " "
+    if not quoted_person:
+        quoted_person = " "
 
     # Get preamble (content before the "On ... wrote:" header)
     preamble = email_text[: header_match.start()].strip()
@@ -211,25 +238,37 @@ def extract_inline_reply(email_text: str, include_context: bool = False) -> str:
     content_after_header = email_text[header_match.end() :]
     lines = content_after_header.split("\n")
 
-    result_parts: list[str] = []
+    result: list[ChunkWithSource] = []
     if preamble:
-        result_parts.append(preamble)
+        result.append((preamble, None))
 
     current_reply_lines: list[str] = []
     current_quoted_lines: list[str] = []
     in_signature = False
 
+    def flush_reply() -> None:
+        nonlocal current_reply_lines
+        if current_reply_lines:
+            text = "\n".join(current_reply_lines).strip()
+            if text:
+                result.append((text, None))
+            current_reply_lines = []
+
+    def flush_quoted() -> None:
+        nonlocal current_quoted_lines
+        if current_quoted_lines:
+            text = "\n".join(current_quoted_lines).strip()
+            if text:
+                result.append((text, quoted_person))
+            current_quoted_lines = []
+
     for line in lines:
         # Check for signature marker
         if _SIGNATURE_MARKER.match(line):
             in_signature = True
-            # Flush any pending reply
-            if current_reply_lines:
-                if include_context and current_quoted_lines:
-                    result_parts.append(_summarize_quoted(current_quoted_lines))
-                result_parts.append("\n".join(current_reply_lines))
-                current_reply_lines = []
-                current_quoted_lines = []
+            # Flush any pending content
+            flush_quoted()
+            flush_reply()
             continue
 
         if in_signature:
@@ -237,75 +276,37 @@ def extract_inline_reply(email_text: str, include_context: bool = False) -> str:
             continue
 
         if _QUOTED_LINE.match(line):
-            # This is a quoted line
+            # This is a quoted line - flush any pending reply first
             if current_reply_lines:
-                # Flush the current reply block
-                if include_context and current_quoted_lines:
-                    result_parts.append(_summarize_quoted(current_quoted_lines))
-                result_parts.append("\n".join(current_reply_lines))
-                current_reply_lines = []
-                current_quoted_lines = []
-            # Accumulate quoted lines for context (only if needed)
-            if include_context:
-                # Strip the leading > and any space after it
-                unquoted = re.sub(r"^\s*>\s?", "", line)
-                current_quoted_lines.append(unquoted)
+                flush_reply()
+            # Strip the leading > and any space after it
+            unquoted = re.sub(r"^\s*>\s?", "", line)
+            current_quoted_lines.append(unquoted)
         else:
-            # Non-quoted line - part of the reply
+            # Non-quoted line - flush any pending quoted first
+            if current_quoted_lines:
+                flush_quoted()
+            # Only accumulate non-empty lines or preserve blank lines within a block
             stripped = line.strip()
             if stripped or current_reply_lines:
-                # Include non-empty lines, or preserve blank lines within a reply block
                 current_reply_lines.append(line.rstrip())
 
-    # Flush any remaining reply
-    if current_reply_lines:
-        if include_context and current_quoted_lines:
-            result_parts.append(_summarize_quoted(current_quoted_lines))
-        result_parts.append("\n".join(current_reply_lines))
+    # Flush any remaining content
+    flush_quoted()
+    flush_reply()
 
-    result = "\n\n".join(part for part in result_parts if part.strip())
-    return _strip_trailing_delimiters(result)
+    # Strip trailing delimiters from the last chunk
+    if result:
+        last_text, last_source = result[-1]
+        result[-1] = (_strip_trailing_delimiters(last_text), last_source)
 
-
-def _summarize_quoted(quoted_lines: list[str]) -> str:
-    """Create a brief summary of quoted content for context."""
-    # Join and truncate to provide context
-    text = " ".join(line.strip() for line in quoted_lines if line.strip())
-    if len(text) > 100:
-        text = text[:97] + "..."
-    return f"[In reply to: {text}]"
+    return result
 
 
 def _strip_trailing_delimiters(text: str) -> str:
     """Remove trailing line delimiters (underscores, dashes, equals, spaces)."""
     text = text.strip()
     return _TRAILING_LINE_DELIMITERS.sub("", text)
-
-
-# Simple way to get the last response on an email thread in MIME format
-def get_last_response_in_thread(email_text: str) -> str:
-    """
-    Extract the latest response from an email thread.
-
-    Handles two patterns:
-    1. Top-posted replies: New content at top, quoted thread at bottom
-    2. Inline replies: Responses interspersed with quoted text
-
-    For inline replies, only the reply portions (non-quoted text) are extracted.
-    """
-    if not email_text:
-        return ""
-
-    # Check for inline reply pattern first
-    if is_inline_reply(email_text):
-        return extract_inline_reply(email_text, include_context=False)
-
-    # Fall back to original behavior for bottom-posted replies
-    match = _THREAD_DELIMITERS.search(email_text)
-    if match:
-        email_text = email_text[: match.start()]
-
-    return _strip_trailing_delimiters(email_text)
 
 
 # Extracts the plain text body from an email.message.Message object.
@@ -365,11 +366,11 @@ def _text_to_chunks(text: str, max_chunk_length: int) -> list[str]:
     if len(text) < max_chunk_length:
         return [text]
 
-    paragraphs = _splitIntoParagraphs(text)
+    paragraphs = _split_into_paragraphs(text)
     return list(_merge_chunks(paragraphs, "\n\n", max_chunk_length))
 
 
-def _splitIntoParagraphs(text: str) -> list[str]:
+def _split_into_paragraphs(text: str) -> list[str]:
     return _remove_empty_strings(re.split(r"\n{2,}", text))
 
 

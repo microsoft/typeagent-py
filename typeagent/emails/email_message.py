@@ -160,6 +160,12 @@ class EmailMessage(IMessage):
         super().__init__(**data)
 
     text_chunks: list[str] = CamelCaseField("The text chunks of the email message")
+    # For each chunk: None means original content, str means quoted.
+    # If quoted, the string is the name of the person being quoted, or " " if unknown.
+    chunk_sources: list[str | None] = CamelCaseField(
+        "Source attribution for each chunk: None=original, str=quoted person or ' '",
+        default_factory=list,
+    )
     metadata: EmailMessageMeta = CamelCaseField(
         "Metadata associated with the email message"
     )
