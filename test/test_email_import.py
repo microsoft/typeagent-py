@@ -16,7 +16,7 @@ class TestIsInlineReply:
         text = "Just a regular email with no quoted content."
         assert is_inline_reply(text) is False
 
-    def test_bottom_posted_reply(self) -> None:
+    def test_top_posted_reply(self) -> None:
         # This has "On ... wrote:" but all quotes are at the bottom, no interleaving
         text = """Thanks for the info!
 
@@ -133,7 +133,7 @@ class TestGetLastResponseInThread:
     def test_simple_text(self) -> None:
         assert get_last_response_in_thread("Hello world") == "Hello world"
 
-    def test_bottom_posted_reply(self) -> None:
+    def test_top_posted_reply(self) -> None:
         text = """This is my response.
 
 On Mon, Dec 10, 2020 at 10:30 AM Someone wrote:

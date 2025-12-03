@@ -288,7 +288,7 @@ def get_last_response_in_thread(email_text: str) -> str:
     Extract the latest response from an email thread.
 
     Handles two patterns:
-    1. Bottom-posted replies: New content at top, quoted thread at bottom
+    1. Top-posted replies: New content at top, quoted thread at bottom
     2. Inline replies: Responses interspersed with quoted text
 
     For inline replies, only the reply portions (non-quoted text) are extracted.
