@@ -62,7 +62,7 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
         recipients=_import_address_headers(msg.get_all("To", [])),
         cc=_import_address_headers(msg.get_all("Cc", [])),
         bcc=_import_address_headers(msg.get_all("Bcc", [])),
-        subject=msg.get("Subject"),
+        subject=msg.get("Subject"),  # TODO: Remove newlines
         id=msg.get("Message-ID", None),
     )
     timestamp: str | None = None

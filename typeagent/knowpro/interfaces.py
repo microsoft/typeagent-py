@@ -863,12 +863,7 @@ class IStorageProvider[TMessage: IMessage](Protocol):
 
     # Metadata management
     def get_conversation_metadata(self) -> ConversationMetadata:
-        """Get conversation metadata.
-
-        Always returns a ConversationMetadata instance. Fields not found in
-        the database will be None. If no metadata exists at all, returns
-        an instance with all fields None.
-        """
+        """Get conversation metadata (missing fields set to None)."""
         ...
 
     def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
@@ -887,12 +882,16 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         created_at: Datetime | None = None,
         updated_at: Datetime | None = None,
     ) -> None:
-        """Update conversation timestamps.
+        """Update conversation timestamps."""
+        ...
 
-        Args:
-            created_at: Optional creation timestamp
-            updated_at: Optional last updated timestamp
-        """
+    # Ingested source tracking
+    def is_source_ingested(self, source_id: str) -> bool:
+        """Check if a source has already been ingested."""
+        ...
+
+    def mark_source_ingested(self, source_id: str) -> None:
+        """Mark a source as ingested (no commit; call within transaction context)."""
         ...
 
     # Transaction management
