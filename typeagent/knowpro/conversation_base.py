@@ -117,6 +117,7 @@ class ConversationBase(
     async def add_messages_with_indexing(
         self,
         messages: list[TMessage],
+        *,
         source_ids: list[str] | None = None,
     ) -> AddMessagesResult:
         """
@@ -137,7 +138,7 @@ class ConversationBase(
             Result with counts of messages/semrefs added
 
         Raises:
-            BaseException: Any error
+            Exception: Any error
         """
         storage = await self.settings.get_storage_provider()
 
