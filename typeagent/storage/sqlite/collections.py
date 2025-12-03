@@ -7,9 +7,8 @@ import json
 import sqlite3
 import typing
 
+from ...knowpro import interfaces, serialization
 from .schema import ShreddedMessage, ShreddedSemanticRef
-from ...knowpro import interfaces
-from ...knowpro import serialization
 
 
 class SqliteMessageCollection[TMessage: interfaces.IMessage](

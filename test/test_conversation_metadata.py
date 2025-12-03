@@ -4,19 +4,20 @@
 """Tests for conversation metadata operations in SQLite storage provider."""
 
 import asyncio
-from collections.abc import AsyncGenerator
-from dataclasses import field
-from datetime import datetime, timezone
 import os
 import sqlite3
 import tempfile
 import time
+from collections.abc import AsyncGenerator
+from dataclasses import field
+from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
+from fixtures import embedding_model, temp_db_path
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -31,8 +32,6 @@ from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
-
-from fixtures import embedding_model, temp_db_path
 
 
 def parse_iso_datetime(iso_string: str) -> datetime:

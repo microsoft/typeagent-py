@@ -6,6 +6,7 @@
 import sqlite3
 
 from ...knowpro import interfaces
+from ...knowpro.interfaces import TextLocation, TextRange
 from ...knowpro.universal_message import format_timestamp_utc
 
 
@@ -73,8 +74,6 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
         results = []
         for msg_id, timestamp in cursor.fetchall():
             # Create text range for message
-            from ...knowpro.interfaces import TextLocation, TextRange
-
             text_range = TextRange(
                 start=TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
             )

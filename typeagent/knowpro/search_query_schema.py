@@ -3,13 +3,13 @@
 
 # TODO: Move this file into knowpro.
 
-from pydantic.dataclasses import dataclass
-from pydantic import Field
 from typing import Annotated, Literal
+
+from pydantic.dataclasses import dataclass
 from typing_extensions import Doc
 
-from .field_helpers import CamelCaseField
 from .date_time_schema import DateTimeRange
+from .field_helpers import CamelCaseField
 
 
 @dataclass

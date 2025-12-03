@@ -4,16 +4,17 @@
 
 """Fast test for related terms index functionality (replaces slow Episode 53 test)."""
 
-import tempfile
 import os
+import tempfile
+
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.interfaces import SemanticRef, Term, TextLocation, TextRange
+from typeagent.knowpro.kplib import ConcreteEntity
 from typeagent.podcasts.podcast import Podcast, PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
-from typeagent.knowpro.interfaces import SemanticRef, TextRange, TextLocation
-from typeagent.knowpro.kplib import ConcreteEntity
 
 
 @pytest.mark.asyncio
@@ -87,8 +88,6 @@ async def test_related_terms_index_minimal():
         if pod.secondary_indexes and pod.secondary_indexes.term_to_related_terms_index:
             # Add some basic terms manually instead of computing embeddings
             aliases = pod.secondary_indexes.term_to_related_terms_index.aliases
-            from typeagent.knowpro.interfaces import Term
-
             await aliases.add_related_term(
                 "python", [Term("programming", 1.0), Term("coding", 0.8)]
             )

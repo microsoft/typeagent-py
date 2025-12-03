@@ -5,6 +5,7 @@
 
 from dataclasses import dataclass
 from typing import Annotated, Any, Union
+
 from typing_extensions import Doc
 
 from ..knowpro.interfaces import DateRange

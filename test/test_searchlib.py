@@ -14,8 +14,9 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
     TextRange,
 )
-from typeagent.storage.memory.propindex import PropertyNames
 from typeagent.knowpro.searchlib import (
+    _parse_search_term,
+    _split_term_values,
     create_and_term_group,
     create_entity_search_term_group,
     create_multiple_choice_question,
@@ -28,7 +29,9 @@ from typeagent.knowpro.searchlib import (
     create_tag_search_term_group,
     create_topic_search_term_group,
     get_semantic_refs_from_scored_ordinals,
+    pydantic_dataclass_to_dict,
 )
+from typeagent.storage.memory.propindex import PropertyNames
 
 
 class TestCreateSearchTerm:
@@ -110,8 +113,8 @@ class TestTermGroupCreation:
 
         assert group.boolean_op == "and"
         assert len(group.terms) == 2
-        assert group.terms[0] == term1
-        assert group.terms[1] == term2
+        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(term1)
+        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(term2)
 
     def test_create_or_term_group(self):
         """Test creating an OR term group."""
@@ -121,8 +124,8 @@ class TestTermGroupCreation:
 
         assert group.boolean_op == "or"
         assert len(group.terms) == 2
-        assert group.terms[0] == term1
-        assert group.terms[1] == term2
+        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(term1)
+        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(term2)
 
     def test_create_or_max_term_group(self):
         """Test creating an OR_MAX term group."""
@@ -132,8 +135,8 @@ class TestTermGroupCreation:
 
         assert group.boolean_op == "or_max"
         assert len(group.terms) == 2
-        assert group.terms[0] == term1
-        assert group.terms[1] == term2
+        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(term1)
+        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(term2)
 
     def test_empty_term_groups(self):
         """Test creating empty term groups."""
@@ -159,8 +162,8 @@ class TestTermGroupCreation:
 
         assert outer_group.boolean_op == "and"
         assert len(outer_group.terms) == 2
-        assert outer_group.terms[0] == inner_group
-        assert outer_group.terms[1] == term3
+        assert pydantic_dataclass_to_dict(outer_group.terms[0]) == pydantic_dataclass_to_dict(inner_group)
+        assert pydantic_dataclass_to_dict(outer_group.terms[1]) == pydantic_dataclass_to_dict(term3)
 
 
 class TestCreateSearchTerms:
@@ -609,8 +612,6 @@ class TestPrivateFunctions:
 
     def test_split_term_values(self):
         """Test the _split_term_values helper function."""
-        from typeagent.knowpro.searchlib import _split_term_values
-
         # Test basic splitting
         result = _split_term_values("a,b,c", ",")
         assert result == ["a", "b", "c"]
@@ -633,8 +634,6 @@ class TestPrivateFunctions:
 
     def test_parse_search_term(self):
         """Test the _parse_search_term helper function."""
-        from typeagent.knowpro.searchlib import _parse_search_term
-
         # Test simple term
         term = _parse_search_term("hello")
         assert term is not None

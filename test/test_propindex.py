@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import pytest
+from fixtures import FakeConversation, needs_auth
 
 from typeagent.knowpro.collections import TextRangeCollection, TextRangesInScope
 from typeagent.knowpro.interfaces import (
@@ -10,23 +11,21 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
     TextRange,
 )
-from typeagent.knowpro.kplib import Facet, ConcreteEntity, Action
+from typeagent.knowpro.kplib import Action, ConcreteEntity, Facet
+from typeagent.storage.memory import MemorySemanticRefCollection
 from typeagent.storage.memory.propindex import (
     PropertyIndex,
     PropertyNames,
-    add_facet,
-    add_entity_properties_to_index,
     add_action_properties_to_index,
-    build_property_index,
+    add_entity_properties_to_index,
+    add_facet,
     add_to_property_index,
+    build_property_index,
+    is_known_property,
     lookup_property_in_property_index,
     make_property_term_text,
     split_property_term_text,
-    is_known_property,
 )
-from typeagent.storage.memory import MemorySemanticRefCollection
-
-from fixtures import needs_auth, FakeConversation
 
 
 @pytest.fixture

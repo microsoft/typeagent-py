@@ -19,11 +19,11 @@ from typeagent.knowpro.collections import (
     get_top_k,
 )
 from typeagent.knowpro.interfaces import (
-    TextRange,
     ScoredSemanticRefOrdinal,
     SemanticRef,
-    TextLocation,
     Term,
+    TextLocation,
+    TextRange,
 )
 from typeagent.knowpro.kplib import Action, ConcreteEntity
 from typeagent.storage.memory.collections import MemorySemanticRefCollection

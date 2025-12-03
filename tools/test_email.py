@@ -1,16 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import os
-import shlex
+import argparse
 import asyncio
+import os
+import shelve
+import shlex
 import sys
 import traceback
-from typing import Any, Literal, Iterable, Callable, Awaitable
-from colorama import Fore
 from pathlib import Path
-import argparse
-import shelve
+from typing import Any, Awaitable, Callable, Iterable, Literal
+
+from colorama import Fore
 
 try:
     import readline  # noqa: F401
@@ -18,18 +19,16 @@ except ImportError:
     pass  # readline not available on Windows
 
 import typechat
+from query import print_result
 
 from typeagent.aitools import utils
-from typeagent.knowpro import kplib, searchlang, search_query_schema, convknowledge
-from typeagent.knowpro.interfaces import IConversation
 from typeagent.emails.email_import import import_email_from_file, import_emails_from_dir
 from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
-
+from typeagent.knowpro import convknowledge, kplib, search_query_schema, searchlang
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.interfaces import IConversation
 from typeagent.storage.utils import create_storage_provider
-
-from query import print_result
 
 
 class ReallyExit(Exception):

@@ -8,16 +8,23 @@ These tests run against both MemoryStorageProvider and SqliteStorageProvider
 to ensure behavioral parity across implementations.
 """
 
-from typing import AsyncGenerator, assert_never
-import pytest
+import os
+import tempfile
 from dataclasses import field
-from pydantic.dataclasses import dataclass
+from typing import AsyncGenerator, assert_never
+
+import pytest
 import pytest_asyncio
+from fixtures import embedding_model, needs_auth, temp_db_path
+from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro import kplib
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.interfaces import (
     DateRange,
     Datetime,
@@ -29,12 +36,9 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.storage import SqliteStorageProvider
-
-from fixtures import needs_auth, embedding_model, temp_db_path
+from typeagent.storage.memory import MemoryStorageProvider
 
 
 # Test message for unified testing
@@ -603,9 +607,6 @@ async def test_storage_provider_independence(
     )
 
     # Create two sqlite providers (with different temp files)
-    import tempfile
-    import os
-
     temp_file1 = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
     temp_path1 = temp_file1.name
     temp_file1.close()

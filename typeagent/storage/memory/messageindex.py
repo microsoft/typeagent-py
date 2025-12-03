@@ -2,19 +2,17 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
 
 from ...aitools.embeddings import NormalizedEmbedding
-from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro.convsettings import MessageTextIndexSettings
 from ...knowpro.interfaces import (
     IConversation,
     IMessage,
     IMessageTextIndex,
     IStorageProvider,
-    MessageTextIndexData,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    MessageTextIndexData,
     ScoredMessageOrdinal,
     TextLocation,
 )

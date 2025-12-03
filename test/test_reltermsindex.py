@@ -2,31 +2,32 @@
 # Licensed under the MIT License.
 
 # Third-party imports
+from typing import AsyncGenerator
+
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator
+
+# Test fixtures
+from fixtures import embedding_model, needs_auth, really_needs_auth, temp_db_path
 
 # TypeAgent imports
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.interfaces import Term, IMessage, ITermToRelatedTermsIndex
-from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
+from typeagent.knowpro.interfaces import IMessage, ITermToRelatedTermsIndex, Term
+from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
+from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage.memory.reltermsindex import (
-    TermToRelatedTermsMap,
     RelatedTermsIndex,
+    TermToRelatedTermsMap,
     dedupe_related_terms,
     resolve_related_terms,
 )
-from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage import SqliteStorageProvider
-
-# Test fixtures
-from fixtures import needs_auth, really_needs_auth, embedding_model, temp_db_path
 
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])

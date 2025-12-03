@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ..aitools.embeddings import AsyncEmbeddingModel
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .interfaces import IKnowledgeExtractor, IStorageProvider
+
+if TYPE_CHECKING:
+    from ..storage.memory import MemoryStorageProvider
 
 
 @dataclass
@@ -77,8 +81,8 @@ class ConversationSettings:
     async def get_storage_provider(self) -> IStorageProvider:
         """Get or create the storage provider asynchronously."""
         if self._storage_provider is None:
+            # Import here to avoid circular import
             from ..storage.memory import MemoryStorageProvider
-
             self._storage_provider = MemoryStorageProvider(
                 message_text_settings=self.message_text_index_settings,
                 related_terms_settings=self.related_term_index_settings,

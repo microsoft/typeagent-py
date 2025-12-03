@@ -2,15 +2,13 @@
 # Licensed under the MIT License.
 
 import asyncio
-from dataclasses import dataclass, field
 import os
+from dataclasses import dataclass, field
 
 import typechat
 
 from ..aitools import auth
 from . import kplib
-from .interfaces import IKnowledgeExtractor
-
 
 # TODO: Move ModelWrapper and create_typechat_model() to aitools package.
 

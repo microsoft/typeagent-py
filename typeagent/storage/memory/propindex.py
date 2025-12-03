@@ -2,8 +2,9 @@
 # Licensed under the MIT License.
 
 import enum
-from typing import assert_never
+from typing import Any, assert_never
 
+from ...knowpro import kplib
 from ...knowpro.collections import TextRangesInScope
 from ...knowpro.interfaces import (
     IConversation,
@@ -14,7 +15,6 @@ from ...knowpro.interfaces import (
     Tag,
     Topic,
 )
-from ...knowpro import kplib
 
 
 class PropertyNames(enum.Enum):
@@ -132,23 +132,61 @@ async def add_to_property_index(
             start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
-            if isinstance(semantic_ref.knowledge, kplib.Action):
+            knowledge = semantic_ref.knowledge
+            if isinstance(knowledge, kplib.Action):
                 await add_action_properties_to_index(
-                    semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                    knowledge, property_index, semantic_ref_ordinal
                 )
-            elif isinstance(semantic_ref.knowledge, kplib.ConcreteEntity):
+            elif isinstance(knowledge, kplib.ConcreteEntity):
                 await add_entity_properties_to_index(
-                    semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                    knowledge, property_index, semantic_ref_ordinal
                 )
-            elif isinstance(semantic_ref.knowledge, Tag):
-                tag = semantic_ref.knowledge
+            elif isinstance(knowledge, Tag):
                 await property_index.add_property(
-                    PropertyNames.Tag.value, tag.text, semantic_ref_ordinal
+                    PropertyNames.Tag.value, knowledge.text, semantic_ref_ordinal
                 )
-            elif isinstance(semantic_ref.knowledge, Topic):
-                pass
             else:
-                assert_never(semantic_ref.knowledge)
+                knowledge_type = _get_knowledge_type(knowledge)
+                if knowledge_type == "tag":
+                    tag_text = _get_knowledge_field(knowledge, "text")
+                    if tag_text is not None:
+                        await property_index.add_property(
+                            PropertyNames.Tag.value,
+                            tag_text,
+                            semantic_ref_ordinal,
+                        )
+                elif knowledge_type == "topic" or isinstance(knowledge, Topic):
+                    # Topics do not populate the property index currently.
+                    continue
+                else:
+                    assert_never(knowledge)
+
+
+def _get_knowledge_type(knowledge: Any) -> str | None:
+    """Extract the knowledge type from a deserialized knowledge object."""
+    if isinstance(knowledge, dict):
+        value = knowledge.get("knowledgeType")
+        if value is None:
+            value = knowledge.get("knowledge_type")
+        if value is not None:
+            return str(value)
+        return None
+    return getattr(knowledge, "knowledge_type", None)
+
+
+def _get_knowledge_field(knowledge: Any, field_name: str) -> str | None:
+    """Return the requested field from a knowledge object, handling dicts and dataclasses."""
+    if isinstance(knowledge, dict):
+        value = knowledge.get(field_name)
+        if value is None and field_name == "text":
+            value = knowledge.get("text")
+        if value is None:
+            return None
+        return str(value)
+    value = getattr(knowledge, field_name, None)
+    if value is None:
+        return None
+    return str(value)
 
 
 class PropertyIndex(IPropertyToSemanticRefIndex):

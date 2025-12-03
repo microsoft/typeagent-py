@@ -2,8 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import dataclass
 import time
+from dataclasses import dataclass
 from typing import Protocol
 
 from azure.identity import DefaultAzureCredential

@@ -2,15 +2,14 @@
 # Licensed under the MIT License.
 
 import bisect
-from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass, field
 import heapq
 import math
 import sys
-from typing import cast, Set  # Set is an alias for builtin set
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass, field
+from typing import Set, cast  # Set is an alias for builtin set
 
 from .interfaces import (
-    ICollection,
     IMessage,
     IMessageCollection,
     ISemanticRefCollection,

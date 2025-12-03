@@ -1,29 +1,44 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
 import os
 from datetime import timedelta
 
-from typeagent.transcripts.transcript_ingest import (
-    get_transcript_speakers,
-    get_transcript_duration,
-    extract_speaker_from_text,
-    webvtt_timestamp_to_seconds,
+import pytest
+from fixtures import (  # type: ignore
+    embedding_model,
+    needs_auth,
+    really_needs_auth,
+    temp_dir,
 )
+
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
+from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.universal_message import (
+    UNIX_EPOCH,
+    format_timestamp_utc,
+)
+from typeagent.storage.memory.collections import (
+    MemoryMessageCollection,
+    MemorySemanticRefCollection,
+)
+from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
 from typeagent.transcripts.transcript import (
     Transcript,
     TranscriptMessage,
     TranscriptMessageMeta,
 )
-from typeagent.knowpro.universal_message import (
-    UNIX_EPOCH,
-    format_timestamp_utc,
+from typeagent.transcripts.transcript_ingest import (
+    extract_speaker_from_text,
+    get_transcript_duration,
+    get_transcript_speakers,
+    parse_voice_tags,
+    webvtt_timestamp_to_seconds,
 )
-from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
-from fixtures import needs_auth, really_needs_auth, temp_dir, embedding_model  # type: ignore
+webvtt = pytest.importorskip(
+    "webvtt", reason="webvtt package is required for transcript ingestion tests"
+)
 
 
 def test_extract_speaker_from_text():
@@ -101,14 +116,6 @@ def conversation_settings(
 @pytest.mark.asyncio
 async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
     """Test importing a VTT file into a Transcript object."""
-    import webvtt
-    from typeagent.storage.memory.collections import (
-        MemoryMessageCollection,
-        MemorySemanticRefCollection,
-    )
-    from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-    from typeagent.transcripts.transcript_ingest import parse_voice_tags
-
     vtt_file = "testdata/Confuse-A-Cat.vtt"
 
     # Use in-memory storage to avoid database cleanup issues
@@ -223,8 +230,6 @@ def test_transcript_message_creation():
 @pytest.mark.asyncio
 async def test_transcript_creation():
     """Test creating an empty transcript."""
-    from typeagent.aitools.embeddings import TEST_MODEL_NAME
-
     # Create a minimal transcript for testing structure
     embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     settings = ConversationSettings(embedding_model)
@@ -253,14 +258,6 @@ async def test_transcript_knowledge_extraction_slow(
     4. Verifies both mechanical extraction (entities/actions from metadata)
        and LLM extraction (topics from content) work correctly
     """
-    import webvtt
-    from typeagent.storage.memory.collections import (
-        MemoryMessageCollection,
-        MemorySemanticRefCollection,
-    )
-    from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-    from typeagent.transcripts.transcript_ingest import extract_speaker_from_text
-
     # Use in-memory storage for speed
     settings = ConversationSettings(embedding_model)
 

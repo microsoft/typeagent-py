@@ -3,17 +3,24 @@
 
 """Utilities that are hard to fit in any specific module."""
 
-from contextlib import contextmanager
 import difflib
 import os
 import re
 import shutil
 import time
+from contextlib import contextmanager
 
 import black
 import colorama
 import dotenv
+import logfire
 import typechat
+from openai import AsyncAzureOpenAI, AsyncOpenAI
+from pydantic_ai import Agent, NativeOutput, ToolOutput
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.azure import AzureProvider
+
+from .auth import get_shared_token_provider
 
 
 @contextmanager
@@ -152,7 +159,6 @@ def list_diff(label_a, a, label_b, b, max_items):
 def setup_logfire():
     """Configure logfire for pydantic_ai and httpx."""
 
-    import logfire
 
     def scrubbing_callback(m: logfire.ScrubMatch):
         """Instructions: Uncomment any block where you deem it safe to not scrub."""
@@ -212,7 +218,6 @@ def get_azure_api_key(azure_api_key: str) -> str:
     Returns:
         The API key or token to use.
     """
-    from .auth import get_shared_token_provider
 
     # This section is rather specific to our team's setup at Microsoft.
     if azure_api_key.lower() == "identity":
@@ -241,7 +246,6 @@ def create_async_openai_client(
     Raises:
         RuntimeError: If neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set.
     """
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
 
     if openai_api_key := os.getenv("OPENAI_API_KEY"):
         return AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
@@ -265,9 +269,6 @@ def create_async_openai_client(
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
 def make_agent[T](cls: type[T]):
     """Create Pydantic AI agent using hardcoded preferences."""
-    from pydantic_ai import Agent, NativeOutput, ToolOutput
-    from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.providers.azure import AzureProvider
 
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):

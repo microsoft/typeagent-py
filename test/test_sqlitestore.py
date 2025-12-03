@@ -1,19 +1,26 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import AsyncGenerator
-from dataclasses import field
 import os
 import tempfile
+from collections.abc import AsyncGenerator
+from dataclasses import field
+from datetime import datetime
 from typing import Generator
 
 import pytest
-from pydantic.dataclasses import dataclass
 import pytest_asyncio
+from fixtures import FakeMessage, embedding_model, temp_db_path
+from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.interfaces import (
+    DateRange,
     IMessage,
     SemanticRef,
     TextLocation,
@@ -21,11 +28,7 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage import SqliteStorageProvider
-
-from fixtures import embedding_model, FakeMessage, temp_db_path
 
 
 # Dummy IMessage for testing
@@ -130,9 +133,6 @@ async def test_sqlite_timestamp_index(
     dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
 ):
     """Test SqliteTimestampToTextRangeIndex functionality."""
-    from datetime import datetime
-    from typeagent.knowpro.interfaces import DateRange
-
     # Set up database with some messages
     message_collection = await dummy_sqlite_storage_provider.get_message_collection()
 

@@ -3,7 +3,6 @@
 
 """SQLite-based message text index implementation."""
 
-import json
 import sqlite3
 import typing
 
@@ -11,14 +10,12 @@ import numpy as np
 
 from ...aitools.embeddings import NormalizedEmbedding
 from ...aitools.vectorbase import ScoredInt, VectorBase
-
-from ...knowpro.convsettings import MessageTextIndexSettings
 from ...knowpro import interfaces
+from ...knowpro.convsettings import MessageTextIndexSettings
 from ...knowpro.interfaces import TextLocationData, TextToTextLocationIndexData
 from ...knowpro.textlocindex import ScoredTextLocation
-
 from ...storage.memory.messageindex import IMessageTextEmbeddingIndex
-
+from ..sqlite.schema import deserialize_embedding
 from .schema import deserialize_embedding, serialize_embedding
 
 
@@ -307,8 +304,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         # Build the text locations and embeddings
         text_locations = []
         embeddings_list = []
-
-        from ..sqlite.schema import deserialize_embedding
 
         for msg_id, chunk_ordinal, embedding_blob in cursor.fetchall():
             # Create text location data

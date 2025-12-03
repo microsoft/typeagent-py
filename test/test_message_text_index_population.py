@@ -5,18 +5,23 @@
 """Test to verify message text index population in storage providers."""
 
 import asyncio
-import tempfile
 import os
+import tempfile
+
+import numpy as np
 import pytest
+
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
+from typeagent.aitools.utils import load_dotenv
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
+from typeagent.knowpro.interfaces import IMessageTextIndex
+from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory.messageindex import MessageTextIndex
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
-from typeagent.aitools.utils import load_dotenv
-import numpy as np
 
 
 @pytest.mark.asyncio
@@ -83,8 +88,6 @@ async def test_message_text_index_population_from_database():
         # Check message text index
         msg_text_index = await storage2.get_message_text_index()
         # Check that it implements the interface correctly
-        from typeagent.knowpro.interfaces import IMessageTextIndex
-
         assert isinstance(msg_text_index, IMessageTextIndex)
 
         # Check if index has entries (debug info)

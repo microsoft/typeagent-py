@@ -5,8 +5,7 @@ import asyncio
 
 from typechat import Result, TypeChatLanguageModel
 
-from . import convknowledge
-from . import kplib
+from . import convknowledge, kplib
 from .interfaces import IKnowledgeExtractor
 
 

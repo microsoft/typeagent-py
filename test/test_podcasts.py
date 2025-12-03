@@ -2,17 +2,21 @@
 # Licensed under the MIT License.
 
 import os
-import pytest
 from datetime import timezone
 
-from fixtures import really_needs_auth, temp_dir, embedding_model  # type: ignore  # Yes they are used!
+import pytest
+from fixtures import (  # type: ignore  # Yes they are used!
+    embedding_model,
+    really_needs_auth,
+    temp_dir,
+)
 
-from typeagent.podcasts.podcast import Podcast
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
-from typeagent.podcasts import podcast_ingest
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.podcasts import podcast_ingest
+from typeagent.podcasts.podcast import Podcast
 
 
 @pytest.mark.asyncio

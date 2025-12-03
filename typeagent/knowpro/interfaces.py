@@ -1,13 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from abc import ABC, abstractmethod
 from collections.abc import AsyncIterable, Iterable, Sequence
-from datetime import (
-    datetime as Datetime,  # For export.
-    timedelta as Timedelta,  # For export.
-)
-from enum import Enum
+from datetime import datetime as Datetime  # For export.
+from datetime import timedelta as Timedelta  # For export.
 from typing import (
     Any,
     ClassVar,
@@ -19,13 +15,13 @@ from typing import (
     runtime_checkable,
 )
 
-from pydantic.dataclasses import dataclass
-from pydantic import Field, AliasChoices
 import typechat
+from pydantic.dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from . import kplib
+from . import kplib, serialization
 from .field_helpers import CamelCaseField
+from .types import ConversationDataWithIndexes, SearchTermGroupTypes
 
 
 class IKnowledgeSource(Protocol):
@@ -300,8 +296,6 @@ class SemanticRef:
         return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.range}, {self.knowledge.knowledge_type!r}, {self.knowledge})"
 
     def serialize(self) -> SemanticRefData:
-        from . import serialization
-
         return SemanticRefData(
             semanticRefOrdinal=self.semantic_ref_ordinal,
             range=self.range.serialize(),
@@ -311,7 +305,6 @@ class SemanticRef:
 
     @staticmethod
     def deserialize(data: SemanticRefData) -> "SemanticRef":
-        from . import serialization
 
         knowledge = serialization.deserialize_knowledge(
             data["knowledgeType"], data["knowledge"]

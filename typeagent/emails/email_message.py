@@ -1,22 +1,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import dataclass
-from typing import Any
-from enum import Enum
-
-from pydantic.dataclasses import dataclass as pydantic_dataclass
-from pydantic import Field
-
 from email.utils import parseaddr
+from typing import Any
+
+from pydantic import Field
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from ..knowpro import kplib
 from ..knowpro.field_helpers import CamelCaseField
-from ..knowpro.interfaces import (
-    IKnowledgeSource,
-    IMessage,
-    IMessageMetadata,
-)
+from ..knowpro.interfaces import IKnowledgeSource, IMessage, IMessageMetadata
 
 
 @pydantic_dataclass

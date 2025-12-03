@@ -2,10 +2,12 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
-from pydantic.dataclasses import dataclass
-from pydantic import Field, AliasChoices
-from typing import TypeGuard, cast, Annotated
+from typing import TypeGuard, cast
 
+from pydantic.dataclasses import dataclass
+
+from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
+from ..storage.memory.reltermsindex import resolve_related_terms
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .field_helpers import CamelCaseField
 from .interfaces import (
@@ -24,8 +26,6 @@ from .interfaces import (
     WhenFilter,
 )
 from .kplib import ConcreteEntity
-from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
-from .searchlib import create_tag_search_term_group
 from .query import (
     BooleanOp,
     CompiledSearchTerm,
@@ -67,7 +67,7 @@ from .query import (
     to_non_required_search_term,
     to_required_search_term,
 )
-from ..storage.memory.reltermsindex import resolve_related_terms
+from .searchlib import create_tag_search_term_group
 
 
 @dataclass

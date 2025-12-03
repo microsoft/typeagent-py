@@ -1,20 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
 from typing import cast
 
-from typechat import Result, Failure, Success
+import pytest
+from fixtures import really_needs_auth
+from typechat import Failure, Result, Success
 
+from typeagent.knowpro import convknowledge, kplib
 from typeagent.knowpro.knowledge import (
     create_knowledge_extractor,
     extract_knowledge_from_text,
     extract_knowledge_from_text_batch,
     merge_topics,
 )
-from typeagent.knowpro import convknowledge, kplib
-
-from fixtures import really_needs_auth
 
 
 class MockKnowledgeExtractor:

@@ -5,23 +5,32 @@
 """Test to verify property index population in storage providers."""
 
 import asyncio
-import tempfile
 import os
-import pytest
+import tempfile
 
 import numpy as np
+import pytest
+from fixtures import really_needs_auth
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.utils import load_dotenv
-from typeagent.knowpro.interfaces import Tag, SemanticRef, TextRange, TextLocation
-from typeagent.knowpro import kplib
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.podcasts.podcast import PodcastMessage
+from typeagent.knowpro import kplib
+from typeagent.knowpro.convsettings import (
+    ConversationSettings,
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
+from typeagent.knowpro.interfaces import (
+    IPropertyToSemanticRefIndex,
+    SemanticRef,
+    Tag,
+    TextLocation,
+    TextRange,
+)
+from typeagent.podcasts.podcast import Podcast, PodcastMessage
 from typeagent.storage import SqliteStorageProvider
-
-from fixtures import really_needs_auth
+from typeagent.storage.memory.propindex import build_property_index
 
 
 class MockEmbeddingModel(AsyncEmbeddingModel):
@@ -112,10 +121,6 @@ async def test_property_index_population_from_database(really_needs_auth):
         )
 
         # Create a test conversation and build property index
-        from typeagent.podcasts.podcast import Podcast
-        from typeagent.knowpro.convsettings import ConversationSettings
-        from typeagent.storage.memory.propindex import build_property_index
-
         settings2 = ConversationSettings()
         settings2.storage_provider = storage2
         conversation = await Podcast.create(settings2)
@@ -124,8 +129,6 @@ async def test_property_index_population_from_database(really_needs_auth):
         await build_property_index(conversation)
 
         prop_index = await storage2.get_property_index()
-        from typeagent.knowpro.interfaces import IPropertyToSemanticRefIndex
-
         assert isinstance(prop_index, IPropertyToSemanticRefIndex)
 
         # Verify property index is populated

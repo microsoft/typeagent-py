@@ -1,15 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import numpy as np
 import openai
 import pytest
-from pytest_mock import MockerFixture
+from fixtures import (  # type: ignore  # Yes it's used!
+    FakeEmbeddings,
+    embedding_model,
+    fake_embeddings,
+    fake_embeddings_tiktoken,
+)
 from pytest import MonkeyPatch
-
-import numpy as np
+from pytest_mock import MockerFixture
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model, fake_embeddings, fake_embeddings_tiktoken, FakeEmbeddings  # type: ignore  # Yes it's used!
 
 
 @pytest.mark.asyncio

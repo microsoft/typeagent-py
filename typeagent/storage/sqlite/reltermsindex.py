@@ -5,11 +5,10 @@
 
 import sqlite3
 
-from ...aitools.embeddings import AsyncEmbeddingModel, NormalizedEmbeddings
+from ...aitools.embeddings import NormalizedEmbeddings
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from ...knowpro import interfaces
-
-from .schema import serialize_embedding, deserialize_embedding
+from .schema import deserialize_embedding, serialize_embedding
 
 
 class SqliteRelatedTermsAliases(interfaces.ITermToRelatedTerms):
@@ -268,8 +267,6 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         self._vector_base.deserialize(embeddings_data)
 
         # Prepare all insertion data for bulk operation
-        from .schema import serialize_embedding
-
         insertion_data = []
         for i, text in enumerate(text_items):
             if i < len(self._vector_base):

@@ -1,38 +1,31 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from dataclasses import is_dataclass, MISSING
-from datetime import datetime
 import functools
 import json
 import types
+from dataclasses import MISSING, is_dataclass
+from datetime import datetime
 from typing import (
     Annotated,
     Any,
-    cast,
-    get_args,
-    get_origin,
     Literal,
     NotRequired,
-    overload,
     TypeAliasType,
     TypedDict,
     Union,
+    cast,
+    get_args,
+    get_origin,
+    overload,
 )
 
 import numpy as np
 from pydantic.alias_generators import to_camel
 
 from ..aitools.embeddings import NormalizedEmbeddings
-
-from .interfaces import (
-    ConversationDataWithIndexes,
-    SearchTermGroupTypes,
-    Tag,
-    Topic,
-)
 from . import kplib
-
+from .types import ConversationDataWithIndexes, SearchTermGroupTypes
 
 # -------------------
 # Shared definitions
@@ -244,13 +237,19 @@ def get_embeddings_from_binary_data(
 TYPE_MAP = {
     "entity": kplib.ConcreteEntity,
     "action": kplib.Action,
-    "topic": Topic,
-    "tag": Tag,
 }
 
 
 # Looks like this only works for knowledge...
 def deserialize_knowledge(knowledge_type: str, obj: Any) -> Any:
+    if knowledge_type == "tag":
+        from .interfaces import Tag as TagData
+
+        return deserialize_object(TagData, obj)
+    if knowledge_type == "topic":
+        from .interfaces import Topic as TopicData
+
+        return deserialize_object(TopicData, obj)
     typ = TYPE_MAP[knowledge_type]
     return deserialize_object(typ, obj)
 
@@ -322,6 +321,11 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
                 raise DeserializationError(
                     f"Pydantic validation failed for {typ.__name__}: {e}"
                 ) from e
+        elif isinstance(typ, type) and hasattr(typ, "__annotations__") and issubclass(typ, dict):
+            # Handle TypedDict types (Tag, Topic)
+            if not isinstance(obj, dict):
+                raise DeserializationError(f"Expected dict for {typ}, got {type(obj)}")
+            return obj
         else:
             # Could be a class that's not a dataclass -- we don't know the signature.
             raise TypeError(f"Unsupported origin-less type {typ}")

@@ -9,17 +9,17 @@ from typing import Generic, Self, TypeVar
 
 import typechat
 
+from ..aitools import utils
+from ..storage.memory import propindex, semrefindex
 from . import (
-    answers,
     answer_response_schema,
+    answers,
     convknowledge,
     kplib,
     search_query_schema,
     searchlang,
     secindex,
 )
-from ..aitools import utils
-from ..storage.memory import semrefindex
 from .convsettings import ConversationSettings
 from .interfaces import (
     AddMessagesResult,
@@ -27,13 +27,14 @@ from .interfaces import (
     IConversationSecondaryIndexes,
     IMessage,
     IMessageCollection,
+    IndexingStartPoints,
     ISemanticRefCollection,
     IStorageProvider,
     ITermToSemanticRefIndex,
-    IndexingStartPoints,
     MessageOrdinal,
     Topic,
 )
+from .messageutils import get_message_chunk_batch_from_list
 
 TMessage = TypeVar("TMessage", bound=IMessage)
 
@@ -199,8 +200,6 @@ class ConversationBase(
         )
 
         # Get batches of text locations from the message list
-        from .messageutils import get_message_chunk_batch_from_list
-
         batches = get_message_chunk_batch_from_list(
             messages,
             start_from_message_ordinal,
@@ -222,7 +221,6 @@ class ConversationBase(
         if self.secondary_indexes is None:
             return
 
-        from ..storage.memory import propindex
 
         await propindex.add_to_property_index(self, start_points.semref_count)
 

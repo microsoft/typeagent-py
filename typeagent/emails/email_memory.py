@@ -1,35 +1,24 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import copy
+import json
 import os
 from dataclasses import dataclass
-import json
-import copy
-from pydantic.dataclasses import dataclass as pydantic_dataclass
+
 import typechat
+
 from ..aitools import utils
 from ..knowpro import (
-    secindex,
+    answer_response_schema,
+    answers,
     convknowledge,
     search_query_schema,
     searchlang,
-    answer_response_schema,
-    answers,
-)
-from ..knowpro.convsettings import ConversationSettings
-from ..knowpro.interfaces import (
-    IConversation,
-    IConversationSecondaryIndexes,
-    IMessage,
-    IMessageCollection,
-    ISemanticRefCollection,
-    ITermToSemanticRefIndex,
-    Term,
 )
 from ..knowpro.conversation_base import ConversationBase
-from ..storage.memory import semrefindex
-from typeagent.storage.sqlite.provider import SqliteStorageProvider
-
+from ..knowpro.convsettings import ConversationSettings
+from ..knowpro.interfaces import Term
 from .email_message import EmailMessage
 
 

@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,11 +17,11 @@ from .interfaces import (
     IConversation,
     IMessage,
     IMessageCollection,
+    IMessageMetadata,
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
     Knowledge,
     KnowledgeType,
-    IMessageMetadata,
     MessageOrdinal,
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,

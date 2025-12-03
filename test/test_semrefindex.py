@@ -1,38 +1,39 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-# Third-party imports
+from typing import AsyncGenerator, Dict, cast
+
 import pytest
 import pytest_asyncio
-from typing import cast, Dict, AsyncGenerator
 
-# TypeAgent imports
+# Test fixtures
+from fixtures import embedding_model, needs_auth, temp_db_path
+
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.storage.memory import MemorySemanticRefCollection
-from typeagent.knowpro.interfaces import (
-    Topic,
-    IMessage,
-    ITermToSemanticRefIndex,
-    ISemanticRefCollection,
-)
-from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
+from typeagent.knowpro.interfaces import (
+    IMessage,
+    ISemanticRefCollection,
+    ITermToSemanticRefIndex,
+    SemanticRef,
+    TextLocation,
+    TextRange,
+    Topic,
+)
+from typeagent.knowpro.kplib import Action, ConcreteEntity, Facet, KnowledgeResponse
+from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory import MemorySemanticRefCollection, MemoryStorageProvider
 from typeagent.storage.memory.semrefindex import (
     TermToSemanticRefIndex,
-    add_entity_to_index,
-    add_topic_to_index,
     add_action_to_index,
+    add_entity_to_index,
     add_knowledge_to_index,
+    add_topic_to_index,
 )
-from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage import SqliteStorageProvider
-
-# Test fixtures
-from fixtures import needs_auth, embedding_model, temp_db_path
 
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
@@ -72,13 +73,6 @@ async def semantic_ref_index(
         )
 
         # For SQLite, we need to create semantic refs first due to foreign key constraints
-        from typeagent.knowpro.interfaces import (
-            SemanticRef,
-            TextRange,
-            TextLocation,
-            Topic,
-        )
-
         collection = await provider.get_semantic_ref_collection()
 
         # Create semantic refs with ordinals 1, 2, 3 that the tests expect

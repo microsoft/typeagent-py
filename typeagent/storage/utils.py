@@ -7,8 +7,10 @@ This module provides utility functions for creating storage providers
 without circular import issues.
 """
 
-from ..knowpro.interfaces import IMessage, IStorageProvider, ConversationMetadata
 from ..knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
+from ..knowpro.interfaces import ConversationMetadata, IMessage, IStorageProvider
+from .memory import MemoryStorageProvider
+from .sqlite import SqliteStorageProvider
 
 
 async def create_storage_provider[TMessage: IMessage](
@@ -23,14 +25,10 @@ async def create_storage_provider[TMessage: IMessage](
     MemoryStorageProvider if dbname is None, SqliteStorageProvider otherwise.
     """
     if dbname is None:
-        from .memory import MemoryStorageProvider
-
         return MemoryStorageProvider(
             message_text_settings, related_terms_settings, metadata=metadata
         )
     else:
-        from .sqlite import SqliteStorageProvider
-
         if message_type is None:
             raise ValueError("Message type must be specified for SQLite storage")
 

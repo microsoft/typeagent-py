@@ -1,9 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Literal, Annotated
-from typing_extensions import Doc
+from typing import Annotated, Literal
+
 from pydantic.dataclasses import dataclass
+from typing_extensions import Doc
 
 AnswerType = Literal[
     "NoAnswer",  # If question cannot be accurately answered from [ANSWER CONTEXT]
