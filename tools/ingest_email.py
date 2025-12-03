@@ -70,14 +70,16 @@ def collect_email_files(paths: list[str], verbose: bool) -> list[Path]:
             if path.suffix.lower() == ".eml":
                 email_files.append(path)
             else:
-                print(f"Warning: Skipping non-.eml file: {path}", file=sys.stderr)
+                print(f"Error: Skipping non-.eml file: {path}", file=sys.stderr)
+                sys.exit(1)
         elif path.is_dir():
-            eml_files = list(path.glob("*.eml"))
+            eml_files = sorted(path.glob("*.eml"))
             if verbose:
                 print(f"  Found {len(eml_files)} .eml files in {path}")
             email_files.extend(eml_files)
         else:
-            print(f"Warning: Skipping special file: {path}", file=sys.stderr)
+            print(f"Error: Not a file or directory: {path}", file=sys.stderr)
+            sys.exit(1)
 
     return email_files
 
