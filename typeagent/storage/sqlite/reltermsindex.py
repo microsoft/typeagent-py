@@ -247,6 +247,13 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
             results.append(term_results)
         return results
 
+    def serialize(self) -> interfaces.TextEmbeddingIndexData:
+        """Serialize the fuzzy index data."""
+        return interfaces.TextEmbeddingIndexData(
+            textItems=self._terms_list.copy(),
+            embeddings=self._vector_base.serialize(),
+        )
+
     async def deserialize(self, data: interfaces.TextEmbeddingIndexData) -> None:
         """Deserialize fuzzy index data from JSON into SQLite database."""
         # Clear existing data
@@ -313,7 +320,11 @@ class SqliteRelatedTermsIndex(interfaces.ITermToRelatedTermsIndex):
         return self._fuzzy_index
 
     async def serialize(self) -> interfaces.TermsToRelatedTermsIndexData:
-        raise NotImplementedError("TODO")
+        """Serialize the related terms index (both aliases and fuzzy index)."""
+        return interfaces.TermsToRelatedTermsIndexData(
+            aliasData=await self._aliases.serialize(),
+            textEmbeddingData=self._fuzzy_index.serialize(),
+        )
 
     async def deserialize(self, data: interfaces.TermsToRelatedTermsIndexData) -> None:
         """Deserialize related terms index data."""
