@@ -368,6 +368,39 @@ class TestSqliteRelatedTermsFuzzy:
         # All results should have weights (even if surprisingly high)
         assert all(result.weight is not None for result in results)
 
+    @pytest.mark.asyncio
+    async def test_fuzzy_serialize(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+        needs_auth: None,
+    ):
+        """Test serialization of fuzzy index data."""
+        index = SqliteRelatedTermsFuzzy(sqlite_db, embedding_settings)
+
+        # Add some terms
+        test_terms = ["chess", "grandmaster", "artificial intelligence"]
+        await index.add_terms(test_terms)
+
+        # Serialize the fuzzy index
+        data = index.serialize()
+
+        # Verify serialized data structure
+        assert data is not None
+        assert "textItems" in data
+        assert "embeddings" in data
+
+        # Verify text items
+        text_items = data["textItems"]
+        assert len(text_items) == 3
+        assert "chess" in text_items
+        assert "grandmaster" in text_items
+        assert "artificial intelligence" in text_items
+
+        # Verify embeddings exist
+        embeddings = data["embeddings"]
+        assert embeddings is not None
+
 
 class TestSqliteRelatedTermsIndex:
     """Test SqliteRelatedTermsIndex combined functionality."""
@@ -400,6 +433,94 @@ class TestSqliteRelatedTermsIndex:
         assert alias_results is not None
         assert len(alias_results) == 1
         assert alias_results[0].text == "artificial intelligence"
+
+    @pytest.mark.asyncio
+    async def test_serialize_and_deserialize(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+        needs_auth: None,
+    ):
+        """Test serialization and deserialization of the combined related terms index."""
+        index = SqliteRelatedTermsIndex(sqlite_db, embedding_settings)
+
+        # Ensure fuzzy_index is available
+        assert index.fuzzy_index is not None
+
+        # Add data to both sub-indexes
+        await index.fuzzy_index.add_terms(["chess", "grandmaster", "tournament"])
+        await index.aliases.add_related_term("AI", Term("artificial intelligence"))
+        await index.aliases.add_related_term("ML", Term("machine learning"))
+
+        # Serialize the combined index
+        data = await index.serialize()
+
+        # Verify serialized data structure
+        assert data is not None
+        assert "aliasData" in data
+        assert "textEmbeddingData" in data
+
+        # Verify alias data
+        alias_data = data["aliasData"]
+        assert alias_data is not None
+        assert "relatedTerms" in alias_data
+        related_terms = alias_data["relatedTerms"]
+        assert related_terms is not None
+        assert len(related_terms) == 2
+
+        # Verify text embedding data
+        text_embedding_data = data["textEmbeddingData"]
+        assert text_embedding_data is not None
+        assert "textItems" in text_embedding_data
+        assert len(text_embedding_data["textItems"]) == 3
+        assert "chess" in text_embedding_data["textItems"]
+        assert "grandmaster" in text_embedding_data["textItems"]
+        assert "embeddings" in text_embedding_data
+
+        # Create a fresh database and index to test deserialization
+        import tempfile
+        import os
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fresh_db_path = os.path.join(tmpdir, "fresh_test.db")
+            fresh_db = sqlite3.connect(fresh_db_path)
+            init_db_schema(fresh_db)
+
+            fresh_index = SqliteRelatedTermsIndex(fresh_db, embedding_settings)
+
+            # Deserialize into fresh index
+            await fresh_index.deserialize(data)
+
+            # Verify alias data was restored
+            alias_results = await fresh_index.aliases.lookup_term("AI")
+            assert alias_results is not None
+            assert len(alias_results) == 1
+            assert alias_results[0].text == "artificial intelligence"
+
+            ml_results = await fresh_index.aliases.lookup_term("ML")
+            assert ml_results is not None
+            assert len(ml_results) == 1
+            assert ml_results[0].text == "machine learning"
+
+            # Verify fuzzy index data was restored
+            fresh_fuzzy = fresh_index.fuzzy_index
+            assert fresh_fuzzy is not None
+            assert await fresh_fuzzy.size() == 3
+
+            # Use concrete type to access get_terms (not in interface)
+            assert isinstance(fresh_fuzzy, SqliteRelatedTermsFuzzy)
+            fuzzy_terms = await fresh_fuzzy.get_terms()
+            assert "chess" in fuzzy_terms
+            assert "grandmaster" in fuzzy_terms
+            assert "tournament" in fuzzy_terms
+
+            # Verify fuzzy lookup works after deserialization
+            fuzzy_results = await fresh_fuzzy.lookup_term(
+                "chess", max_hits=5, min_score=0.1
+            )
+            assert len(fuzzy_results) > 0
+
+            fresh_db.close()
 
 
 # Integration test to verify the fix for the regression we encountered
@@ -656,9 +777,9 @@ class TestSqliteIndexesEdgeCases:
         fuzzy_index = SqliteRelatedTermsFuzzy(sqlite_db, embedding_settings)
 
         # Test serialization of empty index
-        # Note: fuzzy index doesn't implement serialize (returns empty for SQLite)
-        # But test that calling it doesn't crash
-        # This would be implemented if needed
+        empty_data = fuzzy_index.serialize()
+        assert empty_data is not None
+        assert empty_data["textItems"] == []
 
         # Test fuzzy index with some data then clear
         await fuzzy_index.add_terms(["test1", "test2"])
