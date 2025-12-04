@@ -474,7 +474,7 @@ async def cmd_history(context: ProcessingContext, args: list[str]) -> None:
         return
 
     print(
-        f"Conversation history"
+        f"Conversation history "
         f"({len(context.history.entries)}/{context.history.max_entries} entries):"
     )
     for i, entry in enumerate(context.history.entries, 1):
@@ -871,7 +871,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
     )
 
     if context.history.max_entries > 0:
-        if combined_answer.type == "Answere":
+        if combined_answer.type == "Answered":
             context.history.add(query_text, combined_answer.answer or "", True)
         else:
             context.history.add(query_text, combined_answer.whyNoAnswer or "", False)
@@ -978,7 +978,7 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         "--history-size",
         type=int,
         default=5,
-        help="Number of recent Q&A pairss to keep for resolving pronouns/references "
+        help="Number of recent Q&A pairs to keep for resolving pronouns/references "
         "(default: 5, 0 to disable)",
     )
 
