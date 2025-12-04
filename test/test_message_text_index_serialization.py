@@ -3,19 +3,23 @@
 
 """Test for MessageTextIndex serialization to ensure it's no longer a no-op."""
 
-import pytest
 import sqlite3
 
 import numpy as np
+import pytest
+from fixtures import embedding_model, needs_auth  # Import the fixtures we need
 
-from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
-from typeagent.storage.sqlite.schema import init_db_schema
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     TextEmbeddingIndexSettings,
 )
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model, needs_auth  # Import the fixtures we need
+from typeagent.knowpro.interfaces import (
+    MessageTextIndexData,
+    TextToTextLocationIndexData,
+)
+from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
+from typeagent.storage.sqlite.schema import init_db_schema
 
 
 class TestMessageTextIndexSerialization:
@@ -127,11 +131,6 @@ class TestMessageTextIndexSerialization:
         index = SqliteMessageTextIndex(sqlite_db, settings)
 
         # Create test data to deserialize
-        from typeagent.knowpro.interfaces import (
-            MessageTextIndexData,
-            TextToTextLocationIndexData,
-        )
-
         test_data: MessageTextIndexData = {
             "indexData": TextToTextLocationIndexData(
                 textLocations=[

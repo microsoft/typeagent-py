@@ -7,8 +7,6 @@ __version__ = "0.2"
 
 import argparse
 import asyncio
-from collections.abc import Mapping
-from dataclasses import dataclass
 import difflib
 import json
 import os
@@ -17,9 +15,12 @@ import shlex
 import shutil
 import sys
 import typing
+from collections.abc import Mapping
+from dataclasses import dataclass
 
-from colorama import init as colorama_init, Fore
 import numpy as np
+from colorama import Fore
+from colorama import init as colorama_init
 
 readline = None
 try:
@@ -30,11 +31,18 @@ except ImportError:
 
 import typechat
 
-from typeagent.aitools import embeddings
-from typeagent.aitools import utils
-
-from typeagent.knowpro import answers, answer_response_schema
-from typeagent.knowpro import convknowledge
+from typeagent.aitools import embeddings, utils
+from typeagent.knowpro import (
+    answer_response_schema,
+    answers,
+    convknowledge,
+    kplib,
+    query,
+    search,
+    search_query_schema,
+    searchlang,
+    serialization,
+)
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -46,18 +54,11 @@ from typeagent.knowpro.interfaces import (
     Tag,
     Topic,
 )
-from typeagent.knowpro import kplib
-from typeagent.knowpro import query
-from typeagent.knowpro import search, search_query_schema, searchlang
-from typeagent.knowpro import serialization
-
 from typeagent.podcasts import podcast
-
 from typeagent.storage.memory.propindex import build_property_index
 from typeagent.storage.memory.reltermsindex import build_related_terms_index
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
-
 
 ### Classes ###
 

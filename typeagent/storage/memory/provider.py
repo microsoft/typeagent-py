@@ -6,15 +6,6 @@
 
 from datetime import datetime
 
-from ...knowpro import interfaces
-
-from .collections import MemoryMessageCollection, MemorySemanticRefCollection
-from .semrefindex import TermToSemanticRefIndex
-from .convthreads import ConversationThreads
-from .messageindex import MessageTextIndex
-from .reltermsindex import RelatedTermsIndex
-from .propindex import PropertyIndex
-from .timestampindex import TimestampToTextRangeIndex
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ConversationMetadata,
@@ -27,6 +18,13 @@ from ...knowpro.interfaces import (
     ITermToSemanticRefIndex,
     ITimestampToTextRangeIndex,
 )
+from .collections import MemoryMessageCollection, MemorySemanticRefCollection
+from .convthreads import ConversationThreads
+from .messageindex import MessageTextIndex
+from .propindex import PropertyIndex
+from .reltermsindex import RelatedTermsIndex
+from .semrefindex import TermToSemanticRefIndex
+from .timestampindex import TimestampToTextRangeIndex
 
 
 class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
@@ -74,7 +72,6 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         exc_tb: object,
     ) -> None:
         """Exit transaction context. No-op for in-memory storage."""
-        pass
 
     async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex:
         return self._conversation_index
@@ -104,7 +101,6 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
     async def close(self) -> None:
         """Close the storage provider."""
-        pass
 
     def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata.
@@ -123,7 +119,6 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         Args:
             **kwds: Metadata keys and values (ignored)
         """
-        pass
 
     def update_conversation_timestamps(
         self,

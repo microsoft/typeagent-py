@@ -1,26 +1,25 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import AsyncGenerator, Iterator
 import os
 import tempfile
+from collections.abc import AsyncGenerator, Iterator
 from typing import Any
 
 import pytest
 import pytest_asyncio
-
+import tiktoken
 from openai.types.create_embedding_response import CreateEmbeddingResponse, Usage
 from openai.types.embedding import Embedding
-import tiktoken
 
 from typeagent.aitools import utils
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.storage.memory.collections import (
-    MemoryMessageCollection,
-    MemorySemanticRefCollection,
+from typeagent.knowpro.convsettings import (
+    ConversationSettings,
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
 )
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     DeletionInfo,
     IConversation,
@@ -30,18 +29,18 @@ from typeagent.knowpro.interfaces import (
     ISemanticRefCollection,
     IStorageProvider,
     ITermToSemanticRefIndex,
-    SemanticRef,
     ScoredSemanticRefOrdinal,
+    SemanticRef,
     TextLocation,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.convsettings import (
-    MessageTextIndexSettings,
-    RelatedTermIndexSettings,
-)
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
-from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage.memory.collections import (
+    MemoryMessageCollection,
+    MemorySemanticRefCollection,
+)
 
 
 @pytest.fixture(scope="session")

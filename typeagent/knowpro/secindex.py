@@ -1,27 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from ..aitools.embeddings import AsyncEmbeddingModel
-from ..aitools.vectorbase import TextEmbeddingIndexSettings
-from .convsettings import ConversationSettings
+from ..storage.memory.messageindex import build_message_index
+from ..storage.memory.propindex import build_property_index
+from ..storage.memory.reltermsindex import build_related_terms_index
+from ..storage.memory.timestampindex import build_timestamp_index
+from .convsettings import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
     IConversationSecondaryIndexes,
     IMessage,
     IStorageProvider,
     ITermToSemanticRefIndex,
-    TextLocation,
-)
-from ..storage.memory.messageindex import build_message_index
-from ..storage.memory.propindex import PropertyIndex, build_property_index
-from ..storage.memory.reltermsindex import (
-    RelatedTermsIndex,
-    build_related_terms_index,
-)
-from .convsettings import RelatedTermIndexSettings
-from ..storage.memory.timestampindex import (
-    TimestampToTextRangeIndex,
-    build_timestamp_index,
 )
 
 

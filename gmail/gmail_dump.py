@@ -2,9 +2,9 @@
 # Licensed under the MIT License.
 
 import argparse
+import time
 from base64 import urlsafe_b64decode as b64d
 from pathlib import Path
-import time
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow

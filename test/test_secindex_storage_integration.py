@@ -3,9 +3,13 @@
 
 # Test that ConversationSecondaryIndexes now uses storage provider properly
 import pytest
+from fixtures import (  # type: ignore  # It's used!
+    embedding_model,
+    memory_storage,
+    needs_auth,
+)
 
-from fixtures import needs_auth, memory_storage, embedding_model  # type: ignore  # It's used!
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes

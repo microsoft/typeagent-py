@@ -4,11 +4,10 @@
 """Memory-based collection implementations."""
 
 from typing import Iterable
+
 from ...knowpro.interfaces import (
     ICollection,
     IMessage,
-    ISemanticRefCollection,
-    IMessageCollection,
     MessageOrdinal,
     SemanticRef,
     SemanticRefOrdinal,

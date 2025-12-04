@@ -4,13 +4,12 @@
 """Test create_conversation factory function."""
 
 import pytest
+from fixtures import really_needs_auth
 
 from typeagent import create_conversation
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
-
-from fixtures import really_needs_auth
 
 
 @pytest.mark.asyncio

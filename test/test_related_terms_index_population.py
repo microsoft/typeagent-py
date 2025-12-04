@@ -4,23 +4,26 @@
 
 """Test to verify related terms index population in storage providers."""
 
-import tempfile
 import os
-import pytest
+import tempfile
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+import pytest
+from fixtures import really_needs_auth
+
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.utils import load_dotenv
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.interfaces import SemanticRef, TextRange, TextLocation
 from typeagent.knowpro import kplib
 from typeagent.knowpro.convsettings import (
+    ConversationSettings,
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
+from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
+from typeagent.podcasts.podcast import Podcast, PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
-
-from fixtures import really_needs_auth
+from typeagent.storage.memory.reltermsindex import build_related_terms_index
+from typeagent.storage.sqlite.reltermsindex import SqliteRelatedTermsIndex
 
 
 @pytest.mark.asyncio
@@ -136,11 +139,6 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
         ), f"Expected {len(entity_refs)} semantic refs, got {sem_ref_count}"
 
         # Create a test conversation and build related terms index
-        from typeagent.podcasts.podcast import Podcast
-        from typeagent.knowpro.convsettings import ConversationSettings
-        from typeagent.storage.memory.reltermsindex import build_related_terms_index
-        from typeagent.storage.sqlite.reltermsindex import SqliteRelatedTermsIndex
-
         settings2 = ConversationSettings()
         settings2.storage_provider = storage2
         conversation = await Podcast.create(settings2)

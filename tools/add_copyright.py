@@ -18,7 +18,6 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-
 COPYRIGHT_NOTICE = """# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License."""
 

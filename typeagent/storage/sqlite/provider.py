@@ -11,26 +11,21 @@ from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import ConversationMetadata
+from ...knowpro.universal_message import format_timestamp_utc
+from ...storage.memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
 from .reltermsindex import SqliteRelatedTermsIndex
-from .semrefindex import SqliteTermToSemanticRefIndex
-from .timestampindex import SqliteTimestampToTextRangeIndex
 from .schema import (
-    CONVERSATIONS_SCHEMA,
     CONVERSATION_SCHEMA_VERSION,
-    MESSAGE_TEXT_INDEX_SCHEMA,
-    MESSAGES_SCHEMA,
-    PROPERTY_INDEX_SCHEMA,
-    RELATED_TERMS_ALIASES_SCHEMA,
-    RELATED_TERMS_FUZZY_SCHEMA,
-    SEMANTIC_REF_INDEX_SCHEMA,
-    SEMANTIC_REFS_SCHEMA,
+    _set_conversation_metadata,
+    deserialize_embedding,
     get_db_schema_version,
     init_db_schema,
-    _set_conversation_metadata,
 )
+from .semrefindex import SqliteTermToSemanticRefIndex
+from .timestampindex import SqliteTimestampToTextRangeIndex
 
 
 class SqliteStorageProvider[TMessage: interfaces.IMessage](
@@ -215,7 +210,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         Raises:
             ValueError: If embeddings in the database don't match the expected size.
         """
-        from .schema import deserialize_embedding
 
         cursor = self.db.cursor()
         expected_size = (
@@ -259,7 +253,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         when the first actual write operation (e.g., adding messages) commits.
         This ensures we don't create empty databases with only metadata.
         """
-        from ...knowpro.universal_message import format_timestamp_utc
 
         current_time = datetime.now(timezone.utc)
         cursor = self.db.cursor()
@@ -414,8 +407,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """Get the conversation threads."""
         # For now, return a simple implementation
         # In a full implementation, this would be stored/retrieved from SQLite
-        from ...storage.memory.convthreads import ConversationThreads
-
         return ConversationThreads(
             self.message_text_index_settings.embedding_index_settings
         )
@@ -578,8 +569,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             created_at: Optional creation timestamp
             updated_at: Optional last updated timestamp
         """
-        from ...knowpro.universal_message import format_timestamp_utc
-
         # Check if any metadata exists
         cursor = self.db.cursor()
         cursor.execute("SELECT 1 FROM ConversationMetadata LIMIT 1")

@@ -2,19 +2,28 @@
 # Licensed under the MIT License.
 
 import pytest
+from fixtures import (  # type: ignore
+    FakeConversation,
+    FakeMessage,
+    FakeTermIndex,
+    needs_auth,
+)
 
-from fixtures import FakeConversation, FakeMessage, FakeTermIndex  # type: ignore
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.collections import (
     MatchAccumulator,
+    PropertyTermSet,
     SemanticRefAccumulator,
     TermSet,
-    PropertyTermSet,
     TextRangeCollection,
     TextRangesInScope,
 )
-from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.convsettings import (
+    ConversationSettings,
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.interfaces import (
     DateRange,
     Datetime,
@@ -23,49 +32,43 @@ from typeagent.knowpro.interfaces import (
     IStorageProvider,
     ITermToSemanticRefIndex,
     PropertySearchTerm,
-    Term,
+    ScoredSemanticRefOrdinal,
     SearchTerm,
     SemanticRef,
-    ScoredSemanticRefOrdinal,
-    TextRange,
+    Term,
     TextLocation,
+    TextRange,
     Topic,
 )
-from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.kplib import ConcreteEntity, KnowledgeResponse
 from typeagent.knowpro.query import (
-    TextRangeSelector,
-    get_text_range_for_date_range,
-    is_conversation_searchable,
-    lookup_term_filtered,
-    lookup_term,
+    GetScopeExpr,
+    MatchPropertySearchTermExpr,
+    MatchSearchTermExpr,
+    MatchTermExpr,
+    MatchTermsAndExpr,
+    MatchTermsOrExpr,
+    MatchTermsOrMaxExpr,
     QueryEvalContext,
     QueryOpExpr,
     SelectTopNExpr,
-    MatchTermsOrExpr,
-    MatchTermsOrMaxExpr,
-    MatchTermsAndExpr,
-    MatchTermExpr,
-    MatchSearchTermExpr,
-    MatchPropertySearchTermExpr,
-    GetScopeExpr,
-    get_text_range_for_date_range,
+    TextRangeSelector,
     get_matching_term_for_text,
-    match_search_term_to_text,
-    match_search_term_to_one_of_text,
-    match_entity_name_or_type,
+    get_text_range_for_date_range,
+    is_conversation_searchable,
     lookup_knowledge_type,
+    lookup_term,
+    lookup_term_filtered,
+    match_entity_name_or_type,
+    match_search_term_to_one_of_text,
+    match_search_term_to_text,
 )
-from typeagent.storage.memory.propindex import PropertyIndex
 from typeagent.storage.memory import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
+    MemoryStorageProvider,
 )
-
-from fixtures import needs_auth
+from typeagent.storage.memory.propindex import PropertyIndex
 
 
 def downcast[T](cls: type[T], obj: object) -> T:
@@ -606,9 +609,6 @@ async def test_get_text_range_for_date_range():
 
 
 def test_get_matching_term_for_text():
-    from typeagent.knowpro.query import get_matching_term_for_text
-    from typeagent.knowpro.interfaces import SearchTerm, Term
-
     # Should return None if no terms match
     assert get_matching_term_for_text(SearchTerm(term=Term("bar")), "foo") is None
     # Should return the matching term (case-insensitive)
@@ -618,17 +618,11 @@ def test_get_matching_term_for_text():
 
 
 def test_get_matching_term_for_text_multiple():
-    from typeagent.knowpro.query import get_matching_term_for_text
-    from typeagent.knowpro.interfaces import SearchTerm, Term
-
     terms = [SearchTerm(term=Term("bar")), SearchTerm(term=Term("baz"))]
     assert all(get_matching_term_for_text(term, "foo") is None for term in terms)
 
 
 def test_match_search_term_to_text():
-    from typeagent.knowpro.query import match_search_term_to_text
-    from typeagent.knowpro.interfaces import SearchTerm, Term
-
     # Should return True if term is in text
     assert match_search_term_to_text(SearchTerm(term=Term("foo")), "foo")
     # Should return False if term is not in text
@@ -636,9 +630,6 @@ def test_match_search_term_to_text():
 
 
 def test_match_search_term_to_one_of_text():
-    from typeagent.knowpro.query import match_search_term_to_one_of_text
-    from typeagent.knowpro.interfaces import SearchTerm, Term
-
     # Should return True if term matches any text
     assert match_search_term_to_one_of_text(
         SearchTerm(term=Term("foo")), ["bar", "foo"]
@@ -650,9 +641,6 @@ def test_match_search_term_to_one_of_text():
 
 
 def test_match_entity_name_or_type():
-    from typeagent.knowpro.query import match_entity_name_or_type, ConcreteEntity
-    from typeagent.knowpro.interfaces import SearchTerm, Term
-
     entity = ConcreteEntity(name="foo", type=["bar"])
     # Should return True if name matches
     assert match_entity_name_or_type(SearchTerm(term=Term("foo")), entity)
@@ -664,16 +652,6 @@ def test_match_entity_name_or_type():
 
 @pytest.mark.asyncio
 async def test_lookup_knowledge_type():
-    from typeagent.knowpro.query import lookup_knowledge_type
-    from typeagent.knowpro.interfaces import (
-        SemanticRef,
-        ScoredSemanticRefOrdinal,
-        TextRange,
-        TextLocation,
-        Topic,
-    )
-    from typeagent.knowpro.kplib import ConcreteEntity
-
     # Create valid TextRange and knowledge objects
     rng = TextRange(TextLocation(0, 0), TextLocation(0, 1))
     topic1 = Topic("foo")

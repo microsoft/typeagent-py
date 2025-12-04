@@ -5,16 +5,15 @@ import asyncio
 import os
 
 import numpy as np
-from numpy.typing import NDArray
-from openai import AsyncOpenAI, AsyncAzureOpenAI, DEFAULT_MAX_RETRIES, OpenAIError
-from openai.types import Embedding
 import tiktoken
+from numpy.typing import NDArray
+from openai import DEFAULT_MAX_RETRIES, AsyncAzureOpenAI, AsyncOpenAI, OpenAIError
+from openai.types import Embedding
 from tiktoken import model as tiktoken_model
 from tiktoken.core import Encoding
 
-from .auth import get_shared_token_provider, AzureTokenProvider
-from .utils import timelog
-
+from .auth import AzureTokenProvider, get_shared_token_provider
+from .utils import get_azure_api_key, parse_azure_endpoint, timelog
 
 type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
@@ -124,7 +123,6 @@ class AsyncEmbeddingModel:
         self._embedding_cache = {}
 
     def _setup_azure(self, azure_api_key: str) -> None:
-        from .utils import get_azure_api_key, parse_azure_endpoint
 
         azure_api_key = get_azure_api_key(azure_api_key)
         self.azure_endpoint, self.azure_api_version = parse_azure_endpoint(

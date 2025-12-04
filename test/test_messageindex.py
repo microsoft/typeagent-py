@@ -1,30 +1,33 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 
-from fixtures import FakeConversation, FakeMessage
-from typeagent.storage.memory.messageindex import (
-    MessageTextIndex,
-    build_message_index,
-    IMessageTextEmbeddingIndex,
+import pytest
+from fixtures import FakeConversation, FakeMessage, needs_auth
+
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
 )
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-
 from typeagent.knowpro.interfaces import (
     MessageTextIndexData,
     TextLocation,
     TextToTextLocationIndexData,
 )
-from typeagent.storage.memory import (
-    MemoryStorageProvider,
-    MemoryMessageCollection,
-)
 from typeagent.knowpro.textlocindex import TextToTextLocationIndex
-
-from fixtures import needs_auth
+from typeagent.storage.memory import (
+    MemoryMessageCollection,
+    MemoryStorageProvider,
+)
+from typeagent.storage.memory.messageindex import (
+    IMessageTextEmbeddingIndex,
+    MessageTextIndex,
+    build_message_index,
+)
 
 
 @pytest.fixture
@@ -46,9 +49,6 @@ def message_text_index(
     mock_text_location_index: MagicMock,
 ) -> IMessageTextEmbeddingIndex:
     """Fixture to create a MessageTextIndex instance with a mocked TextToTextLocationIndex."""
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-    from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = MessageTextIndexSettings(embedding_settings)
@@ -59,9 +59,6 @@ def message_text_index(
 
 def test_message_text_index_init(needs_auth: None):
     """Test initialization of MessageTextIndex."""
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-    from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = MessageTextIndexSettings(embedding_settings)
@@ -202,13 +199,6 @@ async def test_build_message_index(needs_auth: None):
     ]
 
     # Create storage provider asynchronously
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-    from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-    from typeagent.knowpro.convsettings import (
-        MessageTextIndexSettings,
-        RelatedTermIndexSettings,
-    )
-
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     message_text_settings = MessageTextIndexSettings(embedding_settings)

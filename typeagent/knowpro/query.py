@@ -4,11 +4,11 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from re import search
 from typing import Literal, Protocol, cast
 
 from ..aitools.embeddings import NormalizedEmbedding
-
+from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
+from ..storage.memory.propindex import PropertyNames, lookup_property_in_property_index
 from .collections import (
     Match,
     MatchAccumulator,
@@ -21,8 +21,8 @@ from .collections import (
 )
 from .common import is_search_term_wildcard
 from .interfaces import (
-    Datetime,
     DateRange,
+    Datetime,
     IConversation,
     IMessage,
     IMessageCollection,
@@ -36,7 +36,6 @@ from .interfaces import (
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SearchTerm,
-    SearchTermGroup,
     SemanticRef,
     SemanticRefOrdinal,
     SemanticRefSearchResult,
@@ -46,10 +45,6 @@ from .interfaces import (
     Thread,
 )
 from .kplib import ConcreteEntity
-from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
-from ..storage.memory.propindex import PropertyNames, lookup_property_in_property_index
-from .searchlib import create_property_search_term, create_tag_search_term_group
-
 
 # TODO: Move to compilelib.py
 type BooleanOp = Literal["and", "or", "or_max"]

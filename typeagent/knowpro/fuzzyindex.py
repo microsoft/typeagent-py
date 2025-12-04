@@ -5,8 +5,8 @@ from collections.abc import Callable
 
 import numpy as np
 
-from ..aitools.vectorbase import VectorBase, TextEmbeddingIndexSettings, ScoredInt
 from ..aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
+from ..aitools.vectorbase import ScoredInt, TextEmbeddingIndexSettings, VectorBase
 
 
 class EmbeddingIndex:

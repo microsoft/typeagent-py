@@ -3,14 +3,16 @@
 
 """Test embedding consistency checks between database and settings."""
 
-import pytest
-import tempfile
 import os
+import tempfile
+
+import pytest
+
 from typeagent import create_conversation
-from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.storage.sqlite import SqliteStorageProvider
+from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
 
 @pytest.mark.asyncio

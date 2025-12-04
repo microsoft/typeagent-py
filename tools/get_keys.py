@@ -13,10 +13,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import colorama
+
 # Azure SDK imports
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.authorization import AuthorizationManagementClient
-import colorama
 from colorama import Fore, Style
 
 # Initialize colorama for cross-platform color support

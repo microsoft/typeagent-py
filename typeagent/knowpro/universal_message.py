@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from typing import TypedDict
 
 from pydantic import Field
-from pydantic.dataclasses import dataclass as pydantic_dataclass
+
+from .dataclasses import dataclass as pydantic_dataclass
 
 from . import kplib
 from .field_helpers import CamelCaseField

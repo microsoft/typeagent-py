@@ -7,12 +7,8 @@ from typing import Protocol
 
 from ..aitools.embeddings import NormalizedEmbedding
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
-
-from .fuzzyindex import ScoredInt, EmbeddingIndex
-from .interfaces import (
-    TextToTextLocationIndexData,
-    TextLocation,
-)
+from .fuzzyindex import EmbeddingIndex, ScoredInt
+from .interfaces import TextLocation, TextToTextLocationIndexData
 
 
 @dataclass

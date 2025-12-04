@@ -2,21 +2,21 @@
 # Licensed under the MIT License.
 
 import pytest
-
 from fixtures import (
-    memory_storage,
-    needs_auth,
-    embedding_model,
     FakeConversation,
     FakeMessage,
+    embedding_model,
+    memory_storage,
+    needs_auth,  # type: ignore  # Yes it is used!
 )  # Import the storage fixture
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+
+from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
-from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.knowpro.convsettings import (
+    ConversationSettings,
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.secindex import (
     ConversationSecondaryIndexes,
     build_secondary_indexes,
@@ -24,10 +24,12 @@ from typeagent.knowpro.secindex import (
 )
 from typeagent.storage.memory import (
     MemoryMessageCollection as MemoryMessageCollection,
-    MemorySemanticRefCollection,
 )
-
-from fixtures import needs_auth  # type: ignore  # Yes it is used!
+from typeagent.storage.memory import (
+    MemorySemanticRefCollection,
+    MemoryStorageProvider,
+)
+from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
 
 
 @pytest.fixture
@@ -37,8 +39,6 @@ def simple_conversation() -> FakeConversation:
 
 @pytest.fixture
 def conversation_settings(needs_auth: None) -> ConversationSettings:
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-
     model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     return ConversationSettings(model)
 

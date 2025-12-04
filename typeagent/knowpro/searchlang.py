@@ -1,10 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Callable
 import copy
-from dataclasses import dataclass, replace
 import datetime
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from typing import Literal, TypeGuard, cast
 
 import typechat
@@ -15,9 +15,7 @@ from ..knowpro.interfaces import (
     DateRange,
     Datetime,
     IConversation,
-    KnowledgePropertyName,
     KnowledgeType,
-    PropertySearchTerm,
     SearchSelectExpr,
     SearchTerm,
     SearchTermGroup,
@@ -25,17 +23,15 @@ from ..knowpro.interfaces import (
     Term,
     WhenFilter,
 )
-from ..storage.memory.propindex import PropertyNames
 from ..knowpro.search import (
     ConversationSearchResult,
     SearchOptions,
     SearchQueryExpr,
-    has_conversation_result,
     has_conversation_results,
     run_search_query,
 )
 from ..knowpro.searchlib import create_property_search_term
-
+from ..storage.memory.propindex import PropertyNames
 from .date_time_schema import DateTime, DateTimeRange
 from .search_query_schema import (
     ActionTerm,

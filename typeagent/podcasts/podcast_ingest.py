@@ -8,10 +8,7 @@ from datetime import timedelta
 
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import Datetime
-from ..knowpro.universal_message import (
-    UNIX_EPOCH,
-    format_timestamp_utc,
-)
+from ..knowpro.universal_message import UNIX_EPOCH, format_timestamp_utc
 from ..storage.utils import create_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
 

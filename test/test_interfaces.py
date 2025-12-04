@@ -10,11 +10,11 @@ from typeagent.knowpro.interfaces import (
     SearchSelectExpr,
     SearchTerm,
     SearchTermGroup,
+    SemanticRef,
     SemanticRefSearchResult,
     Term,
     TextLocation,
     TextRange,
-    SemanticRef,
     Thread,
     WhenFilter,
 )

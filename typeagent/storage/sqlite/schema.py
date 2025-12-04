@@ -4,8 +4,9 @@
 """SQLite database schema definitions."""
 
 import sqlite3
-from datetime import datetime, timezone
 import typing
+from datetime import datetime, timezone
+
 import numpy as np
 
 from ...aitools.embeddings import NormalizedEmbedding

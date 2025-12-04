@@ -7,20 +7,22 @@ import sqlite3
 from typing import Generator
 
 import pytest
+from fixtures import FakeMessage, embedding_model, needs_auth, temp_db_path
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from typeagent.knowpro import interfaces
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro.interfaces import (
+    IMessage,
     SemanticRef,
+    Term,
+    TermToRelatedTermsData,
+    TextEmbeddingIndexData,
     TextLocation,
     TextRange,
     Topic,
-    Term,
 )
-
 from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
 from typeagent.storage.sqlite.propindex import SqlitePropertyIndex
 from typeagent.storage.sqlite.reltermsindex import (
@@ -31,8 +33,6 @@ from typeagent.storage.sqlite.reltermsindex import (
 from typeagent.storage.sqlite.schema import init_db_schema
 from typeagent.storage.sqlite.semrefindex import SqliteTermToSemanticRefIndex
 from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIndex
-
-from fixtures import needs_auth, embedding_model, temp_db_path
 
 
 @pytest.fixture
@@ -307,8 +307,6 @@ class TestSqliteRelatedTermsFuzzy:
         text_items = ["chess", "artificial intelligence", "machine learning"]
 
         # Create embeddings data (simulate what VectorBase would serialize)
-        from typeagent.aitools.vectorbase import VectorBase
-
         settings = TextEmbeddingIndexSettings(embedding_settings.embedding_model)
         temp_vectorbase = VectorBase(settings)
 
@@ -432,8 +430,6 @@ class TestRegressionPrevention:
         ]
 
         # Create embeddings as they would exist in the JSON
-        from typeagent.aitools.vectorbase import VectorBase
-
         settings = TextEmbeddingIndexSettings(embedding_settings.embedding_model)
         temp_vectorbase = VectorBase(settings)
 
@@ -551,8 +547,6 @@ class TestSqliteIndexesEdgeCases:
         await index.deserialize({"relatedTerms": []})
 
         # Test with properly formatted data
-        from typeagent.knowpro.interfaces import TermToRelatedTermsData
-
         formatted_data: TermToRelatedTermsData = {
             "relatedTerms": [
                 {"termText": "test", "relatedTerms": []},  # valid but empty
@@ -581,8 +575,6 @@ class TestSqliteIndexesEdgeCases:
         assert all(isinstance(results, list) for results in results_list)
 
         # Test deserialize with various data formats
-        from typeagent.knowpro.interfaces import TextEmbeddingIndexData
-
         # Valid data with None embeddings
         valid_data1: TextEmbeddingIndexData = {
             "textItems": ["test"],
@@ -618,9 +610,6 @@ class TestSqliteIndexesEdgeCases:
         assert results == []
 
         # Create some mock messages for testing
-        from fixtures import FakeMessage
-        from typeagent.knowpro.interfaces import IMessage
-
         messages: list[IMessage] = [
             FakeMessage(text_chunks=["First test message", "Second chunk"]),
             FakeMessage(text_chunks=["Another message"]),

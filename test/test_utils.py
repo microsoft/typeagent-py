@@ -5,10 +5,18 @@ import os
 from contextlib import redirect_stdout
 from io import StringIO
 
-import typeagent.aitools.utils as utils
-
+import pydantic.dataclasses
+import pytest
+from typing import TYPE_CHECKING
 
 from fixtures import really_needs_auth
+
+import typeagent.aitools.utils as utils
+
+if TYPE_CHECKING:
+    import typechat
+else:
+    typechat = pytest.importorskip("typechat")
 
 
 def test_timelog():
@@ -38,13 +46,9 @@ def test_load_dotenv(really_needs_auth):
 
 
 def test_create_translator():
-    import typechat
-
     class DummyModel(typechat.TypeChatLanguageModel):
         async def complete(self, *args, **kwargs) -> typechat.Result:
             return typechat.Failure("dummy response")
-
-    import pydantic.dataclasses
 
     @pydantic.dataclasses.dataclass
     class DummySchema:
