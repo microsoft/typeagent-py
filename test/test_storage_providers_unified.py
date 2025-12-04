@@ -16,7 +16,8 @@ from typing import AsyncGenerator, assert_never
 import pytest
 import pytest_asyncio
 from fixtures import embedding_model, needs_auth, temp_db_path
-from pydantic.dataclasses import dataclass
+
+from typeagent.knowpro.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings

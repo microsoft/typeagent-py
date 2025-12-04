@@ -16,12 +16,12 @@ from typing import (
 )
 
 import typechat
-from pydantic.dataclasses import dataclass
+
+from .dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbeddings
 from . import kplib, serialization
 from .field_helpers import CamelCaseField
-from .types import ConversationDataWithIndexes, SearchTermGroupTypes
 
 
 class IKnowledgeSource(Protocol):

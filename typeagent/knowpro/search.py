@@ -4,7 +4,8 @@
 from collections.abc import Callable
 from typing import TypeGuard, cast
 
-from pydantic.dataclasses import dataclass
+
+from .dataclasses import dataclass
 
 from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
 from ..storage.memory.reltermsindex import resolve_related_terms

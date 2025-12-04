@@ -3,8 +3,9 @@
 
 from typing import Annotated, Literal
 
-from pydantic.dataclasses import dataclass
 from typing_extensions import Doc
+
+from .dataclasses import dataclass
 
 AnswerType = Literal[
     "NoAnswer",  # If question cannot be accurately answered from [ANSWER CONTEXT]

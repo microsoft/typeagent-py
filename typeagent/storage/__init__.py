@@ -5,14 +5,14 @@
 
 # Import from new organized structure
 from .memory import (
-                     MemoryMessageCollection,
-                     MemorySemanticRefCollection,
-                     MemoryStorageProvider,
+    MemoryMessageCollection,
+    MemorySemanticRefCollection,
+    MemoryStorageProvider,
 )
 from .sqlite import (
-                     SqliteMessageCollection,
-                     SqliteSemanticRefCollection,
-                     SqliteStorageProvider,
+    SqliteMessageCollection,
+    SqliteSemanticRefCollection,
+    SqliteStorageProvider,
 )
 
 __all__ = [

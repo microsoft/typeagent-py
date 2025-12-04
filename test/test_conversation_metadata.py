@@ -15,7 +15,8 @@ from datetime import datetime, timezone
 import pytest
 import pytest_asyncio
 from fixtures import embedding_model, temp_db_path
-from pydantic.dataclasses import dataclass
+
+from typeagent.knowpro.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import TEST_MODEL_NAME, AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings

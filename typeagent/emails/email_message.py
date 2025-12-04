@@ -5,7 +5,8 @@ from email.utils import parseaddr
 from typing import Any
 
 from pydantic import Field
-from pydantic.dataclasses import dataclass as pydantic_dataclass
+
+from ..knowpro.dataclasses import dataclass as pydantic_dataclass
 
 from ..knowpro import kplib
 from ..knowpro.field_helpers import CamelCaseField

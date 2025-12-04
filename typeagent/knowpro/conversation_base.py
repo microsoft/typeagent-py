@@ -221,7 +221,6 @@ class ConversationBase(
         if self.secondary_indexes is None:
             return
 
-
         await propindex.add_to_property_index(self, start_points.semref_count)
 
         new_messages = await self.messages.get_slice(

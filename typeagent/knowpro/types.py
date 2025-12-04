@@ -1,29 +1,33 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-"""
-Shared type definitions for knowpro modules to avoid circular imports.
-"""
+"""Shared type helpers used to break circular imports in knowpro."""
 
-from typing import Any, Generic, Literal, TypedDict, TypeVar
+from typing import Any, Generic, NotRequired, TypedDict, TypeVar
 
-# --- Shared TypedDicts and type aliases ---
 
 TMessageData = TypeVar("TMessageData")
 
-class ConversationDataWithIndexes(TypedDict, Generic[TMessageData]):
-    messages: list[TMessageData]
-    relatedTermsIndexData: dict[str, Any] | None
-    messageIndexData: dict[str, Any] | None
-    # Add other fields as needed
 
+class ConversationDataWithIndexes(TypedDict, Generic[TMessageData]):
+    """Serializable conversation payload with index metadata."""
+
+    nameTag: str
+    messages: list[TMessageData]
+    tags: list[str]
+    semanticRefs: list[Any] | None
+    semanticIndexData: NotRequired[Any]
+    relatedTermsIndexData: NotRequired[Any]
+    threadData: NotRequired[Any]
+    messageIndexData: NotRequired[Any]
+
+
+# When importing from modules that cannot depend on knowpro.interfaces,
+# fall back to ``Any`` to avoid circular references while keeping type checkers
+# satisfied.
 SearchTermGroupTypes = Any
 
-class Tag(TypedDict):
-    knowledge_type: Literal["tag"]
-    text: str
 
-class Topic(TypedDict):
-    knowledge_type: Literal["topic"]
-    text: str
-
-# Add any other shared types here as needed
+__all__ = [
+    "ConversationDataWithIndexes",
+    "SearchTermGroupTypes",
+]

@@ -9,8 +9,9 @@ Comments that should go into the schema are in docstrings and Doc() annotations.
 
 from typing import Annotated, ClassVar, Literal
 
-from pydantic.dataclasses import dataclass
 from typing_extensions import Doc
+
+from .dataclasses import dataclass
 
 from .field_helpers import CamelCaseField
 

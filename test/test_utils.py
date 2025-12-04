@@ -7,11 +7,16 @@ from io import StringIO
 
 import pydantic.dataclasses
 import pytest
+from typing import TYPE_CHECKING
+
 from fixtures import really_needs_auth
 
 import typeagent.aitools.utils as utils
 
-typechat = pytest.importorskip("typechat")
+if TYPE_CHECKING:
+    import typechat
+else:
+    typechat = pytest.importorskip("typechat")
 
 
 def test_timelog():

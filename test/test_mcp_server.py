@@ -6,7 +6,7 @@
 import json
 import os
 import sys
-from typing import Any, TypeAlias
+from typing import Any, TYPE_CHECKING
 
 import pytest
 from fixtures import really_needs_auth
@@ -18,13 +18,18 @@ from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextConte
 
 from typeagent.aitools.utils import create_async_openai_client
 
-try:
+if TYPE_CHECKING:
     from openai.types.chat import ChatCompletionMessageParam
-except ImportError:  # pragma: no cover - optional dependency
-    ChatCompletionMessageParam: TypeAlias = dict[str, Any]
+else:  # pragma: no cover - optional dependency
+    try:
+        from openai.types.chat import ChatCompletionMessageParam
+    except ImportError:
+        ChatCompletionMessageParam = dict[str, Any]  # type: ignore[assignment]
 
 
-pytestmark = pytest.mark.skip(reason="mcp server tests require interactive dependencies; skipping for now")
+pytestmark = pytest.mark.skip(
+    reason="mcp server tests require interactive dependencies; skipping for now"
+)
 
 
 @pytest.fixture

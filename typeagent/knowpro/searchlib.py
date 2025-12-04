@@ -12,7 +12,7 @@ from typing import Any, cast
 
 def pydantic_dataclass_to_dict(obj: Any) -> Any:
     """Recursively convert dataclass instances (including pydantic dataclasses) to dictionaries."""
-    if dataclasses.is_dataclass(obj):
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         # dataclasses.asdict already recurses into nested dataclasses/lists
         data = dataclasses.asdict(obj)
         if data:
@@ -28,6 +28,7 @@ def pydantic_dataclass_to_dict(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {key: pydantic_dataclass_to_dict(value) for key, value in obj.items()}
     return obj
+
 
 from ..storage.memory.propindex import PropertyNames
 from .interfaces import (

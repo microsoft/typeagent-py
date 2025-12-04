@@ -159,7 +159,6 @@ def list_diff(label_a, a, label_b, b, max_items):
 def setup_logfire():
     """Configure logfire for pydantic_ai and httpx."""
 
-
     def scrubbing_callback(m: logfire.ScrubMatch):
         """Instructions: Uncomment any block where you deem it safe to not scrub."""
         # if m.path == ('attributes', 'http.request.header.authorization'):

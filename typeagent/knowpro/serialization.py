@@ -321,7 +321,11 @@ def deserialize_object(typ: Any, obj: Any) -> Any:
                 raise DeserializationError(
                     f"Pydantic validation failed for {typ.__name__}: {e}"
                 ) from e
-        elif isinstance(typ, type) and hasattr(typ, "__annotations__") and issubclass(typ, dict):
+        elif (
+            isinstance(typ, type)
+            and hasattr(typ, "__annotations__")
+            and issubclass(typ, dict)
+        ):
             # Handle TypedDict types (Tag, Topic)
             if not isinstance(obj, dict):
                 raise DeserializationError(f"Expected dict for {typ}, got {type(obj)}")

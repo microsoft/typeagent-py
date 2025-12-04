@@ -113,8 +113,12 @@ class TestTermGroupCreation:
 
         assert group.boolean_op == "and"
         assert len(group.terms) == 2
-        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(term1)
-        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(term2)
+        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(
+            term1
+        )
+        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(
+            term2
+        )
 
     def test_create_or_term_group(self):
         """Test creating an OR term group."""
@@ -124,8 +128,12 @@ class TestTermGroupCreation:
 
         assert group.boolean_op == "or"
         assert len(group.terms) == 2
-        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(term1)
-        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(term2)
+        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(
+            term1
+        )
+        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(
+            term2
+        )
 
     def test_create_or_max_term_group(self):
         """Test creating an OR_MAX term group."""
@@ -135,8 +143,12 @@ class TestTermGroupCreation:
 
         assert group.boolean_op == "or_max"
         assert len(group.terms) == 2
-        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(term1)
-        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(term2)
+        assert pydantic_dataclass_to_dict(group.terms[0]) == pydantic_dataclass_to_dict(
+            term1
+        )
+        assert pydantic_dataclass_to_dict(group.terms[1]) == pydantic_dataclass_to_dict(
+            term2
+        )
 
     def test_empty_term_groups(self):
         """Test creating empty term groups."""
@@ -162,8 +174,12 @@ class TestTermGroupCreation:
 
         assert outer_group.boolean_op == "and"
         assert len(outer_group.terms) == 2
-        assert pydantic_dataclass_to_dict(outer_group.terms[0]) == pydantic_dataclass_to_dict(inner_group)
-        assert pydantic_dataclass_to_dict(outer_group.terms[1]) == pydantic_dataclass_to_dict(term3)
+        assert pydantic_dataclass_to_dict(
+            outer_group.terms[0]
+        ) == pydantic_dataclass_to_dict(inner_group)
+        assert pydantic_dataclass_to_dict(
+            outer_group.terms[1]
+        ) == pydantic_dataclass_to_dict(term3)
 
 
 class TestCreateSearchTerms:

@@ -83,6 +83,7 @@ class ConversationSettings:
         if self._storage_provider is None:
             # Import here to avoid circular import
             from ..storage.memory import MemoryStorageProvider
+
             self._storage_provider = MemoryStorageProvider(
                 message_text_settings=self.message_text_index_settings,
                 related_terms_settings=self.related_term_index_settings,

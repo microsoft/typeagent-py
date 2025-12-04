@@ -3,8 +3,9 @@
 
 from typing import Annotated
 
-from pydantic.dataclasses import dataclass
 from typing_extensions import Doc
+
+from .dataclasses import dataclass
 
 
 @dataclass

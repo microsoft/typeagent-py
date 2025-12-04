@@ -5,8 +5,9 @@
 
 from typing import Annotated, Literal
 
-from pydantic.dataclasses import dataclass
 from typing_extensions import Doc
+
+from .dataclasses import dataclass
 
 from .date_time_schema import DateTimeRange
 from .field_helpers import CamelCaseField
