@@ -6,7 +6,29 @@ INTERNAL LIBRARY
 Functions that help with creating search and property terms
 """
 
-from typing import cast
+import dataclasses
+from typing import Any, cast
+
+
+def pydantic_dataclass_to_dict(obj: Any) -> Any:
+    """Recursively convert dataclass instances (including pydantic dataclasses) to dictionaries."""
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        # dataclasses.asdict already recurses into nested dataclasses/lists
+        data = dataclasses.asdict(obj)
+        if data:
+            return data
+        # Fallback for dataclasses where asdict() returns empty (observed with some pydantic dataclasses)
+        result: dict[str, object] = {}
+        for field in dataclasses.fields(obj):
+            value = getattr(obj, field.name)
+            result[field.name] = pydantic_dataclass_to_dict(value)
+        return result
+    if isinstance(obj, list):
+        return [pydantic_dataclass_to_dict(item) for item in obj]
+    if isinstance(obj, dict):
+        return {key: pydantic_dataclass_to_dict(value) for key, value in obj.items()}
+    return obj
+
 
 from .interfaces import (
     ISemanticRefCollection,

@@ -14,7 +14,6 @@ import time
 
 import pytest
 import pytest_asyncio
-from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
@@ -23,6 +22,7 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
+from typeagent.knowpro.dataclasses import dataclass
 from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
 from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider

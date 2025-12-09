@@ -1,9 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from pydantic.dataclasses import dataclass
 from typing import Annotated
 from typing_extensions import Doc
+
+from .dataclasses import dataclass
 
 
 @dataclass

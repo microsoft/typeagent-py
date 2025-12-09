@@ -11,13 +11,13 @@ to ensure behavioral parity across implementations.
 from typing import AsyncGenerator, assert_never
 import pytest
 from dataclasses import field
-from pydantic.dataclasses import dataclass
 import pytest_asyncio
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro import kplib
+from typeagent.knowpro.dataclasses import dataclass
 from typeagent.knowpro.interfaces import (
     DateRange,
     Datetime,
