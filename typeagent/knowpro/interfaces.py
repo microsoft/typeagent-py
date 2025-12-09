@@ -19,10 +19,10 @@ from typing import (
     runtime_checkable,
 )
 
-from pydantic.dataclasses import dataclass
 from pydantic import Field, AliasChoices
 import typechat
 
+from .dataclasses import dataclass
 from ..aitools.embeddings import NormalizedEmbeddings
 from . import kplib
 from .field_helpers import CamelCaseField

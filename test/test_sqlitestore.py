@@ -8,11 +8,11 @@ import tempfile
 from typing import Generator
 
 import pytest
-from pydantic.dataclasses import dataclass
 import pytest_asyncio
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.dataclasses import dataclass
 from typeagent.knowpro.interfaces import (
     IMessage,
     SemanticRef,
