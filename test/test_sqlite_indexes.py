@@ -3,7 +3,9 @@
 
 """Tests for SQLite index implementations with real embeddings."""
 
+import os
 import sqlite3
+import tempfile
 from typing import Generator
 
 import pytest
@@ -478,9 +480,6 @@ class TestSqliteRelatedTermsIndex:
         assert "embeddings" in text_embedding_data
 
         # Create a fresh database and index to test deserialization
-        import tempfile
-        import os
-
         with tempfile.TemporaryDirectory() as tmpdir:
             fresh_db_path = os.path.join(tmpdir, "fresh_test.db")
             fresh_db = sqlite3.connect(fresh_db_path)
@@ -492,10 +491,10 @@ class TestSqliteRelatedTermsIndex:
             await fresh_index.deserialize(data)
 
             # Verify alias data was restored
-            alias_results = await fresh_index.aliases.lookup_term("AI")
-            assert alias_results is not None
-            assert len(alias_results) == 1
-            assert alias_results[0].text == "artificial intelligence"
+            ai_results = await fresh_index.aliases.lookup_term("AI")
+            assert ai_results is not None
+            assert len(ai_results) == 1
+            assert ai_results[0].text == "artificial intelligence"
 
             ml_results = await fresh_index.aliases.lookup_term("ML")
             assert ml_results is not None
