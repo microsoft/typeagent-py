@@ -5,12 +5,12 @@ from dataclasses import dataclass
 from typing import Any
 from enum import Enum
 
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 from pydantic import Field
 
 from email.utils import parseaddr
 
 from ..knowpro import kplib
-from ..knowpro.dataclasses import dataclass as pydantic_dataclass
 from ..knowpro.field_helpers import CamelCaseField
 from ..knowpro.interfaces import (
     IKnowledgeSource,
