@@ -17,10 +17,6 @@ from .interfaces_core import (
 )
 
 
-if TYPE_CHECKING:
-    from ._dataclass_typing import dataclass
-
-
 @dataclass
 class SearchTerm:
     """Represents a term being searched for.
