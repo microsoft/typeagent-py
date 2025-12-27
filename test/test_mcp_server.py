@@ -5,7 +5,7 @@
 
 import os
 import sys
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 import pytest
 from mcp import StdioServerParameters
@@ -14,18 +14,6 @@ from mcp.shared.context import RequestContext
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
 from fixtures import really_needs_auth
-
-if TYPE_CHECKING:
-    from openai.types.chat import ChatCompletionMessageParam
-else:  # pragma: no cover - optional dependency
-    try:
-        from openai.types.chat import ChatCompletionMessageParam
-    except ImportError:
-        ChatCompletionMessageParam = dict[str, Any]  # type: ignore[assignment]
-
-pytestmark = pytest.mark.skip(
-    reason="mcp server tests require interactive dependencies; skipping for now"
-)
 
 
 @pytest.fixture
