@@ -6,7 +6,6 @@ INTERNAL LIBRARY
 Functions that help with creating search and property terms
 """
 
-import dataclasses
 from typing import cast
 
 from .interfaces import (
