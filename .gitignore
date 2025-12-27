@@ -21,6 +21,9 @@ __pycache__
 /*_data.json
 /*_embeddings.bin
 
+# pytest configuration
+pytest.ini
+
 # Coverage
 .coverage
 .coverage.*
