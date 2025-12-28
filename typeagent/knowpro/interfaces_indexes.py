@@ -27,6 +27,21 @@ from .interfaces_serialization import (
     ThreadDataItem,
 )
 
+__all__ = [
+    "IConversationSecondaryIndexes",
+    "IConversationThreads",
+    "IMessageTextIndex",
+    "IPropertyToSemanticRefIndex",
+    "ITermToRelatedTerms",
+    "ITermToRelatedTermsFuzzy",
+    "ITermToRelatedTermsIndex",
+    "ITimestampToTextRangeIndex",
+    "ScoredThreadOrdinal",
+    "Thread",
+    "ThreadOrdinal",
+    "TimestampedTextRange",
+]
+
 
 @runtime_checkable
 class IPropertyToSemanticRefIndex(Protocol):

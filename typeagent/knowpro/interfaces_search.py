@@ -16,6 +16,16 @@ from .interfaces_core import (
     TextRange,
 )
 
+__all__ = [
+    "SearchTerm",
+    "KnowledgePropertyName",
+    "PropertySearchTerm",
+    "SearchTermGroup",
+    "SearchTermGroupTypes",
+    "WhenFilter",
+    "SearchSelectExpr",
+]
+
 
 @dataclass
 class SearchTerm:

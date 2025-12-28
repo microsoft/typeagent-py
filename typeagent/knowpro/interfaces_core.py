@@ -22,6 +22,34 @@ from pydantic.dataclasses import dataclass
 from . import kplib
 from .field_helpers import CamelCaseField
 
+__all__ = [
+    "AddMessagesResult",
+    "DateRange",
+    "DeletionInfo",
+    "ITermToSemanticRefIndex",
+    "Datetime",
+    "IKnowledgeExtractor",
+    "IKnowledgeSource",
+    "IMessage",
+    "IMessageMetadata",
+    "IndexingStartPoints",
+    "Knowledge",
+    "KnowledgeData",
+    "KnowledgeType",
+    "MessageOrdinal",
+    "ScoredMessageOrdinal",
+    "ScoredSemanticRefOrdinal",
+    "SemanticRef",
+    "SemanticRefData",
+    "SemanticRefOrdinal",
+    "Tag",
+    "Term",
+    "TextLocation",
+    "TextLocationData",
+    "TextRange",
+    "TextRangeData",
+    "Topic",
+]
 
 if TYPE_CHECKING:
     from .interfaces_serialization import ScoredSemanticRefOrdinalData, TermData

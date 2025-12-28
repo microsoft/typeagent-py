@@ -13,6 +13,24 @@ from .interfaces_core import (
     TextRangeData,
 )
 
+__all__ = [
+    "ConversationData",
+    "ConversationDataWithIndexes",
+    "ConversationThreadData",
+    "MessageTextIndexData",
+    "ScoredSemanticRefOrdinalData",
+    "TermData",
+    "TermToRelatedTermsData",
+    "TermsToRelatedTermsDataItem",
+    "TermToSemanticRefIndexData",
+    "TermToSemanticRefIndexItemData",
+    "TermsToRelatedTermsIndexData",
+    "TextEmbeddingIndexData",
+    "TextToTextLocationIndexData",
+    "ThreadData",
+    "ThreadDataItem",
+]
+
 
 class ThreadData(TypedDict):
     description: str

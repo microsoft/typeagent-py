@@ -25,6 +25,15 @@ from .interfaces_indexes import (
     ITimestampToTextRangeIndex,
 )
 
+__all__ = [
+    "ConversationMetadata",
+    "IReadonlyCollection",
+    "ICollection",
+    "IMessageCollection",
+    "ISemanticRefCollection",
+    "IStorageProvider",
+]
+
 
 @dataclass
 class ConversationMetadata:

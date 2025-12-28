@@ -22,7 +22,7 @@ __pycache__
 /*_embeddings.bin
 
 # pytest configuration
-pytest.ini
+pytest.local.ini
 
 # Coverage
 .coverage
