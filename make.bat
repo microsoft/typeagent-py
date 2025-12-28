@@ -26,13 +26,13 @@ goto help
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
-.venv\Scripts\black typeagent test tools gmail demo
+.venv\Scripts\black src\typeagent test tools gmail demo
 goto end
 
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python typeagent test tools gmail demo
+.venv\Scripts\pyright --pythonpath .venv\Scripts\python src\typeagent test tools gmail demo
 goto end
 
 :test
