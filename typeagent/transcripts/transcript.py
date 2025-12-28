@@ -33,7 +33,6 @@ from ..knowpro.interfaces import (
     MessageOrdinal,
     SemanticRef,
     Term,
-    Timedelta,
     Topic,
     AddMessagesResult,
     IndexingStartPoints,
