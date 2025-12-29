@@ -52,7 +52,6 @@ from typeagent.knowpro.query import (
     MatchSearchTermExpr,
     MatchPropertySearchTermExpr,
     GetScopeExpr,
-    get_text_range_for_date_range,
     get_matching_term_for_text,
     match_search_term_to_text,
     match_search_term_to_one_of_text,
