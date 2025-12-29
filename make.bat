@@ -32,7 +32,7 @@ goto end
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python src\typeagent test tools gmail demo
+.venv\Scripts\pyright --pythonpath .venv\Scripts\python src test tools gmail demo
 goto end
 
 :test
