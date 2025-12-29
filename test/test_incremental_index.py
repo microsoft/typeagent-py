@@ -105,7 +105,7 @@ async def test_incremental_index_building():
 
         # Add messages with indexing
         print("Adding more messages with indexing...")
-        result2 = await transcript2.add_messages_with_indexing(messages2)
+        _result2 = await transcript2.add_messages_with_indexing(messages2)
 
         msg_count2 = await transcript2.messages.size()
         print(f"Now have {msg_count2} messages total")

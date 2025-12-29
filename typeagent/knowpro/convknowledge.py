@@ -9,7 +9,6 @@ import typechat
 
 from ..aitools import auth
 from . import kplib
-from .interfaces import IKnowledgeExtractor
 
 
 # TODO: Move ModelWrapper and create_typechat_model() to aitools package.

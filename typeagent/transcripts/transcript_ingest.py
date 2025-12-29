@@ -247,9 +247,6 @@ async def ingest_vtt_transcript(
     # Attach provider to settings to prevent garbage collection
     settings.storage_provider = provider
 
-    msg_coll = await provider.get_message_collection()
-    semref_coll = await provider.get_semantic_ref_collection()
-
     # Create transcript first
     transcript = await Transcript.create(
         settings,

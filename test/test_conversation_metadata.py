@@ -32,8 +32,6 @@ from typeagent.transcripts.transcript import (
     TranscriptMessageMeta,
 )
 
-from fixtures import embedding_model, temp_db_path
-
 
 def parse_iso_datetime(iso_string: str) -> datetime:
     """Helper to parse ISO datetime strings to datetime objects."""

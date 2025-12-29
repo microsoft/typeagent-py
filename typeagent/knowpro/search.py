@@ -2,8 +2,7 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
-from pydantic import Field, AliasChoices
-from typing import TypeGuard, cast, Annotated
+from typing import TypeGuard, cast
 
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .dataclasses import dataclass

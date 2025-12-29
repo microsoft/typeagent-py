@@ -20,8 +20,6 @@ from typeagent.knowpro.convsettings import (
 from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 
-from fixtures import really_needs_auth
-
 
 @pytest.mark.asyncio
 async def test_related_terms_index_population_from_database(really_needs_auth):

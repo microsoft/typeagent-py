@@ -3,9 +3,6 @@
 
 from collections.abc import AsyncGenerator
 from dataclasses import field
-import os
-import tempfile
-from typing import Generator
 
 import pytest
 from pydantic.dataclasses import dataclass
@@ -24,8 +21,6 @@ from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage import SqliteStorageProvider
-
-from fixtures import embedding_model, FakeMessage, temp_db_path
 
 
 # Dummy IMessage for testing

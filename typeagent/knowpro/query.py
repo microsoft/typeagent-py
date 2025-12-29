@@ -4,7 +4,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from re import search
 from typing import Literal, Protocol, cast
 
 from ..aitools.embeddings import NormalizedEmbedding
@@ -36,7 +35,6 @@ from .interfaces import (
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,
     SearchTerm,
-    SearchTermGroup,
     SemanticRef,
     SemanticRefOrdinal,
     SemanticRefSearchResult,
@@ -48,7 +46,6 @@ from .interfaces import (
 from .kplib import ConcreteEntity
 from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
 from ..storage.memory.propindex import PropertyNames, lookup_property_in_property_index
-from .searchlib import create_property_search_term, create_tag_search_term_group
 
 
 # TODO: Move to compilelib.py
@@ -1068,7 +1065,7 @@ async def message_matches_from_knowledge_matches(
 ) -> MessageAccumulator:
     message_matches = MessageAccumulator()
     knowledge_type_hit_count = 0  # How many types of knowledge matched?
-    for knowledge_type, matches_by_type in knowledge_matches.items():
+    for matches_by_type in knowledge_matches.values():
         if matches_by_type and matches_by_type.semantic_ref_matches:
             knowledge_type_hit_count += 1
             for match in matches_by_type.semantic_ref_matches:

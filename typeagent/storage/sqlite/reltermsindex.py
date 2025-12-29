@@ -5,7 +5,7 @@
 
 import sqlite3
 
-from ...aitools.embeddings import AsyncEmbeddingModel, NormalizedEmbeddings
+from ...aitools.embeddings import NormalizedEmbeddings
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from ...knowpro import interfaces
 

@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, TYPE_CHECKING
+from typing import Literal
 
 from pydantic.dataclasses import dataclass
 from .field_helpers import CamelCaseField

@@ -26,7 +26,7 @@ from typeagent.storage.memory.propindex import (
 )
 from typeagent.storage.memory import MemorySemanticRefCollection
 
-from fixtures import needs_auth, FakeConversation
+from conftest import FakeConversation
 
 
 @pytest.fixture

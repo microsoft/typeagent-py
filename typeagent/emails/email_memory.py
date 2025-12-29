@@ -5,11 +5,9 @@ import os
 from dataclasses import dataclass
 import json
 import copy
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 import typechat
 from ..aitools import utils
 from ..knowpro import (
-    secindex,
     convknowledge,
     search_query_schema,
     searchlang,
@@ -18,17 +16,9 @@ from ..knowpro import (
 )
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import (
-    IConversation,
-    IConversationSecondaryIndexes,
-    IMessage,
-    IMessageCollection,
-    ISemanticRefCollection,
-    ITermToSemanticRefIndex,
     Term,
 )
 from ..knowpro.conversation_base import ConversationBase
-from ..storage.memory import semrefindex
-from typeagent.storage.sqlite.provider import SqliteStorageProvider
 
 from .email_message import EmailMessage
 

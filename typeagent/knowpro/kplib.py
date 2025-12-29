@@ -7,7 +7,6 @@ It also doubles as the schema for the extraction process.
 Comments that should go into the schema are in docstrings and Doc() annotations.
 """
 
-from pydantic import Field, AliasChoices
 from typing import Annotated, ClassVar, Literal
 from typing_extensions import Doc
 

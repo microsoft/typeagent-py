@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterable, Iterable
 from datetime import datetime as Datetime
-from typing import TYPE_CHECKING, Any, Protocol, Self
+from typing import Any, Protocol, Self
 
 from pydantic.dataclasses import dataclass
 from .interfaces_core import (

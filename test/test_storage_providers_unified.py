@@ -34,8 +34,6 @@ from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
 
-from fixtures import needs_auth, embedding_model, temp_db_path
-
 
 # Test message for unified testing
 @dataclass
@@ -263,7 +261,7 @@ async def test_timestamp_index_behavior_parity(
     storage_provider_type: tuple[IStorageProvider, str], needs_auth: None
 ):
     """Test that timestamp index behaves identically in both providers."""
-    storage_provider, provider_type = storage_provider_type
+    storage_provider, _provider_type = storage_provider_type
 
     time_index = await storage_provider.get_timestamp_index()
 
@@ -398,7 +396,7 @@ async def test_property_index_population_from_semantic_refs(
 
     # Test initial property index state by trying a lookup that should return nothing
     initial_lookup = await prop_index.lookup_property("name", "nonexistent")
-    initial_empty = initial_lookup is None or len(initial_lookup) == 0
+    _initial_empty = initial_lookup is None or len(initial_lookup) == 0
 
     # Create test semantic refs with different knowledge types
     location = TextLocation(message_ordinal=0)

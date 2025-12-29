@@ -388,7 +388,7 @@ class ConversationBase(
                 entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
             )
 
-        all_answers, combined_answer = await answers.generate_answers(
+        _, combined_answer = await answers.generate_answers(
             self._answer_translator,
             search_results,
             self,

@@ -15,9 +15,7 @@ from ..knowpro.interfaces import (
     DateRange,
     Datetime,
     IConversation,
-    KnowledgePropertyName,
     KnowledgeType,
-    PropertySearchTerm,
     SearchSelectExpr,
     SearchTerm,
     SearchTermGroup,
@@ -30,7 +28,6 @@ from ..knowpro.search import (
     ConversationSearchResult,
     SearchOptions,
     SearchQueryExpr,
-    has_conversation_result,
     has_conversation_results,
     run_search_query,
 )

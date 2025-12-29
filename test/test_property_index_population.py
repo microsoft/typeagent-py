@@ -4,7 +4,6 @@
 
 """Test to verify property index population in storage providers."""
 
-import asyncio
 import tempfile
 import os
 import pytest
@@ -20,8 +19,6 @@ from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.podcasts.podcast import PodcastMessage
 from typeagent.storage import SqliteStorageProvider
-
-from fixtures import really_needs_auth
 
 
 class MockEmbeddingModel(AsyncEmbeddingModel):

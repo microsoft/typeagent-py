@@ -23,8 +23,6 @@ from typeagent.knowpro.universal_message import (
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
-from fixtures import needs_auth, really_needs_auth, temp_dir, embedding_model  # type: ignore
-
 
 def test_extract_speaker_from_text():
     """Test speaker extraction from various text formats."""
@@ -150,8 +148,8 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
     msg_coll = MemoryMessageCollection[TranscriptMessage]()
     await msg_coll.extend(messages_list)
 
-    semref_coll = MemorySemanticRefCollection()
-    semref_index = TermToSemanticRefIndex()
+    _semref_coll = MemorySemanticRefCollection()
+    _semref_index = TermToSemanticRefIndex()
 
     # Create transcript with in-memory storage
     transcript = await Transcript.create(
@@ -259,7 +257,6 @@ async def test_transcript_knowledge_extraction_slow(
         MemorySemanticRefCollection,
     )
     from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-    from typeagent.transcripts.transcript_ingest import extract_speaker_from_text
 
     # Use in-memory storage for speed
     settings = ConversationSettings(embedding_model)
@@ -299,8 +296,8 @@ async def test_transcript_knowledge_extraction_slow(
     msg_coll = MemoryMessageCollection[TranscriptMessage]()
     await msg_coll.extend(messages_list)
 
-    semref_coll = MemorySemanticRefCollection()
-    semref_index = TermToSemanticRefIndex()
+    _semref_coll = MemorySemanticRefCollection()
+    _semref_index = TermToSemanticRefIndex()
 
     # Create transcript with in-memory storage
     transcript = await Transcript.create(

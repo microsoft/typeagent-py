@@ -3,7 +3,6 @@
 
 """SQLite-based message text index implementation."""
 
-import json
 import sqlite3
 import typing
 

@@ -4,7 +4,7 @@
 import pytest
 
 from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
-from typeagent.knowpro.interfaces import DateRange, Datetime, TextLocation, TextRange
+from typeagent.knowpro.interfaces import DateRange, Datetime
 
 
 async def make_index(ts: list[str]) -> TimestampToTextRangeIndex:

@@ -3,8 +3,6 @@
 
 import pytest
 
-from fixtures import really_needs_auth  # type: ignore
-
 from typeagent.aitools.utils import create_async_openai_client
 
 

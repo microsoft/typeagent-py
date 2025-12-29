@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 import pytest
-from typing import cast
 
 from typechat import Result, Failure, Success
 
@@ -13,8 +12,6 @@ from typeagent.knowpro.knowledge import (
     merge_topics,
 )
 from typeagent.knowpro import convknowledge, kplib
-
-from fixtures import really_needs_auth
 
 
 class MockKnowledgeExtractor:
