@@ -1,27 +1,26 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 
-from conftest import FakeConversation, FakeMessage
-from typeagent.storage.memory.messageindex import (
-    MessageTextIndex,
-    build_message_index,
-    IMessageTextEmbeddingIndex,
-)
+import pytest
+
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
-
 from typeagent.knowpro.interfaces import (
     MessageTextIndexData,
     TextLocation,
     TextToTextLocationIndexData,
 )
-from typeagent.storage.memory import (
-    MemoryStorageProvider,
-)
 from typeagent.knowpro.textlocindex import TextToTextLocationIndex
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage.memory.messageindex import (
+    build_message_index,
+    IMessageTextEmbeddingIndex,
+    MessageTextIndex,
+)
+
+from conftest import FakeConversation, FakeMessage
 
 
 @pytest.fixture

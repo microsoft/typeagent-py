@@ -8,10 +8,7 @@ from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
 from .provider import SqliteStorageProvider
 from .reltermsindex import SqliteRelatedTermsIndex
-from .schema import (
-    init_db_schema,
-    get_db_schema_version,
-)
+from .schema import get_db_schema_version, init_db_schema
 from .semrefindex import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex
 

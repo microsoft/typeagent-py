@@ -4,19 +4,21 @@
 
 """Test to verify property index population in storage providers."""
 
-import tempfile
 import os
-import pytest
+import tempfile
 
 import numpy as np
+import pytest
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.utils import load_dotenv
-from typeagent.knowpro.interfaces import Tag, SemanticRef, TextRange, TextLocation
-from typeagent.knowpro import kplib
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro import kplib
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
+from typeagent.knowpro.interfaces import SemanticRef, Tag, TextLocation, TextRange
 from typeagent.podcasts.podcast import PodcastMessage
 from typeagent.storage import SqliteStorageProvider
 
@@ -109,8 +111,8 @@ async def test_property_index_population_from_database(really_needs_auth):
         )
 
         # Create a test conversation and build property index
-        from typeagent.podcasts.podcast import Podcast
         from typeagent.knowpro.convsettings import ConversationSettings
+        from typeagent.podcasts.podcast import Podcast
         from typeagent.storage.memory.propindex import build_property_index
 
         settings2 = ConversationSettings()

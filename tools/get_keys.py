@@ -4,14 +4,14 @@
 
 import argparse
 import asyncio
+from datetime import datetime
 import json
 import os
+from pathlib import Path
 import subprocess
 import sys
-import uuid
-from datetime import datetime
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+import uuid
 
 # Azure SDK imports
 from azure.identity import DefaultAzureCredential
@@ -91,7 +91,9 @@ class AzPIMClient:
 
     def __init__(self, az_cli_logged_in_user: AzCliLoggedInInfo):
         self.az_cli_logged_in_user = az_cli_logged_in_user
-        self.credential = DefaultAzureCredential() # CodeQL [SM05139] - This code is used as part of development setup only.
+        self.credential = (
+            DefaultAzureCredential()
+        )  # CodeQL [SM05139] - This code is used as part of development setup only.
 
     @staticmethod
     async def create():

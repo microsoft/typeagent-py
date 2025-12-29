@@ -8,6 +8,7 @@ from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
 from pydantic.dataclasses import dataclass
+
 from .interfaces_core import (
     DateRange,
     IMessage,
@@ -21,8 +22,8 @@ from .interfaces_core import (
 from .interfaces_serialization import (
     ConversationThreadData,
     MessageTextIndexData,
-    TermToRelatedTermsData,
     TermsToRelatedTermsIndexData,
+    TermToRelatedTermsData,
     ThreadData,
     ThreadDataItem,
 )

@@ -8,8 +8,7 @@ import sqlite3
 from ...aitools.embeddings import NormalizedEmbeddings
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from ...knowpro import interfaces
-
-from .schema import serialize_embedding, deserialize_embedding
+from .schema import deserialize_embedding, serialize_embedding
 
 
 class SqliteRelatedTermsAliases(interfaces.ITermToRelatedTerms):

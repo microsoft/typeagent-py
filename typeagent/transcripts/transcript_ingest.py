@@ -1,19 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from datetime import timedelta
 import os
 import re
-from datetime import timedelta
 
 import webvtt
 
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import Datetime
 from ..knowpro.universal_message import (
-    UNIX_EPOCH,
     ConversationMessage,
     ConversationMessageMeta,
     format_timestamp_utc,
+    UNIX_EPOCH,
 )
 from ..storage.utils import create_storage_provider
 from .transcript import Transcript

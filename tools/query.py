@@ -18,7 +18,8 @@ import shutil
 import sys
 import typing
 
-from colorama import init as colorama_init, Fore
+from colorama import Fore
+from colorama import init as colorama_init
 import numpy as np
 
 readline = None
@@ -30,11 +31,18 @@ except ImportError:
 
 import typechat
 
-from typeagent.aitools import embeddings
-from typeagent.aitools import utils
-
-from typeagent.knowpro import answers, answer_response_schema
-from typeagent.knowpro import convknowledge
+from typeagent.aitools import embeddings, utils
+from typeagent.knowpro import (
+    answer_response_schema,
+    answers,
+    convknowledge,
+    kplib,
+    query,
+    search,
+    search_query_schema,
+    searchlang,
+    serialization,
+)
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -46,16 +54,9 @@ from typeagent.knowpro.interfaces import (
     Tag,
     Topic,
 )
-from typeagent.knowpro import kplib
-from typeagent.knowpro import query
-from typeagent.knowpro import search, search_query_schema, searchlang
-from typeagent.knowpro import serialization
-
 from typeagent.podcasts import podcast
-
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
-
 
 ### Classes ###
 

@@ -5,11 +5,16 @@ from collections.abc import AsyncGenerator
 from dataclasses import field
 
 import pytest
-from pydantic.dataclasses import dataclass
 import pytest_asyncio
+
+from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.interfaces import (
     IMessage,
     SemanticRef,
@@ -18,8 +23,6 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage import SqliteStorageProvider
 
 
@@ -126,6 +129,7 @@ async def test_sqlite_timestamp_index(
 ):
     """Test SqliteTimestampToTextRangeIndex functionality."""
     from datetime import datetime
+
     from typeagent.knowpro.interfaces import DateRange
 
     # Set up database with some messages

@@ -9,7 +9,6 @@ from typeagent.aitools.vectorbase import (
     TextEmbeddingIndexSettings,
     VectorBase,
 )
-
 from typeagent.knowpro.collections import TermSet
 from typeagent.knowpro.common import is_search_term_wildcard
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
@@ -22,9 +21,9 @@ from typeagent.knowpro.interfaces import (
     ITermToSemanticRefIndex,
     SearchTerm,
     Term,
-    TermToRelatedTermsData,
     TermsToRelatedTermsDataItem,
     TermsToRelatedTermsIndexData,
+    TermToRelatedTermsData,
     TextEmbeddingIndexData,
 )
 

@@ -8,6 +8,7 @@ Comments that should go into the schema are in docstrings and Doc() annotations.
 """
 
 from typing import Annotated, ClassVar, Literal
+
 from typing_extensions import Doc
 
 from .dataclasses import dataclass

@@ -17,8 +17,8 @@ Usage:
     git am /tmp/patches/*.patch
 """
 
-import sys
 from pathlib import Path
+import sys
 
 
 def rewrite_patch(patch_content: str) -> str:

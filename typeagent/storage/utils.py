@@ -7,8 +7,8 @@ This module provides utility functions for creating storage providers
 without circular import issues.
 """
 
-from ..knowpro.interfaces import IMessage, IStorageProvider, ConversationMetadata
 from ..knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
+from ..knowpro.interfaces import ConversationMetadata, IMessage, IStorageProvider
 
 
 async def create_storage_provider[TMessage: IMessage](

@@ -8,7 +8,6 @@ from typeagent.knowpro.interfaces import (
     ScoredSemanticRefOrdinal,
     SearchTerm,
 )
-from typeagent.storage.memory.propindex import PropertyNames
 from typeagent.knowpro.searchlib import (
     create_and_term_group,
     create_entity_search_term_group,
@@ -22,6 +21,7 @@ from typeagent.knowpro.searchlib import (
     create_tag_search_term_group,
     create_topic_search_term_group,
 )
+from typeagent.storage.memory.propindex import PropertyNames
 
 
 class TestCreateSearchTerm:

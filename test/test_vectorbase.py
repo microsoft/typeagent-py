@@ -1,18 +1,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
 import numpy as np
+import pytest
 
-from typeagent.aitools.vectorbase import (
-    VectorBase,
-    TextEmbeddingIndexSettings,
-)
 from typeagent.aitools.embeddings import (
     AsyncEmbeddingModel,
     NormalizedEmbedding,
     TEST_MODEL_NAME,
 )
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
 
 @pytest.fixture(scope="function")

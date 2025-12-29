@@ -1,7 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typing import Literal, Annotated
+from typing import Annotated, Literal
+
 from typing_extensions import Doc
 
 from .dataclasses import dataclass

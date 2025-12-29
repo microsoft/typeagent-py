@@ -3,18 +3,18 @@
 
 """Test for MessageTextIndex serialization to ensure it's no longer a no-op."""
 
-import pytest
 import sqlite3
 
 import numpy as np
+import pytest
 
-from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
-from typeagent.storage.sqlite.schema import init_db_schema
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     TextEmbeddingIndexSettings,
 )
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
+from typeagent.storage.sqlite.schema import init_db_schema
 
 
 class TestMessageTextIndexSerialization:

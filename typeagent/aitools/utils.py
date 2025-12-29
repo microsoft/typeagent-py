@@ -13,6 +13,7 @@ import time
 import black
 import colorama
 import dotenv
+
 import typechat
 
 

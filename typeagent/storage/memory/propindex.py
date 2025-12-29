@@ -4,6 +4,7 @@
 import enum
 from typing import assert_never
 
+from ...knowpro import kplib
 from ...knowpro.collections import TextRangesInScope
 from ...knowpro.interfaces import (
     IConversation,
@@ -14,7 +15,6 @@ from ...knowpro.interfaces import (
     Tag,
     Topic,
 )
-from ...knowpro import kplib
 
 
 class PropertyNames(enum.Enum):

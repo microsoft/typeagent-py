@@ -8,6 +8,7 @@ Functions that help with creating search and property terms
 
 from typing import cast
 
+from ..storage.memory.propindex import PropertyNames
 from .interfaces import (
     ISemanticRefCollection,
     KnowledgePropertyName,
@@ -19,7 +20,6 @@ from .interfaces import (
     SemanticRef,
     Term,
 )
-from ..storage.memory.propindex import PropertyNames
 
 
 def create_search_term(

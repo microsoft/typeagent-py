@@ -6,13 +6,6 @@
 
 from datetime import datetime
 
-from .collections import MemoryMessageCollection, MemorySemanticRefCollection
-from .semrefindex import TermToSemanticRefIndex
-from .convthreads import ConversationThreads
-from .messageindex import MessageTextIndex
-from .reltermsindex import RelatedTermsIndex
-from .propindex import PropertyIndex
-from .timestampindex import TimestampToTextRangeIndex
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ConversationMetadata,
@@ -25,6 +18,13 @@ from ...knowpro.interfaces import (
     ITermToSemanticRefIndex,
     ITimestampToTextRangeIndex,
 )
+from .collections import MemoryMessageCollection, MemorySemanticRefCollection
+from .convthreads import ConversationThreads
+from .messageindex import MessageTextIndex
+from .propindex import PropertyIndex
+from .reltermsindex import RelatedTermsIndex
+from .semrefindex import TermToSemanticRefIndex
+from .timestampindex import TimestampToTextRangeIndex
 
 
 class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):

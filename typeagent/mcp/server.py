@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 import coverage
+
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
 from mcp.types import SamplingMessage, TextContent
@@ -20,8 +21,8 @@ coverage.process_startup()
 
 from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import answers, query, searchlang
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.answer_response_schema import AnswerResponse
+from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.search_query_schema import SearchQuery
 from typeagent.podcasts import podcast
 from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex

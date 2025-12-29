@@ -2,8 +2,10 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
-from typing import TypeGuard, cast
+from typing import cast, TypeGuard
 
+from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
+from ..storage.memory.reltermsindex import resolve_related_terms
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .dataclasses import dataclass
 from .field_helpers import CamelCaseField
@@ -23,8 +25,6 @@ from .interfaces import (
     WhenFilter,
 )
 from .kplib import ConcreteEntity
-from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
-from .searchlib import create_tag_search_term_group
 from .query import (
     BooleanOp,
     CompiledSearchTerm,
@@ -36,7 +36,9 @@ from .query import (
     IQueryOpExpr,
     IQuerySemanticRefPredicate,
     IQueryTextRangeSelector,
+    is_conversation_searchable,
     KnowledgeTypePredicate,
+    match_entity_name_or_type,
     MatchMessagesAndExpr,
     MatchMessagesBooleanExpr,
     MatchMessagesOrExpr,
@@ -60,13 +62,11 @@ from .query import (
     TextRangesFromMessagesSelector,
     TextRangesInDateRangeSelector,
     ThreadSelector,
-    WhereSemanticRefExpr,
-    is_conversation_searchable,
-    match_entity_name_or_type,
     to_non_required_search_term,
     to_required_search_term,
+    WhereSemanticRefExpr,
 )
-from ..storage.memory.reltermsindex import resolve_related_terms
+from .searchlib import create_tag_search_term_group
 
 
 @dataclass

@@ -1,14 +1,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import openai
-import pytest
-from pytest_mock import MockerFixture
-from pytest import MonkeyPatch
-
 import numpy as np
+import pytest
+from pytest import MonkeyPatch
+from pytest_mock import MockerFixture
+
+import openai
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
+
 from conftest import FakeEmbeddings
 
 

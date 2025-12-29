@@ -10,14 +10,11 @@ import numpy as np
 
 from ...aitools.embeddings import NormalizedEmbedding
 from ...aitools.vectorbase import ScoredInt, VectorBase
-
-from ...knowpro.convsettings import MessageTextIndexSettings
 from ...knowpro import interfaces
+from ...knowpro.convsettings import MessageTextIndexSettings
 from ...knowpro.interfaces import TextLocationData, TextToTextLocationIndexData
 from ...knowpro.textlocindex import ScoredTextLocation
-
 from ...storage.memory.messageindex import IMessageTextEmbeddingIndex
-
 from .schema import deserialize_embedding, serialize_embedding
 
 

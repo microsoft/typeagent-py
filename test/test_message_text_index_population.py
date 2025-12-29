@@ -4,16 +4,20 @@
 
 """Test to verify message text index population in storage providers."""
 
-import tempfile
 import os
+import tempfile
+
 import pytest
-from typeagent.storage import SqliteStorageProvider
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
 from typeagent.aitools.utils import load_dotenv
+from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from typeagent.knowpro.convsettings import (
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
+)
+from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
+from typeagent.storage import SqliteStorageProvider
 
 
 @pytest.mark.asyncio

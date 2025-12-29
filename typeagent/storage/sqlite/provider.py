@@ -3,8 +3,8 @@
 
 """SQLite storage provider implementation."""
 
-import sqlite3
 from datetime import datetime, timezone
+import sqlite3
 
 from ...aitools.embeddings import AsyncEmbeddingModel
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
@@ -15,14 +15,14 @@ from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
 from .reltermsindex import SqliteRelatedTermsIndex
-from .semrefindex import SqliteTermToSemanticRefIndex
-from .timestampindex import SqliteTimestampToTextRangeIndex
 from .schema import (
+    _set_conversation_metadata,
     CONVERSATION_SCHEMA_VERSION,
     get_db_schema_version,
     init_db_schema,
-    _set_conversation_metadata,
 )
+from .semrefindex import SqliteTermToSemanticRefIndex
+from .timestampindex import SqliteTimestampToTextRangeIndex
 
 
 class SqliteStorageProvider[TMessage: interfaces.IMessage](

@@ -8,33 +8,30 @@ from collections.abc import AsyncIterable, Callable
 from typechat import Failure
 
 from ...knowpro import convknowledge, kplib, secindex
-from ...knowpro.convsettings import ConversationSettings
-from ...knowpro.convsettings import SemanticRefIndexSettings
-from ...knowpro.interfaces import (
-    # Interfaces.
+from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
+from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
     IKnowledgeExtractor,
     IMessage,
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
-    # Other imports.
     Knowledge,
     KnowledgeType,
     MessageOrdinal,
-    SemanticRefOrdinal,
     ScoredSemanticRefOrdinal,
     SemanticRef,
-    TermToSemanticRefIndexItemData,
+    SemanticRefOrdinal,
     TermToSemanticRefIndexData,
+    TermToSemanticRefIndexItemData,
     TextLocation,
     TextRange,
     Topic,
 )
+from ...knowpro.knowledge import extract_knowledge_from_text_batch
 from ...knowpro.messageutils import (
     get_message_chunk_batch,
     text_range_from_message_chunk,
 )
-from ...knowpro.knowledge import extract_knowledge_from_text_batch
 
 
 def text_range_from_location(

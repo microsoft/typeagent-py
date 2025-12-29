@@ -3,24 +3,23 @@
 
 import pytest
 
-from conftest import (
-    FakeConversation,
-    FakeMessage,
-)  # Import the storage fixture
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
-from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.knowpro.convsettings import (
+    ConversationSettings,
+    RelatedTermIndexSettings,
+)
 from typeagent.knowpro.secindex import (
-    ConversationSecondaryIndexes,
     build_secondary_indexes,
     build_transient_secondary_indexes,
+    ConversationSecondaryIndexes,
 )
-from typeagent.storage.memory import (
-    MemoryMessageCollection as MemoryMessageCollection,
-)
+from typeagent.storage.memory import MemoryMessageCollection as MemoryMessageCollection
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
+
+from conftest import FakeConversation  # Import the storage fixture
+from conftest import FakeMessage
 
 
 @pytest.fixture

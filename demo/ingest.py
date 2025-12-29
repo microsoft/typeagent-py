@@ -1,8 +1,5 @@
 from typeagent import create_conversation
-from typeagent.transcripts.transcript import (
-    TranscriptMessage,
-    TranscriptMessageMeta,
-)
+from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
 
 def read_messages(filename) -> list[TranscriptMessage]:

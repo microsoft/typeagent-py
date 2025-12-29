@@ -3,26 +3,18 @@
 
 from dataclasses import dataclass
 import json
-from typing import TypedDict, Any
+from typing import Any, TypedDict
 
 import numpy as np
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from ..knowpro import secindex
+from ..knowpro import secindex, serialization
 from ..knowpro.conversation_base import ConversationBase
-from ..storage.memory.convthreads import ConversationThreads
 from ..knowpro.convsettings import ConversationSettings
-from ..knowpro.interfaces import (
-    ConversationDataWithIndexes,
-    SemanticRef,
-    Term,
-)
+from ..knowpro.interfaces import ConversationDataWithIndexes, SemanticRef, Term
+from ..knowpro.universal_message import ConversationMessage, ConversationMessageMeta
+from ..storage.memory.convthreads import ConversationThreads
 from ..storage.memory.messageindex import MessageTextIndex
-from ..knowpro import serialization
-from ..knowpro.universal_message import (
-    ConversationMessage,
-    ConversationMessageMeta,
-)
 
 # Type aliases for backward compatibility
 TranscriptMessage = ConversationMessage

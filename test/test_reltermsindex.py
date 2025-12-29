@@ -1,29 +1,30 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from typing import AsyncGenerator
+
 # Third-party imports
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator
 
 # TypeAgent imports
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.interfaces import Term, IMessage, ITermToRelatedTermsIndex
-from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
+from typeagent.knowpro.interfaces import IMessage, ITermToRelatedTermsIndex, Term
+from typeagent.knowpro.kplib import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
-from typeagent.storage.memory.reltermsindex import (
-    TermToRelatedTermsMap,
-    RelatedTermsIndex,
-    dedupe_related_terms,
-    resolve_related_terms,
-)
-from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage.memory.reltermsindex import (
+    dedupe_related_terms,
+    RelatedTermsIndex,
+    resolve_related_terms,
+    TermToRelatedTermsMap,
+)
 
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])

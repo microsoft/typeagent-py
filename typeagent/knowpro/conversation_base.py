@@ -10,8 +10,8 @@ from typing import Generic, Self, TypeVar
 import typechat
 
 from . import (
-    answers,
     answer_response_schema,
+    answers,
     convknowledge,
     kplib,
     search_query_schema,
@@ -27,10 +27,10 @@ from .interfaces import (
     IConversationSecondaryIndexes,
     IMessage,
     IMessageCollection,
+    IndexingStartPoints,
     ISemanticRefCollection,
     IStorageProvider,
     ITermToSemanticRefIndex,
-    IndexingStartPoints,
     MessageOrdinal,
     Topic,
 )

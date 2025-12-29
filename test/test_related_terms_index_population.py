@@ -4,19 +4,20 @@
 
 """Test to verify related terms index population in storage providers."""
 
-import tempfile
 import os
+import tempfile
+
 import pytest
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.utils import load_dotenv
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.interfaces import SemanticRef, TextRange, TextLocation
 from typeagent.knowpro import kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
+from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
 from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 
@@ -134,8 +135,8 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
         ), f"Expected {len(entity_refs)} semantic refs, got {sem_ref_count}"
 
         # Create a test conversation and build related terms index
-        from typeagent.podcasts.podcast import Podcast
         from typeagent.knowpro.convsettings import ConversationSettings
+        from typeagent.podcasts.podcast import Podcast
         from typeagent.storage.memory.reltermsindex import build_related_terms_index
         from typeagent.storage.sqlite.reltermsindex import SqliteRelatedTermsIndex
 
