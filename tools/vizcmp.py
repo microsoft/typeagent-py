@@ -49,7 +49,7 @@ def main():
 
         scores = {}
         counter = None
-        for i, line in enumerate(lines):
+        for line in lines:
             if m := re.match(r"^(?:-+|\*+)\s+(\d+)\s+", line):
                 counter = int(m.group(1))
             elif m := re.match(r"^Score:\s+([\d.]+); Question:\s+(.*)$", line):
@@ -113,7 +113,7 @@ def main():
 
 def print_header(all_files):
     print("    ", end="")
-    for i, file in enumerate(all_files):
+    for file in all_files:
         base = os.path.basename(file)
         m = re.match(r"eval-(\d+\w*).*\.txt", base)
         if m:

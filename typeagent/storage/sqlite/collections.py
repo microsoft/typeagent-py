@@ -61,7 +61,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         """Rehydrate a message from database row columns."""
         (
             chunks_json,
-            chunk_uri,
+            _chunk_uri,
             start_timestamp,
             tags_json,
             metadata_json,

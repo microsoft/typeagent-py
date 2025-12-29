@@ -1175,7 +1175,6 @@ async def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 else:
                     sem_ref = await conversation.semantic_refs.get_item(sem_ref_ord)
                     msg_ord = sem_ref.range.start.message_ordinal
-                    chunk_ord = sem_ref.range.start.chunk_ordinal
                     msg = await conversation.messages.get_item(msg_ord)
                     print(
                         f"({score:5.1f}) M={msg_ord}: "

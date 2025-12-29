@@ -319,7 +319,6 @@ def test_semantic_ref_serialization():
     """Test serialization and deserialization of SemanticRef using ConcreteEntity."""
     # Create a concrete example of knowledge
     knowledge = ConcreteEntity(name="ExampleEntity", type=["ExampleType"])
-    knowledge_type = "entity"
 
     # Define the range
     start = TextLocation(message_ordinal=1)

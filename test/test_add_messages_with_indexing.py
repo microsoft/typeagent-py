@@ -146,7 +146,7 @@ async def test_transaction_rollback_on_error():
         result1 = await transcript.add_messages_with_indexing(batch1)
         assert result1.messages_added == 1
 
-        initial_count = await transcript.messages.size()
+        _initial_count = await transcript.messages.size()
 
         # Verify the transaction context manager works
         try:

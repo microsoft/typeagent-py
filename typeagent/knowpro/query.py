@@ -1068,7 +1068,7 @@ async def message_matches_from_knowledge_matches(
 ) -> MessageAccumulator:
     message_matches = MessageAccumulator()
     knowledge_type_hit_count = 0  # How many types of knowledge matched?
-    for knowledge_type, matches_by_type in knowledge_matches.items():
+    for matches_by_type in knowledge_matches.values():
         if matches_by_type and matches_by_type.semantic_ref_matches:
             knowledge_type_hit_count += 1
             for match in matches_by_type.semantic_ref_matches:

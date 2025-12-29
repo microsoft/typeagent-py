@@ -150,8 +150,8 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
     msg_coll = MemoryMessageCollection[TranscriptMessage]()
     await msg_coll.extend(messages_list)
 
-    semref_coll = MemorySemanticRefCollection()
-    semref_index = TermToSemanticRefIndex()
+    _semref_coll = MemorySemanticRefCollection()
+    _semref_index = TermToSemanticRefIndex()
 
     # Create transcript with in-memory storage
     transcript = await Transcript.create(
@@ -299,8 +299,8 @@ async def test_transcript_knowledge_extraction_slow(
     msg_coll = MemoryMessageCollection[TranscriptMessage]()
     await msg_coll.extend(messages_list)
 
-    semref_coll = MemorySemanticRefCollection()
-    semref_index = TermToSemanticRefIndex()
+    _semref_coll = MemorySemanticRefCollection()
+    _semref_index = TermToSemanticRefIndex()
 
     # Create transcript with in-memory storage
     transcript = await Transcript.create(

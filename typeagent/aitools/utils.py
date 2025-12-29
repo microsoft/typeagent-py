@@ -95,7 +95,7 @@ def list_diff(label_a, a, label_b, b, max_items):
     """Print colorized diff between two sorted list of numbers."""
     sm = difflib.SequenceMatcher(None, a, b)
     a_out, b_out = [], []
-    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+    for _, i1, i2, j1, j2 in sm.get_opcodes():
         a_slice, b_slice = a[i1:i2], b[j1:j2]
         L = max(len(a_slice), len(b_slice))
         for k in range(L):

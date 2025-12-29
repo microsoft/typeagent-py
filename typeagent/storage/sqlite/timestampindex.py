@@ -129,7 +129,7 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
             )
 
         results = []
-        for msg_id, timestamp, chunks in cursor.fetchall():
+        for msg_id, timestamp, _chunks in cursor.fetchall():
             text_location = interfaces.TextLocation(
                 message_ordinal=msg_id, chunk_ordinal=0
             )

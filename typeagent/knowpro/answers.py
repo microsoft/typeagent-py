@@ -52,20 +52,19 @@ async def generate_answers(
 ) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
     all_answers: list[AnswerResponse] = []
     good_answers: list[str] = []
-    for i, search_result in enumerate(search_results):
-        for j, result in enumerate(search_results):
-            answer = await generate_answer(translator, result, conversation, options)
-            all_answers.append(answer)
-            match answer.type:
-                case "Answered":
-                    assert answer.answer is not None, "Answered answer must not be None"
-                    good = answer.answer.strip()
-                    if good:
-                        good_answers.append(good)
-                case "NoAnswer":
-                    pass
-                case _:
-                    assert False, f"Unexpected answer type: {answer.type}"
+    for result in search_results:
+        answer = await generate_answer(translator, result, conversation, options)
+        all_answers.append(answer)
+        match answer.type:
+            case "Answered":
+                assert answer.answer is not None, "Answered answer must not be None"
+                good = answer.answer.strip()
+                if good:
+                    good_answers.append(good)
+            case "NoAnswer":
+                pass
+            case _:
+                assert False, f"Unexpected answer type: {answer.type}"
     if len(all_answers) == 1:
         return all_answers, all_answers[0]
     combined_answer: AnswerResponse | None = None

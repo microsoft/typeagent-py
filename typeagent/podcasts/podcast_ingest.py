@@ -113,7 +113,6 @@ async def ingest_podcast(
     )
     settings.storage_provider = provider
     msg_coll = await provider.get_message_collection()
-    semref_coll = await provider.get_semantic_ref_collection()
     if (msg_size := await msg_coll.size()) > start_message:
         raise RuntimeError(
             f"{dbname!r} has {msg_size} messages; start_message ({start_message}) should be at least that."
