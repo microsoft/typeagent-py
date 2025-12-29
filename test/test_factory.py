@@ -10,8 +10,6 @@ from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
-from fixtures import really_needs_auth
-
 
 @pytest.mark.asyncio
 async def test_create_conversation_minimal():

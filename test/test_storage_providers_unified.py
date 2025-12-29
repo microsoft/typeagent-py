@@ -34,8 +34,6 @@ from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
 
-from fixtures import needs_auth, embedding_model, temp_db_path
-
 
 # Test message for unified testing
 @dataclass

@@ -53,8 +53,6 @@ from typeagent.knowpro import serialization
 
 from typeagent.podcasts import podcast
 
-from typeagent.storage.memory.propindex import build_property_index
-from typeagent.storage.memory.reltermsindex import build_related_terms_index
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
 

@@ -13,7 +13,7 @@ import argparse
 import shelve
 
 try:
-    import readline  # noqa: F401
+    import readline  # type: ignore
 except ImportError:
     pass  # readline not available on Windows
 

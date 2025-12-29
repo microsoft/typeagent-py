@@ -9,7 +9,6 @@ from typing import cast, Dict, AsyncGenerator
 # TypeAgent imports
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.storage.memory import MemorySemanticRefCollection
 from typeagent.knowpro.interfaces import (
     Topic,
     IMessage,
@@ -32,7 +31,6 @@ from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
 
 # Test fixtures
-from fixtures import needs_auth, embedding_model, temp_db_path
 
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])

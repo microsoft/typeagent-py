@@ -13,8 +13,6 @@ from mcp.client.session import ClientSession as ClientSessionType
 from mcp.shared.context import RequestContext
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
-from fixtures import really_needs_auth
-
 
 @pytest.fixture
 def server_params() -> StdioServerParameters:

@@ -4,15 +4,9 @@
 import pytest
 
 from typeagent.knowpro.interfaces import (
-    KnowledgePropertyName,
     PropertySearchTerm,
     ScoredSemanticRefOrdinal,
     SearchTerm,
-    SearchTermGroup,
-    SemanticRef,
-    Term,
-    TextLocation,
-    TextRange,
 )
 from typeagent.storage.memory.propindex import PropertyNames
 from typeagent.knowpro.searchlib import (
@@ -27,7 +21,6 @@ from typeagent.knowpro.searchlib import (
     create_search_terms,
     create_tag_search_term_group,
     create_topic_search_term_group,
-    get_semantic_refs_from_scored_ordinals,
 )
 
 

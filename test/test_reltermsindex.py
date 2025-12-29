@@ -25,9 +25,6 @@ from typeagent.storage.memory.reltermsindex import (
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
 
-# Test fixtures
-from fixtures import needs_auth, really_needs_auth, embedding_model, temp_db_path
-
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def related_terms_index(

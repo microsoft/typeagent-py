@@ -8,9 +8,6 @@ from io import StringIO
 import typeagent.aitools.utils as utils
 
 
-from fixtures import really_needs_auth
-
-
 def test_timelog():
     buf = StringIO()
     with redirect_stdout(buf):

@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 from typing import cast
 
-from fixtures import FakeConversation, FakeMessage
+from conftest import FakeConversation, FakeMessage
 from typeagent.storage.memory.messageindex import (
     MessageTextIndex,
     build_message_index,
@@ -20,11 +20,8 @@ from typeagent.knowpro.interfaces import (
 )
 from typeagent.storage.memory import (
     MemoryStorageProvider,
-    MemoryMessageCollection,
 )
 from typeagent.knowpro.textlocindex import TextToTextLocationIndex
-
-from fixtures import needs_auth
 
 
 @pytest.fixture

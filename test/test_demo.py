@@ -12,7 +12,6 @@ from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ScoredSemanticRefOrdinal
 from typeagent.podcasts import podcast
 
-from fixtures import really_needs_auth
 
 tests_dir = os.path.dirname(__file__)
 root_dir = os.path.dirname(tests_dir)

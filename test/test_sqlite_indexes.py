@@ -34,8 +34,6 @@ from typeagent.storage.sqlite.schema import init_db_schema
 from typeagent.storage.sqlite.semrefindex import SqliteTermToSemanticRefIndex
 from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIndex
 
-from fixtures import needs_auth, embedding_model, temp_db_path
-
 
 @pytest.fixture
 def embedding_settings(
@@ -738,7 +736,7 @@ class TestSqliteIndexesEdgeCases:
         assert results == []
 
         # Create some mock messages for testing
-        from fixtures import FakeMessage
+        from conftest import FakeMessage
         from typeagent.knowpro.interfaces import IMessage
 
         messages: list[IMessage] = [

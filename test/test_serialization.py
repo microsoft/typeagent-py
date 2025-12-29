@@ -6,7 +6,6 @@ import numpy as np
 from pathlib import Path
 from typing import Any, cast
 
-from typeagent.aitools.embeddings import NormalizedEmbeddings
 from typeagent.knowpro.serialization import (
     serialize_object,
     deserialize_object,

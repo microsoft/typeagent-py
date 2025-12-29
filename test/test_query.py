@@ -3,9 +3,7 @@
 
 import pytest
 
-from fixtures import FakeConversation, FakeMessage, FakeTermIndex  # type: ignore
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
+from conftest import FakeConversation, FakeMessage, FakeTermIndex
 from typeagent.knowpro.collections import (
     MatchAccumulator,
     SemanticRefAccumulator,
@@ -14,14 +12,9 @@ from typeagent.knowpro.collections import (
     TextRangeCollection,
     TextRangesInScope,
 )
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     DateRange,
     Datetime,
-    IConversation,
-    IMessage,
-    IStorageProvider,
-    ITermToSemanticRefIndex,
     PropertySearchTerm,
     Term,
     SearchTerm,
@@ -31,11 +24,6 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
     Topic,
 )
-from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
-from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.query import (
     TextRangeSelector,
     get_text_range_for_date_range,
@@ -52,28 +40,17 @@ from typeagent.knowpro.query import (
     MatchSearchTermExpr,
     MatchPropertySearchTermExpr,
     GetScopeExpr,
-    get_matching_term_for_text,
-    match_search_term_to_text,
-    match_search_term_to_one_of_text,
-    match_entity_name_or_type,
-    lookup_knowledge_type,
 )
 from typeagent.storage.memory.propindex import PropertyIndex
 from typeagent.storage.memory import (
-    MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
-
-from fixtures import needs_auth
 
 
 def downcast[T](cls: type[T], obj: object) -> T:
     """Downcast an object to a specific type."""
     assert isinstance(obj, cls), f"Expected type {cls}, but got {type(obj)}"
     return obj
-
-
-from fixtures import needs_auth  # type: ignore
 
 
 def make_semantic_ref(ordinal: int, text_range: TextRange):

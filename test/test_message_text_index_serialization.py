@@ -15,7 +15,6 @@ from typeagent.knowpro.convsettings import (
     TextEmbeddingIndexSettings,
 )
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model, needs_auth  # Import the fixtures we need
 
 
 class TestMessageTextIndexSerialization:

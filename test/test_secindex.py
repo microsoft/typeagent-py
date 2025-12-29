@@ -3,17 +3,13 @@
 
 import pytest
 
-from fixtures import (
-    memory_storage,
-    needs_auth,
-    embedding_model,
+from conftest import (
     FakeConversation,
     FakeMessage,
 )  # Import the storage fixture
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
 from typeagent.storage.memory import MemoryStorageProvider
@@ -24,10 +20,7 @@ from typeagent.knowpro.secindex import (
 )
 from typeagent.storage.memory import (
     MemoryMessageCollection as MemoryMessageCollection,
-    MemorySemanticRefCollection,
 )
-
-from fixtures import needs_auth  # type: ignore  # Yes it is used!
 
 
 @pytest.fixture

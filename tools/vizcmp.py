@@ -8,7 +8,7 @@ import re
 import statistics
 import sys
 
-from colorama import init as colorama_init, Back, Fore, Style
+from colorama import init as colorama_init, Fore, Style
 
 
 def main():

@@ -9,7 +9,7 @@ from pytest import MonkeyPatch
 import numpy as np
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from fixtures import embedding_model, fake_embeddings, fake_embeddings_tiktoken, FakeEmbeddings  # type: ignore  # Yes it's used!
+from conftest import FakeEmbeddings
 
 
 @pytest.mark.asyncio

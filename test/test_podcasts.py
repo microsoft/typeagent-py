@@ -5,8 +5,6 @@ import os
 import pytest
 from datetime import timezone
 
-from fixtures import really_needs_auth, temp_dir, embedding_model  # type: ignore  # Yes they are used!
-
 from typeagent.podcasts.podcast import Podcast
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
