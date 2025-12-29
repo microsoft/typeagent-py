@@ -72,4 +72,5 @@ testpaths = ["test"]
 
 [tool.pyright]
 reportUnusedVariable = true
+reportUnusedImport = true
 reportDuplicateImport = true

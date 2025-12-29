@@ -18,15 +18,7 @@ from .reltermsindex import SqliteRelatedTermsIndex
 from .semrefindex import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex
 from .schema import (
-    CONVERSATIONS_SCHEMA,
     CONVERSATION_SCHEMA_VERSION,
-    MESSAGE_TEXT_INDEX_SCHEMA,
-    MESSAGES_SCHEMA,
-    PROPERTY_INDEX_SCHEMA,
-    RELATED_TERMS_ALIASES_SCHEMA,
-    RELATED_TERMS_FUZZY_SCHEMA,
-    SEMANTIC_REF_INDEX_SCHEMA,
-    SEMANTIC_REFS_SCHEMA,
     get_db_schema_version,
     init_db_schema,
     _set_conversation_metadata,

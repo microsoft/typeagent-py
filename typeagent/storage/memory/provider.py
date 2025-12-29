@@ -6,8 +6,6 @@
 
 from datetime import datetime
 
-from ...knowpro import interfaces
-
 from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .semrefindex import TermToSemanticRefIndex
 from .convthreads import ConversationThreads

@@ -3,7 +3,6 @@
 
 # TODO: Move this file into knowpro.
 
-from pydantic import Field
 from typing import Annotated, Literal
 from typing_extensions import Doc
 

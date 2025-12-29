@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import Protocol, TYPE_CHECKING
 
 from typeagent.aitools.vectorbase import (

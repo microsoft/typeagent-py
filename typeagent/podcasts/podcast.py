@@ -4,17 +4,13 @@
 from dataclasses import dataclass
 import json
 import os
-from typing import TypedDict, cast, Any
+from typing import TypedDict, Any
 
 import numpy as np
-from pydantic.dataclasses import dataclass as pydantic_dataclass
-from pydantic import Field, AliasChoices
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from ..storage.memory import semrefindex
-from ..knowpro import kplib, secindex
+from ..knowpro import secindex
 from ..knowpro.conversation_base import ConversationBase
-from ..knowpro.field_helpers import CamelCaseField
 from ..storage.memory.convthreads import ConversationThreads
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import (
@@ -23,8 +19,6 @@ from ..knowpro.interfaces import (
     Term,
 )
 from ..storage.memory.messageindex import MessageTextIndex
-from ..storage.memory.reltermsindex import TermToRelatedTermsMap
-from ..storage.utils import create_storage_provider
 from ..knowpro import serialization
 from ..knowpro.universal_message import (
     ConversationMessage,

@@ -10,7 +10,6 @@ import sys
 from typing import cast, Set  # Set is an alias for builtin set
 
 from .interfaces import (
-    ICollection,
     IMessage,
     IMessageCollection,
     ISemanticRefCollection,

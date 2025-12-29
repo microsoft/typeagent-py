@@ -3,7 +3,6 @@
 
 import typechat
 
-from .convsettings import ConversationSettings
 from .interfaces import (
     DateRange,
     Datetime,
