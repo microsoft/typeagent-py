@@ -9,7 +9,7 @@ from pytest_mock import MockerFixture
 import openai
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
-
+from conftest import embedding_model  # type: ignore  # Magic, prevents side effects of mocking
 from conftest import FakeEmbeddings
 
 
