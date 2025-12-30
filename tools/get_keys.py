@@ -91,7 +91,9 @@ class AzPIMClient:
 
     def __init__(self, az_cli_logged_in_user: AzCliLoggedInInfo):
         self.az_cli_logged_in_user = az_cli_logged_in_user
+        # fmt: off
         self.credential = DefaultAzureCredential() # CodeQL [SM05139] - This code is used as part of development setup only.
+        # fmt: on
 
     @staticmethod
     async def create():
