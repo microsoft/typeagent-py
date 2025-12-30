@@ -84,7 +84,7 @@ jobs:
         shell: bash
         if: matrix.task == 'format'
         run: |
-            uv run black -tpy312 -tpy313 -tpy314 typeagent test gmail demo --check
+            uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
 
       - name: Login to Azure
         if: matrix.task == 'test'
