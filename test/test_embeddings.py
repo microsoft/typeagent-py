@@ -9,6 +9,7 @@ from pytest import MonkeyPatch
 import numpy as np
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from conftest import embedding_model  # type: ignore  # Magic, prevents side effects of mocking
 from conftest import FakeEmbeddings
 
 
