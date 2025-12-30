@@ -57,7 +57,7 @@ def really_needs_auth() -> None:
         pytest.skip("No API key found")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def embedding_model() -> AsyncEmbeddingModel:
     """Fixture to create a test embedding model with small embedding size for faster tests."""
     return AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
