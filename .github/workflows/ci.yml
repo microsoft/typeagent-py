@@ -23,6 +23,15 @@ permissions:
   actions: read
 
 jobs:
+
+  fail:
+    runs-on: ubuntu-latest
+    name: Skip Job on Gate Failure
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+        - name: Skip Job
+          run: echo "Job skipped"
+
   ci:
     environment:
       name: build-pipeline
