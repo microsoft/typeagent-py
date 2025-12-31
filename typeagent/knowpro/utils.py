@@ -12,6 +12,6 @@ def text_range_from_message_chunk(
 ) -> TextRange:
     """Create a TextRange from message and chunk ordinals."""
     return TextRange(
-        start=TextLocation(message_ordinal, chunk_ordinal),
+        start=TextLocation(message_ordinal, str(chunk_ordinal)),
         end=None,
     )
