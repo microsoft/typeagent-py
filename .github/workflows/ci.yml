@@ -3,7 +3,7 @@ name: CI
 
 on:
   workflow_run:
-    workflows: ["Gate"]
+    workflows: ["gate"]
   # push:
   #   branches: [ "main", "dev/robgruen/workflow_updates" ] 
   # pull_request_target:

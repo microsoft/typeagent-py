@@ -1,5 +1,5 @@
 # .github/workflows/ci.yml
-name: Gate
+name: gate
 
 on:
   push:
