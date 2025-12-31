@@ -108,7 +108,6 @@ class ConversationHistory:
         self.entries.append(HistoryEntry(question, answer, had_answer))
         if len(self.entries) > self.max_entries:
             self.entries.pop(0)
-        return 42
 
     def clear(self) -> None:
         """Clear all history."""
