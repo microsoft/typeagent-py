@@ -1,0 +1,47 @@
+# .github/workflows/ci.yml
+name: Gate
+
+on:
+  push:
+    branches: [ "main", "dev/robgruen/workflow_updates" ] 
+  pull_request_target:
+    branches: [ "main" ]
+  workflow_dispatch:     # manual run
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true  
+
+permissions:
+  pull-requests: read
+  contents: read
+  id-token: write  
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    steps:
+
+      # The following two steps (permissions checks) ensure that only users with write access can run this workflow on a PR (except the merge queue bot)
+      # PRs from forks we check the permissions of the user that triggered the workflow (github.triggering_actor)
+      # This means that if a user without write access opens a PR from a fork, they cannot run this workflow
+      # Users with write access can still run this workflow on a PR from a fork
+      # For PRs from the same repo, we allow the workflow to run as normal
+      - name: Get User Permission
+        if: ${{ github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]' }}
+        id: checkAccess
+        uses: actions-cool/check-user-permission@v2
+        with:
+          require: write
+          username: ${{ github.triggering_actor }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check User Permission
+        if: ${{ (github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]') && steps.checkAccess.outputs.require-result == 'false' }}
+        run: |
+          echo "${{ github.triggering_actor }} does not have permissions on this repo."
+          echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
+          echo "Job originally triggered by ${{ github.actor }}"
+          exit 1  
+
