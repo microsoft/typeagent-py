@@ -2,13 +2,10 @@
 name: CI
 
 on:
-  workflow_run:
-    workflows: ["gate"]
-    types: [requested, completed]
-  # push:
-  #   branches: [ "main", "dev/robgruen/workflow_updates" ] 
-  # pull_request_target:
-  #   branches: [ "main" ]
+  push:
+    branches: [ "main" ] 
+  pull_request_target:
+    branches: [ "main" ]
   workflow_dispatch:     # manual run
 
 concurrency:
@@ -23,25 +20,8 @@ permissions:
 
 jobs:
 
-  ci:
-    environment:
-      name: build-pipeline
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14']
-        task: [check, test, format]
-        exclude:
-        - os: windows-latest
-          python-version: '3.13'
-        - os: windows-latest
-          python-version: '3.14'
-    runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} ${{ matrix.task }} (py ${{ matrix.python-version }})
-
-    # Only run this job if the Gate workflow succeeded or if manually triggered
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+  permissions-check:
+    runs-on: ubuntu-latest
     steps:
 
       # The following two steps (permissions checks) ensure that only users with write access can run this workflow on a PR (except the merge queue bot)
@@ -66,6 +46,25 @@ jobs:
           echo "Job originally triggered by ${{ github.actor }}"
           exit 1  
 
+  ci:
+    needs: permissions-check
+    environment:
+      name: build-pipeline
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.12', '3.13', '3.14']
+        task: [check, test, format]
+        exclude:
+        - os: windows-latest
+          python-version: '3.13'
+        - os: windows-latest
+          python-version: '3.14'
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} ${{ matrix.task }} (py ${{ matrix.python-version }})
+
+    steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
