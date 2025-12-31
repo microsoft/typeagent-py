@@ -1,4 +1,4 @@
-# .github/workflows/ci.yml
+# .github/workflows/gate.yml
 name: gate
 
 on:

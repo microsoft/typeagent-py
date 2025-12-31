@@ -20,7 +20,8 @@ concurrency:
 permissions:
   pull-requests: read
   contents: read
-  id-token: write  
+  id-token: write
+  actions: read
 
 jobs:
   ci:
