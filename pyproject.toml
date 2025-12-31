@@ -65,7 +65,7 @@ GitHub = "https://github.com/microsoft/typeagent-py"
 Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README.md"
 
 [tool.uv.build-backend]
-module-root = ""
+module-root = "src"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
@@ -85,3 +85,8 @@ sections = ["FUTURE", "STDLIB", "THIRDPARTY", "AI", "FIRSTPARTY", "LOCALFOLDER"]
 known_ai = ["mcp", "openai", "pydantic", "pydantic_ai", "tiktoken", "typechat"]
 known_first_party = ["typeagent", "test", "tools", "gmail", "demo"]
 known_local_folder = ["conftest"]
+
+[dependency-groups]
+dev = [
+    "isort>=7.0.0",
+]

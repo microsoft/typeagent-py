@@ -1828,6 +1828,11 @@ dev = [
     { name = "pytest-mock" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "isort" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
@@ -1857,6 +1862,9 @@ requires-dist = [
     { name = "webvtt-py", specifier = ">=0.5.1" },
 ]
 provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "isort", specifier = ">=7.0.0" }]
 
 [[package]]
 name = "typechat"
