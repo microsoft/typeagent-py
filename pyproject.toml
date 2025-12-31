@@ -85,3 +85,8 @@ sections = ["FUTURE", "STDLIB", "THIRDPARTY", "AI", "FIRSTPARTY", "LOCALFOLDER"]
 known_ai = ["mcp", "openai", "pydantic", "pydantic_ai", "tiktoken", "typechat"]
 known_first_party = ["typeagent", "test", "tools", "gmail", "demo"]
 known_local_folder = ["conftest"]
+
+[dependency-groups]
+dev = [
+    "isort>=7.0.0",
+]
