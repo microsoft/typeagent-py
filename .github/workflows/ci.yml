@@ -49,8 +49,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} ${{ matrix.task }} (py ${{ matrix.python-version }})
 
-    # Only run this job if the Gate workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only run this job if the Gate workflow succeeded or if manually triggered
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     steps:
 
       # The following two steps (permissions checks) ensure that only users with write access can run this workflow on a PR (except the merge queue bot)
