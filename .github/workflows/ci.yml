@@ -23,17 +23,6 @@ permissions:
 
 jobs:
 
-  fail:
-    runs-on: ubuntu-latest
-    name: Skip Job on Gate Failure
-    # indicate failure if the gate workflow did not succeed and this is not a manual run 
-    if: ${{ github.event_name != 'workflow_dispatch' && github.event.workflow_run.conclusion != 'success' }}
-    steps:
-        - name: Skip Job
-          run: |
-            echo "Job skipped"
-            exit 1
-
   ci:
     environment:
       name: build-pipeline
