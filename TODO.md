@@ -131,3 +131,4 @@ Gradually move work items from here to repo Issues.
 ### P3 - Low Priority
 - **[P3, small]** Move `typeagent` into `src/`
 - **[P3, tiny]** Move `test/` to `tests/`
+- **Gate Test**
