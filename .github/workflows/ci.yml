@@ -4,8 +4,7 @@ name: CI
 on:
   workflow_run:
     workflows: ["gate"]
-    types:
-      - completed
+    types: [completed]
   # push:
   #   branches: [ "main", "dev/robgruen/workflow_updates" ] 
   # pull_request_target:
