@@ -3,7 +3,7 @@ name: gate
 
 on:
   push:
-    branches: [ "main", "dev/robgruen/workflow_updates" ] 
+    branches: [ "main" ] 
   pull_request_target:
     branches: [ "main" ]
   workflow_dispatch:     # manual run
