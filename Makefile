@@ -8,12 +8,12 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/isort typeagent test tools gmail demo $(FLAGS)
-	.venv/bin/black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo $(FLAGS)
+	.venv/bin/isort src test tools gmail demo $(FLAGS)
+	.venv/bin/black -tpy312 -tpy313 -tpy314 src test tools gmail demo $(FLAGS)
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test tools gmail
+	.venv/bin/pyright --pythonpath .venv/bin/python src test tools gmail
 
 .PHONY: test
 test: venv
@@ -36,7 +36,7 @@ compare: venv
 
 .PHONY: mcp
 mcp: venv
-	.venv/bin/mcp dev typeagent/mcp/server.py
+	.venv/bin/mcp dev src/typeagent/mcp/server.py
 
 .PHONY: profile
 profile: venv

@@ -65,7 +65,7 @@ GitHub = "https://github.com/microsoft/typeagent-py"
 Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README.md"
 
 [tool.uv.build-backend]
-module-root = ""
+module-root = "src"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
