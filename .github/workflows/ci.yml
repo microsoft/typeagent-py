@@ -6,7 +6,6 @@ on:
     workflows: ["gate"]
     types:
       - completed
-    branches: [ "**" ]
   # push:
   #   branches: [ "main", "dev/robgruen/workflow_updates" ] 
   # pull_request_target:
