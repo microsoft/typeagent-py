@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   gate:
-    name: Gate
+    name: gate
     runs-on: ubuntu-latest
     steps:
 
