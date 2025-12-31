@@ -1,30 +1,30 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
-import numpy as np
 from pathlib import Path
 from typing import Any, cast
 
-from typeagent.knowpro.serialization import (
-    serialize_object,
-    deserialize_object,
-    write_conversation_data_to_file,
-    from_conversation_file_data,
-    to_conversation_file_data,
-    create_file_header,
-    DeserializationError,
-    serialize_embeddings,
-)
+import numpy as np
+import pytest
+
 from typeagent.knowpro.interfaces import (
     ConversationDataWithIndexes,
     MessageTextIndexData,
     TermsToRelatedTermsIndexData,
     TextToTextLocationIndexData,
 )
-from typeagent.knowpro.kplib import Quantity, ConcreteEntity
+from typeagent.knowpro.kplib import ConcreteEntity, Quantity
+from typeagent.knowpro.serialization import (
+    create_file_header,
+    DeserializationError,
+    deserialize_object,
+    from_conversation_file_data,
+    serialize_embeddings,
+    serialize_object,
+    to_conversation_file_data,
+    write_conversation_data_to_file,
+)
 from typeagent.podcasts.podcast import Podcast
-
 
 type SampleData = Any  # Anything more refined causes type errors
 

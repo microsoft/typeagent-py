@@ -1,27 +1,25 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import pytest
-import os
 from datetime import timedelta
+import os
 
-from typeagent.transcripts.transcript_ingest import (
-    get_transcript_speakers,
-    get_transcript_duration,
-    extract_speaker_from_text,
-    webvtt_timestamp_to_seconds,
-)
+import pytest
+
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.transcripts.transcript import (
     Transcript,
     TranscriptMessage,
     TranscriptMessageMeta,
 )
-from typeagent.knowpro.universal_message import (
-    UNIX_EPOCH,
-    format_timestamp_utc,
+from typeagent.transcripts.transcript_ingest import (
+    extract_speaker_from_text,
+    get_transcript_duration,
+    get_transcript_speakers,
+    webvtt_timestamp_to_seconds,
 )
-from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
 
 
 def test_extract_speaker_from_text():
@@ -100,6 +98,7 @@ def conversation_settings(
 async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
     """Test importing a VTT file into a Transcript object."""
     import webvtt
+
     from typeagent.storage.memory.collections import (
         MemoryMessageCollection,
         MemorySemanticRefCollection,
@@ -252,6 +251,7 @@ async def test_transcript_knowledge_extraction_slow(
        and LLM extraction (topics from content) work correctly
     """
     import webvtt
+
     from typeagent.storage.memory.collections import (
         MemoryMessageCollection,
         MemorySemanticRefCollection,

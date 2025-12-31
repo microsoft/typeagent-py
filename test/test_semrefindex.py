@@ -1,34 +1,35 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from typing import AsyncGenerator, cast, Dict
+
 # Third-party imports
 import pytest
 import pytest_asyncio
-from typing import cast, Dict, AsyncGenerator
 
 # TypeAgent imports
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro.interfaces import (
-    Topic,
-    IMessage,
-    ITermToSemanticRefIndex,
-    ISemanticRefCollection,
-)
-from typeagent.knowpro.kplib import ConcreteEntity, Facet, Action, KnowledgeResponse
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.storage.memory.semrefindex import (
-    TermToSemanticRefIndex,
-    add_entity_to_index,
-    add_topic_to_index,
-    add_action_to_index,
-    add_knowledge_to_index,
+from typeagent.knowpro.interfaces import (
+    IMessage,
+    ISemanticRefCollection,
+    ITermToSemanticRefIndex,
+    Topic,
 )
-from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.knowpro.kplib import Action, ConcreteEntity, Facet, KnowledgeResponse
 from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage.memory.semrefindex import (
+    add_action_to_index,
+    add_entity_to_index,
+    add_knowledge_to_index,
+    add_topic_to_index,
+    TermToSemanticRefIndex,
+)
 
 # Test fixtures
 
@@ -72,8 +73,8 @@ async def semantic_ref_index(
         # For SQLite, we need to create semantic refs first due to foreign key constraints
         from typeagent.knowpro.interfaces import (
             SemanticRef,
-            TextRange,
             TextLocation,
+            TextRange,
             Topic,
         )
 

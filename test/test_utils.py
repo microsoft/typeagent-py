@@ -1,9 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import os
 from contextlib import redirect_stdout
 from io import StringIO
+import os
 
 import typeagent.aitools.utils as utils
 

@@ -7,11 +7,7 @@ from __future__ import annotations
 from typing import NotRequired, TypedDict
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from .interfaces_core import (
-    SemanticRefData,
-    TextLocationData,
-    TextRangeData,
-)
+from .interfaces_core import SemanticRefData, TextLocationData, TextRangeData
 
 __all__ = [
     "ConversationData",

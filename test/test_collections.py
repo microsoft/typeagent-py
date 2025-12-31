@@ -4,6 +4,10 @@
 import pytest
 
 from typeagent.knowpro.collections import (
+    add_smooth_related_score_to_match_score,
+    add_to_set,
+    get_smooth_score,
+    get_top_k,
     Match,
     MatchAccumulator,
     PropertyTermSet,
@@ -13,17 +17,13 @@ from typeagent.knowpro.collections import (
     TextRangeCollection,
     TextRangesInScope,
     TopNCollection,
-    add_smooth_related_score_to_match_score,
-    add_to_set,
-    get_smooth_score,
-    get_top_k,
 )
 from typeagent.knowpro.interfaces import (
-    TextRange,
     ScoredSemanticRefOrdinal,
     SemanticRef,
-    TextLocation,
     Term,
+    TextLocation,
+    TextRange,
 )
 from typeagent.knowpro.kplib import Action, ConcreteEntity
 from typeagent.storage.memory.collections import MemorySemanticRefCollection

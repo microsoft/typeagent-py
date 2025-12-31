@@ -1,16 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import os
-import pytest
 from datetime import timezone
+import os
 
-from typeagent.podcasts.podcast import Podcast
+import pytest
+
+from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
-from typeagent.podcasts import podcast_ingest
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.podcasts import podcast_ingest
+from typeagent.podcasts.podcast import Podcast
 
 
 @pytest.mark.asyncio

@@ -21,18 +21,12 @@ from typing import (
 )
 
 import numpy as np
+
 from pydantic.alias_generators import to_camel
 
-from ..aitools.embeddings import NormalizedEmbeddings
-
-from .interfaces import (
-    ConversationDataWithIndexes,
-    SearchTermGroupTypes,
-    Tag,
-    Topic,
-)
 from . import kplib
-
+from ..aitools.embeddings import NormalizedEmbeddings
+from .interfaces import ConversationDataWithIndexes, SearchTermGroupTypes, Tag, Topic
 
 # -------------------
 # Shared definitions

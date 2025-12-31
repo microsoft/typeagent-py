@@ -12,17 +12,15 @@ import pytest
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-
-from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro import interfaces
+from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro.interfaces import (
     SemanticRef,
+    Term,
     TextLocation,
     TextRange,
     Topic,
-    Term,
 )
-
 from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
 from typeagent.storage.sqlite.propindex import SqlitePropertyIndex
 from typeagent.storage.sqlite.reltermsindex import (
@@ -736,8 +734,9 @@ class TestSqliteIndexesEdgeCases:
         assert results == []
 
         # Create some mock messages for testing
-        from conftest import FakeMessage
         from typeagent.knowpro.interfaces import IMessage
+
+        from conftest import FakeMessage
 
         messages: list[IMessage] = [
             FakeMessage(text_chunks=["First test message", "Second chunk"]),

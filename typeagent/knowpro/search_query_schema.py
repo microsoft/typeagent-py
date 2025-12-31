@@ -4,11 +4,12 @@
 # TODO: Move this file into knowpro.
 
 from typing import Annotated, Literal
+
 from typing_extensions import Doc
 
 from .dataclasses import dataclass
-from .field_helpers import CamelCaseField
 from .date_time_schema import DateTimeRange
+from .field_helpers import CamelCaseField
 
 
 @dataclass

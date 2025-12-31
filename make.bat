@@ -26,6 +26,7 @@ goto help
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
+.venv\Scripts\isort typeagent test tools gmail demo
 .venv\Scripts\black typeagent test tools gmail demo
 goto end
 

@@ -4,7 +4,7 @@
 from dataclasses import MISSING
 from typing import Any
 
-from pydantic import Field, AliasChoices
+from pydantic import AliasChoices, Field
 from pydantic.alias_generators import to_camel
 
 

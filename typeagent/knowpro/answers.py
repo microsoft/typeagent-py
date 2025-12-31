@@ -6,22 +6,23 @@ from dataclasses import dataclass
 from typing import Any
 
 import black
+
 import typechat
 
 from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMessage
 from .answer_response_schema import AnswerResponse
-from .collections import Scored, get_top_k
+from .collections import get_top_k, Scored
 from .interfaces import (
     DateRange,
     Datetime,
     IConversation,
     IMessage,
     IMessageCollection,
+    IMessageMetadata,
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
     Knowledge,
     KnowledgeType,
-    IMessageMetadata,
     MessageOrdinal,
     ScoredMessageOrdinal,
     ScoredSemanticRefOrdinal,

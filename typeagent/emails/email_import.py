@@ -1,13 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import re
-from pathlib import Path
-from typing import Iterable
-
 from email import message_from_string
-from email.utils import parsedate_to_datetime
 from email.message import Message
+from email.utils import parsedate_to_datetime
+from pathlib import Path
+import re
+from typing import Iterable
 
 from .email_message import EmailMessage, EmailMessageMeta
 

@@ -14,6 +14,7 @@ import time
 
 import pytest
 import pytest_asyncio
+
 from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME

@@ -6,18 +6,18 @@ from __future__ import annotations
 
 from datetime import datetime as Datetime
 from typing import (
-    TYPE_CHECKING,
     Any,
     ClassVar,
     Literal,
     NotRequired,
     Protocol,
     Self,
+    TYPE_CHECKING,
     TypedDict,
 )
 
-import typechat
 from pydantic.dataclasses import dataclass
+import typechat
 
 from . import kplib
 from .field_helpers import CamelCaseField

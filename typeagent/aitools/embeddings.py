@@ -6,15 +6,15 @@ import os
 
 import numpy as np
 from numpy.typing import NDArray
-from openai import AsyncOpenAI, AsyncAzureOpenAI, DEFAULT_MAX_RETRIES, OpenAIError
+
+from openai import AsyncAzureOpenAI, AsyncOpenAI, DEFAULT_MAX_RETRIES, OpenAIError
 from openai.types import Embedding
 import tiktoken
 from tiktoken import model as tiktoken_model
 from tiktoken.core import Encoding
 
-from .auth import get_shared_token_provider, AzureTokenProvider
+from .auth import AzureTokenProvider, get_shared_token_provider
 from .utils import timelog
-
 
 type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings

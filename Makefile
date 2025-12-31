@@ -8,6 +8,7 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
+	.venv/bin/isort typeagent test tools gmail demo $(FLAGS)
 	.venv/bin/black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo $(FLAGS)
 
 .PHONY: check
@@ -85,7 +86,7 @@ help:
 	@echo "make help        # Help (this message)"
 	@echo "make             # Same as 'make all'"
 	@echo "make all         # venv, format, check, test, build"
-	@echo "make format      # Run black"
+	@echo "make format      # Run isort and black"
 	@echo "make check       # Run pyright"
 	@echo "make test        # Run pytest (tests are in test/)"
 	@echo "make coverage    # Run tests with coverage"

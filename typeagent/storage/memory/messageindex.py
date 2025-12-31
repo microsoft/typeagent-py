@@ -10,9 +10,9 @@ from ...knowpro.interfaces import (
     IMessage,
     IMessageTextIndex,
     IStorageProvider,
-    MessageTextIndexData,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    MessageTextIndexData,
     ScoredMessageOrdinal,
     TextLocation,
 )

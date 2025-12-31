@@ -5,7 +5,7 @@ from collections.abc import Callable
 import copy
 from dataclasses import dataclass, replace
 import datetime
-from typing import Literal, TypeGuard, cast
+from typing import cast, Literal, TypeGuard
 
 import typechat
 
@@ -23,16 +23,15 @@ from ..knowpro.interfaces import (
     Term,
     WhenFilter,
 )
-from ..storage.memory.propindex import PropertyNames
 from ..knowpro.search import (
     ConversationSearchResult,
-    SearchOptions,
-    SearchQueryExpr,
     has_conversation_results,
     run_search_query,
+    SearchOptions,
+    SearchQueryExpr,
 )
 from ..knowpro.searchlib import create_property_search_term
-
+from ..storage.memory.propindex import PropertyNames
 from .date_time_schema import DateTime, DateTimeRange
 from .search_query_schema import (
     ActionTerm,

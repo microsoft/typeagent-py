@@ -4,16 +4,17 @@
 
 """Fast test for related terms index functionality (replaces slow Episode 53 test)."""
 
-import tempfile
 import os
+import tempfile
+
 import pytest
 
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
+from typeagent.knowpro.kplib import ConcreteEntity
 from typeagent.podcasts.podcast import Podcast, PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
-from typeagent.knowpro.interfaces import SemanticRef, TextRange, TextLocation
-from typeagent.knowpro.kplib import ConcreteEntity
 
 
 @pytest.mark.asyncio

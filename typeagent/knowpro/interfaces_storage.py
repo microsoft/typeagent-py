@@ -9,6 +9,7 @@ from datetime import datetime as Datetime
 from typing import Any, Protocol, Self
 
 from pydantic.dataclasses import dataclass
+
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,

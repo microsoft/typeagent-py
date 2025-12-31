@@ -2,12 +2,12 @@
 # Licensed under the MIT License.
 
 from typeagent.knowpro.kplib import (
-    Quantity,
-    Facet,
-    ConcreteEntity,
-    ActionParam,
     Action,
+    ActionParam,
+    ConcreteEntity,
+    Facet,
     KnowledgeResponse,
+    Quantity,
 )
 
 

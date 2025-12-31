@@ -15,11 +15,11 @@ Usage:
 
 import argparse
 import asyncio
+from datetime import timedelta
 import os
+from pathlib import Path
 import sys
 import time
-from datetime import timedelta
-from pathlib import Path
 
 import webvtt
 
@@ -27,21 +27,18 @@ from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ConversationMetadata
-from typeagent.knowpro.universal_message import (
-    UNIX_EPOCH,
-    format_timestamp_utc,
-)
+from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.storage.utils import create_storage_provider
+from typeagent.transcripts.transcript import (
+    Transcript,
+    TranscriptMessage,
+    TranscriptMessageMeta,
+)
 from typeagent.transcripts.transcript_ingest import (
     get_transcript_duration,
     get_transcript_speakers,
     parse_voice_tags,
     webvtt_timestamp_to_seconds,
-)
-from typeagent.transcripts.transcript import (
-    Transcript,
-    TranscriptMessage,
-    TranscriptMessageMeta,
 )
 
 

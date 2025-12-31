@@ -16,11 +16,11 @@ import tiktoken
 from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.storage.memory.collections import (
-    MemoryMessageCollection,
-    MemorySemanticRefCollection,
+from typeagent.knowpro.convsettings import (
+    ConversationSettings,
+    MessageTextIndexSettings,
+    RelatedTermIndexSettings,
 )
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     DeletionInfo,
     IConversation,
@@ -30,18 +30,18 @@ from typeagent.knowpro.interfaces import (
     ISemanticRefCollection,
     IStorageProvider,
     ITermToSemanticRefIndex,
-    SemanticRef,
     ScoredSemanticRefOrdinal,
+    SemanticRef,
     TextLocation,
 )
 from typeagent.knowpro.kplib import KnowledgeResponse
-from typeagent.knowpro.convsettings import (
-    MessageTextIndexSettings,
-    RelatedTermIndexSettings,
-)
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
-from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage import SqliteStorageProvider
+from typeagent.storage.memory import MemoryStorageProvider
+from typeagent.storage.memory.collections import (
+    MemoryMessageCollection,
+    MemorySemanticRefCollection,
+)
 
 
 @pytest.fixture(scope="session")

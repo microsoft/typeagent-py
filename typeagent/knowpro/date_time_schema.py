@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from typing import Annotated
+
 from typing_extensions import Doc
 
 from .dataclasses import dataclass

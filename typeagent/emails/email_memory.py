@@ -1,25 +1,24 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import os
+import copy
 from dataclasses import dataclass
 import json
-import copy
+import os
+
 import typechat
+
 from ..aitools import utils
 from ..knowpro import (
+    answer_response_schema,
+    answers,
     convknowledge,
     search_query_schema,
     searchlang,
-    answer_response_schema,
-    answers,
-)
-from ..knowpro.convsettings import ConversationSettings
-from ..knowpro.interfaces import (
-    Term,
 )
 from ..knowpro.conversation_base import ConversationBase
-
+from ..knowpro.convsettings import ConversationSettings
+from ..knowpro.interfaces import Term
 from .email_message import EmailMessage
 
 

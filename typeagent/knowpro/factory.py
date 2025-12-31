@@ -3,11 +3,11 @@
 
 """Factory functions for creating conversation objects."""
 
-from ..storage.utils import create_storage_provider
 from . import secindex
+from ..storage.utils import create_storage_provider
 from .conversation_base import ConversationBase
 from .convsettings import ConversationSettings
-from .interfaces import IMessage, ConversationMetadata
+from .interfaces import ConversationMetadata, IMessage
 
 
 async def create_conversation[TMessage: IMessage](

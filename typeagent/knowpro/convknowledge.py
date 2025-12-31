@@ -7,9 +7,8 @@ import os
 
 import typechat
 
-from ..aitools import auth
 from . import kplib
-
+from ..aitools import auth
 
 # TODO: Move ModelWrapper and create_typechat_model() to aitools package.
 

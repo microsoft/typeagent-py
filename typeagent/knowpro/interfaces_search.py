@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Literal
 
 from pydantic.dataclasses import dataclass
+
 from .field_helpers import CamelCaseField
 from .interfaces_core import (
     DateRange,
