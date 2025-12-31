@@ -5,7 +5,7 @@ on:
   workflow_run:
     workflows: ["gate"]
     types: [completed]
-    branches: [ "dev/robgruen/workflow_updates" ]
+    branches: [ "main", "dev/robgruen/workflow_updates" ]
   # push:
   #   branches: [ "main", "dev/robgruen/workflow_updates" ] 
   # pull_request_target:
@@ -27,10 +27,13 @@ jobs:
   fail:
     runs-on: ubuntu-latest
     name: Skip Job on Gate Failure
-    if: ${{ github.event.workflow_run.conclusion != 'success' }}
+    # indicate failure if the gate workflow did not succeed and this is not a manual run 
+    if: ${{ github.event_name != 'workflow_dispatch' && github.event.workflow_run.conclusion != 'success' }}
     steps:
         - name: Skip Job
-          run: echo "Job skipped"
+          run: |
+            echo "Job skipped"
+            exit 1
 
   ci:
     environment:
