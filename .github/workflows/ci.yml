@@ -78,13 +78,13 @@ jobs:
         shell: bash
         if: matrix.task == 'check'
         run: |
-            uv run pyright typeagent test tools gmail
+            uv run pyright src test tools gmail
 
       - name: Run Format
         shell: bash
         if: matrix.task == 'format'
         run: |
-            uv run black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo --check
+            uv run black -tpy312 -tpy313 -tpy314 src test tools gmail demo --check
 
       - name: Login to Azure
         if: matrix.task == 'test'
