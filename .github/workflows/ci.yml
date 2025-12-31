@@ -3,7 +3,7 @@ name: CI
 
 on:
   workflow_run:
-    workflows: ["gate"]
+    workflows: [gate]
     types: [requested, completed]
   # push:
   #   branches: [ "main", "dev/robgruen/workflow_updates" ] 
