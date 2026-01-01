@@ -167,7 +167,7 @@ async def load_podcast_index_or_database(
 ) -> query.QueryEvalContext[podcast.PodcastMessage, Any]:
     if dbname is None:
         conversation = await podcast.Podcast.read_from_file(
-            "testdata/Episode_53_AdrianTchaikovsky_index", settings
+            "tests/testdata/Episode_53_AdrianTchaikovsky_index", settings
         )
     else:
         conversation = await podcast.Podcast.create(settings)
