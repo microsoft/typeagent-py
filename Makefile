@@ -8,12 +8,12 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/isort src tests tools gmail demo $(FLAGS)
-	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools gmail demo $(FLAGS)
+	.venv/bin/isort src tests tools examples $(FLAGS)
+	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools examples $(FLAGS)
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools gmail
+	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools examples
 
 .PHONY: test
 test: venv

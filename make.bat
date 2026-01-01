@@ -26,14 +26,14 @@ goto help
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
-.venv\Scripts\isort src tests tools gmail demo
-.venv\Scripts\black src tests tools gmail demo
+.venv\Scripts\isort src tests tools examples
+.venv\Scripts\black src tests tools examples
 goto end
 
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python src tests tools gmail demo
+.venv\Scripts\pyright --pythonpath .venv\Scripts\python src tests tools examples
 goto end
 
 :test

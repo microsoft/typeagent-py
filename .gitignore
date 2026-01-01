@@ -30,13 +30,13 @@ pytest.local.ini
 
 # Evaluations
 /evals
-/testdata/Episode_53_Answer_results.json
-/testdata/Episode_53_Search_results.json
+/examples/testdata/Episode_53_Answer_results.json
+/examples/testdata/Episode_53_Search_results.json
 
 # Email demo
-/gmail/client_secret.json
-/gmail/token.json
+/tools/gmail/client_secret.json
+/tools/gmail/token.json
 *_dump/
 
 # Monty Python demo
-/testdata/MP
+/examples/testdata/MP
