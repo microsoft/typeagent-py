@@ -925,14 +925,14 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         ),
     )
 
-    default_podcast_file = "testdata/Episode_53_AdrianTchaikovsky_index"
+    default_podcast_file = "tests/testdata/Episode_53_AdrianTchaikovsky_index"
     parser.add_argument(
         "--podcast",
         type=str,
         default=default_podcast_file,
         help="Path to the podcast index files (excluding the '_index.json' suffix)",
     )
-    default_qafile = "testdata/Episode_53_Answer_results.json"
+    default_qafile = "tests/testdata/Episode_53_Answer_results.json"
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
         "--qafile",
@@ -940,7 +940,7 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         default=default_qafile,
         help=f"Path to the Answer_results.json file ({explain_qa})",
     )
-    default_srfile = "testdata/Episode_53_Search_results.json"
+    default_srfile = "tests/testdata/Episode_53_Search_results.json"
     explain_sr = "a list of intermediate results from stages 1, 2 and 3"
     parser.add_argument(
         "--srfile",
