@@ -67,7 +67,8 @@ def test_webvtt_timestamp_conversion():
 
 
 @pytest.mark.skipif(
-    not os.path.exists("tests/testdata/Confuse-A-Cat.vtt"), reason="Test VTT file not found"
+    not os.path.exists("tests/testdata/Confuse-A-Cat.vtt"),
+    reason="Test VTT file not found",
 )
 def test_get_transcript_info():
     """Test getting basic information from a VTT file."""
@@ -92,7 +93,8 @@ def conversation_settings(
 
 
 @pytest.mark.skipif(
-    not os.path.exists("tests/testdata/Confuse-A-Cat.vtt"), reason="Test VTT file not found"
+    not os.path.exists("tests/testdata/Confuse-A-Cat.vtt"),
+    reason="Test VTT file not found",
 )
 @pytest.mark.asyncio
 async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
