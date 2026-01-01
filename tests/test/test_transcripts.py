@@ -21,6 +21,8 @@ from typeagent.transcripts.transcript_ingest import (
     webvtt_timestamp_to_seconds,
 )
 
+from conftest import CONFUSE_A_CAT_VTT, has_testdata_file, PARROT_SKETCH_VTT
+
 
 def test_extract_speaker_from_text():
     """Test speaker extraction from various text formats."""
@@ -67,12 +69,12 @@ def test_webvtt_timestamp_conversion():
 
 
 @pytest.mark.skipif(
-    not os.path.exists("tests/testdata/Confuse-A-Cat.vtt"),
+    not has_testdata_file("Confuse-A-Cat.vtt"),
     reason="Test VTT file not found",
 )
 def test_get_transcript_info():
     """Test getting basic information from a VTT file."""
-    vtt_file = "tests/testdata/Confuse-A-Cat.vtt"
+    vtt_file = CONFUSE_A_CAT_VTT
 
     # Test duration
     duration = get_transcript_duration(vtt_file)
@@ -93,7 +95,7 @@ def conversation_settings(
 
 
 @pytest.mark.skipif(
-    not os.path.exists("tests/testdata/Confuse-A-Cat.vtt"),
+    not has_testdata_file("Confuse-A-Cat.vtt"),
     reason="Test VTT file not found",
 )
 @pytest.mark.asyncio
@@ -108,7 +110,7 @@ async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings
     from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
     from typeagent.transcripts.transcript_ingest import parse_voice_tags
 
-    vtt_file = "tests/testdata/Confuse-A-Cat.vtt"
+    vtt_file = CONFUSE_A_CAT_VTT
 
     # Use in-memory storage to avoid database cleanup issues
     settings = conversation_settings
@@ -264,7 +266,7 @@ async def test_transcript_knowledge_extraction_slow(
     settings = ConversationSettings(embedding_model)
 
     # Parse first 5 captions from Parrot Sketch
-    vtt_file = "tests/testdata/Parrot_Sketch.vtt"
+    vtt_file = PARROT_SKETCH_VTT
     if not os.path.exists(vtt_file):
         pytest.skip(f"Test file {vtt_file} not found")
 

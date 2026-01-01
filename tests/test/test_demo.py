@@ -3,7 +3,6 @@
 
 import argparse
 import asyncio
-import os
 import textwrap
 import time
 
@@ -12,23 +11,21 @@ from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ScoredSemanticRefOrdinal
 from typeagent.podcasts import podcast
 
-tests_dir = os.path.dirname(__file__)
-root_dir = os.path.dirname(tests_dir)
-DEFAULT_FILE = os.path.join(root_dir, "testdata", "Episode_53_AdrianTchaikovsky_index")
+from conftest import EPISODE_53_INDEX
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "filename",
     nargs="?",
     type=str,
-    default=DEFAULT_FILE,
+    default=EPISODE_53_INDEX,
 )
 
 
 def test_main(really_needs_auth: None):
     # auth is needed because we use embeddings.
     # TODO: Only use the embeddings loaded from the file and cached.
-    asyncio.run(main(DEFAULT_FILE))
+    asyncio.run(main(EPISODE_53_INDEX))
 
 
 async def main(filename_prefix: str):

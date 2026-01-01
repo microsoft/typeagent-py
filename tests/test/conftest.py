@@ -1,8 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Callable, Iterator
 import os
+from pathlib import Path
 import tempfile
 from typing import Any
 
@@ -43,6 +44,37 @@ from typeagent.storage.memory.collections import (
     MemorySemanticRefCollection,
 )
 
+# --- Testdata path utilities ---
+# Locate the tests directory relative to this file
+_TESTS_DIR = Path(__file__).resolve().parent.parent  # tests/test -> tests
+_TESTDATA_DIR = _TESTS_DIR / "testdata"
+_REPO_ROOT = _TESTS_DIR.parent
+
+
+def get_testdata_path(filename: str) -> str:
+    """Return absolute path to a file in tests/testdata/."""
+    return str(_TESTDATA_DIR / filename)
+
+
+def get_repo_root() -> Path:
+    """Return the repository root path."""
+    return _REPO_ROOT
+
+
+def has_testdata_file(filename: str) -> bool:
+    """Check if a testdata file exists (for use in skipif conditions)."""
+    return (_TESTDATA_DIR / filename).exists()
+
+
+# Commonly used test files as constants
+CONFUSE_A_CAT_VTT = get_testdata_path("Confuse-A-Cat.vtt")
+PARROT_SKETCH_VTT = get_testdata_path("Parrot_Sketch.vtt")
+FAKE_PODCAST_TXT = get_testdata_path("FakePodcast.txt")
+EPISODE_53_INDEX = get_testdata_path("Episode_53_AdrianTchaikovsky_index")
+EPISODE_53_TRANSCRIPT = get_testdata_path("Episode_53_AdrianTchaikovsky.txt")
+EPISODE_53_ANSWERS = get_testdata_path("Episode_53_Answer_results.json")
+EPISODE_53_SEARCH = get_testdata_path("Episode_53_Search_results.json")
+
 
 @pytest.fixture(scope="session")
 def needs_auth() -> None:
@@ -61,6 +93,17 @@ def really_needs_auth() -> None:
 def embedding_model() -> AsyncEmbeddingModel:
     """Fixture to create a test embedding model with small embedding size for faster tests."""
     return AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+
+
+@pytest.fixture(scope="session")
+def testdata_path() -> Callable[[str], str]:
+    """Fixture returning a function to get absolute paths to testdata files.
+
+    Usage:
+        def test_something(testdata_path):
+            path = testdata_path("Confuse-A-Cat.vtt")
+    """
+    return get_testdata_path
 
 
 @pytest.fixture
