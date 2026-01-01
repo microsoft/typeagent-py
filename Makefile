@@ -8,12 +8,12 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/isort src test tools gmail demo $(FLAGS)
-	.venv/bin/black -tpy312 -tpy313 -tpy314 src test tools gmail demo $(FLAGS)
+	.venv/bin/isort src tests tools gmail demo $(FLAGS)
+	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools gmail demo $(FLAGS)
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python src test tools gmail
+	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools gmail
 
 .PHONY: test
 test: venv
@@ -88,7 +88,7 @@ help:
 	@echo "make all         # venv, format, check, test, build"
 	@echo "make format      # Run isort and black"
 	@echo "make check       # Run pyright"
-	@echo "make test        # Run pytest (tests are in test/)"
+	@echo "make test        # Run pytest (tests are in tests/)"
 	@echo "make coverage    # Run tests with coverage"
 	@echo "make build       # Build the wheel (under dist/)"
 	@echo "make demo        # python tools/query.py (interactive)"
