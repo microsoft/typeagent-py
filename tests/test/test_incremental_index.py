@@ -18,6 +18,9 @@ from typeagent.transcripts.transcript import (
 )
 from typeagent.transcripts.transcript_ingest import ingest_vtt_transcript
 
+tests_dir = os.path.dirname(__file__)
+root_dir = os.path.dirname(tests_dir)
+
 
 @pytest.mark.asyncio
 async def test_incremental_index_building():
@@ -141,8 +144,9 @@ async def test_incremental_index_with_vtt_files():
         # First VTT file ingestion
         print("\n=== Import first VTT file ===")
         # Import the first transcript
+        DEFAULT_FILE = os.path.join(root_dir, "testdata", "Confuse-A-Cat.vtt")
         transcript1 = await ingest_vtt_transcript(
-            "testdata/Confuse-A-Cat.vtt",
+            DEFAULT_FILE,
             settings,
             dbname=db_path,
         )
@@ -165,8 +169,9 @@ async def test_incremental_index_with_vtt_files():
         settings2.semantic_ref_index_settings.auto_extract_knowledge = False
 
         # Ingest the second transcript
+        DEFAULT_FILE = os.path.join(root_dir, "testdata", "Parrot_Sketch.vtt")
         transcript2 = await ingest_vtt_transcript(
-            "testdata/Parrot_Sketch.vtt",
+            DEFAULT_FILE,
             settings2,
             dbname=db_path,
         )
