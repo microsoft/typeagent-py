@@ -86,7 +86,7 @@ jobs:
         shell: bash
         if: matrix.task == 'check'
         run: |
-            uv run pyright src tests examples
+            uv run pyright src tests tools examples
 
       - name: Run Format
         shell: bash
