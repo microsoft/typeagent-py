@@ -29,6 +29,13 @@ try:
 except ImportError:
     pass
 
+# fmt: off
+from util_testdata import (  # type: ignore[attr-defined]
+    EPISODE_53_ANSWERS, # type: ignore[import-not-found]
+    EPISODE_53_INDEX, # type: ignore[import-not-found]
+    EPISODE_53_SEARCH, # type: ignore[import-not-found]
+)
+
 import typechat
 
 from typeagent.aitools import embeddings, utils
@@ -57,6 +64,11 @@ from typeagent.knowpro.interfaces import (
 from typeagent.podcasts import podcast
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
+
+# fmt: on
+
+
+# fmt: on
 
 ### Classes ###
 
@@ -925,27 +937,24 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         ),
     )
 
-    default_podcast_file = "tests/testdata/Episode_53_AdrianTchaikovsky_index"
     parser.add_argument(
         "--podcast",
         type=str,
-        default=default_podcast_file,
+        default=EPISODE_53_INDEX,
         help="Path to the podcast index files (excluding the '_index.json' suffix)",
     )
-    default_qafile = "tests/testdata/Episode_53_Answer_results.json"
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
         "--qafile",
         type=str,
-        default=default_qafile,
+        default=EPISODE_53_ANSWERS,
         help=f"Path to the Answer_results.json file ({explain_qa})",
     )
-    default_srfile = "tests/testdata/Episode_53_Search_results.json"
     explain_sr = "a list of intermediate results from stages 1, 2 and 3"
     parser.add_argument(
         "--srfile",
         type=str,
-        default=default_srfile,
+        default=EPISODE_53_SEARCH,
         help=f"Path to the Search_results.json file ({explain_sr})",
     )
     parser.add_argument(

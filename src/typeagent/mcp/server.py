@@ -6,6 +6,8 @@
 
 import argparse
 from dataclasses import dataclass
+from pathlib import Path
+import sys
 import time
 from typing import Any
 
@@ -18,6 +20,12 @@ import typechat
 
 # Enable coverage.py before local imports (a no-op unless COVERAGE_PROCESS_START is set).
 coverage.process_startup()
+
+# Add tools/ to path for util_testdata imports
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "tools"))
+
+from util_testdata import EPISODE_53_INDEX  # type: ignore[import-not-found]
 
 from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import answers, query, searchlang
@@ -166,9 +174,7 @@ async def load_podcast_index_or_database(
     dbname: str | None = None,
 ) -> query.QueryEvalContext[podcast.PodcastMessage, Any]:
     if dbname is None:
-        conversation = await podcast.Podcast.read_from_file(
-            "tests/testdata/Episode_53_AdrianTchaikovsky_index", settings
-        )
+        conversation = await podcast.Podcast.read_from_file(EPISODE_53_INDEX, settings)
     else:
         conversation = await podcast.Podcast.create(settings)
     return query.QueryEvalContext(conversation)
