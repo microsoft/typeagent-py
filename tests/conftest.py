@@ -46,7 +46,7 @@ from typeagent.storage.memory.collections import (
 
 # --- Testdata path utilities ---
 # Locate the tests directory relative to this file
-_TESTS_DIR = Path(__file__).resolve().parent.parent  # tests/test -> tests
+_TESTS_DIR = Path(__file__).resolve().parent  # tests/
 _TESTDATA_DIR = _TESTS_DIR / "testdata"
 _REPO_ROOT = _TESTS_DIR.parent
 
