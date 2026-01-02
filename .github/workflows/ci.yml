@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ] 
+    branches: [ "main", "dev/robgruen/workflow_update3" ] 
   pull_request_target:
     branches: [ "main" ]
   workflow_dispatch:     # manual run
@@ -44,9 +44,83 @@ jobs:
           echo "${{ github.triggering_actor }} does not have permissions on this repo."
           echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
           echo "Job originally triggered by ${{ github.actor }}"
-          exit 1  
+          exit 1
 
-  ci:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.12', '3.13', '3.14']
+        exclude:
+        - os: windows-latest
+          python-version: '3.13'
+        - os: windows-latest
+          python-version: '3.14'
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} check (py ${{ matrix.python-version }})
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Dependencies
+        shell: bash
+        run: |
+            uv sync --extra dev
+
+      - name: Run Check
+        shell: bash
+        run: |
+            uv run pyright src tests tools examples
+
+  format:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.12', '3.13', '3.14']
+        exclude:
+        - os: windows-latest
+          python-version: '3.13'
+        - os: windows-latest
+          python-version: '3.14'
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} format (py ${{ matrix.python-version }})
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Dependencies
+        shell: bash
+        run: |
+            uv sync --extra dev
+
+      - name: Run Format
+        shell: bash
+        run: |
+            uv run black -tpy312 -tpy313 -tpy314 src tests tools examples --check
+
+  test:
     needs: permissions-check
     environment:
       name: build-pipeline
