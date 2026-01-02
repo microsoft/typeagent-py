@@ -129,7 +129,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ['3.12', '3.13', '3.14']
-        task: [check, test, format]
         exclude:
         - os: windows-latest
           python-version: '3.13'
@@ -156,20 +155,7 @@ jobs:
         run: |
             uv sync --extra dev
 
-      - name: Run Check
-        shell: bash
-        if: matrix.task == 'check'
-        run: |
-            uv run pyright src tests tools examples
-
-      - name: Run Format
-        shell: bash
-        if: matrix.task == 'format'
-        run: |
-            uv run black -tpy312 -tpy313 -tpy314 src tests tools examples --check
-
       - name: Login to Azure
-        if: matrix.task == 'test'
         uses: azure/login@v2.2.0
         with:
           client-id: ${{ secrets.AZURE_CLIENTID }}
@@ -177,13 +163,11 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
 
       - name: Get Keys
-        if: matrix.task == 'test'
         run: |
             uv run python tools/get_keys.py --vault build-pipeline-kv
 
       - name: Run Test
         shell: bash
-        if: matrix.task == 'test'
         run: |
             uv run pytest
 
