@@ -135,7 +135,7 @@ jobs:
         - os: windows-latest
           python-version: '3.14'
     runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} ${{ matrix.task }} (py ${{ matrix.python-version }})
+    name: ${{ matrix.os }} (py ${{ matrix.python-version }})
 
     steps:
       - uses: actions/checkout@v4
