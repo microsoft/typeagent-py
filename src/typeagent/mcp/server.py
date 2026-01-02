@@ -6,8 +6,7 @@
 
 import argparse
 from dataclasses import dataclass
-from pathlib import Path
-import sys
+import os
 import time
 from typing import Any
 
@@ -21,12 +20,6 @@ import typechat
 # Enable coverage.py before local imports (a no-op unless COVERAGE_PROCESS_START is set).
 coverage.process_startup()
 
-# Add tools/ to path for util_testdata imports
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(_REPO_ROOT / "tools"))
-
-from util_testdata import EPISODE_53_INDEX  # type: ignore[import-not-found]
-
 from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import answers, query, searchlang
 from typeagent.knowpro.answer_response_schema import AnswerResponse
@@ -35,6 +28,9 @@ from typeagent.knowpro.search_query_schema import SearchQuery
 from typeagent.podcasts import podcast
 from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
 from typeagent.storage.utils import create_storage_provider
+
+# Example podcast index path for documentation and error messages
+_EXAMPLE_PODCAST_INDEX = "tests/testdata/Episode_53_AdrianTchaikovsky_index"
 
 
 class MCPTypeChatModel(typechat.TypeChatLanguageModel):
@@ -150,7 +146,9 @@ async def make_context(
         entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
     )
 
-    query_context = await load_podcast_index_or_database(settings, dbname)
+    query_context = await load_podcast_database_or_index(
+        settings, dbname, _podcast_index
+    )
 
     # Use MCP-based model instead of one that requires API keys
     model = MCPTypeChatModel(session)
@@ -169,22 +167,33 @@ async def make_context(
     return context
 
 
-async def load_podcast_index_or_database(
+async def load_podcast_database_or_index(
     settings: ConversationSettings,
     dbname: str | None = None,
+    podcast_index: str | None = None,
 ) -> query.QueryEvalContext[podcast.PodcastMessage, Any]:
-    if dbname is None:
-        conversation = await podcast.Podcast.read_from_file(EPISODE_53_INDEX, settings)
-    else:
+    if dbname is not None:
+        # Load from SQLite database
         conversation = await podcast.Podcast.create(settings)
+    elif podcast_index is not None:
+        # Load from JSON index files
+        conversation = await podcast.Podcast.read_from_file(podcast_index, settings)
+    else:
+        raise ValueError(
+            "Either --database or --podcast-index must be specified. "
+            "Use --podcast-index to specify the path to podcast index files "
+            f"(e.g., '{_EXAMPLE_PODCAST_INDEX}')."
+        )
     return query.QueryEvalContext(conversation)
 
 
 # Create an MCP server
 mcp = FastMCP("typagent")
 
-# Global variable to store database path (set via command-line argument)
+# Global variables to store command-line arguments
+# (no other straightforward way to pass to tool handlers)
 _dbname: str | None = None
+_podcast_index: str | None = None
 
 
 @dataclass
@@ -251,12 +260,49 @@ if __name__ == "__main__":
         "--database",
         type=str,
         default=None,
-        help="Path to the SQLite database file (default: load from JSON file)",
+        help="Path to a SQLite database file with pre-indexed podcast data",
+    )
+    parser.add_argument(
+        "-p",
+        "--podcast-index",
+        type=str,
+        default=None,
+        help="Path to podcast index files (excluding '_data.json' suffix), "
+        f"e.g., '{_EXAMPLE_PODCAST_INDEX}'",
     )
     args = parser.parse_args()
 
-    # Store database path in global variable (no other straightforward way to pass to tool)
+    # Validate arguments
+    if args.database is None and args.podcast_index is None:
+        parser.error(
+            "Either --database or --podcast-index is required.\n"
+            "Example: python -m typeagent.mcp.server "
+            f"--podcast-index {_EXAMPLE_PODCAST_INDEX}"
+        )
+
+    if args.database is not None and args.podcast_index is not None:
+        parser.error("Cannot specify both --database and --podcast-index")
+
+    # Validate file existence
+    if args.database is not None and not os.path.exists(args.database):
+        parser.error(
+            f"Database file not found: {args.database}\n"
+            "Please provide a valid path to an existing SQLite database."
+        )
+
+    if args.podcast_index is not None:
+        data_file = args.podcast_index + "_data.json"
+        if not os.path.exists(data_file):
+            parser.error(
+                f"Podcast index file not found: {data_file}\n"
+                "Please provide a valid path to podcast index files "
+                "(without the '_data.json' suffix).\n"
+                f"Example: {_EXAMPLE_PODCAST_INDEX}"
+            )
+
+    # Store in global variables for tool handlers
     _dbname = args.database
+    _podcast_index = args.podcast_index
 
     # Use stdio transport for simplicity
     mcp.run(transport="stdio")

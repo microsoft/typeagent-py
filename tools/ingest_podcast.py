@@ -2,8 +2,6 @@ import argparse
 import asyncio
 import os
 
-from util_testdata import EPISODE_53_TRANSCRIPT  # type: ignore[attr-defined]
-
 from typeagent.aitools.utils import load_dotenv
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts.podcast_ingest import ingest_podcast
@@ -51,11 +49,16 @@ async def main():
     if args.database is not None and args.json_output is not None:
         raise SystemExit("Please use at most one of --database and --json-output")
     if args.transcript is None:
-        if os.path.exists(EPISODE_53_TRANSCRIPT):
-            args.transcript = EPISODE_53_TRANSCRIPT
-            print("Reading default transcript:", EPISODE_53_TRANSCRIPT)
-        else:
-            raise SystemExit("Please provide a transcript file to ingest")
+        raise SystemExit(
+            "Error: A transcript file is required.\n"
+            "Usage: python ingest_podcast.py <transcript_file>\n"
+            "Example: python ingest_podcast.py path/to/transcript.vtt"
+        )
+    if not os.path.exists(args.transcript):
+        raise SystemExit(
+            f"Error: Transcript file not found: {args.transcript}\n"
+            "Please verify the path exists and is accessible."
+        )
 
     load_dotenv()
 
