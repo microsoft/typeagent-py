@@ -536,6 +536,23 @@ async def main():
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
 
+    # Validate required podcast argument
+    if args.podcast is None and args.database is None:
+        raise SystemExit(
+            "Error: Either --podcast or --database is required.\n"
+            "Usage: python query.py --podcast <path_to_index>\n"
+            "   or: python query.py --database <path_to_database>\n"
+            "Example: python query.py --podcast tests/testdata/Episode_53_index"
+        )
+    if args.podcast is not None:
+        index_file = args.podcast + "_index.json"
+        if not os.path.exists(index_file):
+            raise SystemExit(
+                f"Error: Podcast index file not found: {index_file}\n"
+                "Please verify the path exists and is accessible.\n"
+                "Note: The path should exclude the '_index.json' suffix."
+            )
+
     if args.logfire:
         utils.setup_logfire()
 
@@ -925,27 +942,24 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         ),
     )
 
-    default_podcast_file = "tests/testdata/Episode_53_AdrianTchaikovsky_index"
     parser.add_argument(
         "--podcast",
         type=str,
-        default=default_podcast_file,
+        default=None,
         help="Path to the podcast index files (excluding the '_index.json' suffix)",
     )
-    default_qafile = "tests/testdata/Episode_53_Answer_results.json"
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
         "--qafile",
         type=str,
-        default=default_qafile,
+        default=None,
         help=f"Path to the Answer_results.json file ({explain_qa})",
     )
-    default_srfile = "tests/testdata/Episode_53_Search_results.json"
     explain_sr = "a list of intermediate results from stages 1, 2 and 3"
     parser.add_argument(
         "--srfile",
         type=str,
-        default=default_srfile,
+        default=None,
         help=f"Path to the Search_results.json file ({explain_sr})",
     )
     parser.add_argument(

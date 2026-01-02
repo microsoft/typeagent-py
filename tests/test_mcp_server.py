@@ -14,17 +14,21 @@ from mcp.client.session import ClientSession as ClientSessionType
 from mcp.shared.context import RequestContext
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
+from conftest import EPISODE_53_INDEX
+
 
 @pytest.fixture
 def server_params() -> StdioServerParameters:
-    """Create MCP server parameters with minimal environment."""
-    env = {}
+    """Create MCP server parameters with environment inherited from parent process."""
+    # Start with the full environment - subprocess needs PATH, PYTHONPATH, etc.
+    env = dict(os.environ)
+    # Coverage support
     if "COVERAGE_PROCESS_START" in os.environ:
         env["COVERAGE_PROCESS_START"] = os.environ["COVERAGE_PROCESS_START"]
 
     return StdioServerParameters(
         command=sys.executable,
-        args=["-m", "typeagent.mcp.server"],
+        args=["-m", "typeagent.mcp.server", "--podcast-index", EPISODE_53_INDEX],
         env=env,
     )
 
