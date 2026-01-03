@@ -1831,6 +1831,7 @@ dev = [
 [package.dev-dependencies]
 dev = [
     { name = "isort" },
+    { name = "pyright" },
 ]
 
 [package.metadata]
@@ -1864,7 +1865,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "isort", specifier = ">=7.0.0" }]
+dev = [
+    { name = "isort", specifier = ">=7.0.0" },
+    { name = "pyright", specifier = "==1.1.406" },
+]
 
 [[package]]
 name = "typechat"
