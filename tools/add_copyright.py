@@ -13,11 +13,9 @@ Usage:
 
 import argparse
 import glob
-import os
-import sys
 from pathlib import Path
-from typing import List, Tuple
-
+import sys
+from typing import List
 
 COPYRIGHT_NOTICE = """# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License."""

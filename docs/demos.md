@@ -64,7 +64,7 @@ tool that we used for the Monty Python demo.
 
 ### How to use the Gmail API to download messages
 
-In the `gmail/` folder you'll find a tool named `gmail_dump.py` which
+In the `tools/gmail/` folder you'll find a tool named `gmail_dump.py` which
 will download any number of messages (default 50) using the Gmail API.
 In order to use the Gmail API, however, you have to create a (free)
 Google Cloud app and configure it appropriately.
@@ -96,21 +96,21 @@ your `*.eml` files from -- every email provider has its own quirks.
 
 The podcast demo is actually the easiest to run:
 The "database" is included in the repo as
-`testdata/Episode_53_AdrianTchaikovsky_index*`,
+`tests/testdata/Episode_53_AdrianTchaikovsky_index*`,
 and this is in fact the default "database" used by `tools/query.py`
 when no `-d`/`--database` flag is given.
 
-This "database" indexes `test/Episode_53_AdrianTchaikovsky.txt`.
+This "database" indexes `tests/testdata/Episode_53_AdrianTchaikovsky.txt`.
 It was created by a one-off script that invoked
-`typeagent/podcast/podcast_ingest/ingest_podcast()`
+`src/typeagent/podcast/podcast_ingest/ingest_podcast()`
 and saved to two files by calling the `.ingest()` method on the
-returned `typeagent/podcasts/podcast/Podcast` object.
+returned `src/typeagent/podcasts/podcast/Podcast` object.
 
 Here's a brief sample session:
 ```sh
 $ python tools/query.py
 1.318s -- Using Azure OpenAI
-0.054s -- Loading podcast from 'testdata/Episode_53_AdrianTchaikovsky_index'
+0.054s -- Loading podcast from 'tests/testdata/Episode_53_AdrianTchaikovsky_index'
 TypeAgent demo UI 0.2 (type 'q' to exit)
 TypeAgent> What did Kevin say to Adrian about science fiction?
 --------------------------------------------------

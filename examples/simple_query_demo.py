@@ -14,9 +14,7 @@ This demonstrates the end-to-end query pattern:
 import asyncio
 
 from typeagent import create_conversation
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.aitools.utils import load_dotenv
-from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
 
@@ -44,9 +42,7 @@ async def main():
             metadata=TranscriptMessageMeta(speaker="Instructor"),
         ),
         TranscriptMessage(
-            text_chunks=[
-                "Python is a great language for beginners and experts alike."
-            ],
+            text_chunks=["Python is a great language for beginners and experts alike."],
             metadata=TranscriptMessageMeta(speaker="Instructor"),
         ),
         TranscriptMessage(
@@ -64,8 +60,10 @@ async def main():
     print("Adding messages and building indexes...")
     result = await conv.add_messages_with_indexing(messages)
     print(f"Conversation ready with {await conv.messages.size()} messages.")
-    print(f"Added {result.messages_added} messages, {result.semrefs_added} semantic refs")
-    
+    print(
+        f"Added {result.messages_added} messages, {result.semrefs_added} semantic refs"
+    )
+
     # Check indexes
     if conv.secondary_indexes:
         if conv.secondary_indexes.message_index:

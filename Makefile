@@ -8,11 +8,12 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/black -tpy312 -tpy313 -tpy314 typeagent test tools gmail demo $(FLAGS)
+	.venv/bin/isort src tests tools examples $(FLAGS)
+	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools examples $(FLAGS)
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python typeagent test tools gmail
+	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools examples
 
 .PHONY: test
 test: venv
@@ -35,7 +36,7 @@ compare: venv
 
 .PHONY: mcp
 mcp: venv
-	.venv/bin/mcp dev typeagent/mcp/server.py
+	.venv/bin/mcp dev src/typeagent/mcp/server.py
 
 .PHONY: profile
 profile: venv
@@ -85,9 +86,9 @@ help:
 	@echo "make help        # Help (this message)"
 	@echo "make             # Same as 'make all'"
 	@echo "make all         # venv, format, check, test, build"
-	@echo "make format      # Run black"
+	@echo "make format      # Run isort and black"
 	@echo "make check       # Run pyright"
-	@echo "make test        # Run pytest (tests are in test/)"
+	@echo "make test        # Run pytest (tests are in tests/)"
 	@echo "make coverage    # Run tests with coverage"
 	@echo "make build       # Build the wheel (under dist/)"
 	@echo "make demo        # python tools/query.py (interactive)"

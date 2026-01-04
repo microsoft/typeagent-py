@@ -1,0 +1,398 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+from email import message_from_string
+from email.message import Message
+from email.utils import parsedate_to_datetime
+from pathlib import Path
+import re
+from typing import Iterable
+
+from .email_message import EmailMessage, EmailMessageMeta
+
+
+def import_emails_from_dir(
+    dir_path: str, max_chunk_length: int = 4096
+) -> Iterable[EmailMessage]:
+    for file_path in Path(dir_path).iterdir():
+        if file_path.is_file():
+            yield import_email_from_file(str(file_path.resolve()), max_chunk_length)
+
+
+# Imports an email file (.eml) as a list of EmailMessage objects
+def import_email_from_file(
+    file_path: str, max_chunk_length: int = 4096
+) -> EmailMessage:
+    email_string: str = ""
+    with open(file_path, "r") as f:
+        email_string = f.read()
+
+    email = import_email_string(email_string, max_chunk_length)
+    email.src_url = file_path
+    return email
+
+
+# Imports a single email MIME string and returns an EmailMessage object
+def import_email_string(
+    email_string: str, max_chunk_length: int = 4096
+) -> EmailMessage:
+    msg: Message = message_from_string(email_string)
+    email: EmailMessage = import_email_message(msg, max_chunk_length)
+    return email
+
+
+def import_forwarded_email_string(
+    email_string: str, max_chunk_length: int = 4096
+) -> list[EmailMessage]:
+    msg_parts = get_forwarded_email_parts(email_string)
+    return [
+        import_email_string(part, max_chunk_length)
+        for part in msg_parts
+        if len(part) > 0
+    ]
+
+
+# Imports an email.message.Message object and returns an EmailMessage object
+def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
+    # Extract metadata
+    email_meta = EmailMessageMeta(
+        sender=msg.get("From", ""),
+        recipients=_import_address_headers(msg.get_all("To", [])),
+        cc=_import_address_headers(msg.get_all("Cc", [])),
+        bcc=_import_address_headers(msg.get_all("Bcc", [])),
+        subject=msg.get("Subject"),  # TODO: Remove newlines
+        id=msg.get("Message-ID", None),
+    )
+    timestamp: str | None = None
+    timestamp_date = msg.get("Date", None)
+    if timestamp_date is not None:
+        timestamp = parsedate_to_datetime(timestamp_date).isoformat()
+
+    # Get email body and parse into chunks with source attribution
+    body = _extract_email_body(msg)
+    if body is None:
+        body = ""
+
+    # Prepend subject to body if available
+    if email_meta.subject is not None:
+        body = email_meta.subject + "\n\n" + body
+
+    # Parse into chunks with source attribution (handles inline replies)
+    parsed_chunks = parse_email_chunks(body)
+
+    # Apply max_chunk_length splitting while preserving source attribution
+    text_chunks: list[str] = []
+    chunk_sources: list[str | None] = []
+    for text, source in parsed_chunks:
+        sub_chunks = _text_to_chunks(text, max_chunk_length)
+        for sub_chunk in sub_chunks:
+            text_chunks.append(sub_chunk)
+            chunk_sources.append(source)
+
+    email: EmailMessage = EmailMessage(
+        metadata=email_meta,
+        text_chunks=text_chunks,
+        chunk_sources=chunk_sources,
+        timestamp=timestamp,
+    )
+    return email
+
+
+def is_reply(msg: Message) -> bool:
+    return msg.get("In-Reply-To") is not None or msg.get("References") is not None
+
+
+def is_forwarded(msg: Message) -> bool:
+    subject = msg.get("Subject", "").upper()
+    return subject.startswith("FW:") or subject.startswith("FWD:")
+
+
+# Return all sub-parts of a forwarded email text in MIME format
+def get_forwarded_email_parts(email_text: str) -> list[str]:
+    # Forwarded emails often start with "From:" lines, so we can split on those
+    split_delimiter = re.compile(r"(?=From:)", re.IGNORECASE)
+    parts: list[str] = split_delimiter.split(email_text)
+    return _remove_empty_strings(parts)
+
+
+# Precompiled regex for reply/forward delimiters and quoted reply headers
+_THREAD_DELIMITERS = re.compile(
+    "|".join(
+        [
+            r"^from: .+$",  # From: someone
+            r"^sent: .+$",  # Sent: ...
+            r"^to: .+$",  # To: ...
+            r"^subject: .+$",  # Subject: ...
+            r"^-{2,}\s*Original Message\s*-{2,}$",  # -----Original Message-----
+            r"^-{2,}\s*Forwarded by.*$",  # ----- Forwarded by
+            r"^_{5,}$",  # _________
+            r"^on .+wrote:\s*(?:\r?\n\s*)+>",  # On ... wrote: followed by quoted text
+        ]
+    ),
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Precompiled regex for trailing line delimiters (underscores, dashes, equals, spaces)
+_TRAILING_LINE_DELIMITERS = re.compile(r"[\r\n][_\-= ]+\s*$")
+
+# Pattern to detect "On <date> <user> wrote:" header for inline replies
+# Uses alternation to handle different date formats:
+# 1. "On Mon, Dec 10, 2020 at 10:30 AM John Doe wrote:" (AM/PM format)
+# 2. "On Mon, Dec 10, 2020 Someone wrote:" (year followed by name)
+# 3. Fallback: last words before "wrote:"
+# Groups 1, 2, or 3 will capture the person's name depending on format
+_INLINE_REPLY_HEADER = re.compile(
+    r"^on\s+(?:.+[AP]M\s+(.+?)|.+,\s*\d{4}\s+(.+?)|.+\s+(.+?))\s+wrote:\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Pattern to match quoted lines (starting with > possibly with leading whitespace)
+_QUOTED_LINE = re.compile(r"^\s*>")
+
+# Pattern to detect email signature markers
+_SIGNATURE_MARKER = re.compile(r"^--\s*$", re.MULTILINE)
+
+
+# Type alias for chunk with source info
+ChunkWithSource = tuple[str, str | None]  # (text, source: None=original, str=quoted)
+
+
+def is_inline_reply(email_text: str) -> bool:
+    """
+    Detect if an email contains inline replies (responses interspersed with quotes).
+
+    An inline reply has:
+    1. An "On ... wrote:" header
+    2. Quoted lines (starting with >) interspersed with non-quoted response lines
+    """
+    if not email_text:
+        return False
+
+    # Must have the "On ... wrote:" header
+    header_match = _INLINE_REPLY_HEADER.search(email_text)
+    if not header_match:
+        return False
+
+    # Check content after the header for mixed quoted/non-quoted lines
+    content_after_header = email_text[header_match.end() :]
+    lines = content_after_header.split("\n")
+
+    has_quoted = False
+    has_non_quoted_after_quoted = False
+
+    for line in lines:
+        # Check for signature marker
+        if _SIGNATURE_MARKER.match(line):
+            break
+
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if _QUOTED_LINE.match(line):
+            has_quoted = True
+        elif has_quoted:
+            # Non-quoted line after we've seen quoted lines = inline reply
+            has_non_quoted_after_quoted = True
+            break
+
+    return has_quoted and has_non_quoted_after_quoted
+
+
+def parse_email_chunks(email_text: str) -> list[ChunkWithSource]:
+    """
+    Parse email text into chunks with source attribution.
+
+    Returns a list of (text, source) tuples where:
+    - source is None for original (unquoted) content
+    - source is the quoted person's name for quoted content, or " " if unknown
+
+    This handles inline replies where the sender responds inline to quoted text,
+    preserving both the quoted and unquoted portions as separate chunks.
+    """
+    if not email_text:
+        return []
+
+    # Find the "On ... wrote:" header
+    header_match = _INLINE_REPLY_HEADER.search(email_text)
+    if not header_match:
+        # No inline reply pattern, return as a single original chunk
+        text = _strip_trailing_delimiters(email_text)
+        if text:
+            return [(text, None)]
+        return []
+
+    # Extract quoted person from header (first non-None group from groups 1, 2, or 3)
+    quoted_person = (
+        header_match.group(1) or header_match.group(2) or header_match.group(3) or " "
+    )
+    quoted_person = quoted_person.strip() if quoted_person else " "
+    if not quoted_person:
+        quoted_person = " "
+
+    # Get preamble (content before the "On ... wrote:" header)
+    preamble = email_text[: header_match.start()].strip()
+
+    # Process content after header
+    content_after_header = email_text[header_match.end() :]
+    lines = content_after_header.split("\n")
+
+    result: list[ChunkWithSource] = []
+    if preamble:
+        result.append((preamble, None))
+
+    current_reply_lines: list[str] = []
+    current_quoted_lines: list[str] = []
+    in_signature = False
+
+    def flush_reply() -> None:
+        nonlocal current_reply_lines
+        if current_reply_lines:
+            text = "\n".join(current_reply_lines).strip()
+            if text:
+                result.append((text, None))
+            current_reply_lines = []
+
+    def flush_quoted() -> None:
+        nonlocal current_quoted_lines
+        if current_quoted_lines:
+            text = "\n".join(current_quoted_lines).strip()
+            if text:
+                result.append((text, quoted_person))
+            current_quoted_lines = []
+
+    for line in lines:
+        # Check for signature marker
+        if _SIGNATURE_MARKER.match(line):
+            in_signature = True
+            # Flush any pending content
+            flush_quoted()
+            flush_reply()
+            continue
+
+        if in_signature:
+            # Skip signature content
+            continue
+
+        if _QUOTED_LINE.match(line):
+            # This is a quoted line - flush any pending reply first
+            if current_reply_lines:
+                flush_reply()
+            # Strip the leading > and any space after it
+            unquoted = re.sub(r"^\s*>\s?", "", line)
+            current_quoted_lines.append(unquoted)
+        else:
+            # Non-quoted line - flush any pending quoted first
+            if current_quoted_lines:
+                flush_quoted()
+            # Only accumulate non-empty lines or preserve blank lines within a block
+            stripped = line.strip()
+            if stripped or current_reply_lines:
+                current_reply_lines.append(line.rstrip())
+
+    # Flush any remaining content
+    flush_quoted()
+    flush_reply()
+
+    # Strip trailing delimiters from the last chunk
+    if result:
+        last_text, last_source = result[-1]
+        result[-1] = (_strip_trailing_delimiters(last_text), last_source)
+
+    return result
+
+
+def _strip_trailing_delimiters(text: str) -> str:
+    """Remove trailing line delimiters (underscores, dashes, equals, spaces)."""
+    text = text.strip()
+    return _TRAILING_LINE_DELIMITERS.sub("", text)
+
+
+# Extracts the plain text body from an email.message.Message object.
+def _extract_email_body(msg: Message) -> str:
+    """Extracts the plain text body from an email.message.Message object."""
+    if msg.is_multipart():
+        parts: list[str] = []
+        for part in msg.walk():
+            if part.get_content_type() == "text/plain" and not part.get_filename():
+                text: str = _decode_email_payload(part)
+                if text:
+                    parts.append(text)
+        return "\n".join(parts)
+    else:
+        return _decode_email_payload(msg)
+
+
+def _decode_email_payload(part: Message) -> str:
+    """Decodes the payload of an email part to a string using its charset."""
+    payload = part.get_payload(decode=True)
+    if payload is None:
+        # Try non-decoded payload (may be str)
+        payload = part.get_payload(decode=False)
+        if isinstance(payload, str):
+            return payload
+        return ""
+    if isinstance(payload, bytes):
+        return payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+    if isinstance(payload, str):
+        return payload
+    return ""
+
+
+def _import_address_headers(headers: list[str]) -> list[str]:
+    if len(headers) == 0:
+        return headers
+    unique_addresses: set[str] = set()
+    for header in headers:
+        if header:
+            addresses = _remove_empty_strings(header.split(","))
+            for address in addresses:
+                unique_addresses.add(address)
+
+    return list(unique_addresses)
+
+
+def _remove_empty_strings(strings: list[str]) -> list[str]:
+    non_empty: list[str] = []
+    for s in strings:
+        s = s.strip()
+        if len(s) > 0:
+            non_empty.append(s)
+    return non_empty
+
+
+def _text_to_chunks(text: str, max_chunk_length: int) -> list[str]:
+    if len(text) < max_chunk_length:
+        return [text]
+
+    paragraphs = _split_into_paragraphs(text)
+    return list(_merge_chunks(paragraphs, "\n\n", max_chunk_length))
+
+
+def _split_into_paragraphs(text: str) -> list[str]:
+    return _remove_empty_strings(re.split(r"\n{2,}", text))
+
+
+def _merge_chunks(
+    chunks: Iterable[str], separator: str, max_chunk_length: int
+) -> Iterable[str]:
+    sep_length = len(separator)
+    cur_chunk: str = ""
+    for new_chunk in chunks:
+        cur_length = len(cur_chunk)
+        new_length = len(new_chunk)
+        if new_length > max_chunk_length:
+            # Truncate
+            new_chunk = new_chunk[0:max_chunk_length]
+            new_length = len(new_chunk)
+
+        if cur_length + (new_length + sep_length) > max_chunk_length:
+            if cur_length > 0:
+                yield cur_chunk
+            cur_chunk = new_chunk
+        else:
+            cur_chunk += separator
+            cur_chunk += new_chunk
+
+    if (len(cur_chunk)) > 0:
+        yield cur_chunk

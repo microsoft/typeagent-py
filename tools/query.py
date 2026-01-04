@@ -18,7 +18,8 @@ import shutil
 import sys
 import typing
 
-from colorama import init as colorama_init, Fore
+from colorama import Fore
+from colorama import init as colorama_init
 import numpy as np
 
 readline = None
@@ -30,11 +31,18 @@ except ImportError:
 
 import typechat
 
-from typeagent.aitools import embeddings
-from typeagent.aitools import utils
-
-from typeagent.knowpro import answers, answer_response_schema
-from typeagent.knowpro import convknowledge
+from typeagent.aitools import embeddings, utils
+from typeagent.knowpro import (
+    answer_response_schema,
+    answers,
+    convknowledge,
+    kplib,
+    query,
+    search,
+    search_query_schema,
+    searchlang,
+    serialization,
+)
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -46,18 +54,9 @@ from typeagent.knowpro.interfaces import (
     Tag,
     Topic,
 )
-from typeagent.knowpro import kplib
-from typeagent.knowpro import query
-from typeagent.knowpro import search, search_query_schema, searchlang
-from typeagent.knowpro import serialization
-
 from typeagent.podcasts import podcast
-
-from typeagent.storage.memory.propindex import build_property_index
-from typeagent.storage.memory.reltermsindex import build_related_terms_index
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
-
 
 ### Classes ###
 
@@ -537,6 +536,23 @@ async def main():
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
 
+    # Validate required podcast argument
+    if args.podcast is None and args.database is None:
+        raise SystemExit(
+            "Error: Either --podcast or --database is required.\n"
+            "Usage: python query.py --podcast <path_to_index>\n"
+            "   or: python query.py --database <path_to_database>\n"
+            "Example: python query.py --podcast tests/testdata/Episode_53_index"
+        )
+    if args.podcast is not None:
+        index_file = args.podcast + "_index.json"
+        if not os.path.exists(index_file):
+            raise SystemExit(
+                f"Error: Podcast index file not found: {index_file}\n"
+                "Please verify the path exists and is accessible.\n"
+                "Note: The path should exclude the '_index.json' suffix."
+            )
+
     if args.logfire:
         utils.setup_logfire()
 
@@ -926,27 +942,24 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         ),
     )
 
-    default_podcast_file = "testdata/Episode_53_AdrianTchaikovsky_index"
     parser.add_argument(
         "--podcast",
         type=str,
-        default=default_podcast_file,
+        default=None,
         help="Path to the podcast index files (excluding the '_index.json' suffix)",
     )
-    default_qafile = "testdata/Episode_53_Answer_results.json"
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
         "--qafile",
         type=str,
-        default=default_qafile,
+        default=None,
         help=f"Path to the Answer_results.json file ({explain_qa})",
     )
-    default_srfile = "testdata/Episode_53_Search_results.json"
     explain_sr = "a list of intermediate results from stages 1, 2 and 3"
     parser.add_argument(
         "--srfile",
         type=str,
-        default=default_srfile,
+        default=None,
         help=f"Path to the Search_results.json file ({explain_sr})",
     )
     parser.add_argument(
@@ -1175,7 +1188,6 @@ async def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
                 else:
                     sem_ref = await conversation.semantic_refs.get_item(sem_ref_ord)
                     msg_ord = sem_ref.range.start.message_ordinal
-                    chunk_ord = sem_ref.range.start.chunk_ordinal
                     msg = await conversation.messages.get_item(msg_ord)
                     print(
                         f"({score:5.1f}) M={msg_ord}: "

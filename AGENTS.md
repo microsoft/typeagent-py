@@ -13,7 +13,7 @@ When moving, copying or deleting files, use the git commands: `git mv`, `git cp`
 - Activate `.venv`: `make venv; source .venv/bin/activate` (run this only once)
 - To get API keys in ad-hoc code, call `typeagent.aitools.utils.load_dotenv()`
 - Use `pytest test` to run tests in test/
-- Use `pyright` to check type annotations in tools/, test/, typeagent/, gmail/
+- Use `pyright` to check type annotations in src/, tools/,  tests/, examples/
 - Ignore build/, dist/
 - You can also use the pylance extension for type checking in VS Code
 - Use `make check` to type-check all files
