@@ -78,10 +78,16 @@ jobs:
         run: |
             uv sync --extra dev
 
-      - name: Run Check
+      - name: Run Check (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-            uv run pyright src tests tools examples
+            make check
+
+      - name: Run Check (Windows)
+        if: runner.os == 'Windows'
+        run: |
+            ./make.bat check
 
   format:
     strategy:
@@ -115,10 +121,16 @@ jobs:
         run: |
             uv sync --extra dev
 
-      - name: Run Format
+      - name: Run Format (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-            uv run black -tpy312 -tpy313 -tpy314 src tests tools examples --check
+            make format
+
+      - name: Run Format (Windows)
+        if: runner.os == 'Windows'
+        run: |
+            ./make.bat format
 
   test:
     needs: permissions-check
