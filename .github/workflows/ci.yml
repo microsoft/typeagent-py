@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "dev/robgruen/workflow_update3" ] 
+    branches: [ "main", "dev/robgruen/workflow_update5" ] 
   pull_request_target:
     branches: [ "main" ]
   workflow_dispatch:     # manual run
