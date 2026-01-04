@@ -13,9 +13,7 @@ from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUF
 from typeagent.podcasts import podcast_ingest
 from typeagent.podcasts.podcast import Podcast
 
-tests_dir = os.path.dirname(__file__)
-root_dir = os.path.dirname(tests_dir)
-DEFAULT_FILE = os.path.join(root_dir, "testdata", "FakePodcast.txt")
+from conftest import FAKE_PODCAST_TXT
 
 
 @pytest.mark.asyncio
@@ -25,7 +23,7 @@ async def test_ingest_podcast(
     # Import the podcast
     settings = ConversationSettings(embedding_model)
     pod = await podcast_ingest.ingest_podcast(
-        DEFAULT_FILE,
+        FAKE_PODCAST_TXT,
         settings,
         None,
         Datetime.now(timezone.utc),  # Use timezone-aware datetime

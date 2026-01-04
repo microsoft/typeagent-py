@@ -6,7 +6,6 @@ from typeagent.aitools.utils import load_dotenv
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts.podcast_ingest import ingest_podcast
 
-DEFAULT_TRANSCRIPT = "testdata/Episode_53_AdrianTchaikovsky.txt"
 CHARS_PER_MINUTE = 1050  # My guess for average speech rate incl. overhead
 
 
@@ -50,11 +49,16 @@ async def main():
     if args.database is not None and args.json_output is not None:
         raise SystemExit("Please use at most one of --database and --json-output")
     if args.transcript is None:
-        if os.path.exists(DEFAULT_TRANSCRIPT):
-            args.transcript = DEFAULT_TRANSCRIPT
-            print("Reading default transcript:", DEFAULT_TRANSCRIPT)
-        else:
-            raise SystemExit("Please provide a transcript file to ingest")
+        raise SystemExit(
+            "Error: A transcript file is required.\n"
+            "Usage: python ingest_podcast.py <transcript_file>\n"
+            "Example: python ingest_podcast.py path/to/transcript.vtt"
+        )
+    if not os.path.exists(args.transcript):
+        raise SystemExit(
+            f"Error: Transcript file not found: {args.transcript}\n"
+            "Please verify the path exists and is accessible."
+        )
 
     load_dotenv()
 
