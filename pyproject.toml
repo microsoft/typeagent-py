@@ -36,6 +36,7 @@ dependencies = [
   "numpy>=2.2.6",
   "openai>=1.81.0",
   "pydantic>=2.11.4",
+  "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
   "python-dotenv>=1.1.0",
   "tiktoken>=0.12.0",
   "typechat>=0.0.4",
