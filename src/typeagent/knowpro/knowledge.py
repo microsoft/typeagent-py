@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 import asyncio
+from dataclasses import dataclass
 
 from typechat import Result, TypeChatLanguageModel
 
@@ -74,14 +75,80 @@ async def extract_knowledge_from_text_batch(
 def merge_concrete_entities(
     entities: list[kplib.ConcreteEntity],
 ) -> list[kplib.ConcreteEntity]:
-    """Merge a list of concrete entities into a single list of merged entities."""
-    raise NotImplementedError("TODO")
-    # merged_entities = concrete_to_merged_entities(entities)
+    """Merge a list of concrete entities by name, combining types and facets.
 
-    # merged_concrete_entities = []
-    # for merged_entity in merged_entities.values():
-    #     merged_concrete_entities.append(merged_to_concrete_entity(merged_entity))
-    # return merged_concrete_entities
+    Entities with the same name are merged:
+    - Types are combined into a sorted unique list
+    - Facets with the same name have their values concatenated with "; "
+    """
+    if not entities:
+        return []
+
+    # Build a dict of merged entities keyed by name
+    merged: dict[str, _MergedEntity] = {}
+
+    for entity in entities:
+        name_key = entity.name
+        existing = merged.get(name_key)
+
+        if existing is None:
+            # First occurrence - create new merged entity
+            merged[name_key] = _MergedEntity(
+                name=entity.name,
+                types=set(entity.type),
+                facets=_facets_to_merged(entity.facets) if entity.facets else {},
+            )
+        else:
+            # Merge into existing
+            existing.types.update(entity.type)
+            if entity.facets:
+                for facet in entity.facets:
+                    facet_name = facet.name
+                    facet_value = str(facet.value) if facet.value else ""
+                    existing.facets.setdefault(facet_name, []).append(facet_value)
+
+    # Convert merged entities back to ConcreteEntity
+    result = []
+    for merged_entity in merged.values():
+        concrete = kplib.ConcreteEntity(
+            name=merged_entity.name,
+            type=sorted(merged_entity.types),
+        )
+        if merged_entity.facets:
+            concrete.facets = _merged_to_facets(merged_entity.facets)
+        result.append(concrete)
+
+    return result
+
+
+@dataclass
+class _MergedEntity:
+    """Internal helper for merging entities."""
+
+    name: str
+    types: set[str]
+    facets: dict[str, list[str]]
+
+
+def _facets_to_merged(facets: list[kplib.Facet]) -> dict[str, list[str]]:
+    """Convert a list of Facets to a merged facets dict."""
+    merged: dict[str, list[str]] = {}
+    for facet in facets:
+        name = facet.name
+        value = str(facet.value) if facet.value else ""
+        merged.setdefault(name, []).append(value)
+    return merged
+
+
+def _merged_to_facets(merged_facets: dict[str, list[str]]) -> list[kplib.Facet]:
+    """Convert a merged facets dict back to a list of Facets."""
+    facets = []
+    for name, values in merged_facets.items():
+        if values:
+            # Deduplicate values while preserving order
+            unique_values = list(dict.fromkeys(values))
+            facets.append(kplib.Facet(name=name, value="; ".join(unique_values)))
+    return facets
 
 
 def merge_topics(topics: list[str]) -> list[str]:
