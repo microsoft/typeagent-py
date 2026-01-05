@@ -90,4 +90,5 @@ known_local_folder = ["conftest"]
 [dependency-groups]
 dev = [
     "isort>=7.0.0",
+    "pyright==1.1.406",
 ]
