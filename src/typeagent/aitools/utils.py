@@ -67,7 +67,7 @@ def reindent(text: str) -> str:
 
 
 def load_dotenv() -> None:
-    """Load environment variables from '<repo_root>/ta/.env'."""
+    """Load environment variables from '<repo_root>/.env'."""
     # Look for ".env" in current directory and up until root.
     cur_dir = os.path.abspath(os.getcwd())
     while True:
