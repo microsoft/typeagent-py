@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass as stdlib_dataclass
 from datetime import datetime as Datetime
 from typing import (
     Any,
@@ -17,13 +16,7 @@ from typing import (
     TypedDict,
 )
 
-if TYPE_CHECKING:
-    # Use stdlib dataclass for type checking (pyright understands this)
-    dataclass = stdlib_dataclass
-else:
-    # Use pydantic dataclass at runtime for serialization support
-    from pydantic.dataclasses import dataclass
-
+from pydantic.dataclasses import dataclass
 import typechat
 
 from . import kplib
