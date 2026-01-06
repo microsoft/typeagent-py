@@ -60,10 +60,14 @@ venv: .venv
 .venv:
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
 	uv sync -q --extra dev
-	@.venv/bin/black --version | sed 's/, / /'
+	.venv/bin/black --version
 	@echo "(If 'pyright' fails with 'error while loading shared libraries: libatomic.so.1:', try 'make install-libatomic')"
-	@.venv/bin/pyright --version
-	@.venv/bin/pytest --version
+	.venv/bin/pyright --version
+	.venv/bin/pytest --version
+
+.PHONY: sync
+sync:
+	uv sync --extra dev
 
 .PHONY: install-uv
 install-uv:
@@ -94,6 +98,7 @@ help:
 	@echo "make demo        # python tools/query.py (interactive)"
 	@echo "make compare     # python tools/query.py --batch"
 	@echo "make venv        # Create .venv/"
+	@echo "make sync        # Sync dependencies with uv"
 	@echo "make clean       # Remove build/, dist/, .venv/, *.egg-info/"
 	@echo "make install-uv  # Install uv (if not already installed)"
 	@echo "make install-libatomic  # Install libatomic (if not already installed)"

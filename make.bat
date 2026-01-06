@@ -16,6 +16,7 @@ if /I "%~1"=="test" goto test
 if /I "%~1"=="demo" goto demo
 if /I "%~1"=="build" goto build
 if /I "%~1"=="venv" goto venv
+if /I "%~1"=="sync" goto sync
 if /I "%~1"=="install-uv" goto install-uv
 if /I "%~1"=="clean" goto clean
 if /I "%~1"=="help" goto help
@@ -63,6 +64,10 @@ uv sync -q --extra dev
 .venv\Scripts\python -m pytest --version
 goto end
 
+:sync
+uv sync --extra dev
+goto end
+
 :install-uv
 echo Installing uv requires Administrator mode!
 echo 1. Using PowerShell in Administrator mode:
@@ -83,7 +88,7 @@ if exist .pytest_cache rmdir /s /q .pytest_cache
 goto end
 
 :help
-echo Usage: .\make [format^|check^|test^|build^|venv^|install-uv^|clean^|help]
+echo Usage: .\make [format^|check^|test^|build^|venv^|sync^|install-uv^|clean^|help]
 goto end
 
 :end
