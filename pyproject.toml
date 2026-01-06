@@ -54,7 +54,7 @@ dev = [
   "isort>=7.0.0",
   "logfire>=4.1.0",
   "opentelemetry-instrumentation-httpx>=0.57b0",
-  "pydantic-ai-slim[openai]>=0.5.0",
+  "pydantic-ai-slim[openai]>=1.39.0",
   "pyright==1.1.406",  # 407 has a regression
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
