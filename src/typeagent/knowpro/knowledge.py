@@ -102,10 +102,9 @@ def merge_concrete_entities(
             # Merge into existing
             existing.types.update(entity.type)
             if entity.facets:
-                for facet in entity.facets:
-                    facet_name = facet.name
-                    facet_value = str(facet.value) if facet.value else ""
-                    existing.facets.setdefault(facet_name, []).append(facet_value)
+                merged_facets = _facets_to_merged(entity.facets)
+                for facet_name, facet_values in merged_facets.items():
+                    existing.facets.setdefault(facet_name, []).extend(facet_values)
 
     # Convert merged entities back to ConcreteEntity
     result = []
