@@ -95,17 +95,17 @@ def test_merge_concrete_entities_empty_list() -> None:
 
 
 def test_merge_concrete_entities_single_entity() -> None:
-    """Test merging a single entity preserves case."""
+    """Test merging a single entity lowercases names and types."""
     entity = ConcreteEntity(name="Alice", type=["Person"])
     result = merge_concrete_entities([entity])
 
     assert len(result) == 1
-    assert result[0].name == "Alice"
-    assert result[0].type == ["Person"]
+    assert result[0].name == "alice"
+    assert result[0].type == ["person"]
 
 
 def test_merge_concrete_entities_distinct() -> None:
-    """Test merging distinct entities keeps them separate."""
+    """Test merging distinct entities keeps them separate (lowercased)."""
     entities = [
         ConcreteEntity(name="Alice", type=["Person"]),
         ConcreteEntity(name="Bob", type=["Person"]),
@@ -114,11 +114,11 @@ def test_merge_concrete_entities_distinct() -> None:
 
     assert len(result) == 2
     names = {e.name for e in result}
-    assert names == {"Alice", "Bob"}
+    assert names == {"alice", "bob"}
 
 
 def test_merge_concrete_entities_same_name_different_case() -> None:
-    """Test that entities with different case names are NOT merged (case-sensitive)."""
+    """Test that entities with different case names ARE merged (case-insensitive)."""
     entities = [
         ConcreteEntity(name="Alice", type=["Person"]),
         ConcreteEntity(name="ALICE", type=["Employee"]),
@@ -126,14 +126,14 @@ def test_merge_concrete_entities_same_name_different_case() -> None:
     ]
     result = merge_concrete_entities(entities)
 
-    # Case-sensitive: all three are distinct
-    assert len(result) == 3
-    names = {e.name for e in result}
-    assert names == {"Alice", "ALICE", "alice"}
+    # Case-insensitive: all three are merged into one
+    assert len(result) == 1
+    assert result[0].name == "alice"
+    assert result[0].type == ["employee", "manager", "person"]
 
 
 def test_merge_concrete_entities_types_deduplicated_and_sorted() -> None:
-    """Test that merged types are deduplicated and sorted."""
+    """Test that merged types are deduplicated, lowercased, and sorted."""
     entities = [
         ConcreteEntity(name="Alice", type=["Person", "Employee"]),
         ConcreteEntity(name="Alice", type=["Employee", "Manager"]),
@@ -141,7 +141,7 @@ def test_merge_concrete_entities_types_deduplicated_and_sorted() -> None:
     result = merge_concrete_entities(entities)
 
     assert len(result) == 1
-    assert result[0].type == ["Employee", "Manager", "Person"]
+    assert result[0].type == ["employee", "manager", "person"]
 
 
 def test_merge_concrete_entities_with_facets() -> None:
