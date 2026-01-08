@@ -145,9 +145,7 @@ def _facet_value_to_string(value: kplib.Value | None) -> str:
     return str(value).lower() if value else ""
 
 
-def _add_facet_to_merged(
-    merged: dict[str, set[str]], facet: kplib.Facet
-) -> None:
+def _add_facet_to_merged(merged: dict[str, set[str]], facet: kplib.Facet) -> None:
     """Add a single facet to a merged facets dict."""
     name = facet.name.lower()
     value = _facet_value_to_string(facet.value)
