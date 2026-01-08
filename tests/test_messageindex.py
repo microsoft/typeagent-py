@@ -149,7 +149,7 @@ async def test_generate_embedding(needs_auth: None):
     from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
     import numpy as np
 
-    # Create real MesssageTextIndex with test model
+    # Create real MessageTextIndex with test model
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = MessageTextIndexSettings(embedding_settings)
