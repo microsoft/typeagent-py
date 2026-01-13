@@ -185,7 +185,7 @@ def _merge_facets(
 def _merged_to_facets(merged_facets: dict[str, set[str]]) -> list[kplib.Facet]:
     """Convert a merged facets dict back to a list of Facets."""
     facets = []
-    for name, values in merged_facets.items():
+    for name, values in sorted(merged_facets.items()):
         if values:
             facets.append(kplib.Facet(name=name, value="; ".join(sorted(values))))
     return facets
