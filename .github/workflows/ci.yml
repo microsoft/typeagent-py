@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "makesync" ]  # TEMPORARY -- REMOVE makesync before committing
+    branches: [ "main" ]
   pull_request_target:
     branches: [ "main" ]
   workflow_dispatch:     # manual run
