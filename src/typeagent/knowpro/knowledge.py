@@ -72,6 +72,15 @@ async def extract_knowledge_from_text_batch(
     return [results[i] for i in range(len(text_batch))]
 
 
+@dataclass
+class _MergedEntity:
+    """Internal helper for merging entities."""
+
+    name: str
+    types: set[str]
+    facets: dict[str, set[str]]
+
+
 def merge_concrete_entities(
     entities: list[kplib.ConcreteEntity],
 ) -> list[kplib.ConcreteEntity]:
@@ -105,13 +114,14 @@ def merge_concrete_entities(
             # First occurrence - create new merged entity
             merged[name_key] = _MergedEntity(
                 name=name_key,
-                types=set(),
-                facets={},
+                types=set(t.lower() for t in entity.type),
+                facets=_facets_to_merged(entity.facets) if entity.facets else {},
             )
-        # Merge into existing
-        existing.types.update(t.lower() for t in entity.type)
-        if entity.facets:
-            _merge_facets(existing.facets, entity.facets)
+        else:
+            # Merge into existing
+            existing.types.update(t.lower() for t in entity.type)
+            if entity.facets:
+                _merge_facets(existing.facets, entity.facets)
 
     # Convert merged entities back to ConcreteEntity, sorted by name
     result = []
@@ -127,27 +137,10 @@ def merge_concrete_entities(
     return result
 
 
-@dataclass
-class _MergedEntity:
-    """Internal helper for merging entities."""
-
-    name: str
-    types: set[str]
-    facets: dict[str, set[str]]
-
-
-def _facet_value_to_string(value: kplib.Value | None) -> str:
-    """Convert a facet value to a lowercase string.
-
-    Complex types like Quantity and Quantifier use their __str__ representation.
-    """
-    return str(value).lower() if value is not None else ""
-
-
 def _add_facet_to_merged(merged: dict[str, set[str]], facet: kplib.Facet) -> None:
     """Add a single facet to a merged facets dict."""
     name = facet.name.lower()
-    value = _facet_value_to_string(facet.value)
+    value = str(facet.value).lower() if facet.value else ""
     merged.setdefault(name, set()).add(value)
 
 
@@ -171,8 +164,7 @@ def _merge_facets(existing: dict[str, set[str]], facets: list[kplib.Facet]) -> N
 def _merged_to_facets(merged_facets: dict[str, set[str]]) -> list[kplib.Facet]:
     """Convert a merged facets dict back to a list of Facets."""
     facets = []
-    for name in sorted(merged_facets):
-        values = merged_value[name]
+    for name, values in merged_facets.items():
         if values:
             facets.append(kplib.Facet(name=name, value="; ".join(sorted(values))))
     return facets
