@@ -55,7 +55,7 @@ dev = [
   "logfire>=4.1.0",
   "opentelemetry-instrumentation-httpx>=0.57b0",
   "pydantic-ai-slim[openai]>=1.39.0",
-  "pyright>=1.1.408",  # 407 has a regression
+  "pyright==1.1.408",  # 407 has a regression
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",
@@ -90,5 +90,5 @@ known_local_folder = ["conftest"]
 [dependency-groups]
 dev = [
     "isort>=7.0.0",
-    "pyright>=1.1.408",
+    "pyright==1.1.408",
 ]
