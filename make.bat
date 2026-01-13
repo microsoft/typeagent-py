@@ -65,7 +65,7 @@ uv sync -q --extra logfire
 goto end
 
 :sync
- --extra logfire
+uv sync --extra logfire
 goto end
 
 :install-uv
