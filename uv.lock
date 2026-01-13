@@ -1823,7 +1823,8 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
-    { name = "black" },
+    { name = "logfire" },
+    { name = "opentelemetry-instrumentation-httpx" },
 ]
 logfire = [
     { name = "logfire" },
@@ -1850,12 +1851,13 @@ dev = [
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
     { name = "black", specifier = ">=25.12.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=25.12.0" },
     { name = "colorama", specifier = ">=0.4.6" },
+    { name = "logfire", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.1.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.1" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "openai", specifier = ">=1.81.0" },
+    { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'dev'", specifier = ">=0.57b0" },
     { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'logfire'", specifier = ">=0.57b0" },
     { name = "pydantic", specifier = ">=2.11.4" },
     { name = "pyreadline3", marker = "sys_platform == 'win32'", specifier = ">=3.5.4" },

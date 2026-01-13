@@ -46,7 +46,8 @@ dependencies = [
 [project.optional-dependencies]
 # Dummy so "uv sync --extra dev" doesn't fail.
 dev = [
-  "black>=25.12.0",
+  "logfire>=4.1.0",
+  "opentelemetry-instrumentation-httpx>=0.57b0",
 ]
 # Needed to enable --logfire flag to tools/query.py
 logfire = [
