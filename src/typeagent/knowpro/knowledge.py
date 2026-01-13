@@ -104,15 +104,14 @@ def merge_concrete_entities(
         if existing is None:
             # First occurrence - create new merged entity
             merged[name_key] = _MergedEntity(
-                name=entity.name.lower(),
-                types=set(t.lower() for t in entity.type),
-                facets=_facets_to_merged(entity.facets) if entity.facets else {},
+                name=name_key,
+                types=set(),
+                facets={},
             )
-        else:
-            # Merge into existing
-            existing.types.update(t.lower() for t in entity.type)
-            if entity.facets:
-                _merge_facets(existing.facets, entity.facets)
+        # Merge into existing
+        existing.types.update(t.lower() for t in entity.type)
+        if entity.facets:
+            _merge_facets(existing.facets, entity.facets)
 
     # Convert merged entities back to ConcreteEntity, sorted by name
     result = []
