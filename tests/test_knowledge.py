@@ -231,3 +231,129 @@ def test_merge_concrete_entities_without_facets_with_facets() -> None:
     assert result[0].facets is not None
     assert len(result[0].facets) == 1
     assert result[0].facets[0].name == "department"
+
+
+# Tests for merge_concrete_entities with normalize parameter variations
+
+
+def test_merge_concrete_entities_normalize_uppercase() -> None:
+    """Test merging with uppercase normalization."""
+    entities = [
+        ConcreteEntity(name="Alice", type=["Person"]),
+        ConcreteEntity(name="ALICE", type=["Employee"]),
+    ]
+    result = merge_concrete_entities(entities, normalize=str.upper)
+
+    assert len(result) == 1
+    assert result[0].name == "ALICE"
+    assert result[0].type == ["EMPLOYEE", "PERSON"]
+
+
+def test_merge_concrete_entities_normalize_identity() -> None:
+    """Test merging with identity normalization (case-sensitive)."""
+    entities = [
+        ConcreteEntity(name="Alice", type=["Person"]),
+        ConcreteEntity(name="ALICE", type=["Employee"]),
+        ConcreteEntity(name="alice", type=["Manager"]),
+    ]
+    # Identity function preserves case, so these are three distinct entities
+    result = merge_concrete_entities(entities, normalize=lambda x: x)
+
+    assert len(result) == 3
+    names = {e.name for e in result}
+    assert names == {"Alice", "ALICE", "alice"}
+
+
+def test_merge_concrete_entities_normalize_identity_same_name() -> None:
+    """Test merging with identity normalization for same-cased names."""
+    entities = [
+        ConcreteEntity(name="Alice", type=["Person"]),
+        ConcreteEntity(name="Alice", type=["Employee"]),
+    ]
+    result = merge_concrete_entities(entities, normalize=lambda x: x)
+
+    # Same case, so they merge
+    assert len(result) == 1
+    assert result[0].name == "Alice"
+    assert result[0].type == ["Employee", "Person"]
+
+
+def _to_camel_case(s: str) -> str:
+    """Convert a string to camelCase for normalization."""
+    words = s.replace("_", " ").replace("-", " ").split()
+    if not words:
+        return s
+    return words[0].lower() + "".join(word.capitalize() for word in words[1:])
+
+
+def test_merge_concrete_entities_normalize_camelcase() -> None:
+    """Test merging with camelCase normalization."""
+    entities = [
+        ConcreteEntity(name="software engineer", type=["job title"]),
+        ConcreteEntity(name="Software Engineer", type=["profession"]),
+    ]
+    result = merge_concrete_entities(entities, normalize=_to_camel_case)
+
+    assert len(result) == 1
+    assert result[0].name == "softwareEngineer"
+    assert result[0].type == ["jobTitle", "profession"]
+
+
+def test_merge_concrete_entities_normalize_camelcase_distinct() -> None:
+    """Test camelCase normalization keeps different words distinct."""
+    entities = [
+        ConcreteEntity(name="software engineer", type=["Role"]),
+        ConcreteEntity(name="data scientist", type=["Role"]),
+    ]
+    result = merge_concrete_entities(entities, normalize=_to_camel_case)
+
+    assert len(result) == 2
+    names = {e.name for e in result}
+    assert names == {"softwareEngineer", "dataScientist"}
+
+
+def test_merge_concrete_entities_normalize_uppercase_with_facets() -> None:
+    """Test uppercase normalization also applies to facet names and values."""
+    entities = [
+        ConcreteEntity(
+            name="Alice",
+            type=["Person"],
+            facets=[Facet(name="city", value="new york")],
+        ),
+        ConcreteEntity(
+            name="alice",
+            type=["Employee"],
+            facets=[Facet(name="City", value="New York")],
+        ),
+    ]
+    result = merge_concrete_entities(entities, normalize=str.upper)
+
+    assert len(result) == 1
+    assert result[0].name == "ALICE"
+    assert result[0].facets is not None
+    city_facet = next(f for f in result[0].facets if f.name == "CITY")
+    # Both values normalize to "NEW YORK" so they deduplicate
+    assert city_facet.value == "NEW YORK"
+
+
+def test_merge_concrete_entities_normalize_identity_with_facets() -> None:
+    """Test identity normalization preserves facet name/value case."""
+    entities = [
+        ConcreteEntity(
+            name="Alice",
+            type=["Person"],
+            facets=[Facet(name="City", value="New York")],
+        ),
+        ConcreteEntity(
+            name="Alice",
+            type=["Employee"],
+            facets=[Facet(name="city", value="new york")],
+        ),
+    ]
+    result = merge_concrete_entities(entities, normalize=lambda x: x)
+
+    assert len(result) == 1
+    assert result[0].facets is not None
+    # With identity, "City" and "city" are different facet names
+    facet_names = {f.name for f in result[0].facets}
+    assert facet_names == {"City", "city"}

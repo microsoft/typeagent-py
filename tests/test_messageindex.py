@@ -145,9 +145,10 @@ async def test_lookup_messages_in_subset(
 @pytest.mark.asyncio
 async def test_generate_embedding(needs_auth: None):
     """Test generating an embedding for a message without mocking."""
+    import numpy as np
+
     from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
     from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-    import numpy as np
 
     # Create real MessageTextIndex with test model
     test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
