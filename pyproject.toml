@@ -44,21 +44,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-  "azure-mgmt-authorization>=4.0.0",
-  "azure-mgmt-keyvault>=12.1.1",  
-  "coverage[toml]>=7.9.1",
-  "google-api-python-client>=2.184.0",
-  "google-auth-httplib2>=0.2.0",
-  "google-auth-oauthlib>=1.2.2",
-  "isort>=7.0.0",
+# Needed to enable --logfire flag to tools/query.py
+logfire = [
   "logfire>=4.1.0",
   "opentelemetry-instrumentation-httpx>=0.57b0",
-  "pydantic-ai-slim[openai]>=1.39.0",
-  "pyright==1.1.408",  # 407 has a regression
-  "pytest>=8.3.5",
-  "pytest-asyncio>=0.26.0",
-  "pytest-mock>=3.14.0",
 ]
 
 [project.urls]
@@ -89,6 +78,18 @@ known_local_folder = ["conftest"]
 
 [dependency-groups]
 dev = [
-    "isort>=7.0.0",
-    "pyright==1.1.408",
+  "azure-mgmt-authorization>=4.0.0",
+  "azure-mgmt-keyvault>=12.1.1",
+  "coverage[toml]>=7.9.1",
+  "google-api-python-client>=2.184.0",
+  "google-auth-httplib2>=0.2.0",
+  "google-auth-oauthlib>=1.2.2",
+  "isort>=7.0.0",
+  "logfire>=4.1.0",  # So 'make check' passes
+  "opentelemetry-instrumentation-httpx>=0.57b0",
+  "pydantic-ai-slim[openai]>=1.39.0",
+  "pyright>=1.1.408",  # 407 has a regression
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.26.0",
+  "pytest-mock>=3.14.0",
 ]

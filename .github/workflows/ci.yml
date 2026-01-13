@@ -156,7 +156,7 @@ jobs:
       - name: Run Test (Windows)
         if: runner.os == 'Windows'
         run: |
-            make test
+            ./make.bat test
 
   online-test:
     needs: permissions-check
