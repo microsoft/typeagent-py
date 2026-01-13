@@ -59,7 +59,7 @@ venv: .venv
 
 .venv:
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
-	uv sync -q --extra logfire
+	uv sync -q
 	.venv/bin/black --version
 	@echo "(If 'pyright' fails with 'error while loading shared libraries: libatomic.so.1:', try 'make install-libatomic')"
 	.venv/bin/pyright --version
@@ -67,7 +67,7 @@ venv: .venv
 
 .PHONY: sync
 sync:
-	uv sync --extra logfire
+	uv sync
 
 .PHONY: install-uv
 install-uv:
