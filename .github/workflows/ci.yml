@@ -3,9 +3,9 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ] 
-  pull_request_target:
     branches: [ "main", "makesync" ]  # TEMPORARY -- REMOVE makesync before committing
+  pull_request_target:
+    branches: [ "main" ]
   workflow_dispatch:     # manual run
 
 concurrency:
