@@ -5,7 +5,7 @@ on:
   push:
     branches: [ "main" ] 
   pull_request_target:
-    branches: [ "main" ]
+    branches: [ "main", "makesync" ]  # TEMPORARY -- REMOVE makesync before committing
   workflow_dispatch:     # manual run
 
 concurrency:
@@ -73,11 +73,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install Dependencies
-        shell: bash
-        run: |
-            uv sync --extra dev
-
       - name: Run Check (Linux)
         if: runner.os == 'Linux'
         shell: bash
@@ -116,11 +111,6 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install Dependencies
-        shell: bash
-        run: |
-            uv sync --extra dev
-
       - name: Run Format (Linux)
         if: runner.os == 'Linux'
         shell: bash
@@ -157,15 +147,16 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install Dependencies
+      - name: Run Test (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-            uv sync --extra dev
+            make test
 
-      - name: Run Test
-        shell: bash
+      - name: Run Test (Windows)
+        if: runner.os == 'Windows'
         run: |
-            uv run pytest
+            make test
 
   online-test:
     needs: permissions-check
@@ -192,10 +183,16 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
-      - name: Install Dependencies
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-            uv sync --extra dev
+            make sync
+
+      - name: Install Dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+            make sync
 
       - name: Login to Azure
         uses: azure/login@v2.2.0
