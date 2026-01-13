@@ -538,19 +538,20 @@ async def main():
 
     # Validate required podcast argument
     if args.podcast is None and args.database is None:
+        scriptname = sys.argv[0]
         raise SystemExit(
-            "Error: Either --podcast or --database is required.\n"
-            "Usage: python query.py --podcast <path_to_index>\n"
-            "   or: python query.py --database <path_to_database>\n"
-            "Example: python query.py --podcast tests/testdata/Episode_53_index"
+            f"Error: Either --podcast or --database is required.\n"
+            f"Usage: python {scriptname} --podcast <path_to_index>\n"
+            f"   or: python {scriptname} --database <path_to_database>\n"
+            f"Example: python {scriptname} --podcast tests/testdata/Episode_53_AdrianTchaikovsky_index"
         )
     if args.podcast is not None:
-        index_file = args.podcast + "_index.json"
+        index_file = args.podcast + "_data.json"
         if not os.path.exists(index_file):
             raise SystemExit(
                 f"Error: Podcast index file not found: {index_file}\n"
-                "Please verify the path exists and is accessible.\n"
-                "Note: The path should exclude the '_index.json' suffix."
+                f"Please verify the path exists and is accessible.\n"
+                f"Note: The path should exclude the '_data.json' suffix."
             )
 
     if args.logfire:
@@ -946,7 +947,7 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         "--podcast",
         type=str,
         default=None,
-        help="Path to the podcast index files (excluding the '_index.json' suffix)",
+        help="Path to the podcast index files (excluding the '_data.json' suffix)",
     )
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
