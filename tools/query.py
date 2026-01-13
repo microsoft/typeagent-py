@@ -1134,8 +1134,10 @@ async def load_podcast_index(
 
 
 def load_index_file[T: Mapping[str, typing.Any]](
-    file: str, selector: str, cls: type[T], verbose: bool = True
+    file: str | None, selector: str, cls: type[T], verbose: bool = True
 ) -> tuple[list[T], dict[str, T]]:
+    if file is None:
+        return [], {}
     # If this crashes, the file is malformed -- go figure it out.
     try:
         with open(file) as f:
