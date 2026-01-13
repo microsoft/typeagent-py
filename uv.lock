@@ -1822,6 +1822,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+dev = [
+    { name = "black" },
+]
 logfire = [
     { name = "logfire" },
     { name = "opentelemetry-instrumentation-httpx" },
@@ -1847,6 +1850,7 @@ dev = [
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
     { name = "black", specifier = ">=25.12.0" },
+    { name = "black", marker = "extra == 'dev'", specifier = ">=25.12.0" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.1.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.1" },
@@ -1860,7 +1864,7 @@ requires-dist = [
     { name = "typechat", specifier = ">=0.0.4" },
     { name = "webvtt-py", specifier = ">=0.5.1" },
 ]
-provides-extras = ["logfire"]
+provides-extras = ["dev", "logfire"]
 
 [package.metadata.requires-dev]
 dev = [

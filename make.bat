@@ -57,7 +57,7 @@ goto end
 
 :venv
 echo Creating virtual environment...
-uv sync -q
+uv sync -q --extra logfire
 .venv\Scripts\python --version
 .venv\Scripts\black --version
 .venv\Scripts\pyright --version
@@ -65,7 +65,7 @@ uv sync -q
 goto end
 
 :sync
-uv sync
+ --extra logfire
 goto end
 
 :install-uv
