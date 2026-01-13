@@ -141,7 +141,7 @@ def _facet_value_to_string(value: kplib.Value | None) -> str:
 
     Complex types like Quantity and Quantifier use their __str__ representation.
     """
-    return str(value).lower() if value else ""
+    return str(value).lower() if value is not None else ""
 
 
 def _add_facet_to_merged(merged: dict[str, set[str]], facet: kplib.Facet) -> None:
