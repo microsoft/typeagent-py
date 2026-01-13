@@ -256,8 +256,8 @@ def test_merge_concrete_entities_normalize_identity() -> None:
         ConcreteEntity(name="ALICE", type=["Employee"]),
         ConcreteEntity(name="alice", type=["Manager"]),
     ]
-    # Identity function preserves case, so these are three distinct entities
-    result = merge_concrete_entities(entities, normalize=lambda x: x)
+    # str is a fast identity function for strings, preserving case
+    result = merge_concrete_entities(entities, normalize=str)
 
     assert len(result) == 3
     names = {e.name for e in result}
@@ -270,7 +270,7 @@ def test_merge_concrete_entities_normalize_identity_same_name() -> None:
         ConcreteEntity(name="Alice", type=["Person"]),
         ConcreteEntity(name="Alice", type=["Employee"]),
     ]
-    result = merge_concrete_entities(entities, normalize=lambda x: x)
+    result = merge_concrete_entities(entities, normalize=str)
 
     # Same case, so they merge
     assert len(result) == 1
@@ -350,10 +350,10 @@ def test_merge_concrete_entities_normalize_identity_with_facets() -> None:
             facets=[Facet(name="city", value="new york")],
         ),
     ]
-    result = merge_concrete_entities(entities, normalize=lambda x: x)
+    result = merge_concrete_entities(entities, normalize=str)
 
     assert len(result) == 1
     assert result[0].facets is not None
-    # With identity, "City" and "city" are different facet names
+    # With str (identity), "City" and "city" are different facet names
     facet_names = {f.name for f in result[0].facets}
     assert facet_names == {"City", "city"}

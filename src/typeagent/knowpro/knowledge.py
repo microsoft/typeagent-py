@@ -96,8 +96,8 @@ def merge_concrete_entities(
     Args:
         entities: List of entities to merge.
         normalize: Function to normalize strings for matching. Defaults to
-            str.lower for case-insensitive matching. Pass lambda x: x to
-            preserve original casing.
+            str.lower for case-insensitive matching. Pass str to preserve
+            original casing (fast identity function for strings).
 
     Note:
         By default, this function normalizes all text to lowercase, matching
@@ -154,7 +154,7 @@ def _add_facet_to_merged(
 ) -> None:
     """Add a single facet to a merged facets dict."""
     name = normalize(facet.name)
-    value = normalize(str(facet.value)) if facet.value else ""
+    value = normalize(str(facet.value)) if facet.value is not None else ""
     merged.setdefault(name, set()).add(value)
 
 
