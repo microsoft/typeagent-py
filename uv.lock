@@ -1822,6 +1822,12 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+logfire = [
+    { name = "logfire" },
+    { name = "opentelemetry-instrumentation-httpx" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-keyvault" },
@@ -1839,47 +1845,41 @@ dev = [
     { name = "pytest-mock" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "isort" },
-    { name = "pyright" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
-    { name = "azure-mgmt-authorization", marker = "extra == 'dev'", specifier = ">=4.0.0" },
-    { name = "azure-mgmt-keyvault", marker = "extra == 'dev'", specifier = ">=12.1.1" },
     { name = "black", specifier = ">=25.12.0" },
     { name = "colorama", specifier = ">=0.4.6" },
-    { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.9.1" },
-    { name = "google-api-python-client", marker = "extra == 'dev'", specifier = ">=2.184.0" },
-    { name = "google-auth-httplib2", marker = "extra == 'dev'", specifier = ">=0.2.0" },
-    { name = "google-auth-oauthlib", marker = "extra == 'dev'", specifier = ">=1.2.2" },
-    { name = "isort", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "logfire", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.1.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.1" },
     { name = "numpy", specifier = ">=2.2.6" },
     { name = "openai", specifier = ">=1.81.0" },
-    { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'dev'", specifier = ">=0.57b0" },
+    { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'logfire'", specifier = ">=0.57b0" },
     { name = "pydantic", specifier = ">=2.11.4" },
-    { name = "pydantic-ai-slim", extras = ["openai"], marker = "extra == 'dev'", specifier = ">=1.39.0" },
     { name = "pyreadline3", marker = "sys_platform == 'win32'", specifier = ">=3.5.4" },
-    { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.408" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.5" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.26.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "tiktoken", specifier = ">=0.12.0" },
     { name = "typechat", specifier = ">=0.0.4" },
     { name = "webvtt-py", specifier = ">=0.5.1" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["logfire"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },
+    { name = "azure-mgmt-keyvault", specifier = ">=12.1.1" },
+    { name = "coverage", extras = ["toml"], specifier = ">=7.9.1" },
+    { name = "google-api-python-client", specifier = ">=2.184.0" },
+    { name = "google-auth-httplib2", specifier = ">=0.2.0" },
+    { name = "google-auth-oauthlib", specifier = ">=1.2.2" },
     { name = "isort", specifier = ">=7.0.0" },
+    { name = "logfire", specifier = ">=4.1.0" },
+    { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.57b0" },
+    { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=1.39.0" },
     { name = "pyright", specifier = ">=1.1.408" },
+    { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-asyncio", specifier = ">=0.26.0" },
+    { name = "pytest-mock", specifier = ">=3.14.0" },
 ]
 
 [[package]]
