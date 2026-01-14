@@ -143,7 +143,8 @@ CREATE INDEX IF NOT EXISTS idx_related_fuzzy_term ON RelatedTermsFuzzy(term);
 # This prevents re-ingesting the same content on subsequent runs
 INGESTED_SOURCES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS IngestedSources (
-    source_id TEXT PRIMARY KEY      -- External source identifier (email ID, file path, etc.)
+    source_id TEXT PRIMARY KEY,      -- External source identifier (email ID, file path, etc.)
+    status TEXT NOT NULL DEFAULT 'ingested'  -- Status of the source (e.g., 'ingested', 'failed')
 );
 """
 

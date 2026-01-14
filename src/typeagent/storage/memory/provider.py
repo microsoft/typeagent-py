@@ -150,7 +150,20 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         return source_id in self._ingested_sources
 
-    def mark_source_ingested(self, source_id: str) -> None:
+    def get_source_status(self, source_id: str) -> str | None:
+        """Get the ingestion status of a source.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+
+        Returns:
+            The ingestion status if the source has been ingested, None otherwise.
+        """
+        if source_id in self._ingested_sources:
+            return "ingested"
+        return None
+
+    def mark_source_ingested(self, source_id: str, status: str = "ingested") -> None:
         """Mark a source as ingested.
 
         Args:

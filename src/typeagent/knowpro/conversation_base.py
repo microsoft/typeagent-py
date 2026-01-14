@@ -141,13 +141,21 @@ class ConversationBase(
             Exception: Any error
         """
         storage = await self.settings.get_storage_provider()
+        if source_ids:
+            if len(source_ids) != len(messages):
+                raise ValueError(
+                    f"Length of source_ids {len(source_ids)} "
+                    f"must match length of messages {len(messages)}"
+                )
+            async with storage:
+                for source_id in source_ids:
+                    storage.mark_source_ingested(source_id, "failed")
 
         async with storage:
-            # Mark source IDs as ingested before adding messages
-            # This way, if indexing fails, the rollback will also undo the marks
+            # Mark source IDs as ingested (will be rolled back on error)
             if source_ids:
                 for source_id in source_ids:
-                    storage.mark_source_ingested(source_id)
+                    storage.mark_source_ingested(source_id, "ingested")
 
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),

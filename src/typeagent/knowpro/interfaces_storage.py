@@ -150,7 +150,11 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Check if a source has already been ingested."""
         ...
 
-    def mark_source_ingested(self, source_id: str) -> None:
+    def get_source_status(self, source_id: str) -> str | None:
+        """Get the ingestion status of a source."""
+        ...
+
+    def mark_source_ingested(self, source_id: str, status: str = "ingested") -> None:
         """Mark a source as ingested (no commit; call within transaction context)."""
         ...
 

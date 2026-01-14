@@ -148,12 +148,14 @@ async def ingest_emails(
 
             email = import_email_from_file(str(email_file))
             email_id = email.metadata.id
+            if verbose:
+                print(f"  Imported email ID: {email_id}")
 
             # Check if this email was already ingested
-            if email_id and storage_provider.is_source_ingested(email_id):
+            if email_id and (status := storage_provider.get_source_status(email_id)):
                 skipped_count += 1
                 if verbose:
-                    print(f"    [Already ingested, skipping]")
+                    print(f"    [Previously {status}, skipping]")
                 continue
 
             if verbose:
