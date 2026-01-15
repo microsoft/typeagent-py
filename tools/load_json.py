@@ -22,7 +22,6 @@ import os
 from typeagent.aitools import utils
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts import podcast
-from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 
@@ -69,8 +68,8 @@ async def load_json_to_database(
         conversation = await podcast.Podcast.read_from_file(
             podcast_file_prefix, settings, dbname
         )
-        if isinstance(provider, SqliteStorageProvider):
-            provider.db.commit()
+        async with provider:
+            pass  # Commit happens in __aexit__
 
     # Print statistics
     if verbose:
@@ -91,19 +90,6 @@ def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Load JSON-serialized podcast data into a SQLite database",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  python tools/load_json.py tests/testdata/Episode_53_AdrianTchaikovsky_index -d podcast.db
-  python tools/load_json.py path/to/index -d output.db -v
-
-Note: The index path should exclude the "_data.json" suffix.
-        """,
-    )
-
-    parser.add_argument(
-        "index_path",
-        help="Path to the podcast index files (excluding the '_data.json' suffix)",
     )
 
     parser.add_argument(
@@ -120,9 +106,14 @@ Note: The index path should exclude the "_data.json" suffix.
         help="Show verbose output including statistics",
     )
 
+    parser.add_argument(
+        "index_path",
+        help="Path to the podcast index files (excluding the '_data.json' suffix)",
+    )
+
     args = parser.parse_args()
 
-    # Validate index file exists
+    # Ensure index file exists
     index_file = args.index_path + "_data.json"
     if not os.path.exists(index_file):
         raise SystemExit(
@@ -135,16 +126,13 @@ Note: The index path should exclude the "_data.json" suffix.
     utils.load_dotenv()
 
     # Run the loading process
-    try:
-        asyncio.run(
-            load_json_to_database(
-                args.index_path,
-                args.database,
-                args.verbose,
-            )
+    asyncio.run(
+        load_json_to_database(
+            args.index_path,
+            args.database,
+            args.verbose,
         )
-    except (RuntimeError, ValueError) as err:
-        raise SystemExit(f"Error: {err}")
+    )
 
 
 if __name__ == "__main__":
