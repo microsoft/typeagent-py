@@ -14,6 +14,15 @@ Usage:
     python query.py --database email.db --query "What was discussed?"
 """
 
+"""
+TODO
+
+- Find out why storage creation is slow when db is large (Issue #166)
+- Use filename as source ID (so we skip parsing if already ingested)
+- Catch auth errors and stop rather than marking as failed
+- Collect knowledge outside db transaction to reduce lock time
+"""
+
 import argparse
 import asyncio
 from pathlib import Path
@@ -74,7 +83,7 @@ def collect_email_files(paths: list[str], verbose: bool) -> list[Path]:
         elif path.is_dir():
             eml_files = sorted(path.glob("*.eml"))
             if verbose:
-                print(f"  Found {len(eml_files)} .eml files in {path}")
+                print(f"Found {len(eml_files)} .eml files in {path}")
             email_files.extend(eml_files)
         else:
             print(f"Error: Not a file or directory: {path}", file=sys.stderr)
@@ -91,9 +100,8 @@ async def ingest_emails(
     """Ingest email files into a database."""
 
     # Collect all .eml files
-    if verbose:
-        print("Collecting email files...")
-    email_files = collect_email_files(paths, verbose)
+    with utils.timelog("Collecting email files"):
+        email_files = collect_email_files(paths, verbose)
 
     if not email_files:
         print("Error: No .eml files found", file=sys.stderr)

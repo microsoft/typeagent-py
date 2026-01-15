@@ -5,7 +5,11 @@
 
 import sqlite3
 
-from ...aitools.embeddings import NormalizedEmbeddings
+import numpy as np
+
+from typeagent.aitools import utils
+
+from ...aitools.embeddings import NormalizedEmbedding
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from ...knowpro import interfaces
 from .schema import deserialize_embedding, serialize_embedding
@@ -145,13 +149,13 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
                 "SELECT term, term_embedding FROM RelatedTermsFuzzy ORDER BY term"
             )
             rows = cursor.fetchall()
+            embeddings: list[NormalizedEmbedding] = []
             for term, blob in rows:
                 assert blob is not None, term
-                embedding: NormalizedEmbeddings = deserialize_embedding(blob)
-                # Add to VectorBase at the correct ordinal
-                self._vector_base.add_embedding(term, embedding)
                 self._terms_list.append(term)
-                self._added_terms.add(term)
+                embeddings.append(deserialize_embedding(blob))
+            # Bulk add embeddings to VectorBase
+            self._vector_base.add_embeddings(None, np.array(embeddings))
 
     async def lookup_term(
         self,
@@ -308,7 +312,8 @@ class SqliteRelatedTermsIndex(interfaces.ITermToRelatedTermsIndex):
         self.db = db
         # Initialize alias and fuzzy related terms indexes
         self._aliases = SqliteRelatedTermsAliases(db)
-        self._fuzzy_index = SqliteRelatedTermsFuzzy(db, settings)
+        with utils.timelog("Initializing fuzzy related terms index"):
+            self._fuzzy_index = SqliteRelatedTermsFuzzy(db, settings)
 
     @property
     def aliases(self) -> interfaces.ITermToRelatedTerms:

@@ -383,7 +383,7 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
             )
 
         # Update VectorBase
-        self._vectorbase.add_embeddings(embeddings)
+        self._vectorbase.add_embeddings(None, embeddings)
 
     async def clear(self) -> None:
         """Clear the message text index."""

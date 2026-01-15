@@ -6,6 +6,8 @@
 from datetime import datetime, timezone
 import sqlite3
 
+from typeagent.aitools import utils
+
 from ...aitools.embeddings import AsyncEmbeddingModel
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
@@ -87,11 +89,12 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self._term_to_semantic_ref_index = SqliteTermToSemanticRefIndex(self.db)
         self._property_index = SqlitePropertyIndex(self.db)
         self._timestamp_index = SqliteTimestampToTextRangeIndex(self.db)
-        self._message_text_index = SqliteMessageTextIndex(
-            self.db,
-            self.message_text_index_settings,
-            self._message_collection,
-        )
+        with utils.timelog("Initializing message text index"):
+            self._message_text_index = SqliteMessageTextIndex(
+                self.db,
+                self.message_text_index_settings,
+                self._message_collection,
+            )
         # Initialize related terms index
         self._related_terms_index = SqliteRelatedTermsIndex(
             self.db, self.related_term_index_settings.embedding_index_settings

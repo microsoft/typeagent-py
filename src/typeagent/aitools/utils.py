@@ -22,15 +22,17 @@ def timelog(label: str, verbose: bool = True):
     """Context manager to log the time taken by a block of code.
 
     With verbose=False it prints nothing."""
+    dim = colorama.Style.DIM
+    reset = colorama.Style.RESET_ALL
+    if verbose:
+        print(f"{dim}{label}...{reset}", end="", flush=True)
     start_time = time.time()
     try:
         yield
     finally:
         elapsed_time = time.time() - start_time
         if verbose:
-            dim = colorama.Style.DIM
-            reset = colorama.Style.RESET_ALL
-            print(f"{dim}{elapsed_time:.3f}s -- {label}{reset}")
+            print(f"{dim} {elapsed_time:.3f}s{reset}")
 
 
 def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
