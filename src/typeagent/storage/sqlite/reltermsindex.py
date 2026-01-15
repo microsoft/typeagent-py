@@ -312,8 +312,7 @@ class SqliteRelatedTermsIndex(interfaces.ITermToRelatedTermsIndex):
         self.db = db
         # Initialize alias and fuzzy related terms indexes
         self._aliases = SqliteRelatedTermsAliases(db)
-        with utils.timelog("Initializing fuzzy related terms index"):
-            self._fuzzy_index = SqliteRelatedTermsFuzzy(db, settings)
+        self._fuzzy_index = SqliteRelatedTermsFuzzy(db, settings)
 
     @property
     def aliases(self) -> interfaces.ITermToRelatedTerms:
