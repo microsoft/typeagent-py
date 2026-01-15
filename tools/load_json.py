@@ -35,7 +35,7 @@ async def load_json_to_database(
 
     Args:
         podcast_file_prefix: Path to podcast index files (without "_data.json" suffix)
-        dbname: Path to SQLite database file to create
+        dbname: Path to SQLite database file (must be empty)
         verbose: Whether to show verbose output
     """
     if verbose:
@@ -109,7 +109,7 @@ Note: The index path should exclude the "_data.json" suffix.
         "-d",
         "--database",
         required=True,
-        help="Path to the SQLite database file to create",
+        help="Path to the SQLite database file (must be empty)",
     )
 
     parser.add_argument(
