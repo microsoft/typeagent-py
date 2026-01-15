@@ -48,6 +48,26 @@ def test_add_embedding(vector_base: VectorBase, sample_embeddings: Samples):
         np.testing.assert_array_equal(vector_base.serialize_embedding_at(i), embedding)
 
 
+def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples):
+    """Adding multiple embeddings at once matches repeated single adds."""
+    keys = list(sample_embeddings.keys())
+    for key, embedding in sample_embeddings.items():
+        vector_base.add_embedding(key, embedding)
+
+    bulk_vector_base = make_vector_base()
+    stacked_embeddings = np.stack([sample_embeddings[key] for key in keys], axis=0)
+    bulk_vector_base.add_embeddings(keys, stacked_embeddings)
+
+    assert len(bulk_vector_base) == len(vector_base)
+    np.testing.assert_array_equal(bulk_vector_base.serialize(), vector_base.serialize())
+
+    sequential_cache = vector_base._model._embedding_cache
+    bulk_cache = bulk_vector_base._model._embedding_cache
+    assert set(sequential_cache.keys()) == set(bulk_cache.keys())
+    for key in keys:
+        np.testing.assert_array_equal(bulk_cache[key], sequential_cache[key])
+
+
 @pytest.mark.asyncio
 async def test_add_key(vector_base: VectorBase, sample_embeddings: Samples):
     """Test adding keys to the VectorBase."""
