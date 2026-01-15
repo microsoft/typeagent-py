@@ -16,6 +16,7 @@ from ..aitools import auth
 # TODO: Make this a parameter that can be configured (e.g. from command line).
 DEFAULT_TIMEOUT_SECONDS = 30
 
+
 class ModelWrapper(typechat.TypeChatLanguageModel):
     def __init__(
         self,
