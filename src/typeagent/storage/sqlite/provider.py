@@ -58,6 +58,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self.db = sqlite3.connect(db_path)
 
         # Configure SQLite for optimal bulk insertion performance
+        # TODO: Move into init_db_schema()
         self.db.execute("PRAGMA foreign_keys = ON")
         # Improve write performance for bulk operations
         self.db.execute("PRAGMA synchronous = NORMAL")  # Faster than FULL, still safe
@@ -661,6 +662,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         cursor = self.db.cursor()
         cursor.execute(
-            "INSERT OR IGNORE INTO IngestedSources (source_id, status) VALUES (?, ?)",
+            "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
             (source_id, status),
         )
