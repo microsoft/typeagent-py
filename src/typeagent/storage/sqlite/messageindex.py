@@ -36,8 +36,12 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
             cursor.execute("SELECT embedding FROM MessageTextIndex")
             rows = cursor.fetchall()
             if rows:
-                embeddings: list[NormalizedEmbedding] = [deserialize_embedding(row[0]) for row in rows]
-                embeddings_array = np.stack(embeddings, axis=0).astype(np.float32, copy=False)
+                embeddings: list[NormalizedEmbedding] = [
+                    deserialize_embedding(row[0]) for row in rows
+                ]
+                embeddings_array = np.stack(embeddings, axis=0).astype(
+                    np.float32, copy=False
+                )
                 self._vectorbase.add_embeddings(None, embeddings_array)
 
     async def size(self) -> int:
