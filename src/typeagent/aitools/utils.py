@@ -8,6 +8,7 @@ import difflib
 import os
 import re
 import shutil
+import sys
 import time
 
 import black
@@ -25,14 +26,23 @@ def timelog(label: str, verbose: bool = True):
     dim = colorama.Style.DIM
     reset = colorama.Style.RESET_ALL
     if verbose:
-        print(f"{dim}{label}...{reset}", end="", flush=True)
+        print(
+            f"{dim}{label}...{reset}",
+            end="",
+            flush=True,
+            file=sys.stderr,
+        )
     start_time = time.time()
     try:
         yield
     finally:
         elapsed_time = time.time() - start_time
         if verbose:
-            print(f"{dim} {elapsed_time:.3f}s{reset}")
+            print(
+                f"{dim} {elapsed_time:.3f}s{reset}",
+                file=sys.stderr,
+                flush=True,
+            )
 
 
 def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
