@@ -551,11 +551,11 @@ async def main():
     msgs = await provider.get_message_collection()
     if await msgs.size() == 0:
         raise SystemExit(
-            f"Error: Database {args.database!r} is empty.\n"
+            f"Error: Database '{args.database}' is empty.\n"
             f"Please load data into the database first using tools/load_json.py:\n"
-            f"  python tools/load_json.py <index_path> --database {args.database}\n"
+            f"  python tools/load_json.py <index_path> -d {args.database}\n"
             f"Example:\n"
-            f"  python tools/load_json.py tests/testdata/Episode_53_AdrianTchaikovsky_index --database {args.database}"
+            f"  python tools/load_json.py tests/testdata/Episode_53_AdrianTchaikovsky_index -d {args.database}"
         )
 
     with utils.timelog(f"Loading conversation from database {args.database!r}"):

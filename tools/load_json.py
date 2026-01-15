@@ -56,9 +56,10 @@ async def load_json_to_database(
     msgs = await provider.get_message_collection()
 
     # Check if database already has data
-    if await msgs.size() > 0:
+    msg_count = await msgs.size()
+    if msg_count > 0:
         raise RuntimeError(
-            f"Database '{dbname}' already contains {await msgs.size()} messages. "
+            f"Database '{dbname}' already contains {msg_count} messages. "
             "The database must be empty to load new data. "
             "Please use a different database file or remove the existing one."
         )
