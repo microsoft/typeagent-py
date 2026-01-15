@@ -58,8 +58,9 @@ async def load_json_to_database(
     # Check if database already has data
     if await msgs.size() > 0:
         raise RuntimeError(
-            f"Database {dbname!r} already has messages. "
-            "Please use an empty database or specify a new filename."
+            f"Database '{dbname}' already contains {await msgs.size()} messages. "
+            "The database must be empty to load new data. "
+            "Please use a different database file or remove the existing one."
         )
 
     # Load podcast from JSON files
@@ -127,13 +128,6 @@ Note: The index path should exclude the "_data.json" suffix.
             f"Error: Podcast index file not found: {index_file}\n"
             f"Please verify the path exists and is accessible.\n"
             f"Note: The path should exclude the '_data.json' suffix."
-        )
-
-    # Check if database already exists
-    if os.path.exists(args.database):
-        raise SystemExit(
-            f"Error: Database file already exists: {args.database}\n"
-            f"Please remove it first or choose a different filename."
         )
 
     # Load environment variables for API access
