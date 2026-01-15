@@ -7,8 +7,6 @@ import sqlite3
 
 import numpy as np
 
-from typeagent.aitools import utils
-
 from ...aitools.embeddings import NormalizedEmbedding
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from ...knowpro import interfaces

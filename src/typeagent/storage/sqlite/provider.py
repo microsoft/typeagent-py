@@ -6,8 +6,6 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from typeagent.aitools import utils
-
 from ...aitools.embeddings import AsyncEmbeddingModel
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
