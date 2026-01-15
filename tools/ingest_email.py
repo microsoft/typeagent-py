@@ -17,8 +17,6 @@ Usage:
 """
 TODO
 
-- Find out why storage creation is slow when db is large (Issue #166)
-- Use filename as source ID (so we skip parsing if already ingested)
 - Catch auth errors and stop rather than marking as failed
 - Collect knowledge outside db transaction to reduce lock time
 """
