@@ -65,11 +65,10 @@ async def load_json_to_database(
 
     # Load podcast from JSON files
     with utils.timelog(f"Loading podcast from {podcast_file_prefix!r}"):
-        conversation = await podcast.Podcast.read_from_file(
-            podcast_file_prefix, settings, dbname
-        )
         async with provider:
-            pass  # Commit happens in __aexit__
+            conversation = await podcast.Podcast.read_from_file(
+                podcast_file_prefix, settings, dbname
+            )
 
     # Print statistics
     if verbose:
@@ -126,13 +125,7 @@ def main():
     utils.load_dotenv()
 
     # Run the loading process
-    asyncio.run(
-        load_json_to_database(
-            args.index_path,
-            args.database,
-            args.verbose,
-        )
-    )
+    asyncio.run(load_json_to_database(args.index_path, args.database, args.verbose))
 
 
 if __name__ == "__main__":
