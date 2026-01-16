@@ -6,13 +6,11 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from typeagent.storage.utils import STATUS_INGESTED
-
 from ...aitools.embeddings import AsyncEmbeddingModel
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
-from ...knowpro.interfaces import ConversationMetadata
+from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex

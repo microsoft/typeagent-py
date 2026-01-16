@@ -6,8 +6,6 @@
 
 from datetime import datetime
 
-from typeagent.storage.utils import STATUS_INGESTED
-
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ConversationMetadata,
@@ -19,6 +17,7 @@ from ...knowpro.interfaces import (
     ITermToRelatedTermsIndex,
     ITermToSemanticRefIndex,
     ITimestampToTextRangeIndex,
+    STATUS_INGESTED,
 )
 from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .convthreads import ConversationThreads

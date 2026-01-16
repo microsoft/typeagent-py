@@ -10,8 +10,6 @@ from typing import Any, Protocol, Self
 
 from pydantic.dataclasses import dataclass
 
-from typeagent.storage.utils import STATUS_INGESTED
-
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,
@@ -28,14 +26,7 @@ from .interfaces_indexes import (
     ITimestampToTextRangeIndex,
 )
 
-__all__ = [
-    "ConversationMetadata",
-    "IReadonlyCollection",
-    "ICollection",
-    "IMessageCollection",
-    "ISemanticRefCollection",
-    "IStorageProvider",
-]
+STATUS_INGESTED = "ingested"
 
 
 @dataclass
@@ -199,4 +190,5 @@ __all__ = [
     "IReadonlyCollection",
     "ISemanticRefCollection",
     "IStorageProvider",
+    "STATUS_INGESTED",
 ]
