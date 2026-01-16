@@ -96,13 +96,14 @@ def decode_encoded_word(s: str) -> str:
     if "=?utf-8?" not in s:
         return s  # Fast path for common case
     decoded_parts = decode_header(s)
-    decoded_string = ""
-    for part, encoding in decoded_parts:
-        if isinstance(part, bytes):
-            decoded_string += part.decode(encoding or "utf-8", errors="replace")
-        else:
-            decoded_string += part
-    return decoded_string
+    return "".join(
+        (
+            part.decode(encoding or "utf-8", errors="replace")
+            if isinstance(part, bytes)
+            else part
+        )
+        for part, encoding in decoded_parts
+    )
 
 
 async def ingest_emails(
