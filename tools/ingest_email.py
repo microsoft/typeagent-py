@@ -228,6 +228,13 @@ async def ingest_emails(
         except Exception as e:
             failed_count += 1
             print(f"Error processing {email_file}: {e}", file=sys.stderr)
+            exc_name = (
+                e.__class__.__qualname__
+                if e.__class__.__module__ == "builtins"
+                else f"{e.__class__.__module__}.{e.__class__.__qualname__}"
+            )
+            async with storage_provider:
+                storage_provider.mark_source_ingested(str(email_file), exc_name)
             if verbose:
                 import traceback
 
