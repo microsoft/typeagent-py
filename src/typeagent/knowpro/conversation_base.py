@@ -147,9 +147,6 @@ class ConversationBase(
                     f"Length of source_ids {len(source_ids)} "
                     f"must match length of messages {len(messages)}"
                 )
-            async with storage:
-                for source_id in source_ids:
-                    storage.mark_source_ingested(source_id, "failed")
 
         async with storage:
             # Mark source IDs as ingested (will be rolled back on error)
