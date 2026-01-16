@@ -55,7 +55,6 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.podcasts import podcast
-from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 ### Classes ###
@@ -536,23 +535,6 @@ async def main():
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
 
-    # Validate required podcast argument
-    if args.podcast is None and args.database is None:
-        raise SystemExit(
-            "Error: Either --podcast or --database is required.\n"
-            "Usage: python query.py --podcast <path_to_index>\n"
-            "   or: python query.py --database <path_to_database>\n"
-            "Example: python query.py --podcast tests/testdata/Episode_53_index"
-        )
-    if args.podcast is not None:
-        index_file = args.podcast + "_index.json"
-        if not os.path.exists(index_file):
-            raise SystemExit(
-                f"Error: Podcast index file not found: {index_file}\n"
-                "Please verify the path exists and is accessible.\n"
-                "Note: The path should exclude the '_index.json' suffix."
-            )
-
     if args.logfire:
         utils.setup_logfire()
 
@@ -563,9 +545,18 @@ async def main():
         args.database,
         podcast.PodcastMessage,
     )
-    query_context = await load_podcast_index(
-        args.podcast, settings, args.database, args.verbose
-    )
+
+    # Load existing database
+    provider = await settings.get_storage_provider()
+    msgs = await provider.get_message_collection()
+    if await msgs.size() == 0:
+        raise SystemExit(f"Error: Database '{args.database}' is empty.")
+
+    with utils.timelog(f"Loading conversation from database {args.database!r}"):
+        conversation = await podcast.Podcast.create(settings)
+
+    await print_conversation_stats(conversation, args.verbose)
+    query_context = query.QueryEvalContext(conversation)
 
     ar_list, ar_index = load_index_file(
         args.qafile, "question", QuestionAnswerData, args.verbose
@@ -942,12 +933,6 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         ),
     )
 
-    parser.add_argument(
-        "--podcast",
-        type=str,
-        default=None,
-        help="Path to the podcast index files (excluding the '_index.json' suffix)",
-    )
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
         "--qafile",
@@ -972,8 +957,8 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         "-d",
         "--database",
         type=str,
-        default=None,
-        help="Path to the SQLite database file (default: in-memory)",
+        required=True,
+        help="Path to the SQLite database file",
     )
     parser.add_argument(
         "--query",
@@ -1107,30 +1092,6 @@ def fill_in_debug_defaults(
 
 
 ### Data loading ###
-
-
-async def load_podcast_index(
-    podcast_file_prefix: str,
-    settings: ConversationSettings,
-    dbname: str | None,
-    verbose: bool = True,
-) -> query.QueryEvalContext:
-    provider = await settings.get_storage_provider()
-    msgs = await provider.get_message_collection()
-    if await msgs.size() > 0:  # Sqlite provider with existing non-empty database
-        with utils.timelog(f"Reusing database {dbname!r}"):
-            conversation = await podcast.Podcast.create(settings)
-    else:
-        with utils.timelog(f"Loading podcast from {podcast_file_prefix!r}"):
-            conversation = await podcast.Podcast.read_from_file(
-                podcast_file_prefix, settings, dbname
-            )
-            if isinstance(provider, SqliteStorageProvider):
-                provider.db.commit()
-
-    await print_conversation_stats(conversation, verbose)
-
-    return query.QueryEvalContext(conversation)
 
 
 def load_index_file[T: Mapping[str, typing.Any]](
