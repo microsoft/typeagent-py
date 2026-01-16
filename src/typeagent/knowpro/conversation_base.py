@@ -152,7 +152,7 @@ class ConversationBase(
             # Mark source IDs as ingested (will be rolled back on error)
             if source_ids:
                 for source_id in source_ids:
-                    storage.mark_source_ingested(source_id, "ingested")
+                    storage.mark_source_ingested(source_id)
 
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),

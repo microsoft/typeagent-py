@@ -10,6 +10,8 @@ without circular import issues.
 from ..knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ..knowpro.interfaces import ConversationMetadata, IMessage, IStorageProvider
 
+STATUS_INGESTED = "ingested"
+
 
 async def create_storage_provider[TMessage: IMessage](
     message_text_settings: MessageTextIndexSettings,

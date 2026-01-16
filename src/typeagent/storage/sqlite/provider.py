@@ -6,6 +6,8 @@
 from datetime import datetime, timezone
 import sqlite3
 
+from typeagent.storage.utils import STATUS_INGESTED
+
 from ...aitools.embeddings import AsyncEmbeddingModel
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
@@ -629,7 +631,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             "SELECT status FROM IngestedSources WHERE source_id = ?", (source_id,)
         )
         row = cursor.fetchone()
-        return row is not None and row[0] == "ingested"
+        return row is not None and row[0] == STATUS_INGESTED
 
     def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
@@ -647,7 +649,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row[0] if row else None
 
-    def mark_source_ingested(self, source_id: str, status: str = "ingested") -> None:
+    def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested.
 
         This performs an INSERT but does NOT commit. It should be called within

@@ -9,6 +9,8 @@ import typing
 
 import numpy as np
 
+from typeagent.storage.utils import STATUS_INGESTED
+
 from ...aitools.embeddings import NormalizedEmbedding
 from ...knowpro.interfaces import ConversationMetadata
 
@@ -144,7 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_related_fuzzy_term ON RelatedTermsFuzzy(term);
 INGESTED_SOURCES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS IngestedSources (
     source_id TEXT PRIMARY KEY,      -- External source identifier (email ID, file path, etc.)
-    status TEXT NOT NULL DEFAULT 'ingested'  -- Status of the source (e.g., 'ingested', 'failed')
+    status TEXT NOT NULL DEFAULT ?  -- Status of the source (e.g., 'ingested')
 );
 """
 
@@ -270,7 +272,7 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(RELATED_TERMS_ALIASES_SCHEMA)
     cursor.execute(RELATED_TERMS_FUZZY_SCHEMA)
     cursor.execute(TIMESTAMP_INDEX_SCHEMA)
-    cursor.execute(INGESTED_SOURCES_SCHEMA)
+    cursor.execute(INGESTED_SOURCES_SCHEMA, (STATUS_INGESTED,))
 
     # Create additional indexes
     cursor.execute(SEMANTIC_REF_INDEX_TERM_INDEX)

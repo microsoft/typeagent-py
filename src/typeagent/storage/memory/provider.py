@@ -6,6 +6,8 @@
 
 from datetime import datetime
 
+from typeagent.storage.utils import STATUS_INGESTED
+
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ConversationMetadata,
@@ -160,10 +162,12 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
             The ingestion status if the source has been ingested, None otherwise.
         """
         if source_id in self._ingested_sources:
-            return "ingested"
+            return STATUS_INGESTED
         return None
 
-    def mark_source_ingested(self, source_id: str, status: str = "ingested") -> None:
+    def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested.
 
         Args:

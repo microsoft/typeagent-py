@@ -10,6 +10,8 @@ from typing import Any, Protocol, Self
 
 from pydantic.dataclasses import dataclass
 
+from typeagent.storage.utils import STATUS_INGESTED
+
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,
@@ -154,7 +156,9 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Get the ingestion status of a source."""
         ...
 
-    def mark_source_ingested(self, source_id: str, status: str = "ingested") -> None:
+    def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested (no commit; call within transaction context)."""
         ...
 
