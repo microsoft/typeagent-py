@@ -22,10 +22,9 @@ class EmbeddingIndex:
         # Use VectorBase for storage and operations on embeddings.
         self._vector_base = VectorBase(settings)
 
-        # Initialize with embeddings if provided.
+        # Add embeddings to vectorbase if provided.
         if embeddings is not None:
-            for embedding in embeddings:
-                self._vector_base.add_embedding(None, embedding)
+            self._vector_base.add_embeddings(None, embeddings)
 
     def __len__(self) -> int:
         return len(self._vector_base)
@@ -43,7 +42,7 @@ class EmbeddingIndex:
         return self._vector_base.get_embedding_at(pos)
 
     def push(self, embeddings: NormalizedEmbeddings) -> None:
-        self._vector_base.add_embeddings(embeddings)
+        self._vector_base.add_embeddings(None, embeddings)
 
     async def add_texts(self, texts: list[str]) -> None:
         await self._vector_base.add_keys(texts)

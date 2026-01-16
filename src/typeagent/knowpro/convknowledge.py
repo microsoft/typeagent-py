@@ -13,6 +13,10 @@ from ..aitools import auth
 # TODO: Move ModelWrapper and create_typechat_model() to aitools package.
 
 
+# TODO: Make this a parameter that can be configured (e.g. from command line).
+DEFAULT_TIMEOUT_SECONDS = 30
+
+
 class ModelWrapper(typechat.TypeChatLanguageModel):
     def __init__(
         self,
@@ -34,6 +38,7 @@ class ModelWrapper(typechat.TypeChatLanguageModel):
             key_name = "AZURE_OPENAI_API_KEY"
             env[key_name] = api_key
             self.base_model = typechat.create_language_model(env)
+            self.base_model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
         return await self.base_model.complete(prompt)
 
 
@@ -46,6 +51,7 @@ def create_typechat_model() -> typechat.TypeChatLanguageModel:
         shared_token_provider = auth.get_shared_token_provider()
         env[key_name] = shared_token_provider.get_token()
     model = typechat.create_language_model(env)
+    model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
     if shared_token_provider is not None:
         model = ModelWrapper(model, shared_token_provider)
     return model

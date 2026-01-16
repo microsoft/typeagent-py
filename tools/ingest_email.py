@@ -14,8 +14,16 @@ Usage:
     python query.py --database email.db --query "What was discussed?"
 """
 
+"""
+TODO
+
+- Catch auth errors and stop rather than marking as failed
+- Collect knowledge outside db transaction to reduce lock time
+"""
+
 import argparse
 import asyncio
+from email.header import decode_header
 from pathlib import Path
 import sys
 import time
@@ -74,13 +82,28 @@ def collect_email_files(paths: list[str], verbose: bool) -> list[Path]:
         elif path.is_dir():
             eml_files = sorted(path.glob("*.eml"))
             if verbose:
-                print(f"  Found {len(eml_files)} .eml files in {path}")
+                print(f"Found {len(eml_files)} .eml files in {path}")
             email_files.extend(eml_files)
         else:
             print(f"Error: Not a file or directory: {path}", file=sys.stderr)
             sys.exit(1)
 
     return email_files
+
+
+def decode_encoded_word(s: str) -> str:
+    """Decode an RFC 2047 encoded string."""
+    if "=?utf-8?" not in s:
+        return s  # Fast path for common case
+    decoded_parts = decode_header(s)
+    return "".join(
+        (
+            part.decode(encoding or "utf-8", errors="replace")
+            if isinstance(part, bytes)
+            else part
+        )
+        for part, encoding in decoded_parts
+    )
 
 
 async def ingest_emails(
@@ -91,16 +114,15 @@ async def ingest_emails(
     """Ingest email files into a database."""
 
     # Collect all .eml files
-    if verbose:
-        print("Collecting email files...")
-    email_files = collect_email_files(paths, verbose)
+    with utils.timelog("Collecting email files"):
+        email_files = collect_email_files(paths, verbose)
 
     if not email_files:
         print("Error: No .eml files found", file=sys.stderr)
         sys.exit(1)
 
     if verbose:
-        print(f"Found {len(email_files)} email files to ingest")
+        print(f"Found {len(email_files)} email files in total to ingest")
 
     # Load environment for model API access
     if verbose:
@@ -144,54 +166,79 @@ async def ingest_emails(
     for i, email_file in enumerate(email_files):
         try:
             if verbose:
-                print(f"\n[{i + 1}/{len(email_files)}] {email_file}")
-
-            email = import_email_from_file(str(email_file))
-            email_id = email.metadata.id
-
-            # Check if this email was already ingested
-            if email_id and storage_provider.is_source_ingested(email_id):
+                print(f"[{i + 1}/{len(email_files)}] {email_file}", end="", flush=True)
+            if status := storage_provider.get_source_status(str(email_file)):
                 skipped_count += 1
                 if verbose:
-                    print(f"    [Already ingested, skipping]")
+                    print(f" [Previously {status}, skipping]")
                 continue
+            else:
+                if verbose:
+                    print()
+
+            email = import_email_from_file(str(email_file))
+            source_id = email.metadata.id
+            if verbose:
+                print(f"  Email ID: {source_id}", end="")
+
+            # Check if this email was already ingested
+            if source_id and (status := storage_provider.get_source_status(source_id)):
+                skipped_count += 1
+                if verbose:
+                    print(f" [Previously {status}, skipping]")
+                async with storage_provider:
+                    storage_provider.mark_source_ingested(str(email_file), status)
+                continue
+            else:
+                if verbose:
+                    print()
 
             if verbose:
                 print(f"    From: {email.metadata.sender}")
                 if email.metadata.subject:
-                    print(f"    Subject: {email.metadata.subject}")
+                    print(
+                        f"    Subject: {decode_encoded_word(email.metadata.subject).replace('\n', '\\n')}"
+                    )
                 print(f"    Date: {email.timestamp}")
                 print(f"    Body chunks: {len(email.text_chunks)}")
                 for chunk in email.text_chunks:
-                    # Show first 200 chars of each chunk
-                    preview = chunk[:200].replace("\n", " ")
-                    if len(chunk) > 200:
-                        preview += "..."
+                    # Show first N chars of each decoded chunk
+                    N = 150
+                    chunk = decode_encoded_word(chunk)
+                    preview = repr(chunk[: N + 1])[1:-1]
+                    if len(preview) > N:
+                        preview = preview[: N - 3] + "..."
                     print(f"      {preview}")
 
             # Pass source_id to mark as ingested atomically with the message
-            source_ids = [email_id] if email_id else None
             await email_memory.add_messages_with_indexing(
-                [email], source_ids=source_ids
-            )
+                [email], source_ids=[str(email_file)]
+            )  # This may raise, esp. if the knowledge extraction fails (see except below)
             successful_count += 1
 
             # Print progress periodically
-            if not verbose and (i + 1) % batch_size == 0:
+            if (i + 1) % batch_size == 0:
                 elapsed = time.time() - start_time
                 semref_count = await semref_coll.size()
                 print(
-                    f"  [{i + 1}/{len(email_files)}] {successful_count} imported | "
-                    f"{semref_count} refs | {elapsed:.1f}s elapsed"
+                    f"\n[{i + 1}/{len(email_files)}] {successful_count} imported | "
+                    f"{semref_count} refs | {elapsed:.1f}s elapsed\n"
                 )
 
         except Exception as e:
             failed_count += 1
             print(f"Error processing {email_file}: {e}", file=sys.stderr)
+            exc_name = (
+                e.__class__.__qualname__
+                if e.__class__.__module__ == "builtins"
+                else f"{e.__class__.__module__}.{e.__class__.__qualname__}"
+            )
+            async with storage_provider:
+                storage_provider.mark_source_ingested(str(email_file), exc_name)
             if verbose:
                 import traceback
 
-                traceback.print_exc()
+                traceback.print_exc(limit=10)
 
     # Final summary
     elapsed = time.time() - start_time

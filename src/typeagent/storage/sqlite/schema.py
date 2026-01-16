@@ -10,7 +10,7 @@ import typing
 import numpy as np
 
 from ...aitools.embeddings import NormalizedEmbedding
-from ...knowpro.interfaces import ConversationMetadata
+from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
 
 # Constants
 CONVERSATION_SCHEMA_VERSION = 1
@@ -141,9 +141,10 @@ CREATE INDEX IF NOT EXISTS idx_related_fuzzy_term ON RelatedTermsFuzzy(term);
 
 # Table for tracking ingested source IDs (e.g., email IDs, file paths)
 # This prevents re-ingesting the same content on subsequent runs
-INGESTED_SOURCES_SCHEMA = """
+INGESTED_SOURCES_SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS IngestedSources (
-    source_id TEXT PRIMARY KEY      -- External source identifier (email ID, file path, etc.)
+    source_id TEXT PRIMARY KEY,      -- External source identifier (email ID, file path, etc.)
+    status TEXT NOT NULL DEFAULT {STATUS_INGESTED}  -- Status of the source (e.g., 'ingested')
 );
 """
 

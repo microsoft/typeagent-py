@@ -10,7 +10,7 @@ from ...aitools.embeddings import AsyncEmbeddingModel
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
-from ...knowpro.interfaces import ConversationMetadata
+from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
@@ -56,6 +56,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self.db = sqlite3.connect(db_path)
 
         # Configure SQLite for optimal bulk insertion performance
+        # TODO: Move into init_db_schema()
         self.db.execute("PRAGMA foreign_keys = ON")
         # Improve write performance for bulk operations
         self.db.execute("PRAGMA synchronous = NORMAL")  # Faster than FULL, still safe
@@ -625,11 +626,30 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         cursor = self.db.cursor()
         cursor.execute(
-            "SELECT 1 FROM IngestedSources WHERE source_id = ?", (source_id,)
+            "SELECT status FROM IngestedSources WHERE source_id = ?", (source_id,)
         )
-        return cursor.fetchone() is not None
+        row = cursor.fetchone()
+        return row is not None and row[0] == STATUS_INGESTED
 
-    def mark_source_ingested(self, source_id: str) -> None:
+    def get_source_status(self, source_id: str) -> str | None:
+        """Get the ingestion status of a source.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+
+        Returns:
+            The status string if the source exists, or None if it hasn't been ingested.
+        """
+        cursor = self.db.cursor()
+        cursor.execute(
+            "SELECT status FROM IngestedSources WHERE source_id = ?", (source_id,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested.
 
         This performs an INSERT but does NOT commit. It should be called within
@@ -641,6 +661,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         cursor = self.db.cursor()
         cursor.execute(
-            "INSERT OR IGNORE INTO IngestedSources (source_id) VALUES (?)",
-            (source_id,),
+            "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
+            (source_id, status),
         )

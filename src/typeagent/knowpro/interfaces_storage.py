@@ -26,14 +26,7 @@ from .interfaces_indexes import (
     ITimestampToTextRangeIndex,
 )
 
-__all__ = [
-    "ConversationMetadata",
-    "IReadonlyCollection",
-    "ICollection",
-    "IMessageCollection",
-    "ISemanticRefCollection",
-    "IStorageProvider",
-]
+STATUS_INGESTED = "ingested"
 
 
 @dataclass
@@ -150,7 +143,13 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Check if a source has already been ingested."""
         ...
 
-    def mark_source_ingested(self, source_id: str) -> None:
+    def get_source_status(self, source_id: str) -> str | None:
+        """Get the ingestion status of a source."""
+        ...
+
+    def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested (no commit; call within transaction context)."""
         ...
 
@@ -191,4 +190,5 @@ __all__ = [
     "IReadonlyCollection",
     "ISemanticRefCollection",
     "IStorageProvider",
+    "STATUS_INGESTED",
 ]

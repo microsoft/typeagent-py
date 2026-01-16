@@ -93,10 +93,15 @@ class VectorBase:
         if key is not None:
             self._model.add_embedding(key, embedding)
 
-    def add_embeddings(self, embeddings: NormalizedEmbeddings) -> None:
+    def add_embeddings(
+        self, keys: None | list[str], embeddings: NormalizedEmbeddings
+    ) -> None:
         assert embeddings.ndim == 2
         assert embeddings.shape[1] == self._embedding_size
         self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
+        if keys is not None:
+            for key, embedding in zip(keys, embeddings):
+                self._model.add_embedding(key, embedding)
 
     async def add_key(self, key: str, cache: bool = True) -> None:
         embeddings = (await self.get_embedding(key, cache=cache)).reshape(1, -1)

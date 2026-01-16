@@ -136,7 +136,7 @@ async def add_batch_to_semantic_ref_index_from_list[
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
             raise RuntimeError(
-                f"Knowledge extraction failed: {knowledge_result.message}"
+                f"Knowledge extraction failed: {knowledge_result.message:.150}"
             )
         text_location = batch[i]
         knowledge = knowledge_result.value

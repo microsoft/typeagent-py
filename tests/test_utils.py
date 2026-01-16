@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 import os
 
@@ -10,11 +10,11 @@ import typeagent.aitools.utils as utils
 
 def test_timelog():
     buf = StringIO()
-    with redirect_stdout(buf):
+    with redirect_stderr(buf):
         with utils.timelog("test block"):
             pass
     out = buf.getvalue()
-    assert "s -- test block" in out
+    assert "test block..." in out
 
 
 def test_pretty_print():
