@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from email import message_from_string
+from email.header import decode_header, make_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -9,6 +10,14 @@ import re
 from typing import Iterable
 
 from .email_message import EmailMessage, EmailMessageMeta
+
+
+def decode_encoded_words(value: str) -> str:
+    """Decode text that may contain RFC 2047 encoded words."""
+    if not value:
+        return ""
+
+    return str(make_header(decode_header(value)))
 
 
 def import_emails_from_dir(
@@ -78,7 +87,7 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
         body = get_last_response_in_thread(body)
 
     if email_meta.subject is not None:
-        body = email_meta.subject + "\n\n" + body
+        body = decode_encoded_words(email_meta.subject) + "\n\n" + body
 
     body_chunks = _text_to_chunks(body, max_chunk_length)
     email: EmailMessage = EmailMessage(
