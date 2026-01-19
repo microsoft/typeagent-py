@@ -23,13 +23,12 @@ TODO
 
 import argparse
 import asyncio
-from email.header import decode_header
 from pathlib import Path
 import sys
 import time
 
 from typeagent.aitools import utils
-from typeagent.emails.email_import import import_email_from_file
+from typeagent.emails.email_import import decode_encoded_words, import_email_from_file
 from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
@@ -89,21 +88,6 @@ def collect_email_files(paths: list[str], verbose: bool) -> list[Path]:
             sys.exit(1)
 
     return email_files
-
-
-def decode_encoded_word(s: str) -> str:
-    """Decode an RFC 2047 encoded string."""
-    if "=?utf-8?" not in s:
-        return s  # Fast path for common case
-    decoded_parts = decode_header(s)
-    return "".join(
-        (
-            part.decode(encoding or "utf-8", errors="replace")
-            if isinstance(part, bytes)
-            else part
-        )
-        for part, encoding in decoded_parts
-    )
 
 
 async def ingest_emails(
@@ -194,17 +178,16 @@ async def ingest_emails(
                     print()
 
             if verbose:
-                print(f"    From: {email.metadata.sender}")
+                print(f"    From: {decode_encoded_words(email.metadata.sender)}")
                 if email.metadata.subject:
                     print(
-                        f"    Subject: {decode_encoded_word(email.metadata.subject).replace('\n', '\\n')}"
+                        f"    Subject: {decode_encoded_words(email.metadata.subject).replace('\n', '\\n')}"
                     )
                 print(f"    Date: {email.timestamp}")
                 print(f"    Body chunks: {len(email.text_chunks)}")
                 for chunk in email.text_chunks:
                     # Show first N chars of each decoded chunk
                     N = 150
-                    chunk = decode_encoded_word(chunk)
                     preview = repr(chunk[: N + 1])[1:-1]
                     if len(preview) > N:
                         preview = preview[: N - 3] + "..."
