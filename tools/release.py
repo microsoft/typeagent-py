@@ -7,9 +7,10 @@ Release automation script for the TypeAgent Python package.
 
 This script:
 1. Bumps the patch version (3rd part) in pyproject.toml, or sets the whole version
-2. Commits the change
-3. Creates a git tag in the format "v{major}.{minor}.{patch}-py"
-4. Pushes the tags to trigger the GitHub Actions release workflow
+2. Updates uv.lock to reflect the version change
+3. Commits the change
+4. Creates a git tag in the format "v{major}.{minor}.{patch}-py"
+5. Pushes the tags to trigger the GitHub Actions release workflow
 
 Usage:
     python tools/release.py [version] [--dry-run] [--help] [--force]
@@ -24,6 +25,7 @@ import argparse
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from typing import Tuple
@@ -185,6 +187,24 @@ def check_git_status() -> bool:
     return len(output.strip()) == 0
 
 
+def check_uv_available() -> bool:
+    """Check if the 'uv' command is available."""
+    return shutil.which("uv") is not None
+
+
+def update_uv_lock(dry_run: bool = False) -> bool:
+    """Update uv.lock by running 'uv lock'."""
+    if dry_run:
+        print("[DRY RUN] Would run: uv lock")
+        return True
+
+    exit_code, _ = run_command(["uv", "lock"])
+    if exit_code != 0:
+        print("Error: Failed to update uv.lock", file=sys.stderr)
+        return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Automate the release process for TypeAgent Python package",
@@ -192,9 +212,10 @@ def main():
         epilog="""
 This script will:
 1. Bump the patch version in pyproject.toml (or set to specified version)
-2. Commit the change with message "Bump version to X.Y.Z"
-3. Create a git tag "vX.Y.Z-py"
-4. Push the tags to trigger the release workflow
+2. Update uv.lock to reflect the version change
+3. Commit the change with message "Bump version to X.Y.Z"
+4. Create a git tag "vX.Y.Z-py"
+5. Push the tags to trigger the release workflow
 
 The script must be run from the repository root.
 
@@ -238,6 +259,12 @@ Examples:
                 file=sys.stderr,
             )
             return 1
+
+    # Check that uv is available
+    if not check_uv_available():
+        print("Error: 'uv' command not found. Please install uv first.", file=sys.stderr)
+        print("  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh")
+        return 1
 
     pyproject_path = current_dir / "pyproject.toml"
 
@@ -298,11 +325,15 @@ Examples:
     # Update pyproject.toml
     update_version_in_pyproject(pyproject_path, new_version, args.dry_run)
 
+    # Update uv.lock
+    if not update_uv_lock(args.dry_run):
+        return 1
+
     # Git commit
-    exit_code, _ = run_command(["git", "add", "pyproject.toml"], args.dry_run)
+    exit_code, _ = run_command(["git", "add", "pyproject.toml", "uv.lock"], args.dry_run)
 
     if exit_code != 0:
-        print("Error: Failed to stage pyproject.toml", file=sys.stderr)
+        print("Error: Failed to stage pyproject.toml and uv.lock", file=sys.stderr)
         return 1
 
     commit_message = f"Bump version to {new_version}"
