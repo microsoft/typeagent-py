@@ -263,7 +263,7 @@ Examples:
     # Check that uv is available
     if not check_uv_available():
         print("Error: 'uv' command not found. Please install uv first.", file=sys.stderr)
-        print("  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh")
+        print("  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh", file=sys.stderr)
         return 1
 
     pyproject_path = current_dir / "pyproject.toml"
