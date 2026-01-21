@@ -407,7 +407,7 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
             expected4 = (record4["answer"], not record4["hasNoAnswer"])
             match combined_answer.type:
                 case "NoAnswer":
-                    actual4 = (combined_answer.whyNoAnswer or "", False)
+                    actual4 = (combined_answer.why_no_answer or "", False)
                 case "Answered":
                     actual4 = (combined_answer.answer or "", True)
             await compare_answers(context, expected4, actual4)
@@ -419,7 +419,7 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
     prsep()
 
     if combined_answer.type == "NoAnswer":
-        print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+        print(Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET)
     else:
         print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
     prsep()
@@ -564,6 +564,12 @@ async def main():
     sr_list, sr_index = load_index_file(
         args.srfile, "searchText", SearchResultData, args.verbose
     )
+    if args.batch:
+        args.history_size = 0
+        if not ar_list:
+            raise SystemExit("Error: non-empty --qafile required for batch mode.")
+        if not sr_list:
+            raise SystemExit("Error: non-empty --srfile required for batch mode.")
 
     model = convknowledge.create_typechat_model()
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
@@ -881,14 +887,14 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         if combined_answer.type == "Answered":
             context.history.add(query_text, combined_answer.answer or "", True)
         else:
-            context.history.add(query_text, combined_answer.whyNoAnswer or "", False)
+            context.history.add(query_text, combined_answer.why_no_answer or "", False)
 
     if context.debug4 == "full":
         utils.pretty_print(all_answers)
         prsep()
     if context.debug4 in ("full", "nice"):
         if combined_answer.type == "NoAnswer":
-            print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+            print(Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET)
         else:
             print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
         prsep()
@@ -899,7 +905,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
             print("Stage 4 diff:")
             match combined_answer.type:
                 case "NoAnswer":
-                    actual4 = (combined_answer.whyNoAnswer or "", False)
+                    actual4 = (combined_answer.why_no_answer or "", False)
                 case "Answered":
                     actual4 = (combined_answer.answer or "", True)
             score = await compare_answers(context, expected4, actual4)
@@ -911,7 +917,9 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         else:
             print("Stage 4 diff unavailable; nice answer:")
             if combined_answer.type == "NoAnswer":
-                print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+                print(
+                    Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET
+                )
             else:
                 print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
         prsep()

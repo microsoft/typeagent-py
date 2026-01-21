@@ -207,11 +207,11 @@ def _text_to_chunks(text: str, max_chunk_length: int) -> list[str]:
     if len(text) < max_chunk_length:
         return [text]
 
-    paragraphs = _splitIntoParagraphs(text)
+    paragraphs = _split_into_paragraphs(text)
     return list(_merge_chunks(paragraphs, "\n\n", max_chunk_length))
 
 
-def _splitIntoParagraphs(text: str) -> list[str]:
+def _split_into_paragraphs(text: str) -> list[str]:
     return _remove_empty_strings(re.split(r"\n{2,}", text))
 
 

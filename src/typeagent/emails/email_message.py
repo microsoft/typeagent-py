@@ -70,8 +70,8 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
         actions: list[kplib.Action] = []
         if self.sender and self.recipients:
             for recipient in self.recipients:
-                actions.extend(self._createActions("sent", self.sender, recipient))
-                actions.extend(self._createActions("received", recipient, self.sender))
+                actions.extend(self._create_actions("sent", self.sender, recipient))
+                actions.extend(self._create_actions("received", recipient, self.sender))
         return actions
 
     # Returns the knowledge entities for a given email address string
@@ -103,7 +103,7 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
             )
         return entities
 
-    def _createActions(
+    def _create_actions(
         self, verb: str, sender: str, recipient: str
     ) -> list[kplib.Action]:
         sender_display_name, sender_address = parseaddr(sender)
@@ -121,15 +121,15 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     ) -> None:
         recipient_display_name, recipient_address = parseaddr(recipient)
         if recipient_display_name:
-            actions.append(self._createAction(verb, sender, recipient_display_name))
+            actions.append(self._create_action(verb, sender, recipient_display_name))
 
         if recipient_address:
-            actions.append(self._createAction(verb, sender, recipient_address))
+            actions.append(self._create_action(verb, sender, recipient_address))
 
-    def _createAction(
-        self, verb: str, sender: str, recipient: str, useIndirect: bool = True
+    def _create_action(
+        self, verb: str, sender: str, recipient: str, use_indirect: bool = True
     ) -> kplib.Action:
-        if useIndirect:
+        if use_indirect:
             return kplib.Action(
                 verbs=[verb],
                 verb_tense="past",

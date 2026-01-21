@@ -403,7 +403,7 @@ class ConversationBase(
 
         match combined_answer.type:
             case "NoAnswer":
-                return f"No answer found: {combined_answer.whyNoAnswer or 'Unable to find relevant information'}"
+                return f"No answer found: {combined_answer.why_no_answer or 'Unable to find relevant information'}"
             case "Answered":
                 return combined_answer.answer or "No answer provided"
             case _:  # Cannot happen in type-checked code
