@@ -42,6 +42,7 @@ class AnswerContextOptions:
     topics_top_k: int | None = None
     messages_top_k: int | None = None
     chunking: bool | None = None
+    debug: bool = False
 
 
 async def generate_answers(
@@ -91,9 +92,10 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
     context = await make_context(search_result, conversation, options)
     request = f"{create_question_prompt(search_result.raw_query_text)}\n\n{create_context_prompt(context)}"
-    # print("+" * 80)
-    # print(request)
-    # print("+" * 80)
+    if options and options.debug:
+        print("Stage 4 input:")
+        print(request)
+        print("-" * 50)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
         return AnswerResponse(

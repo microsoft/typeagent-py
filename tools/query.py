@@ -875,6 +875,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
             print("Stage 3 diff unavailable")
         prsep()
 
+    context.answer_context_options.debug = context.debug4 == "full"
     all_answers, combined_answer = await answers.generate_answers(
         context.answer_translator,
         search_results,
