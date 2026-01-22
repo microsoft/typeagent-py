@@ -10,7 +10,7 @@ This script:
 2. Bumps the patch version (3rd part) in pyproject.toml, or sets the whole version
 3. Updates uv.lock to reflect the version change
 4. Commits the change and creates a git tag in the format "v{major}.{minor}.{patch}-py"
-5. Bumps version to X.Y.Z+ (post-release development marker)
+5. Bumps version to X.Y.Z.dev (post-release development marker)
 6. Updates uv.lock again for the post-release version
 7. Commits the post-release version change
 8. Pushes the branch and tag
@@ -120,7 +120,7 @@ def get_current_version(pyproject_path: Path) -> str:
         pyproject_path: Path to the pyproject.toml file
 
     Returns:
-        Current version string
+        Current version string (with .dev suffix stripped if present)
 
     Raises:
         FileNotFoundError: If pyproject.toml doesn't exist
@@ -139,7 +139,13 @@ def get_current_version(pyproject_path: Path) -> str:
     if not version_match:
         raise ValueError("Version field not found in pyproject.toml")
 
-    return version_match.group(1)
+    version = version_match.group(1)
+
+    # Strip .dev suffix if present (used for post-release development versions)
+    if version.endswith(".dev"):
+        version = version[:-4]
+
+    return version
 
 
 def update_version_in_pyproject(
@@ -225,9 +231,9 @@ This script will:
 3. Update uv.lock to reflect the version change
 4. Commit the change with message "Bump version to X.Y.Z"
 5. Create a git tag "vX.Y.Z-py"
-6. Bump version to X.Y.Z+ (post-release development marker)
+6. Bump version to X.Y.Z.dev (post-release development marker)
 7. Update uv.lock for the post-release version
-8. Commit with message "Bump version to X.Y.Z+ for development"
+8. Commit with message "Bump version to X.Y.Z.dev for development"
 9. Push the branch and tag
 10. Create a PR for the release branch
 
@@ -379,8 +385,8 @@ Examples:
         print(f"Error: Failed to create tag {tag_name}", file=sys.stderr)
         return 1
 
-    # Post-release: bump version to X.Y.Z+
-    post_release_version = f"{new_version}+"
+    # Post-release: bump version to X.Y.Z.dev
+    post_release_version = f"{new_version}.dev"
     print(f"Post-release version: {post_release_version}")
 
     update_version_in_pyproject(pyproject_path, post_release_version, args.dry_run)
