@@ -6,10 +6,15 @@
 Release automation script for the TypeAgent Python package.
 
 This script:
-1. Bumps the patch version (3rd part) in pyproject.toml, or sets the whole version
-2. Commits the change
-3. Creates a git tag in the format "v{major}.{minor}.{patch}-py"
-4. Pushes the tags to trigger the GitHub Actions release workflow
+1. Creates a new release branch (release-X.Y.Z)
+2. Bumps the patch version (3rd part) in pyproject.toml, or sets the whole version
+3. Updates uv.lock to reflect the version change
+4. Commits the change and creates a git tag in the format "v{major}.{minor}.{patch}-py"
+5. Bumps version to X.Y.Z.dev (post-release development marker)
+6. Updates uv.lock again for the post-release version
+7. Commits the post-release version change
+8. Pushes the branch and tag
+9. Creates a PR for the release branch
 
 Usage:
     python tools/release.py [version] [--dry-run] [--help] [--force]
@@ -24,6 +29,7 @@ import argparse
 from pathlib import Path
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from typing import Tuple
@@ -114,7 +120,7 @@ def get_current_version(pyproject_path: Path) -> str:
         pyproject_path: Path to the pyproject.toml file
 
     Returns:
-        Current version string
+        Current version string (with .dev suffix stripped if present)
 
     Raises:
         FileNotFoundError: If pyproject.toml doesn't exist
@@ -133,7 +139,13 @@ def get_current_version(pyproject_path: Path) -> str:
     if not version_match:
         raise ValueError("Version field not found in pyproject.toml")
 
-    return version_match.group(1)
+    version = version_match.group(1)
+
+    # Strip .dev suffix if present (used for post-release development versions)
+    if version.endswith(".dev"):
+        version = version[:-4]
+
+    return version
 
 
 def update_version_in_pyproject(
@@ -185,16 +197,45 @@ def check_git_status() -> bool:
     return len(output.strip()) == 0
 
 
+def check_uv_available() -> bool:
+    """Check if the 'uv' command is available."""
+    return shutil.which("uv") is not None
+
+
+def check_gh_available() -> bool:
+    """Check if the 'gh' CLI is available."""
+    return shutil.which("gh") is not None
+
+
+def update_uv_lock(dry_run: bool = False) -> bool:
+    """Update uv.lock by running 'uv lock'."""
+    if dry_run:
+        print("[DRY RUN] Would run: uv lock")
+        return True
+
+    exit_code, _ = run_command(["uv", "lock"])
+    if exit_code != 0:
+        print("Error: Failed to update uv.lock", file=sys.stderr)
+        return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Automate the release process for TypeAgent Python package",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 This script will:
-1. Bump the patch version in pyproject.toml (or set to specified version)
-2. Commit the change with message "Bump version to X.Y.Z"
-3. Create a git tag "vX.Y.Z-py"
-4. Push the tags to trigger the release workflow
+1. Create a new release branch (release-X.Y.Z)
+2. Bump the patch version in pyproject.toml (or set to specified version)
+3. Update uv.lock to reflect the version change
+4. Commit the change with message "Bump version to X.Y.Z"
+5. Create a git tag "vX.Y.Z-py"
+6. Bump version to X.Y.Z.dev (post-release development marker)
+7. Update uv.lock for the post-release version
+8. Commit with message "Bump version to X.Y.Z.dev for development"
+9. Push the branch and tag
+10. Create a PR for the release branch
 
 The script must be run from the repository root.
 
@@ -238,6 +279,18 @@ Examples:
                 file=sys.stderr,
             )
             return 1
+
+    # Check that uv is available
+    if not check_uv_available():
+        print("Error: 'uv' command not found. Please install uv first.", file=sys.stderr)
+        print("  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh", file=sys.stderr)
+        return 1
+
+    # Check that gh CLI is available
+    if not check_gh_available():
+        print("Error: 'gh' CLI not found. Please install GitHub CLI first.", file=sys.stderr)
+        print("  Install with: brew install gh  (or see https://cli.github.com/)", file=sys.stderr)
+        return 1
 
     pyproject_path = current_dir / "pyproject.toml"
 
@@ -295,14 +348,26 @@ Examples:
 
     print(f"New version: {new_version}")
 
+    # Create release branch
+    branch_name = f"release-{new_version}"
+    exit_code, _ = run_command(["git", "checkout", "-b", branch_name], args.dry_run)
+
+    if exit_code != 0:
+        print(f"Error: Failed to create branch {branch_name}", file=sys.stderr)
+        return 1
+
     # Update pyproject.toml
     update_version_in_pyproject(pyproject_path, new_version, args.dry_run)
 
-    # Git commit
-    exit_code, _ = run_command(["git", "add", "pyproject.toml"], args.dry_run)
+    # Update uv.lock
+    if not update_uv_lock(args.dry_run):
+        return 1
+
+    # Git commit for release version
+    exit_code, _ = run_command(["git", "add", "pyproject.toml", "uv.lock"], args.dry_run)
 
     if exit_code != 0:
-        print("Error: Failed to stage pyproject.toml", file=sys.stderr)
+        print("Error: Failed to stage pyproject.toml and uv.lock", file=sys.stderr)
         return 1
 
     commit_message = f"Bump version to {new_version}"
@@ -320,20 +385,68 @@ Examples:
         print(f"Error: Failed to create tag {tag_name}", file=sys.stderr)
         return 1
 
-    # Push tags
+    # Post-release: bump version to X.Y.Z.dev
+    post_release_version = f"{new_version}.dev"
+    print(f"Post-release version: {post_release_version}")
+
+    update_version_in_pyproject(pyproject_path, post_release_version, args.dry_run)
+
+    # Update uv.lock for post-release version
+    if not update_uv_lock(args.dry_run):
+        return 1
+
+    # Git commit for post-release version
+    exit_code, _ = run_command(["git", "add", "pyproject.toml", "uv.lock"], args.dry_run)
+
+    if exit_code != 0:
+        print("Error: Failed to stage pyproject.toml and uv.lock", file=sys.stderr)
+        return 1
+
+    post_commit_message = f"Bump version to {post_release_version} for development"
+    exit_code, _ = run_command(["git", "commit", "-m", post_commit_message], args.dry_run)
+
+    if exit_code != 0:
+        print("Error: Failed to commit post-release changes", file=sys.stderr)
+        return 1
+
+    # Push branch and tag
+    exit_code, _ = run_command(["git", "push", "-u", "origin", branch_name], args.dry_run)
+
+    if exit_code != 0:
+        print(f"Error: Failed to push branch {branch_name}", file=sys.stderr)
+        return 1
+
     exit_code, _ = run_command(["git", "push", "--tags"], args.dry_run)
 
     if exit_code != 0:
         print("Error: Failed to push tags", file=sys.stderr)
         return 1
 
+    # Create PR
+    pr_title = f"Release {new_version}"
+    pr_body = f"## Release {new_version}\\n\\nThis PR contains:\\n- Version bump to {new_version}\\n- Tag {tag_name}\\n- Post-release version bump to {post_release_version}"
+    exit_code, pr_url = run_command(
+        ["gh", "pr", "create", "--title", pr_title, "--body", pr_body],
+        args.dry_run
+    )
+
+    if exit_code != 0:
+        print("Error: Failed to create PR", file=sys.stderr)
+        return 1
+
     if args.dry_run:
         print(f"\n[DRY RUN] Release process completed successfully!")
+        print(f"Would have created branch: {branch_name}")
         print(f"Would have created tag: {tag_name}")
+        print(f"Would have created PR for release {new_version}")
     else:
         print(f"\nRelease process completed successfully!")
+        print(f"Created branch: {branch_name}")
         print(f"Created tag: {tag_name}")
-        print(f"The GitHub Actions release workflow should now be triggered.")
+        print(f"Created PR: {pr_url}")
+        print(f"\nNext steps:")
+        print(f"  1. Get the PR approved and merged")
+        print(f"  2. The GitHub Actions release workflow will be triggered by the tag")
 
     return 0
 
