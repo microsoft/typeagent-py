@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "typeagent"
-version = "0.0.7"
+version = "0.0.7.dev"
 description = "Incremental message indexing and querying pipelines using Structured RAG"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"

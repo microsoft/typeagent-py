@@ -1793,7 +1793,7 @@ wheels = [
 
 [[package]]
 name = "typeagent"
-version = "0.0.7"
+version = "0.0.7.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
