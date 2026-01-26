@@ -9,6 +9,7 @@ import black
 
 import typechat
 
+from .answer_context import AnswerContextOptions
 from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMessage
 from .answer_response_schema import AnswerResponse
 from .collections import get_top_k, Scored
@@ -34,15 +35,6 @@ from .interfaces import (
 )
 from .kplib import ConcreteEntity, Facet
 from .search import ConversationSearchResult
-
-
-@dataclass
-class AnswerContextOptions:
-    entities_top_k: int | None = None
-    topics_top_k: int | None = None
-    messages_top_k: int | None = None
-    chunking: bool | None = None
-    debug: bool = False
 
 
 async def generate_answers(

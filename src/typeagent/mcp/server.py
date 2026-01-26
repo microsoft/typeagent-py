@@ -240,7 +240,9 @@ async def query_conversation(
     match combined_answer.type:
         case "NoAnswer":
             return QuestionResponse(
-                success=False, answer=combined_answer.why_no_answer or "", time_used=dt
+                success=False,
+                answer=combined_answer.why_no_answer or "",
+                time_used=dt,
             )
         case "Answered":
             return QuestionResponse(

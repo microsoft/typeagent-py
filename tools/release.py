@@ -282,14 +282,25 @@ Examples:
 
     # Check that uv is available
     if not check_uv_available():
-        print("Error: 'uv' command not found. Please install uv first.", file=sys.stderr)
-        print("  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh", file=sys.stderr)
+        print(
+            "Error: 'uv' command not found. Please install uv first.", file=sys.stderr
+        )
+        print(
+            "  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh",
+            file=sys.stderr,
+        )
         return 1
 
     # Check that gh CLI is available
     if not check_gh_available():
-        print("Error: 'gh' CLI not found. Please install GitHub CLI first.", file=sys.stderr)
-        print("  Install with: brew install gh  (or see https://cli.github.com/)", file=sys.stderr)
+        print(
+            "Error: 'gh' CLI not found. Please install GitHub CLI first.",
+            file=sys.stderr,
+        )
+        print(
+            "  Install with: brew install gh  (or see https://cli.github.com/)",
+            file=sys.stderr,
+        )
         return 1
 
     pyproject_path = current_dir / "pyproject.toml"
@@ -364,7 +375,9 @@ Examples:
         return 1
 
     # Git commit for release version
-    exit_code, _ = run_command(["git", "add", "pyproject.toml", "uv.lock"], args.dry_run)
+    exit_code, _ = run_command(
+        ["git", "add", "pyproject.toml", "uv.lock"], args.dry_run
+    )
 
     if exit_code != 0:
         print("Error: Failed to stage pyproject.toml and uv.lock", file=sys.stderr)
@@ -396,21 +409,27 @@ Examples:
         return 1
 
     # Git commit for post-release version
-    exit_code, _ = run_command(["git", "add", "pyproject.toml", "uv.lock"], args.dry_run)
+    exit_code, _ = run_command(
+        ["git", "add", "pyproject.toml", "uv.lock"], args.dry_run
+    )
 
     if exit_code != 0:
         print("Error: Failed to stage pyproject.toml and uv.lock", file=sys.stderr)
         return 1
 
     post_commit_message = f"Bump version to {post_release_version} for development"
-    exit_code, _ = run_command(["git", "commit", "-m", post_commit_message], args.dry_run)
+    exit_code, _ = run_command(
+        ["git", "commit", "-m", post_commit_message], args.dry_run
+    )
 
     if exit_code != 0:
         print("Error: Failed to commit post-release changes", file=sys.stderr)
         return 1
 
     # Push branch and tag
-    exit_code, _ = run_command(["git", "push", "-u", "origin", branch_name], args.dry_run)
+    exit_code, _ = run_command(
+        ["git", "push", "-u", "origin", branch_name], args.dry_run
+    )
 
     if exit_code != 0:
         print(f"Error: Failed to push branch {branch_name}", file=sys.stderr)
@@ -426,8 +445,7 @@ Examples:
     pr_title = f"Release {new_version}"
     pr_body = f"## Release {new_version}\\n\\nThis PR contains:\\n- Version bump to {new_version}\\n- Tag {tag_name}\\n- Post-release version bump to {post_release_version}"
     exit_code, pr_url = run_command(
-        ["gh", "pr", "create", "--title", pr_title, "--body", pr_body],
-        args.dry_run
+        ["gh", "pr", "create", "--title", pr_title, "--body", pr_body], args.dry_run
     )
 
     if exit_code != 0:

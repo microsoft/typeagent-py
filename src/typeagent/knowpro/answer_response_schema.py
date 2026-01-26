@@ -6,8 +6,9 @@ from typing import Annotated, Literal
 from typing_extensions import Doc
 
 from .dataclasses import dataclass
+from .field_helpers import CamelCaseField
 
-AnswerType = Literal[
+type AnswerType = Literal[
     "NoAnswer",  # If question cannot be accurately answered from [ANSWER CONTEXT]
     "Answered",  # Fully answer question
     # TODO: Add a category for outright errors, e.g. network errors
@@ -33,4 +34,5 @@ class AnswerResponse:
         Doc(
             "If NoAnswer, explain why..\nparticularly explain why you didn't use any supplied entities"
         ),
+        CamelCaseField(field_name="why_no_answer"),
     ] = None
