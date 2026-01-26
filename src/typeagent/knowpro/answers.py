@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -9,7 +9,7 @@ import black
 
 import typechat
 
-from .answer_context import AnswerContextOptions
+from .answer_context import AnswerContextOptions, answer_context_to_string
 from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMessage
 from .answer_response_schema import AnswerResponse
 from .collections import get_top_k, Scored
@@ -37,6 +37,67 @@ from .kplib import ConcreteEntity, Facet
 from .search import ConversationSearchResult
 
 
+@dataclass
+class _TranslatorAnswerGeneratorSettings:
+    max_chars_in_budget: int = 4096 * 4
+    concurrency: int = 2
+    fast_stop: bool = True
+    model_instructions: list[typechat.PromptSection] | None = None
+    include_context_schema: bool | None = None
+
+
+class _TranslatorAnswerGenerator:
+    def __init__(
+        self,
+        translator: typechat.TypeChatJsonTranslator[AnswerResponse],
+        settings: _TranslatorAnswerGeneratorSettings | None = None,
+    ) -> None:
+        self.settings = settings or _TranslatorAnswerGeneratorSettings()
+        self._translator = translator
+
+    async def generate_answer(
+        self, question: str, context: AnswerContext | str
+    ) -> typechat.Result[AnswerResponse]:
+        from . import answer_generator as answer_gen
+
+        context_content = (
+            context if isinstance(context, str) else answer_context_to_string(context)
+        )
+        if context_content and len(context_content) > self.settings.max_chars_in_budget:
+            context_content = answer_gen.trim_string_length(
+                context_content, self.settings.max_chars_in_budget
+            )
+        request = (
+            f"{answer_gen.create_question_prompt(question)}\n\n"
+            f"{answer_gen.create_context_prompt('AnswerContext', '', context_content)}"
+        )
+        result = await self._translator.translate(request)
+        return result
+
+    async def combine_partial_answers(
+        self, question: str, responses: Sequence[AnswerResponse | None]
+    ) -> typechat.Result[AnswerResponse]:
+        good_answers: list[str] = []
+        why_no_answer: str | None = None
+        for response in responses:
+            if response is None:
+                continue
+            if response.type == "Answered" and response.answer:
+                good_answers.append(response.answer)
+            elif response.type == "NoAnswer":
+                why_no_answer = why_no_answer or response.why_no_answer
+        if not good_answers:
+            return typechat.Success(
+                AnswerResponse(type="NoAnswer", why_no_answer=why_no_answer or "")
+            )
+        if len(good_answers) == 1:
+            return typechat.Success(
+                AnswerResponse(type="Answered", answer=good_answers[0])
+            )
+        combined = await combine_answers(self._translator, good_answers, question)
+        return typechat.Success(combined)
+
+
 async def generate_answers(
     translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     search_results: list[ConversationSearchResult],
@@ -44,10 +105,13 @@ async def generate_answers(
     orig_query_text: str,
     options: AnswerContextOptions | None = None,
 ) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
+    generator = _TranslatorAnswerGenerator(translator)
     all_answers: list[AnswerResponse] = []
     good_answers: list[str] = []
     for result in search_results:
-        answer = await generate_answer(translator, result, conversation, options)
+        answer = await generate_answer(
+            translator, result, conversation, options, generator=generator
+        )
         all_answers.append(answer)
         match answer.type:
             case "Answered":
@@ -80,23 +144,27 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     search_result: ConversationSearchResult,
     conversation: IConversation[TMessage, TIndex],
     options: AnswerContextOptions | None = None,
+    *,
+    generator: _TranslatorAnswerGenerator | None = None,
 ) -> AnswerResponse:
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
-    context = await make_context(search_result, conversation, options)
-    request = f"{create_question_prompt(search_result.raw_query_text)}\n\n{create_context_prompt(context)}"
-    if options and options.debug:
-        print("Stage 4 input:")
-        print(request)
-        print("-" * 50)
-    result = await translator.translate(request)
+    from . import answer_generator as answer_gen
+
+    generator = generator or _TranslatorAnswerGenerator(translator)
+    result = await answer_gen.generate_answer(
+        conversation,
+        generator,
+        search_result.raw_query_text,
+        search_result,
+        context_options=options,
+    )
     if isinstance(result, typechat.Failure):
         return AnswerResponse(
             type="NoAnswer",
             answer=None,
             why_no_answer=f"TypeChat failure: {result.message}",
         )
-    else:
-        return result.value
+    return result.value
 
 
 def create_question_prompt(question: str) -> str:
@@ -155,7 +223,7 @@ async def make_context[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     conversation: IConversation[TMessage, TIndex],
     options: AnswerContextOptions | None = None,
 ) -> AnswerContext:
-    context = AnswerContext([], [], [])
+    context = AnswerContext()
 
     if search_result.message_matches:
         context.messages = await get_relevant_messages_for_answer(
