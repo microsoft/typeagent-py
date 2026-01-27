@@ -5,6 +5,7 @@
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from datetime import datetime
 import json
 from typing import Any
 
@@ -17,6 +18,7 @@ class AnswerContextOptions:
     topics_top_k: int | None = None
     messages_top_k: int | None = None
     chunking: bool | None = None
+    debug: bool | None = None
 
 
 def answer_context_to_string(context: AnswerContext, spaces: int | None = None) -> str:
@@ -138,7 +140,14 @@ def json_stringify_for_prompt(value: Any, spaces: int | None = None) -> str:
         ensure_ascii=False,
         indent=spaces,
         separators=(",", ":") if spaces is None else None,
+        default=_json_default,
     )
+
+
+def _json_default(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 def split_large_text_into_chunks(

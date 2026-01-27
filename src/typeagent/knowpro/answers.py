@@ -3,13 +3,13 @@
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import black
 
 import typechat
 
-from .answer_context import AnswerContextOptions, answer_context_to_string
+from .answer_context import answer_context_to_string, AnswerContextOptions
 from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMessage
 from .answer_response_schema import AnswerResponse
 from .collections import get_top_k, Scored
@@ -153,7 +153,7 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     generator = generator or _TranslatorAnswerGenerator(translator)
     result = await answer_gen.generate_answer(
         conversation,
-        generator,
+        cast(answer_gen.IAnswerGenerator, generator),
         search_result.raw_query_text,
         search_result,
         context_options=options,
@@ -447,11 +447,11 @@ def text_range_from_message_range(
 ) -> TextRange | None:
     if start == end:
         # Point location
-        return TextRange(start=TextLocation(start))
+        return TextRange(start=TextLocation(message_ordinal=start))
     elif start < end:
         return TextRange(
-            start=TextLocation(start),
-            end=TextLocation(end),
+            start=TextLocation(message_ordinal=start),
+            end=TextLocation(message_ordinal=end),
         )
     else:
         raise ValueError(f"Expect message ordinal range: {start} <= {end}")
@@ -461,11 +461,16 @@ async def get_enclosing_date_range_for_text_range(
     messages: IMessageCollection,
     range: TextRange,
 ) -> DateRange | None:
-    start_timestamp = (await messages.get_item(range.start.message_ordinal)).timestamp
+    start_location = cast(TextLocation, range.start)
+    start_timestamp = (
+        await messages.get_item(start_location.message_ordinal)
+    ).timestamp
     if not start_timestamp:
         return None
     end_timestamp = (
-        (await messages.get_item(range.end.message_ordinal)).timestamp
+        (
+            await messages.get_item(cast(TextLocation, range.end).message_ordinal)
+        ).timestamp
         if range.end
         else None
     )
@@ -571,7 +576,8 @@ def merge_scored_concrete_entities(
 def merge_message_ordinals(merged_entity: MergedKnowledge, sr: SemanticRef) -> None:
     if merged_entity.source_message_ordinals is None:
         merged_entity.source_message_ordinals = set()
-    merged_entity.source_message_ordinals.add(sr.range.start.message_ordinal)
+    start_location = cast(TextLocation, sr.range.start)
+    merged_entity.source_message_ordinals.add(start_location.message_ordinal)
 
 
 def concrete_to_merged_entity(
