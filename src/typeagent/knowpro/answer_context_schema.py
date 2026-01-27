@@ -33,7 +33,7 @@ class RelevantMessage:
     from_: Annotated[EntityNames | None, Doc("Sender(s) of the message")]
     to: Annotated[EntityNames | None, Doc("Recipient(s) of the message")]
     timestamp: Annotated[str | None, Doc("Timestamp of the message in ISO format")]
-    messageText: Annotated[str | list[str] | None, Doc("Text chunks in this message")]
+    message_text: Annotated[str | list[str] | None, Doc("Text chunks in this message")]
 
 
 @dataclass

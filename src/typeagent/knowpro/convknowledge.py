@@ -13,8 +13,9 @@ from ..aitools import auth
 # TODO: Move ModelWrapper and create_typechat_model() to aitools package.
 
 
-# TODO: Make this a parameter that can be configured (e.g. from command line).
-DEFAULT_TIMEOUT_SECONDS = 30
+# TODO: Make these parameters that can be configured (e.g. from command line).
+DEFAULT_MAX_RETRY_ATTEMPTS = 0
+DEFAULT_TIMEOUT_SECONDS = 25
 
 
 class ModelWrapper(typechat.TypeChatLanguageModel):
@@ -52,6 +53,7 @@ def create_typechat_model() -> typechat.TypeChatLanguageModel:
         env[key_name] = shared_token_provider.get_token()
     model = typechat.create_language_model(env)
     model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
+    model.max_retry_attempts = DEFAULT_MAX_RETRY_ATTEMPTS
     if shared_token_provider is not None:
         model = ModelWrapper(model, shared_token_provider)
     return model

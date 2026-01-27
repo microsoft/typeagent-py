@@ -26,6 +26,9 @@ import asyncio
 from pathlib import Path
 import sys
 import time
+import traceback
+
+import openai
 
 from typeagent.aitools import utils
 from typeagent.emails.email_import import decode_encoded_words, import_email_from_file
@@ -139,7 +142,7 @@ async def ingest_emails(
     if verbose:
         print("\nParsing and importing emails...")
 
-    successful_count = 0
+    success_count = 0
     failed_count = 0
     skipped_count = 0
     start_time = time.time()
@@ -179,6 +182,14 @@ async def ingest_emails(
 
             if verbose:
                 print(f"    From: {decode_encoded_words(email.metadata.sender)}")
+                if email.metadata.recipients:
+                    print(
+                        f"    To: {', '.join(decode_encoded_words(r) for r in email.metadata.recipients)}"
+                    )
+                if email.metadata.cc:
+                    print(
+                        f"    Cc: {', '.join(decode_encoded_words(r) for r in email.metadata.cc)}"
+                    )
                 if email.metadata.subject:
                     print(
                         f"    Subject: {decode_encoded_words(email.metadata.subject).replace('\n', '\\n')}"
@@ -194,33 +205,38 @@ async def ingest_emails(
                     print(f"      {preview}")
 
             # Pass source_id to mark as ingested atomically with the message
-            await email_memory.add_messages_with_indexing(
-                [email], source_ids=[str(email_file)]
-            )  # This may raise, esp. if the knowledge extraction fails (see except below)
-            successful_count += 1
+            try:
+                await email_memory.add_messages_with_indexing(
+                    [email], source_ids=[str(email_file)]
+                )  # This may raise, esp. if the knowledge extraction fails (see except below)
+                success_count += 1
+            except openai.AuthenticationError as e:
+                if verbose:
+                    traceback.print_exc()
+                sys.exit(f"Authentication error: {e!r}")
 
             # Print progress periodically
-            if (i + 1) % batch_size == 0:
+            if (success_count + failed_count) % batch_size == 0:
                 elapsed = time.time() - start_time
                 semref_count = await semref_coll.size()
                 print(
-                    f"\n[{i + 1}/{len(email_files)}] {successful_count} imported | "
-                    f"{semref_count} refs | {elapsed:.1f}s elapsed\n"
+                    f"\n[{i + 1}/{len(email_files)}] "
+                    f"{success_count} imported | "
+                    f"{failed_count} failed | "
+                    f"{skipped_count} skipped | "
+                    f"{semref_count} semrefs | "
+                    f"{elapsed:.1f}s elapsed\n"
                 )
 
         except Exception as e:
             failed_count += 1
-            print(f"Error processing {email_file}: {e}", file=sys.stderr)
-            exc_name = (
-                e.__class__.__qualname__
-                if e.__class__.__module__ == "builtins"
-                else f"{e.__class__.__module__}.{e.__class__.__qualname__}"
-            )
+            print(f"Error processing {email_file}: {e!r:.150s}", file=sys.stderr)
+            mod = e.__class__.__module__
+            qual = e.__class__.__qualname__
+            exc_name = qual if mod == "builtins" else f"{mod}.{qual}"
             async with storage_provider:
                 storage_provider.mark_source_ingested(str(email_file), exc_name)
             if verbose:
-                import traceback
-
                 traceback.print_exc(limit=10)
 
     # Final summary
@@ -229,7 +245,7 @@ async def ingest_emails(
 
     print()
     if verbose:
-        print(f"Successfully imported {successful_count} email(s)")
+        print(f"Successfully imported {success_count} email(s)")
         if skipped_count:
             print(f"Skipped {skipped_count} already-ingested email(s)")
         if failed_count:
@@ -238,7 +254,7 @@ async def ingest_emails(
         print(f"Total time: {elapsed:.1f}s")
     else:
         print(
-            f"Imported {successful_count} emails to {database} "
+            f"Imported {success_count} emails to {database} "
             f"({semref_count} refs, {elapsed:.1f}s)"
         )
         if skipped_count:

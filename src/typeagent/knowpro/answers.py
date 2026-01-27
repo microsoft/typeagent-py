@@ -42,6 +42,7 @@ class AnswerContextOptions:
     topics_top_k: int | None = None
     messages_top_k: int | None = None
     chunking: bool | None = None
+    debug: bool = False
 
 
 async def generate_answers(
@@ -77,7 +78,7 @@ async def generate_answers(
         combined_answer = AnswerResponse(type="Answered", answer=good_answers[0])
     else:
         combined_answer = AnswerResponse(
-            type="NoAnswer", whyNoAnswer="No good answers found."
+            type="NoAnswer", why_no_answer="No good answers found."
         )
     return all_answers, combined_answer
 
@@ -91,15 +92,16 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
     context = await make_context(search_result, conversation, options)
     request = f"{create_question_prompt(search_result.raw_query_text)}\n\n{create_context_prompt(context)}"
-    # print("+" * 80)
-    # print(request)
-    # print("+" * 80)
+    if options and options.debug:
+        print("Stage 4 input:")
+        print(request)
+        print("-" * 50)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
         return AnswerResponse(
             type="NoAnswer",
             answer=None,
-            whyNoAnswer=f"TypeChat failure: {result.message}",
+            why_no_answer=f"TypeChat failure: {result.message}",
         )
     else:
         return result.value
@@ -230,7 +232,7 @@ async def get_relevant_messages_for_answer[
                 from_=metadata.source,
                 to=metadata.dest,
                 timestamp=msg.timestamp,
-                messageText=(
+                message_text=(
                     msg.text_chunks[0] if len(msg.text_chunks) == 1 else msg.text_chunks
                 ),
             )
@@ -553,7 +555,7 @@ async def combine_answers(
 ) -> AnswerResponse:
     """Combine multiple answers into a single answer."""
     if not answers:
-        return AnswerResponse(type="NoAnswer", whyNoAnswer="No answers provided.")
+        return AnswerResponse(type="NoAnswer", why_no_answer="No answers provided.")
     if len(answers) == 1:
         return AnswerResponse(type="Answered", answer=answers[0])
     request_parts = [
@@ -572,6 +574,6 @@ async def combine_answers(
     request = "\n".join(request_parts)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
-        return AnswerResponse(type="NoAnswer", whyNoAnswer=result.message)
+        return AnswerResponse(type="NoAnswer", why_no_answer=result.message)
     else:
         return result.value
