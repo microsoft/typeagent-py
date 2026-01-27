@@ -559,17 +559,21 @@ async def main():
     query_context = query.QueryEvalContext(conversation)
 
     ar_list, ar_index = load_index_file(
-        args.qafile, "question", QuestionAnswerData, args.verbose
+        args.answer_results, "question", QuestionAnswerData, args.verbose
     )
     sr_list, sr_index = load_index_file(
-        args.srfile, "searchText", SearchResultData, args.verbose
+        args.search_results, "searchText", SearchResultData, args.verbose
     )
     if args.batch:
         args.history_size = 0
         if not ar_list:
-            raise SystemExit("Error: non-empty --qafile required for batch mode.")
+            raise SystemExit(
+                "Error: non-empty --answer-results required for batch mode."
+            )
         if not sr_list:
-            raise SystemExit("Error: non-empty --srfile required for batch mode.")
+            raise SystemExit(
+                "Error: non-empty --search-results required for batch mode."
+            )
 
     model = convknowledge.create_typechat_model()
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
@@ -944,14 +948,14 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
 
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
-        "--qafile",
+        "--answer-results",
         type=str,
         default=None,
         help=f"Path to the Answer_results.json file ({explain_qa})",
     )
     explain_sr = "a list of intermediate results from stages 1, 2 and 3"
     parser.add_argument(
-        "--srfile",
+        "--search-results",
         type=str,
         default=None,
         help=f"Path to the Search_results.json file ({explain_sr})",
