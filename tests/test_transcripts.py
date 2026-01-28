@@ -208,7 +208,7 @@ def test_transcript_message_creation():
     serialized = message.serialize()
     assert serialized["textChunks"] == ["This is a test message."]
     assert serialized["metadata"]["speaker"] == "Test Speaker"
-    assert serialized["metadata"]["recipients"] == []
+    assert serialized["metadata"]["listeners"] == []
     assert serialized["tags"] == ["test"]
     assert serialized["timestamp"] == timestamp
 

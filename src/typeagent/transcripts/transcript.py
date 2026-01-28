@@ -24,7 +24,7 @@ TranscriptMessageMeta = ConversationMessageMeta
 # TypedDict for serialization (kept for backward compatibility with saved files)
 class TranscriptMessageMetaData(TypedDict):
     speaker: str | None
-    recipients: list[str]  # Updated to match ConversationMessageMeta
+    listeners: list[str]  # Updated to match serialized ConversationMessageMeta
 
 
 class TranscriptMessageData(TypedDict):

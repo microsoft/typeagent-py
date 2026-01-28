@@ -70,6 +70,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
 
     recipients: list[str] = Field(
         default_factory=list,
+        serialization_alias="listeners",
         validation_alias=AliasChoices("recipients", "listeners"),
     )
     """
@@ -165,7 +166,7 @@ class ConversationMessageMetaData(TypedDict):
     """Serialization format for ConversationMessageMeta."""
 
     speaker: str | None
-    recipients: list[str]
+    listeners: list[str]
 
 
 class ConversationMessageData(TypedDict):
