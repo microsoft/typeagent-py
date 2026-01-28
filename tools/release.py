@@ -282,25 +282,14 @@ Examples:
 
     # Check that uv is available
     if not check_uv_available():
-        print(
-            "Error: 'uv' command not found. Please install uv first.", file=sys.stderr
-        )
-        print(
-            "  Install with: curl -LsSf https://astral.sh/uv/install.sh | sh",
-            file=sys.stderr,
-        )
+        print("Error: 'uv' not found; install it first:", file=sys.stderr)
+        print("  curl -LsSf https://astral.sh/uv/install.sh | sh", file=sys.stderr)
         return 1
 
     # Check that gh CLI is available
     if not check_gh_available():
-        print(
-            "Error: 'gh' CLI not found. Please install GitHub CLI first.",
-            file=sys.stderr,
-        )
-        print(
-            "  Install with: brew install gh  (or see https://cli.github.com/)",
-            file=sys.stderr,
-        )
+        print("Error: 'gh'  not found. Please install it first:", file=sys.stderr)
+        print("  brew install gh  (or see https://cli.github.com/)", file=sys.stderr)
         return 1
 
     pyproject_path = current_dir / "pyproject.toml"
@@ -308,9 +297,7 @@ Examples:
     # Check git status (unless --force)
     if not check_git_status():
         if args.force:
-            print(
-                "Warning: Git working directory is not clean (forced)",
-            )
+            print("Warning: Git working directory is not clean (forced)")
         else:
             print(
                 "Error: Git working directory is not clean. Please commit or stash changes first.",
