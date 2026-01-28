@@ -58,7 +58,6 @@ class _TranslatorAnswerGenerator:
     async def generate_answer(
         self, question: str, context: AnswerContext | str, debug: bool
     ) -> typechat.Result[AnswerResponse]:
-        print(f"_TranslatorAnswerGenerator.generate_answer({debug=})")
         from . import answer_generator as answer_gen
 
         context_content = (
@@ -110,7 +109,6 @@ async def generate_answers(
     orig_query_text: str,
     options: AnswerContextOptions | None,
 ) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
-    print(f"generate_answers(options={options})")
     generator = _TranslatorAnswerGenerator(translator)
     all_answers: list[AnswerResponse] = []
     good_answers: list[str] = []
@@ -153,7 +151,6 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     *,
     generator: _TranslatorAnswerGenerator | None = None,
 ) -> AnswerResponse:
-    print(f"generate_answer(options={options})")
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
     from . import answer_generator as answer_gen
 

@@ -88,7 +88,6 @@ async def generate_answer(
     progress: ProcessProgress | None,
     context_options: AnswerContextOptions | None,
 ) -> typechat.Result[AnswerResponse]:
-    print(f"answer_gen.generate_answer({context_options=})")
     if not isinstance(search_results, list):
         return await _generate_answer_from_search_result(
             conversation,
@@ -137,7 +136,6 @@ async def generate_answer_in_chunks(
     progress: ProcessProgress | None,
     debug: bool,
 ) -> typechat.Result[list[AnswerResponse]]:
-    print(f"generate_answer_in_chunks({debug=})")
     if not chunks:
         return typechat.Success([])
     if len(chunks) == 1:
@@ -205,7 +203,6 @@ class AnswerGenerator(IAnswerGenerator):
     async def generate_answer(
         self, question: str, context: AnswerContext | str, debug: bool
     ) -> typechat.Result[AnswerResponse]:
-        print(f"AnswerGenerator.generate_answer({debug=})")
         context_content = (
             context if isinstance(context, str) else answer_context_to_string(context)
         )
@@ -318,7 +315,6 @@ async def _generate_answer_from_search_result(
     progress: ProcessProgress | None,
     context_options: AnswerContextOptions | None,
 ) -> typechat.Result[AnswerResponse]:
-    print(f"_generate_answer_from_search_result({context_options=})")
     context = await answer_context_from_search_result(
         conversation, search_result, context_options
     )
@@ -355,7 +351,6 @@ async def _run_single_chunk(
     progress: ProcessProgress | None,
     debug: bool,
 ) -> typechat.Result[list[AnswerResponse]]:
-    print(f"_run_single_chunk({debug=})")
     response = await answer_generator.generate_answer(question, chunks[0], debug)
     if progress:
         progress(chunks[0], 0, response)
@@ -389,7 +384,6 @@ async def _run_generate_answers(
     progress: ProcessProgress | None,
     debug: bool,
 ) -> typechat.Result[list[AnswerResponse]]:
-    print(f"_run_generate_answers({debug=})")
     if not chunks:
         return typechat.Success([])
 
