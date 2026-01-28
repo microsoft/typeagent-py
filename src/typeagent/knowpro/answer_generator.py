@@ -41,20 +41,6 @@ def create_answer_translator(
     return utils.create_translator(model, AnswerResponse)
 
 
-class IAnswerGenerator(Protocol):
-    """Protocol for answer generators."""
-
-    settings: "AnswerGeneratorSettings"
-
-    async def generate_answer(
-        self, question: str, context: AnswerContext | str, debug: bool
-    ) -> typechat.Result[AnswerResponse]: ...
-
-    async def combine_partial_answers(
-        self, question: str, responses: Sequence[AnswerResponse | None]
-    ) -> typechat.Result[AnswerResponse]: ...
-
-
 @dataclass
 class AnswerGeneratorSettings:
     answer_generator_model: typechat.TypeChatLanguageModel
@@ -64,6 +50,20 @@ class AnswerGeneratorSettings:
     fast_stop: bool
     model_instructions: list[typechat.PromptSection] | None = None
     include_context_schema: bool | None = None
+
+
+class IAnswerGenerator(Protocol):
+    """Protocol for answer generators."""
+
+    settings: AnswerGeneratorSettings
+
+    async def generate_answer(
+        self, question: str, context: AnswerContext | str, debug: bool
+    ) -> typechat.Result[AnswerResponse]: ...
+
+    async def combine_partial_answers(
+        self, question: str, responses: Sequence[AnswerResponse | None]
+    ) -> typechat.Result[AnswerResponse]: ...
 
 
 def create_answer_generator_settings(
