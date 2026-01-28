@@ -39,9 +39,10 @@ class RelevantMessage:
         CamelCaseField(field_name="from_"),
     ] = None
     to: Annotated[EntityNames | None, Doc("Recipient(s) of the message")] = None
-    timestamp: Annotated[str | None, Doc("Timestamp of the message in ISO format")] = (
-        None
-    )
+    timestamp: Annotated[
+        str | None,
+        Doc("Timestamp of the message in ISO format"),
+    ] = None
     message_text: Annotated[
         str | list[str] | None,
         Doc("Text chunks in this message"),
