@@ -47,7 +47,7 @@ class IAnswerGenerator(Protocol):
     settings: "AnswerGeneratorSettings"
 
     async def generate_answer(
-        self, question: str, context: AnswerContext | str
+        self, question: str, context: AnswerContext | str, debug: bool
     ) -> typechat.Result[AnswerResponse]: ...
 
     async def combine_partial_answers(
@@ -85,9 +85,10 @@ async def generate_answer(
     generator: IAnswerGenerator,
     question: str,
     search_results: ConversationSearchResult | list[ConversationSearchResult],
-    progress: ProcessProgress | None = None,
-    context_options: AnswerContextOptions | None = None,
+    progress: ProcessProgress | None,
+    context_options: AnswerContextOptions | None,
 ) -> typechat.Result[AnswerResponse]:
+    print(f"answer_gen.generate_answer({context_options=})")
     if not isinstance(search_results, list):
         return await _generate_answer_from_search_result(
             conversation,
@@ -133,19 +134,23 @@ async def generate_answer_in_chunks(
     answer_generator: IAnswerGenerator,
     question: str,
     chunks: list[AnswerContext],
-    progress: ProcessProgress | None = None,
+    progress: ProcessProgress | None,
+    debug: bool,
 ) -> typechat.Result[list[AnswerResponse]]:
+    print(f"generate_answer_in_chunks({debug=})")
     if not chunks:
         return typechat.Success([])
     if len(chunks) == 1:
-        return await _run_single_chunk(answer_generator, question, chunks, progress)
+        return await _run_single_chunk(
+            answer_generator, question, chunks, progress, debug
+        )
 
     chunk_answers: list[AnswerResponse] = []
     knowledge_chunks = _get_knowledge_chunks(chunks)
     has_knowledge_answer = False
     if knowledge_chunks:
         knowledge_answers = await _run_generate_answers(
-            answer_generator, question, knowledge_chunks, progress
+            answer_generator, question, knowledge_chunks, progress, debug
         )
         if isinstance(knowledge_answers, typechat.Failure):
             return knowledge_answers
@@ -157,7 +162,7 @@ async def generate_answer_in_chunks(
             chunk for chunk in chunks if chunk.messages is not None and chunk.messages
         ]
         message_answers = await _run_generate_answers(
-            answer_generator, question, message_chunks
+            answer_generator, question, message_chunks, progress, debug
         )
         if isinstance(message_answers, typechat.Failure):
             return message_answers
@@ -172,8 +177,8 @@ async def generate_multiple_choice_answer(
     question: str,
     answer_choices: list[str],
     search_results: ConversationSearchResult | list[ConversationSearchResult],
-    progress: ProcessProgress | None = None,
-    context_options: AnswerContextOptions | None = None,
+    progress: ProcessProgress | None,
+    context_options: AnswerContextOptions | None,
 ) -> typechat.Result[AnswerResponse]:
     question = create_multiple_choice_question(question, answer_choices)
     return await generate_answer(
@@ -198,8 +203,9 @@ class AnswerGenerator(IAnswerGenerator):
         self.context_type_name = "AnswerContext"
 
     async def generate_answer(
-        self, question: str, context: AnswerContext | str
+        self, question: str, context: AnswerContext | str, debug: bool
     ) -> typechat.Result[AnswerResponse]:
+        print(f"AnswerGenerator.generate_answer({debug=})")
         context_content = (
             context if isinstance(context, str) else answer_context_to_string(context)
         )
@@ -216,6 +222,10 @@ class AnswerGenerator(IAnswerGenerator):
             ),
         ]
         prompt_text = "\n\n".join(prompt_parts)
+        if debug:
+            print("Stage 4 input:")
+            print(prompt_text.rstrip())
+            print("-" * 50)
         return await self.answer_translator.translate(
             prompt_text, prompt_preamble=self.settings.model_instructions
         )
@@ -270,7 +280,7 @@ def split_context_into_chunks(
 async def answer_context_from_search_result(
     conversation: IConversation,
     search_result: ConversationSearchResult,
-    options: AnswerContextOptions | None = None,
+    options: AnswerContextOptions | None,
 ) -> AnswerContext:
     context = AnswerContext()
     for knowledge_type, knowledge in search_result.knowledge_matches.items():
@@ -305,9 +315,10 @@ async def _generate_answer_from_search_result(
     generator: IAnswerGenerator,
     question: str,
     search_result: ConversationSearchResult,
-    progress: ProcessProgress | None = None,
-    context_options: AnswerContextOptions | None = None,
+    progress: ProcessProgress | None,
+    context_options: AnswerContextOptions | None,
 ) -> typechat.Result[AnswerResponse]:
+    print(f"_generate_answer_from_search_result({context_options=})")
     context = await answer_context_from_search_result(
         conversation, search_result, context_options
     )
@@ -318,11 +329,19 @@ async def _generate_answer_from_search_result(
         else context_options.chunking
     )
     if not chunking or len(context_content) <= generator.settings.max_chars_in_budget:
-        return await generator.generate_answer(question, context_content)
+        return await generator.generate_answer(
+            question,
+            context_content,
+            context_options and context_options.debug or False,
+        )
 
     chunks = split_context_into_chunks(context, generator.settings.max_chars_in_budget)
     chunk_responses = await generate_answer_in_chunks(
-        generator, question, chunks, progress
+        generator,
+        question,
+        chunks,
+        progress,
+        context_options and context_options.debug or False,
     )
     if isinstance(chunk_responses, typechat.Failure):
         return chunk_responses
@@ -334,8 +353,10 @@ async def _run_single_chunk(
     question: str,
     chunks: list[AnswerContext],
     progress: ProcessProgress | None,
+    debug: bool,
 ) -> typechat.Result[list[AnswerResponse]]:
-    response = await answer_generator.generate_answer(question, chunks[0])
+    print(f"_run_single_chunk({debug=})")
+    response = await answer_generator.generate_answer(question, chunks[0], debug)
     if progress:
         progress(chunks[0], 0, response)
     if isinstance(response, typechat.Failure):
@@ -365,15 +386,17 @@ async def _run_generate_answers(
     answer_generator: IAnswerGenerator,
     question: str,
     chunks: list[AnswerContext],
-    progress: ProcessProgress | None = None,
+    progress: ProcessProgress | None,
+    debug: bool,
 ) -> typechat.Result[list[AnswerResponse]]:
+    print(f"_run_generate_answers({debug=})")
     if not chunks:
         return typechat.Success([])
 
     results = await _map_async(
         chunks,
         answer_generator.settings.concurrency,
-        lambda chunk: answer_generator.generate_answer(question, chunk),
+        lambda chunk: answer_generator.generate_answer(question, chunk, debug),
         progress,
         lambda _chunk, _index, response: not (
             isinstance(response, typechat.Success) and response.value.type == "Answered"
@@ -395,7 +418,6 @@ def create_question_prompt(question: str) -> str:
         "The following is a user question:",
         "===",
         question,
-        "",
         "===",
         "- The included [ANSWER CONTEXT] contains information that MAY be relevant to answering the question.",
         "- Answer the user question PRECISELY using ONLY information EXPLICITLY provided in the topics, entities, actions, messages and time ranges/timestamps found in [ANSWER CONTEXT]",
@@ -425,7 +447,7 @@ def create_context_prompt(type_name: str, schema: str, context: str) -> str:
 def trim_string_length(text: str, max_chars: int) -> str:
     if max_chars <= 0 or len(text) <= max_chars:
         return text
-    return text[:max_chars]
+    return text[:max_chars] + "..."
 
 
 async def rewrite_text(

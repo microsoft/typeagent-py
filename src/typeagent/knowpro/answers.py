@@ -56,8 +56,9 @@ class _TranslatorAnswerGenerator:
         self._translator = translator
 
     async def generate_answer(
-        self, question: str, context: AnswerContext | str
+        self, question: str, context: AnswerContext | str, debug: bool
     ) -> typechat.Result[AnswerResponse]:
+        print(f"_TranslatorAnswerGenerator.generate_answer({debug=})")
         from . import answer_generator as answer_gen
 
         context_content = (
@@ -71,6 +72,10 @@ class _TranslatorAnswerGenerator:
             f"{answer_gen.create_question_prompt(question)}\n\n"
             f"{answer_gen.create_context_prompt('AnswerContext', '', context_content)}"
         )
+        if debug:
+            print("Stage 4 input:")
+            print(request.rstrip())
+            print("-" * 50)
         result = await self._translator.translate(request)
         return result
 
@@ -103,8 +108,9 @@ async def generate_answers(
     search_results: list[ConversationSearchResult],
     conversation: IConversation,
     orig_query_text: str,
-    options: AnswerContextOptions | None = None,
+    options: AnswerContextOptions | None,
 ) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
+    print(f"generate_answers(options={options})")
     generator = _TranslatorAnswerGenerator(translator)
     all_answers: list[AnswerResponse] = []
     good_answers: list[str] = []
@@ -143,10 +149,11 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     search_result: ConversationSearchResult,
     conversation: IConversation[TMessage, TIndex],
-    options: AnswerContextOptions | None = None,
+    options: AnswerContextOptions | None,
     *,
     generator: _TranslatorAnswerGenerator | None = None,
 ) -> AnswerResponse:
+    print(f"generate_answer(options={options})")
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
     from . import answer_generator as answer_gen
 
@@ -156,6 +163,7 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
         cast(answer_gen.IAnswerGenerator, generator),
         search_result.raw_query_text,
         search_result,
+        progress=None,
         context_options=options,
     )
     if isinstance(result, typechat.Failure):
@@ -447,12 +455,9 @@ def text_range_from_message_range(
 ) -> TextRange | None:
     if start == end:
         # Point location
-        return TextRange(start=TextLocation(message_ordinal=start))
+        return TextRange(TextLocation(start))
     elif start < end:
-        return TextRange(
-            start=TextLocation(message_ordinal=start),
-            end=TextLocation(message_ordinal=end),
-        )
+        return TextRange(TextLocation(start), TextLocation(end))
     else:
         raise ValueError(f"Expect message ordinal range: {start} <= {end}")
 

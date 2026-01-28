@@ -21,7 +21,7 @@ class AnswerContextOptions:
     debug: bool | None = None
 
 
-def answer_context_to_string(context: AnswerContext, spaces: int | None = None) -> str:
+def answer_context_to_string(context: AnswerContext, spaces: int | None = 0) -> str:
     json_parts: list[str] = ["{\n"]
     property_count = 0
 
