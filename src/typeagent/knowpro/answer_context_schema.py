@@ -52,7 +52,7 @@ class RelevantMessage:
 
 @dataclass
 class AnswerContext:
-    """Use empty lists for unneeded properties."""
+    """Use None for unneeded properties."""
 
     entities: Annotated[
         list[RelevantKnowledge] | None,
