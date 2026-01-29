@@ -25,7 +25,7 @@ PodcastMessageMeta = ConversationMessageMeta
 # TypedDict for serialization (kept for backward compatibility with saved files)
 class PodcastMessageMetaData(TypedDict):
     speaker: str | None
-    listeners: list[str]  # Updated to match serialized ConversationMessageMeta
+    listeners: list[str]  # Must match serialized ConversationMessageMeta
 
 
 class PodcastMessageData(TypedDict):
