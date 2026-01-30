@@ -3,7 +3,7 @@
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 import black
 
@@ -52,8 +52,12 @@ class _TranslatorAnswerGenerator:
         translator: typechat.TypeChatJsonTranslator[AnswerResponse],
         settings: _TranslatorAnswerGeneratorSettings | None = None,
     ) -> None:
-        self.settings = settings or _TranslatorAnswerGeneratorSettings()
+        self._settings = settings or _TranslatorAnswerGeneratorSettings()
         self._translator = translator
+
+    @property
+    def settings(self) -> _TranslatorAnswerGeneratorSettings:
+        return self._settings
 
     async def generate_answer(
         self, question: str, context: AnswerContext | str, debug: bool
@@ -157,7 +161,7 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     generator = generator or _TranslatorAnswerGenerator(translator)
     result = await answer_gen.generate_answer(
         conversation,
-        cast(answer_gen.IAnswerGenerator, generator),
+        generator,
         search_result.raw_query_text,
         search_result,
         progress=None,

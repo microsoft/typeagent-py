@@ -52,10 +52,19 @@ class AnswerGeneratorSettings:
     include_context_schema: bool | None = None
 
 
+class IAnswerGeneratorSettings(Protocol):
+    max_chars_in_budget: int
+    concurrency: int
+    fast_stop: bool
+    model_instructions: list[typechat.PromptSection] | None
+    include_context_schema: bool | None
+
+
 class IAnswerGenerator(Protocol):
     """Protocol for answer generators."""
 
-    settings: AnswerGeneratorSettings
+    @property
+    def settings(self) -> IAnswerGeneratorSettings: ...
 
     async def generate_answer(
         self, question: str, context: AnswerContext | str, debug: bool
@@ -191,7 +200,7 @@ async def generate_multiple_choice_answer(
 
 class AnswerGenerator(IAnswerGenerator):
     def __init__(self, settings: AnswerGeneratorSettings | None = None) -> None:
-        self.settings = settings or create_answer_generator_settings()
+        self._settings = settings or create_answer_generator_settings()
         self.answer_translator = create_answer_translator(
             self.settings.answer_generator_model
         )
@@ -199,6 +208,10 @@ class AnswerGenerator(IAnswerGenerator):
             self.settings.answer_generator_model
         )
         self.context_type_name = "AnswerContext"
+
+    @property
+    def settings(self) -> AnswerGeneratorSettings:
+        return self._settings
 
     async def generate_answer(
         self, question: str, context: AnswerContext | str, debug: bool
