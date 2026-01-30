@@ -467,10 +467,7 @@ async def get_enclosing_date_range_for_text_range(
     messages: IMessageCollection,
     range: TextRange,
 ) -> DateRange | None:
-    start_location = range.start
-    start_timestamp = (
-        await messages.get_item(start_location.message_ordinal)
-    ).timestamp
+    start_timestamp = (await messages.get_item(range.start.message_ordinal)).timestamp
     if not start_timestamp:
         return None
     end_timestamp = (
@@ -479,8 +476,8 @@ async def get_enclosing_date_range_for_text_range(
         else None
     )
     return DateRange(
-        start=Datetime.fromisoformat(start_timestamp),
-        end=Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
+        Datetime.fromisoformat(start_timestamp),
+        Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
     )
 
 
@@ -580,8 +577,7 @@ def merge_scored_concrete_entities(
 def merge_message_ordinals(merged_entity: MergedKnowledge, sr: SemanticRef) -> None:
     if merged_entity.source_message_ordinals is None:
         merged_entity.source_message_ordinals = set()
-    start_location = sr.range.start
-    merged_entity.source_message_ordinals.add(start_location.message_ordinal)
+    merged_entity.source_message_ordinals.add(sr.range.start.message_ordinal)
 
 
 def concrete_to_merged_entity(
