@@ -392,6 +392,7 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
     if last_stage < 4:
         return
 
+    context.answer_context_options.debug = context.debug4 == "full"
     all_answers, combined_answer = await answers.generate_answers(
         context.answer_translator,
         search_results,
@@ -610,7 +611,11 @@ async def main():
             max_message_matches=25,
         ),
         answers.AnswerContextOptions(
-            entities_top_k=50, topics_top_k=50, messages_top_k=None, chunking=None
+            entities_top_k=50,
+            topics_top_k=50,
+            messages_top_k=None,
+            chunking=None,
+            debug=args.debug4 == "full",
         ),
         ConversationHistory(max_entries=args.history_size),
     )
