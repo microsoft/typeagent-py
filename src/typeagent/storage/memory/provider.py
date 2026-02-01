@@ -3,7 +3,6 @@
 
 """In-memory storage provider implementation."""
 
-
 from datetime import datetime
 
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings

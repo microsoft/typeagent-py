@@ -157,18 +157,14 @@ class TestSqliteTimestampToTextRangeIndex:
 
         # First, we need to create some messages in the database for the timestamps to reference
         cursor = sqlite_db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO Messages (msg_id, chunks, start_timestamp)
             VALUES (1, '["test message 1"]', NULL)
-        """
-        )
-        cursor.execute(
-            """
+        """)
+        cursor.execute("""
             INSERT INTO Messages (msg_id, chunks, start_timestamp)
             VALUES (2, '["test message 2"]', NULL)
-        """
-        )
+        """)
         sqlite_db.commit()
 
         # Add timestamps to existing messages

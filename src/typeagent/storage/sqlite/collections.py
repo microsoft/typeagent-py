@@ -46,12 +46,10 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
 
     async def _async_iterator(self) -> typing.AsyncGenerator[TMessage, None]:
         cursor = self.db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT chunks, chunk_uri, start_timestamp, tags, metadata, extra
             FROM Messages ORDER BY msg_id
-            """
-        )
+            """)
         for row in cursor:
             message = self._deserialize_message_from_row(row)
             yield message
@@ -288,12 +286,10 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
 
     async def __aiter__(self) -> typing.AsyncGenerator[interfaces.SemanticRef, None]:
         cursor = self.db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT semref_id, range_json, knowledge_type, knowledge_json
             FROM SemanticRefs ORDER BY semref_id
-            """
-        )
+            """)
         for row in cursor:
             yield self._deserialize_semantic_ref_from_row(row)
 
@@ -335,12 +331,10 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         if len(arg) < 2:
             return [await self.get_item(ordinal) for ordinal in arg]
         cursor = self.db.cursor()
-        cursor.execute(
-            f"""
+        cursor.execute(f"""
             SELECT semref_id, range_json, knowledge_type, knowledge_json
             FROM SemanticRefs WHERE semref_id IN {tuple(arg)}
-            """
-        )
+            """)
         rows = cursor.fetchall()
         rowdict = {row[0]: row for row in rows}
         assert set(rowdict) == set(arg)

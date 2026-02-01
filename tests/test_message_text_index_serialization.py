@@ -28,18 +28,14 @@ class TestMessageTextIndexSerialization:
 
         # Add test messages to the database
         cursor = db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO Messages (msg_id, chunks, extra, tags, metadata)
             VALUES (1, '["First test message", "Second chunk"]', '{}', '[]', '{}')
-        """
-        )
-        cursor.execute(
-            """
+        """)
+        cursor.execute("""
             INSERT INTO Messages (msg_id, chunks, extra, tags, metadata)
             VALUES (2, '["Another message"]', '{}', '[]', '{}')
-        """
-        )
+        """)
         db.commit()
 
         return db

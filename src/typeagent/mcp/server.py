@@ -3,7 +3,6 @@
 
 """Fledgling MCP server on top of typeagent."""
 
-
 import argparse
 from dataclasses import dataclass
 import os
