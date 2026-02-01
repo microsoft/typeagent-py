@@ -189,3 +189,13 @@ async def test_sqlite_timestamp_index(
     empty_range = DateRange(start=empty_start, end=empty_end)
     empty_results = await timestamp_index.lookup_range(empty_range)
     assert len(empty_results) == 0
+
+
+@pytest.mark.asyncio
+async def test_sqlite_connection_isolation_level(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """Verify that the SQLite connection uses isolation_level=None for manual transaction control."""
+    # isolation_level=None enables autocommit mode, which allows manual
+    # transaction control via BEGIN/COMMIT/ROLLBACK statements
+    assert dummy_sqlite_storage_provider.db.isolation_level is None
