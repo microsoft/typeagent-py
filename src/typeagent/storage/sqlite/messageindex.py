@@ -299,13 +299,11 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         """Serialize the message text index."""
         # Get all data from the MessageTextIndex table
         cursor = self.db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT msg_id, chunk_ordinal, embedding
             FROM MessageTextIndex
             ORDER BY msg_id, chunk_ordinal
-        """
-        )
+        """)
 
         # Build the text locations and embeddings
         text_locations = []
