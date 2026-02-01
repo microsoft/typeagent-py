@@ -13,8 +13,9 @@ This demonstrates the end-to-end query pattern:
 
 import asyncio
 
+from dotenv import load_dotenv
+
 from typeagent import create_conversation
-from typeagent.aitools.utils import load_dotenv
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
 

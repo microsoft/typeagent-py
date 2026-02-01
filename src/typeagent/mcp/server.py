@@ -19,6 +19,8 @@ import typechat
 # Enable coverage.py before local imports (a no-op unless COVERAGE_PROCESS_START is set).
 coverage.process_startup()
 
+from dotenv import load_dotenv
+
 from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import answers, query, searchlang
 from typeagent.knowpro.answer_response_schema import AnswerResponse
@@ -250,7 +252,7 @@ async def query_conversation(
 # Run the MCP server
 if __name__ == "__main__":
     # Load env vars
-    utils.load_dotenv()
+    load_dotenv()
 
     # Set up command-line argument parsing and parse command line
     parser = argparse.ArgumentParser(description="MCP server for knowpro")

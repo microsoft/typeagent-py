@@ -13,7 +13,6 @@ import time
 
 import black
 import colorama
-import dotenv
 
 import typechat
 
@@ -76,21 +75,6 @@ def reindent(text: str) -> str:
         twice_indent_level = (len(line) - len(stripped_line) + 1) // 2  # Round up
         reindented_lines.append(" " * twice_indent_level + stripped_line)
     return "\n".join(reindented_lines)
-
-
-def load_dotenv() -> None:
-    """Load environment variables from '<repo_root>/.env'."""
-    # Look for ".env" in current directory and up until root.
-    cur_dir = os.path.abspath(os.getcwd())
-    while True:
-        path = os.path.join(cur_dir, ".env")
-        if os.path.exists(path):
-            dotenv.load_dotenv(path)
-            return
-        parent_dir = os.path.dirname(cur_dir)
-        if parent_dir == cur_dir:
-            break  # Reached filesystem root ('/').
-        cur_dir = parent_dir
 
 
 def create_translator[T](

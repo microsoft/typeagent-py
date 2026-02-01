@@ -21,12 +21,13 @@ various types of transcripts.
 ### Basic Ingestion
 
 ```python
+from dotenv import load_dotenv
+
 from typeagent.transcripts.transcript_ingest import ingest_vtt_transcript
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.aitools import utils
 
 # Load environment variables for API keys from .env file
-utils.load_dotenv()
+load_dotenv()
 
 # Create settings (tweak as needed)
 settings = ConversationSettings()

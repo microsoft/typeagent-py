@@ -18,6 +18,7 @@ try:
 except ImportError:
     pass  # readline not available on Windows
 
+from dotenv import load_dotenv
 from query import print_result
 
 import typechat
@@ -105,7 +106,7 @@ async def main():
         print(e)
         sys.exit(1)
 
-    utils.load_dotenv()
+    load_dotenv()
 
     print("Email Memory Demo")
 

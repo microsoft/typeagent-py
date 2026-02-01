@@ -11,7 +11,7 @@ When moving, copying or deleting files, use the git commands: `git mv`, `git cp`
 
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
 - Activate `.venv`: `make venv; source .venv/bin/activate` (run this only once)
-- To get API keys in ad-hoc code, call `typeagent.aitools.utils.load_dotenv()`
+- To get API keys in ad-hoc code, call `load_dotenv()` from the `dotenv` package
 - Use `pytest test` to run tests in test/
 - Use `pyright` to check type annotations in src/, tools/,  tests/, examples/
 - Ignore build/, dist/

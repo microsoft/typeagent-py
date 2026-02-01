@@ -29,6 +29,8 @@ try:
 except ImportError:
     pass
 
+from dotenv import load_dotenv
+
 import typechat
 
 from typeagent.aitools import embeddings, utils
@@ -528,7 +530,7 @@ async def handle_at_command(context: ProcessingContext, line: str) -> None:
 
 
 async def main():
-    utils.load_dotenv()
+    load_dotenv()
     colorama_init(autoreset=True)
 
     parser = make_arg_parser("TypeAgent Query Tool")
