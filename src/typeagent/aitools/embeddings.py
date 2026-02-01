@@ -98,8 +98,9 @@ class AsyncEmbeddingModel:
             openai_key_name = "OPENAI_API_KEY"
             azure_key_name = "AZURE_OPENAI_API_KEY"
             if openai_key := os.getenv(openai_key_name):
-                endpoint = os.getenv(self.endpoint_envvar)
-                with timelog(f"Using OpenAI"):
+                # For standard OpenAI, use OPENAI_BASE_URL (optional)
+                endpoint = os.getenv("OPENAI_BASE_URL")
+                with timelog("Using OpenAI"):
                     self.async_client = AsyncOpenAI(
                         base_url=endpoint, api_key=openai_key, max_retries=max_retries
                     )

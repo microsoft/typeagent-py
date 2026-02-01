@@ -52,8 +52,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         provided_message_settings = message_text_index_settings
         provided_related_settings = related_term_index_settings
 
-        # Initialize database connection
-        self.db = sqlite3.connect(db_path)
+        # Initialize database connection with autocommit mode
+        # isolation_level=None enables manual transaction control via BEGIN/COMMIT
+        self.db = sqlite3.connect(db_path, isolation_level=None)
 
         # Configure SQLite for optimal bulk insertion performance
         # TODO: Move into init_db_schema()
