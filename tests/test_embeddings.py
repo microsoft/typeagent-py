@@ -143,6 +143,7 @@ async def test_set_endpoint(monkeypatch: MonkeyPatch):
     """Test creating of model with custom endpoint."""
 
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "does-not-matter")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # Ensure Azure path is used
 
     # Default
     monkeypatch.setenv(

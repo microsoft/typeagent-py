@@ -84,7 +84,10 @@ class AsyncEmbeddingModel:
             )
 
         if endpoint_envvar is None:
-            if suggested_endpoint_envvar is not None:
+            # Check if OpenAI credentials are available, prefer OpenAI over Azure
+            if os.getenv("OPENAI_API_KEY"):
+                endpoint_envvar = "OPENAI_BASE_URL"  # Use OpenAI
+            elif suggested_endpoint_envvar is not None:
                 endpoint_envvar = suggested_endpoint_envvar
             else:
                 endpoint_envvar = DEFAULT_ENVVAR
