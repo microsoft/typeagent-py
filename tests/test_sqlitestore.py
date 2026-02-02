@@ -199,3 +199,18 @@ async def test_sqlite_connection_isolation_level(
     # isolation_level=None enables autocommit mode, which allows manual
     # transaction control via BEGIN/COMMIT/ROLLBACK statements
     assert dummy_sqlite_storage_provider.db.isolation_level is None
+
+
+@pytest.mark.asyncio
+async def test_sqlite_nested_transaction_error(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """Verify that nested transactions are handled gracefully with a clear error."""
+    provider = dummy_sqlite_storage_provider
+
+    # First transaction should work
+    async with provider:
+        # Try to start a nested transaction - should raise a clear RuntimeError
+        with pytest.raises(RuntimeError, match="Cannot start a new transaction"):
+            async with provider:
+                pass
