@@ -22,7 +22,7 @@ type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
 
 DEFAULT_MODEL_NAME = "text-embedding-ada-002"
 DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
-DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING" # We support OpenAI and Azure OpenAI
+DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"  # We support OpenAI and Azure OpenAI
 TEST_MODEL_NAME = "test"
 MAX_BATCH_SIZE = 2048
 MAX_TOKEN_SIZE = 4096
