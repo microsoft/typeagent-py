@@ -22,8 +22,7 @@ type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
 
 DEFAULT_MODEL_NAME = "text-embedding-ada-002"
 DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
-DEFAULT_AZURE_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
-DEFAULT_OPENAI_ENVVAR = "OPENAI_BASE_URL"
+DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
 TEST_MODEL_NAME = "test"
 MAX_BATCH_SIZE = 2048
 MAX_TOKEN_SIZE = 4096
@@ -31,29 +30,19 @@ MAX_TOKENS_PER_BATCH = 300_000
 MAX_CHAR_SIZE = MAX_TOKEN_SIZE * 3
 MAX_CHARS_PER_BATCH = MAX_TOKENS_PER_BATCH * 3
 
-# Map model names to (embedding_size, azure_endpoint_envvar, openai_endpoint_envvar)
-model_to_embedding_config: dict[str, tuple[int | None, str, str | None]] = {
-    DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_AZURE_ENVVAR, None),
-    "text-embedding-3-small": (
-        1536,
-        "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL",
-        None,
-    ),
-    "text-embedding-3-large": (
-        3072,
-        "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE",
-        None,
-    ),
+model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
+    DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
+    "text-embedding-3-small": (1536, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
+    "text-embedding-3-large": (3072, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
     # For testing only, not a real model (insert real embeddings above)
-    TEST_MODEL_NAME: (3, "SIR_NOT_APPEARING_IN_THIS_FILM", None),
+    TEST_MODEL_NAME: (3, "SIR_NOT_APPEARING_IN_THIS_FILM"),
 }
 
 
 class AsyncEmbeddingModel:
     model_name: str
     embedding_size: int
-    azure_endpoint_envvar: str
-    openai_endpoint_envvar: str | None
+    endpoint_envvar: str
     azure_token_provider: AzureTokenProvider | None
     async_client: AsyncOpenAI | None
     azure_endpoint: str
@@ -68,25 +57,16 @@ class AsyncEmbeddingModel:
         self,
         embedding_size: int | None = None,
         model_name: str | None = None,
-        azure_endpoint_envvar: str | None = None,
-        openai_endpoint_envvar: str | None = None,
+        endpoint_envvar: str | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
     ):
         if model_name is None:
             model_name = DEFAULT_MODEL_NAME
         self.model_name = model_name
 
-        config = model_to_embedding_config.get(model_name)
-        if config is not None:
-            (
-                suggested_embedding_size,
-                suggested_azure_envvar,
-                suggested_openai_envvar,
-            ) = config
-        else:
-            suggested_embedding_size = None
-            suggested_azure_envvar = None
-            suggested_openai_envvar = None
+        suggested_embedding_size, suggested_endpoint_envvar = (
+            model_to_embedding_size_and_envvar.get(model_name, (None, None))
+        )
 
         if embedding_size is None:
             if suggested_embedding_size is not None:
@@ -103,43 +83,33 @@ class AsyncEmbeddingModel:
                 f"Cannot customize embedding_size for default model {DEFAULT_MODEL_NAME}"
             )
 
-        if azure_endpoint_envvar is None:
-            if suggested_azure_envvar is not None:
-                azure_endpoint_envvar = suggested_azure_envvar
+        if endpoint_envvar is None:
+            if suggested_endpoint_envvar is not None:
+                endpoint_envvar = suggested_endpoint_envvar
             else:
-                azure_endpoint_envvar = DEFAULT_AZURE_ENVVAR
-        self.azure_endpoint_envvar = azure_endpoint_envvar
-
-        if openai_endpoint_envvar is None:
-            if suggested_openai_envvar is not None:
-                openai_endpoint_envvar = suggested_openai_envvar
-            else:
-                openai_endpoint_envvar = DEFAULT_OPENAI_ENVVAR
-        self.openai_endpoint_envvar = openai_endpoint_envvar
+                endpoint_envvar = DEFAULT_ENVVAR
+        self.endpoint_envvar = endpoint_envvar
 
         self.azure_token_provider = None
 
         if self.model_name == TEST_MODEL_NAME:
             self.async_client = None
+        elif "AZURE" in self.endpoint_envvar:
+            # Azure OpenAI path: envvar contains "AZURE"
+            azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+            if not azure_api_key:
+                raise ValueError("AZURE_OPENAI_API_KEY not found in environment.")
+            with timelog("Using Azure OpenAI"):
+                self._setup_azure(azure_api_key)
         else:
-            openai_key_name = "OPENAI_API_KEY"
-            azure_key_name = "AZURE_OPENAI_API_KEY"
-            if openai_key := os.getenv(openai_key_name):
-                endpoint = (
-                    os.getenv(self.openai_endpoint_envvar)
-                    if self.openai_endpoint_envvar
-                    else None
-                )
-                with timelog("Using OpenAI"):
-                    self.async_client = AsyncOpenAI(
-                        base_url=endpoint, api_key=openai_key, max_retries=max_retries
-                    )
-            elif azure_api_key := os.getenv(azure_key_name):
-                with timelog("Using Azure OpenAI"):
-                    self._setup_azure(azure_api_key)
-            else:
-                raise ValueError(
-                    f"Neither {openai_key_name} nor {azure_key_name} found in environment."
+            # OpenAI path: envvar does not contain "AZURE"
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                raise ValueError("OPENAI_API_KEY not found in environment.")
+            endpoint = os.getenv(self.endpoint_envvar)
+            with timelog("Using OpenAI"):
+                self.async_client = AsyncOpenAI(
+                    base_url=endpoint, api_key=openai_key, max_retries=max_retries
                 )
 
         if self.model_name in tiktoken_model.MODEL_TO_ENCODING:
@@ -159,7 +129,7 @@ class AsyncEmbeddingModel:
 
         azure_api_key = get_azure_api_key(azure_api_key)
         self.azure_endpoint, self.azure_api_version = parse_azure_endpoint(
-            self.azure_endpoint_envvar
+            self.endpoint_envvar
         )
 
         if azure_api_key != os.getenv("AZURE_OPENAI_API_KEY"):
