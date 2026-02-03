@@ -19,6 +19,8 @@ import argparse
 import asyncio
 import os
 
+from dotenv import load_dotenv
+
 from typeagent.aitools import utils
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts import podcast
@@ -122,7 +124,7 @@ def main():
         )
 
     # Load environment variables for API access
-    utils.load_dotenv()
+    load_dotenv()
 
     # Run the loading process
     asyncio.run(load_json_to_database(args.index_path, args.database, args.verbose))

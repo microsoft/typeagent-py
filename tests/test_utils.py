@@ -5,6 +5,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 import os
 
+from dotenv import load_dotenv
+
 import typeagent.aitools.utils as utils
 
 
@@ -30,7 +32,7 @@ def test_pretty_print():
 
 def test_load_dotenv(really_needs_auth):
     # Call load_dotenv and check for at least one expected key
-    utils.load_dotenv()
+    load_dotenv()
     assert "OPENAI_API_KEY" in os.environ or "AZURE_OPENAI_API_KEY" in os.environ
 
 

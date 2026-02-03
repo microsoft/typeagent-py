@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 import coverage
+from dotenv import load_dotenv
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -250,7 +251,7 @@ async def query_conversation(
 # Run the MCP server
 if __name__ == "__main__":
     # Load env vars
-    utils.load_dotenv()
+    load_dotenv()
 
     # Set up command-line argument parsing and parse command line
     parser = argparse.ArgumentParser(description="MCP server for knowpro")

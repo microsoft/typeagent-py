@@ -54,7 +54,7 @@ If you set both `OPENAI_API_KEY` and `AZURE_OPENAI_API_KEY`,
 
 It is recommended to put your environment variables in a file named
 `.env` in the current or parent directory.
-To pick up these variables, call `typeagent.aitools.utils.load_dotenv()`
+To pick up these variables, call `load_dotenv()`
 at the start of your program (before calling any typeagent functions).
 (For simplicity this is not shown in
 [Getting Started](getting-started.md).)
