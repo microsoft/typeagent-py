@@ -143,6 +143,7 @@ async def test_set_endpoint(monkeypatch: MonkeyPatch):
     """Test creating of model with custom endpoint."""
 
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "does-not-matter")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)  # Ensure Azure path is used
 
     # Default
     monkeypatch.setenv(
@@ -174,11 +175,11 @@ async def test_set_endpoint(monkeypatch: MonkeyPatch):
     assert embedding_model.model_name == "text-embedding-3-small"
     assert embedding_model.endpoint_envvar == "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"
 
-    # Fully custom
+    # Fully custom with OpenAI
     monkeypatch.setenv("OPENAI_API_KEY", "does-not-matter")
     monkeypatch.setenv("INFINITY_EMBEDDING_URL", "http://localhost:7997")
     embedding_model = AsyncEmbeddingModel(
-        1024, "custom_model", "INFINITY_EMBEDDING_URL"
+        1024, "custom_model", endpoint_envvar="INFINITY_EMBEDDING_URL"
     )
     assert embedding_model.embedding_size == 1024
     assert embedding_model.model_name == "custom_model"
@@ -186,14 +187,20 @@ async def test_set_endpoint(monkeypatch: MonkeyPatch):
     assert embedding_model.async_client is not None
     assert embedding_model.async_client.base_url == "http://localhost:7997"
     assert embedding_model.async_client.api_key == "does-not-matter"
+    assert embedding_model.endpoint_envvar == "INFINITY_EMBEDDING_URL"
 
-    # Customized 3-small
+    # Customized 3-small with Azure (endpoint_envvar must contain "AZURE")
+    monkeypatch.delenv("OPENAI_API_KEY")  # Force Azure path
+    monkeypatch.setenv(
+        "AZURE_ALTERNATE_ENDPOINT",
+        "http://localhost:7999?api-version=2024-06-01",
+    )
     embedding_model = AsyncEmbeddingModel(
-        2000, "text-embedding-3-small", "ALTERNATE_ENDPOINT"
+        2000, "text-embedding-3-small", endpoint_envvar="AZURE_ALTERNATE_ENDPOINT"
     )
     assert embedding_model.embedding_size == 2000
     assert embedding_model.model_name == "text-embedding-3-small"
-    assert embedding_model.endpoint_envvar == "ALTERNATE_ENDPOINT"
+    assert embedding_model.endpoint_envvar == "AZURE_ALTERNATE_ENDPOINT"
 
     # Allow explicitly setting default embedding size
     AsyncEmbeddingModel(1536)

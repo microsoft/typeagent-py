@@ -189,3 +189,18 @@ async def test_sqlite_timestamp_index(
     empty_range = DateRange(start=empty_start, end=empty_end)
     empty_results = await timestamp_index.lookup_range(empty_range)
     assert len(empty_results) == 0
+
+
+@pytest.mark.asyncio
+async def test_sqlite_nested_transaction_error(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """Verify that nested transactions are handled gracefully with a clear error."""
+    provider = dummy_sqlite_storage_provider
+
+    # First transaction should work
+    async with provider:
+        # Try to start a nested transaction - should raise a clear RuntimeError
+        with pytest.raises(RuntimeError, match="Cannot start a new transaction"):
+            async with provider:
+                pass
