@@ -20,6 +20,7 @@ import typing
 
 from colorama import Fore
 from colorama import init as colorama_init
+from dotenv import load_dotenv
 import numpy as np
 
 readline = None
@@ -28,8 +29,6 @@ try:
         import readline
 except ImportError:
     pass
-
-from dotenv import load_dotenv
 
 import typechat
 

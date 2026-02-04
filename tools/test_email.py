@@ -12,14 +12,13 @@ import traceback
 from typing import Any, Awaitable, Callable, Iterable, Literal
 
 from colorama import Fore
+from dotenv import load_dotenv
+from query import print_result
 
 try:
     import readline  # type: ignore
 except ImportError:
     pass  # readline not available on Windows
-
-from dotenv import load_dotenv
-from query import print_result
 
 import typechat
 
