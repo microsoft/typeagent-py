@@ -13,6 +13,7 @@ format: venv
 
 .PHONY: check
 check: venv
+	@python3 tools/check_utils.py
 	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools examples
 
 .PHONY: test
