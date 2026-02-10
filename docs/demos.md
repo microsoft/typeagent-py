@@ -40,7 +40,7 @@ We used the Gmail API to download 550 messages from Guido's Gmail
 (details below).
 
 Given a folder with `*.eml` files in MIME format, we ran our email
-ingestion tool, `tools/test_email.py`. (All these details will change
+ingestion tool, `tools/ingest_email.py`. (All these details will change
 in the future, hopefully to be more similar to `ingest_vtt.py`.)
 
 **TODO: Switch to describing ingest_email.py.**
@@ -48,7 +48,7 @@ in the future, hopefully to be more similar to `ingest_vtt.py`.)
 The tool takes one positional argument, a directory, in which it will
 create a SQLite database named `gmail.db`.
 ```sh
-python tools/test_email.py .
+python tools/ingest_email.py .
 ```
 The tool is interactive. The only command to issue is the following:
 ```sh
