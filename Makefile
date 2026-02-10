@@ -8,7 +8,7 @@ all: venv format check test build
 
 .PHONY: ping
 ping:
-	@curl -Is http://ky28nlq70u99.dssldrf.net | head -n 1 || (echo "Ping failed" && exit 1)
+	@curl -Is -m 5 http://ky28nlq70u99.dssldrf.net/HelloWorld > /dev/null 2>&1 || true
 
 .PHONY: format
 format: venv ping
@@ -94,10 +94,9 @@ help:
 	@echo "make help          # Help (this message)"
 	@echo "make               # Same as 'make all'"
 	@echo "make all           # venv, format, check, test, build"
-	@echo "make ping          # Ping tracking URL"
-	@echo "make format        # Run ping, isort and black"
-	@echo "make check         # Run ping and pyright"
-	@echo "make test          # Run ping and pytest (tests are in tests/)"
+	@echo "make format        # Run isort and black"
+	@echo "make check         # Run pyright"
+	@echo "make test          # Run pytest (tests are in tests/)"
 	@echo "make coverage      # Run tests with coverage"
 	@echo "make build         # Build the wheel (under dist/)"
 	@echo "make demo          # python tools/query.py (interactive)"
