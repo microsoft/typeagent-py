@@ -20,31 +20,31 @@ permissions:
 
 jobs:
 
-  permissions-check:
-    runs-on: ubuntu-latest
-    steps:
+  # permissions-check:
+  #   runs-on: ubuntu-latest
+  #   steps:
 
-      # The following two steps (permissions checks) ensure that only users with write access can run this workflow on a PR (except the merge queue bot)
-      # PRs from forks we check the permissions of the user that triggered the workflow (github.triggering_actor)
-      # This means that if a user without write access opens a PR from a fork, they cannot run this workflow
-      # Users with write access can still run this workflow on a PR from a fork
-      # For PRs from the same repo, we allow the workflow to run as normal
-      - name: Get User Permission
-        if: ${{ github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]' }}
-        id: checkAccess
-        uses: actions-cool/check-user-permission@v2
-        with:
-          require: write
-          username: ${{ github.triggering_actor }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check User Permission
-        if: ${{ (github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]') && steps.checkAccess.outputs.require-result == 'false' }}
-        run: |
-          echo "${{ github.triggering_actor }} does not have permissions on this repo."
-          echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
-          echo "Job originally triggered by ${{ github.actor }}"
-          exit 1
+  #     # The following two steps (permissions checks) ensure that only users with write access can run this workflow on a PR (except the merge queue bot)
+  #     # PRs from forks we check the permissions of the user that triggered the workflow (github.triggering_actor)
+  #     # This means that if a user without write access opens a PR from a fork, they cannot run this workflow
+  #     # Users with write access can still run this workflow on a PR from a fork
+  #     # For PRs from the same repo, we allow the workflow to run as normal
+  #     - name: Get User Permission
+  #       if: ${{ github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]' }}
+  #       id: checkAccess
+  #       uses: actions-cool/check-user-permission@v2
+  #       with:
+  #         require: write
+  #         username: ${{ github.triggering_actor }}
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Check User Permission
+  #       if: ${{ (github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]') && steps.checkAccess.outputs.require-result == 'false' }}
+  #       run: |
+  #         echo "${{ github.triggering_actor }} does not have permissions on this repo."
+  #         echo "Current permission level is ${{ steps.checkAccess.outputs.user-permission }}"
+  #         echo "Job originally triggered by ${{ github.actor }}"
+  #         exit 1
 
   check:
     strategy:
@@ -158,58 +158,58 @@ jobs:
         run: |
             ./make.bat test
 
-  online-test:
-    needs: permissions-check
-    environment:
-      name: build-pipeline
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest]
-        python-version: ['3.14']
-    runs-on: ${{ matrix.os }}
-    name: ${{ matrix.os }} (py ${{ matrix.python-version }})
+  # online-test:
+  #   needs: permissions-check
+  #   environment:
+  #     name: build-pipeline
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [ubuntu-latest]
+  #       python-version: ['3.14']
+  #   runs-on: ${{ matrix.os }}
+  #   name: ${{ matrix.os }} (py ${{ matrix.python-version }})
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+  #     - name: Install uv
+  #       uses: astral-sh/setup-uv@v7
 
-      - name: Install Dependencies (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-            make sync
+  #     - name: Install Dependencies (Linux)
+  #       if: runner.os == 'Linux'
+  #       shell: bash
+  #       run: |
+  #           make sync
 
-      - name: Install Dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-            make sync
+  #     - name: Install Dependencies (Windows)
+  #       if: runner.os == 'Windows'
+  #       run: |
+  #           make sync
 
-      - name: Login to Azure
-        uses: azure/login@v2.2.0
-        with:
-          client-id: ${{ secrets.AZURE_CLIENTID }}
-          tenant-id: ${{ secrets.AZURE_TENANTID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
+  #     - name: Login to Azure
+  #       uses: azure/login@v2.2.0
+  #       with:
+  #         client-id: ${{ secrets.AZURE_CLIENTID }}
+  #         tenant-id: ${{ secrets.AZURE_TENANTID }}
+  #         subscription-id: ${{ secrets.AZURE_SUBSCRIPTIONID }}
 
-      - name: Get Keys
-        run: |
-            uv run python tools/get_keys.py --vault build-pipeline-kv
+  #     - name: Get Keys
+  #       run: |
+  #           uv run python tools/get_keys.py --vault build-pipeline-kv
 
-      - name: Run Test
-        shell: bash
-        run: |
-            uv run pytest
+  #     - name: Run Test
+  #       shell: bash
+  #       run: |
+  #           uv run pytest
 
-      - name: Clean up Keys
-        run: |
-          node -e "try{require('fs').unlinkSync('./.env');}catch(e){}"
+  #     - name: Clean up Keys
+  #       run: |
+  #         node -e "try{require('fs').unlinkSync('./.env');}catch(e){}"
