@@ -40,27 +40,24 @@ We used the Gmail API to download 550 messages from Guido's Gmail
 (details below).
 
 Given a folder with `*.eml` files in MIME format, we ran our email
-ingestion tool, `tools/ingest_email.py`. (All these details will change
-in the future, hopefully to be more similar to `ingest_vtt.py`.)
-
-**TODO: Switch to describing ingest_email.py.**
-
-The tool takes one positional argument, a directory, in which it will
-create a SQLite database named `gmail.db`.
+ingestion tool, `tools/ingest_email.py`. You run it as follows:
 ```sh
-python tools/ingest_email.py .
+python tools/ingest_email.py -d gmail.db email-folder/
 ```
-The tool is interactive. The only command to issue is the following:
-```sh
-@add_messages --path "email-folder"
-```
+You can also pass individual `.eml` files instead of a directory.
+Use `-v` for verbose output.
+
 The process took over an hour for 500 messages. Moreover, it complained
 about nearly 10% of the messages due to timeouts or just overly large
 files. When an error occurs, the tool recovers and continues with the
-next file.
+next file. Previously ingested emails are automatically skipped on
+subsequent runs.
 
 We can then query the `gmail.db` database using the same `query.py`
-tool that we used for the Monty Python demo.
+tool that we used for the Monty Python demo:
+```sh
+python tools/query.py -d gmail.db
+```
 
 ### How to use the Gmail API to download messages
 
