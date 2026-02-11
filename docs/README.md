@@ -21,6 +21,6 @@
 
 ## Videos
 
-- Watch some [recorded demos typeagent-py and TypeAgent](videos)
-- Watch the [PyBay '25 video typeagent-py](https://youtu.be/-klESD7iB-s)
+- Watch some [recorded demos of typeagent-py and TypeAgent](videos)
+- Watch the [PyBay '25 typeagent-py video](https://youtu.be/-klESD7iB-s)
 - Watch the [Microsoft Build '25 video TypeAgent TS](https://www.youtube.com/watch?v=acbUy2oZqmA)
