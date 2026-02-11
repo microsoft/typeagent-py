@@ -28,6 +28,8 @@ import sys
 import time
 import traceback
 
+from dotenv import load_dotenv
+
 import openai
 
 from typeagent.aitools import utils
@@ -114,7 +116,7 @@ async def ingest_emails(
     # Load environment for model API access
     if verbose:
         print("Loading environment...")
-    utils.load_dotenv()
+    load_dotenv()
 
     # Create conversation settings and storage provider
     if verbose:

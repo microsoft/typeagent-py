@@ -2,7 +2,8 @@ import argparse
 import asyncio
 import os
 
-from typeagent.aitools.utils import load_dotenv
+from dotenv import load_dotenv
+
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts.podcast_ingest import ingest_podcast
 
