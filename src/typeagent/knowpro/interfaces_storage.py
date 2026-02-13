@@ -116,11 +116,11 @@ class IStorageProvider[TMessage: IMessage](Protocol):
 
     # Metadata management
 
-    def get_conversation_metadata(self) -> ConversationMetadata:
+    async def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata (missing fields set to None)."""
         ...
 
-    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+    async def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set or update conversation metadata key-value pairs.
         Args:
             **kwds: Metadata keys and values where:
@@ -130,7 +130,7 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """
         ...
 
-    def update_conversation_timestamps(
+    async def update_conversation_timestamps(
         self,
         created_at: Datetime | None = None,
         updated_at: Datetime | None = None,
@@ -139,15 +139,15 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         ...
 
     # Ingested source tracking
-    def is_source_ingested(self, source_id: str) -> bool:
+    async def is_source_ingested(self, source_id: str) -> bool:
         """Check if a source has already been ingested."""
         ...
 
-    def get_source_status(self, source_id: str) -> str | None:
+    async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source."""
         ...
 
-    def mark_source_ingested(
+    async def mark_source_ingested(
         self, source_id: str, status: str = STATUS_INGESTED
     ) -> None:
         """Mark a source as ingested (no commit; call within transaction context)."""

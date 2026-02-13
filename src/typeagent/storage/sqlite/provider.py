@@ -460,7 +460,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         if data.get("messageIndexData"):
             await self._message_text_index.deserialize(data["messageIndexData"])
 
-    def get_conversation_metadata(self) -> ConversationMetadata:
+    async def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata."""
         cursor = self.db.cursor()
 
@@ -548,7 +548,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             extra=extra if extra else None,
         )
 
-    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+    async def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set or update conversation metadata key-value pairs.
 
         Args:
@@ -568,7 +568,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         _set_conversation_metadata(self.db, **kwds)
 
-    def update_conversation_timestamps(
+    async def update_conversation_timestamps(
         self,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
@@ -621,7 +621,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """Get the database schema version."""
         return get_db_schema_version(self.db)
 
-    def is_source_ingested(self, source_id: str) -> bool:
+    async def is_source_ingested(self, source_id: str) -> bool:
         """Check if a source has already been ingested.
 
         This is a read-only operation that can be called outside of a transaction.
@@ -639,7 +639,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row is not None and row[0] == STATUS_INGESTED
 
-    def get_source_status(self, source_id: str) -> str | None:
+    async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 
         Args:
@@ -655,7 +655,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row[0] if row else None
 
-    def mark_source_ingested(
+    async def mark_source_ingested(
         self, source_id: str, status: str = STATUS_INGESTED
     ) -> None:
         """Mark a source as ingested.

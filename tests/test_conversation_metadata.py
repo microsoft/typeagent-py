@@ -3,7 +3,6 @@
 
 """Tests for conversation metadata operations in SQLite storage provider."""
 
-import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import field
 from datetime import datetime, timezone
@@ -95,11 +94,12 @@ async def storage_provider_memory() -> (
 class TestConversationMetadata:
     """Test conversation metadata operations."""
 
-    def test_get_conversation_metadata_nonexistent(
+    @pytest.mark.asyncio
+    async def test_get_conversation_metadata_nonexistent(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test getting metadata before any writes returns empty metadata."""
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         # Metadata is not initialized until first write, so all fields are None
         assert metadata.name_tag is None
         assert metadata.schema_version is None
@@ -110,19 +110,20 @@ class TestConversationMetadata:
         assert metadata.tags is None
         assert metadata.extra is None
 
-    def test_update_conversation_timestamps_new(
+    @pytest.mark.asyncio
+    async def test_update_conversation_timestamps_new(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating conversation metadata timestamps."""
         created_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         updated_at = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=created_at,
             updated_at=updated_at,
         )
 
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.name_tag == "conversation"
         assert metadata.schema_version == 1
@@ -136,56 +137,59 @@ class TestConversationMetadata:
         assert metadata.tags is None
         assert metadata.extra is None
 
-    def test_update_conversation_timestamps_existing(
+    @pytest.mark.asyncio
+    async def test_update_conversation_timestamps_existing(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating existing conversation metadata."""
         # Create initial metadata
         initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=initial_created,
             updated_at=initial_updated,
         )
 
         # Update only the updated_at timestamp
         new_updated = datetime(2024, 1, 2, 15, 30, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(updated_at=new_updated)
+        await storage_provider.update_conversation_timestamps(updated_at=new_updated)
 
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == initial_created  # Unchanged
         assert metadata.updated_at == new_updated  # Changed
 
-    def test_update_conversation_timestamps_partial_created_at(
+    @pytest.mark.asyncio
+    async def test_update_conversation_timestamps_partial_created_at(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating only created_at of existing conversation metadata."""
         # Create initial metadata
         initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=initial_created,
             updated_at=initial_updated,
         )
 
         # Update only the created_at timestamp
         new_created = datetime(2023, 12, 1, 10, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(created_at=new_created)
+        await storage_provider.update_conversation_timestamps(created_at=new_created)
 
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == new_created  # Changed
         assert metadata.updated_at == initial_updated  # Unchanged
 
-    def test_update_conversation_timestamps_both_timestamps(
+    @pytest.mark.asyncio
+    async def test_update_conversation_timestamps_both_timestamps(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating both timestamps of existing conversation metadata."""
         # Create initial metadata
         initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=initial_created,
             updated_at=initial_updated,
         )
@@ -193,54 +197,56 @@ class TestConversationMetadata:
         # Update both timestamps
         new_created = datetime(2023, 12, 1, 10, 0, 0, tzinfo=timezone.utc)
         new_updated = datetime(2024, 1, 2, 15, 30, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=new_created,
             updated_at=new_updated,
         )
 
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == new_created
         assert metadata.updated_at == new_updated
 
-    def test_update_conversation_timestamps_no_params(
+    @pytest.mark.asyncio
+    async def test_update_conversation_timestamps_no_params(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test calling update with no parameters on existing conversation."""
         # Create initial metadata
         initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=initial_created,
             updated_at=initial_updated,
         )
 
         # Call update with no parameters - should not change anything
-        storage_provider.update_conversation_timestamps()
+        await storage_provider.update_conversation_timestamps()
 
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == initial_created
         assert metadata.updated_at == initial_updated
 
-    def test_update_conversation_timestamps_none_values(
+    @pytest.mark.asyncio
+    async def test_update_conversation_timestamps_none_values(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test updating with explicit None values."""
         # Create initial metadata
         initial_created = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         initial_updated = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=initial_created,
             updated_at=initial_updated,
         )
 
         # Update with None values - should not change anything
-        storage_provider.update_conversation_timestamps(
+        await storage_provider.update_conversation_timestamps(
             created_at=None, updated_at=None
         )
 
-        metadata = storage_provider.get_conversation_metadata()
+        metadata = await storage_provider.get_conversation_metadata()
         assert metadata is not None
         assert metadata.created_at == initial_created
         assert metadata.updated_at == initial_updated
@@ -302,19 +308,19 @@ class TestConversationMetadata:
 
             try:
                 # Update timestamps for both conversations
-                provider1.update_conversation_timestamps(
+                await provider1.update_conversation_timestamps(
                     created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                     updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 )
 
-                provider2.update_conversation_timestamps(
+                await provider2.update_conversation_timestamps(
                     created_at=datetime(2024, 1, 2, 14, 0, 0, tzinfo=timezone.utc),
                     updated_at=datetime(2024, 1, 2, 14, 0, 0, tzinfo=timezone.utc),
                 )
 
                 # Verify each conversation sees its own metadata
-                read_metadata1 = provider1.get_conversation_metadata()
-                read_metadata2 = provider2.get_conversation_metadata()
+                read_metadata1 = await provider1.get_conversation_metadata()
+                read_metadata2 = await provider2.get_conversation_metadata()
 
                 assert read_metadata1.name_tag == "conversation_conv1"
                 assert read_metadata2.name_tag == "conversation_conv2"
@@ -366,15 +372,15 @@ class TestConversationMetadata:
 
         try:
             # Write metadata with alpha provider (first write wins)
-            provider_alpha.update_conversation_timestamps(
+            await provider_alpha.update_conversation_timestamps(
                 created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
             provider_alpha.db.commit()
 
             # Both providers should see the same metadata since it's the same DB
-            alpha_metadata = provider_alpha.get_conversation_metadata()
-            beta_metadata = provider_beta.get_conversation_metadata()
+            alpha_metadata = await provider_alpha.get_conversation_metadata()
+            beta_metadata = await provider_beta.get_conversation_metadata()
 
             # They should be the same since there's only one metadata row per DB
             assert alpha_metadata.name_tag == "conversation_alpha"  # First write wins
@@ -385,7 +391,8 @@ class TestConversationMetadata:
             await provider_alpha.close()
             await provider_beta.close()
 
-    def test_conversation_metadata_with_special_characters(
+    @pytest.mark.asyncio
+    async def test_conversation_metadata_with_special_characters(
         self, storage_provider: SqliteStorageProvider[DummyMessage]
     ):
         """Test conversation metadata with special characters in timestamps."""
@@ -400,11 +407,11 @@ class TestConversationMetadata:
         # Convert test timestamps to datetime objects for the API
         for timestamp_str in test_timestamps:
             timestamp_dt = parse_iso_datetime(timestamp_str)
-            storage_provider.update_conversation_timestamps(
+            await storage_provider.update_conversation_timestamps(
                 created_at=timestamp_dt, updated_at=timestamp_dt
             )
 
-            metadata = storage_provider.get_conversation_metadata()
+            metadata = await storage_provider.get_conversation_metadata()
             assert metadata is not None
             assert metadata.created_at == timestamp_dt
             assert metadata.updated_at == timestamp_dt
@@ -431,7 +438,7 @@ class TestConversationMetadata:
             metadata=metadata_input,
         )
 
-        provider1.update_conversation_timestamps(
+        await provider1.update_conversation_timestamps(
             created_at=created_at,
             updated_at=updated_at,
         )
@@ -446,7 +453,7 @@ class TestConversationMetadata:
         )
 
         try:
-            metadata = provider2.get_conversation_metadata()
+            metadata = await provider2.get_conversation_metadata()
             assert metadata.name_tag == "conversation_persistent_test"
             assert metadata.created_at == created_at
             assert metadata.updated_at == updated_at
@@ -461,15 +468,16 @@ class TestConversationMetadata:
 class TestConversationMetadataEdgeCases:
     """Test edge cases for conversation metadata operations."""
 
-    def test_empty_string_timestamps(
+    @pytest.mark.asyncio
+    async def test_empty_string_timestamps(
         self, storage_provider_memory: SqliteStorageProvider[DummyMessage]
     ):
         """Test behavior with None timestamps (should remain None)."""
-        storage_provider_memory.update_conversation_timestamps(
+        await storage_provider_memory.update_conversation_timestamps(
             created_at=None, updated_at=None
         )
 
-        metadata = storage_provider_memory.get_conversation_metadata()
+        metadata = await storage_provider_memory.get_conversation_metadata()
         # Calling with None values creates a row but leaves timestamps None
         assert metadata.name_tag == "conversation"
         assert metadata.schema_version == 1
@@ -497,12 +505,12 @@ class TestConversationMetadataEdgeCases:
         )
 
         try:
-            provider.update_conversation_timestamps(
+            await provider.update_conversation_timestamps(
                 created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
 
-            metadata = provider.get_conversation_metadata()
+            metadata = await provider.get_conversation_metadata()
             assert metadata.name_tag == long_name
         finally:
             await provider.close()
@@ -528,12 +536,12 @@ class TestConversationMetadataEdgeCases:
         )
 
         try:
-            provider.update_conversation_timestamps(
+            await provider.update_conversation_timestamps(
                 created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
 
-            metadata = provider.get_conversation_metadata()
+            metadata = await provider.get_conversation_metadata()
             assert metadata.name_tag == unicode_name
         finally:
             await provider.close()
@@ -564,21 +572,21 @@ class TestConversationMetadataEdgeCases:
 
         try:
             # Update from provider1
-            provider1.update_conversation_timestamps(
+            await provider1.update_conversation_timestamps(
                 created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
                 updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             )
             provider1.db.commit()
 
             # Update from provider2 - should update the same metadata row
-            provider2.update_conversation_timestamps(
+            await provider2.update_conversation_timestamps(
                 updated_at=datetime(2024, 1, 1, 13, 0, 0, tzinfo=timezone.utc)
             )
             provider2.db.commit()
 
             # Both should see the latest state
-            metadata1 = provider1.get_conversation_metadata()
-            metadata2 = provider2.get_conversation_metadata()
+            metadata1 = await provider1.get_conversation_metadata()
+            metadata2 = await provider2.get_conversation_metadata()
 
             assert metadata1 is not None
             assert metadata2 is not None
@@ -589,7 +597,8 @@ class TestConversationMetadataEdgeCases:
             await provider1.close()
             await provider2.close()
 
-    def test_embedding_metadata_mismatch_raises(
+    @pytest.mark.asyncio
+    async def test_embedding_metadata_mismatch_raises(
         self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
     ):
         """Ensure a mismatch between stored metadata and provided settings raises."""
@@ -604,12 +613,12 @@ class TestConversationMetadataEdgeCases:
             related_term_index_settings=related_terms_settings,
         )
 
-        provider.update_conversation_timestamps(
+        await provider.update_conversation_timestamps(
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
         provider.db.commit()
-        asyncio.run(provider.close())
+        await provider.close()
 
         mismatched_model = AsyncEmbeddingModel(
             embedding_size=embedding_settings.embedding_size + 1,
@@ -632,7 +641,8 @@ class TestConversationMetadataEdgeCases:
                 ),
             )
 
-    def test_embedding_model_mismatch_raises(
+    @pytest.mark.asyncio
+    async def test_embedding_model_mismatch_raises(
         self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
     ):
         """Ensure providing a different embedding model name raises."""
@@ -647,12 +657,12 @@ class TestConversationMetadataEdgeCases:
             related_term_index_settings=related_terms_settings,
         )
 
-        provider.update_conversation_timestamps(
+        await provider.update_conversation_timestamps(
             created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
         provider.db.commit()
-        asyncio.run(provider.close())
+        await provider.close()
 
         with sqlite3.connect(temp_db_path) as conn:
             conn.execute(
@@ -689,7 +699,7 @@ class TestConversationMetadataEdgeCases:
 
         try:
             # Get initial metadata (should be empty due to lazy initialization)
-            initial_metadata = provider.get_conversation_metadata()
+            initial_metadata = await provider.get_conversation_metadata()
             initial_updated_at = initial_metadata.updated_at
             assert initial_updated_at is None  # No writes yet
 
@@ -713,7 +723,7 @@ class TestConversationMetadataEdgeCases:
             await transcript.add_messages_with_indexing(messages)
 
             # Get updated metadata (should now have timestamps)
-            updated_metadata = provider.get_conversation_metadata()
+            updated_metadata = await provider.get_conversation_metadata()
             updated_updated_at = updated_metadata.updated_at
 
             # The updated_at timestamp should now be set
