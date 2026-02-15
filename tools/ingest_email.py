@@ -12,7 +12,10 @@ Usage:
     python tools/ingest_email.py -d email.db --eml inbox_dump/
     python tools/ingest_email.py -d email.db --eml message1.eml message2.eml
     python tools/ingest_email.py -d email.db --mbox mailbox.mbox
-    python query.py --database email.db --query "What was discussed?"
+    python tools/ingest_email.py -d email.db --mbox mailbox.mbox --first 100
+    python tools/ingest_email.py -d email.db --mbox mailbox.mbox --after 2023-01-01 --before 2023-02-01
+    
+    python tools/query.py --database email.db --query "What was discussed?"
 """
 
 """
