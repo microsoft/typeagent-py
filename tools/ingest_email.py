@@ -172,7 +172,7 @@ def _email_matches_date_filter(
         return True
     if after and email_dt < after:
         return False
-    if before and email_dt >= before:
+    if before and email_dt > before:
         return False
     return True
 
@@ -251,10 +251,10 @@ def _print_email_verbose(email: EmailMessage) -> None:
     print(f"    Date: {email.timestamp}")
     print(f"    Body chunks: {len(email.text_chunks)}")
     for chunk in email.text_chunks:
-        N = 150
-        preview = repr(chunk[: N + 1])[1:-1]
-        if len(preview) > N:
-            preview = preview[: N - 3] + "..."
+        VERBOSE_PREVIEW_LENGTH = 150
+        preview = repr(chunk[: VERBOSE_PREVIEW_LENGTH + 1])[1:-1]
+        if len(preview) > VERBOSE_PREVIEW_LENGTH:
+            preview = preview[: VERBOSE_PREVIEW_LENGTH - 3] + "..."
         print(f"      {preview}")
 
 
