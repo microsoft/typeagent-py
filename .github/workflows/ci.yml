@@ -127,7 +127,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13']
+        python-version: ['3.12', '3.13', '3.14']
         exclude:
         - os: windows-latest
           python-version: '3.13'
