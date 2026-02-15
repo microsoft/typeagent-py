@@ -172,7 +172,7 @@ def _email_matches_date_filter(
         return True
     if after and email_dt < after:
         return False
-    if before and email_dt > before:
+    if before and email_dt >= before:
         return False
     return True
 
