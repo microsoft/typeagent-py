@@ -428,7 +428,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Validate --first/--last are only used with --mbox
-    if (args.first or args.last) and not args.mbox:
+    if (args.first is not None or args.last is not None) and not args.mbox:
         parser.error("--first and --last can only be used with --mbox")
 
     after = _parse_date(args.after) if args.after else None
