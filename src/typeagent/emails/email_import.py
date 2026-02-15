@@ -84,7 +84,7 @@ def count_emails_in_mbox(mbox_path: str) -> int:
         The number of emails in the mbox file.
     """
     mbox = mailbox.mbox(mbox_path)
-    return len(mbox)
+    return sum(1 for _ in mbox)
 
 
 # Imports a single email MIME string and returns an EmailMessage object
