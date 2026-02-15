@@ -907,7 +907,7 @@ class RankMessagesBySimilarityExpr(QueryOpExpr[MessageAccumulator]):
             )
             if len(message_ordinals) == len(matches):
                 matches.clear_matches()
-                ranked_messages = message_index.lookup_in_subset_by_embedding(
+                ranked_messages = await message_index.lookup_in_subset_by_embedding(
                     self.embedding,
                     message_ordinals,
                     self.max_messages,
