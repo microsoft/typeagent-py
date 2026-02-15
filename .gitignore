@@ -33,7 +33,8 @@ pytest.local.ini
 /evals
 /tests/testdata/Episode_53_Answer_results.json
 /tests/testdata/Episode_53_Search_results.json
-/tests/testdata/email-mbox
+/tests/testdata/email-mbox/kubuntu-users.mbox
+/tests/testdata/email-mbox/ubuntu-devel.mbox
 
 # Email demo
 /tools/gmail/client_secret.json
