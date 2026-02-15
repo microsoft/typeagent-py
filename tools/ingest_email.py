@@ -14,7 +14,7 @@ Usage:
     python tools/ingest_email.py -d email.db --mbox mailbox.mbox
     python tools/ingest_email.py -d email.db --mbox mailbox.mbox --first 100
     python tools/ingest_email.py -d email.db --mbox mailbox.mbox --after 2023-01-01 --before 2023-02-01
-    
+
     python tools/query.py --database email.db --query "What was discussed?"
 """
 
