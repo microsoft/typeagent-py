@@ -42,10 +42,38 @@ We used the Gmail API to download 550 messages from Guido's Gmail
 Given a folder with `*.eml` files in MIME format, we ran our email
 ingestion tool, `tools/ingest_email.py`. You run it as follows:
 ```sh
-python tools/ingest_email.py -d gmail.db email-folder/
+python tools/ingest_email.py -d gmail.db --eml email-folder/
 ```
 You can also pass individual `.eml` files instead of a directory.
 Use `-v` for verbose output.
+
+#### Filtering by date
+
+Use `--after` and `--before` to restrict ingestion to a date range
+(dates are `YYYY-MM-DD`, interpreted as local midnight):
+
+```sh
+# Ingest only January 2024 emails
+python tools/ingest_email.py -d gmail.db --eml email-folder/ \
+    --after 2024-01-01 --before 2024-02-01
+```
+
+#### Pagination with --offset and --limit
+
+Like SQL `OFFSET` / `LIMIT`, these flags let you paginate through
+the set of qualifying (not-yet-ingested, date-filtered) emails:
+
+```sh
+# Ingest only the first 20 qualifying emails
+python tools/ingest_email.py -d gmail.db --eml email-folder/ --limit 20
+
+# Skip the first 100, then ingest the next 50
+python tools/ingest_email.py -d gmail.db --eml email-folder/ \
+    --offset 100 --limit 50
+```
+
+All four flags can be combined. The filter pipeline is:
+already-ingested → date range → offset → limit.
 
 The process took over an hour for 500 messages. Moreover, it complained
 about nearly 10% of the messages due to timeouts or just overly large

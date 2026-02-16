@@ -5,15 +5,14 @@
 """
 Email Ingestion Tool
 
-This script ingests email (.eml) files or mbox files into a SQLite database
+This script ingests email (.eml) files into a SQLite database
 that can be queried using tools/query.py.
 
 Usage:
     python tools/ingest_email.py -d email.db --eml inbox_dump/
     python tools/ingest_email.py -d email.db --eml message1.eml message2.eml
-    python tools/ingest_email.py -d email.db --mbox mailbox.mbox
-    python tools/ingest_email.py -d email.db --mbox mailbox.mbox --first 100
-    python tools/ingest_email.py -d email.db --mbox mailbox.mbox --after 2023-01-01 --before 2023-02-01
+    python tools/ingest_email.py -d email.db --eml inbox_dump/ --after 2023-01-01 --before 2023-02-01
+    python tools/ingest_email.py -d email.db --eml inbox_dump/ --offset 10 --limit 5
 
     python tools/query.py --database email.db --query "What was discussed?"
 """
@@ -21,13 +20,12 @@ Usage:
 """
 TODO
 
-- Catch auth errors and stop rather than marking as failed
 - Collect knowledge outside db transaction to reduce lock time
 """
 
 import argparse
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 import sys
 import time
@@ -40,10 +38,8 @@ import openai
 
 from typeagent.aitools import utils
 from typeagent.emails.email_import import (
-    count_emails_in_mbox,
     decode_encoded_words,
     import_email_from_file,
-    import_emails_from_mbox,
 )
 from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
@@ -54,21 +50,38 @@ from typeagent.storage.utils import create_storage_provider
 def create_arg_parser() -> argparse.ArgumentParser:
     """Create argument parser for the email ingestion tool."""
     parser = argparse.ArgumentParser(
-        description="Ingest email (.eml) files or mbox files into a database for querying",
+        description="Ingest email (.eml) files into a database for querying.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "filter pipeline:\n"
+            "  1. Already-ingested emails are always skipped.\n"
+            "  2. --after/--before narrow the date range (combinable).\n"
+            "  3. --offset skips the first N qualifying emails.\n"
+            "  4. --limit caps how many emails are ingested.\n"
+            "\n"
+            "examples:\n"
+            "  # Ingest all .eml files in a directory\n"
+            "  python tools/ingest_email.py -d mail.db --eml inbox/\n"
+            "\n"
+            "  # Ingest only January 2024 emails\n"
+            "  python tools/ingest_email.py -d mail.db --eml inbox/ "
+            "--after 2024-01-01 --before 2024-02-01\n"
+            "\n"
+            "  # Ingest the first 20 matching emails\n"
+            "  python tools/ingest_email.py -d mail.db --eml inbox/ --limit 20\n"
+            "\n"
+            "  # Skip the first 100, then ingest the next 50\n"
+            "  python tools/ingest_email.py -d mail.db --eml inbox/ "
+            "--offset 100 --limit 50\n"
+        ),
     )
 
-    source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument(
+    parser.add_argument(
         "--eml",
         nargs="+",
         metavar="PATH",
+        required=True,
         help="One or more .eml files or directories containing .eml files",
-    )
-    source.add_argument(
-        "--mbox",
-        metavar="FILE",
-        help="Path to an mbox file",
     )
 
     parser.add_argument(
@@ -86,30 +99,73 @@ def create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--after",
         metavar="DATE",
-        help="Only include emails after this date (YYYY-MM-DD)",
+        help=(
+            "Only include emails dated on or after DATE (YYYY-MM-DD, "
+            "interpreted as local midnight). Combinable with --before."
+        ),
     )
     parser.add_argument(
         "--before",
         metavar="DATE",
-        help="Only include emails before this date (YYYY-MM-DD)",
+        help=(
+            "Only include emails dated before DATE (YYYY-MM-DD, exclusive "
+            "upper bound, local midnight). Combinable with --after."
+        ),
     )
 
-    # Count filters (mbox only)
-    count = parser.add_mutually_exclusive_group()
-    count.add_argument(
-        "--first",
+    # Pagination
+    parser.add_argument(
+        "--offset",
         type=int,
+        default=0,
         metavar="N",
-        help="Only process the first N emails from an mbox file",
+        help=(
+            "Skip the first N matching emails before ingesting "
+            "(like SQL OFFSET). Default: 0."
+        ),
     )
-    count.add_argument(
-        "--last",
+    parser.add_argument(
+        "--limit",
         type=int,
+        default=None,
         metavar="N",
-        help="Only process the last N emails from an mbox file",
+        help=(
+            "Ingest at most N emails (like SQL LIMIT). "
+            "Default: no limit (ingest all)."
+        ),
     )
 
     return parser
+
+
+def _validate_args(args: argparse.Namespace) -> None:
+    """Validate argument combinations and exit on error."""
+    errors: list[str] = []
+
+    # --offset must be non-negative
+    if args.offset < 0:
+        errors.append("--offset must be a non-negative integer.")
+
+    # --limit must be positive when given
+    if args.limit is not None and args.limit <= 0:
+        errors.append("--limit must be a positive integer.")
+
+    # --offset without --limit is allowed (skip first N, ingest the rest)
+    # --limit without --offset is allowed (ingest at most N)
+
+    # --after must be before --before when both are given
+    if args.after and args.before:
+        after = _parse_date(args.after)
+        before = _parse_date(args.before)
+        if after >= before:
+            errors.append(
+                f"--after ({args.after}) must be earlier than --before ({args.before})."
+            )
+
+    if errors:
+        for err in errors:
+            print(f"Error: {err}", file=sys.stderr)
+        sys.exit(2)
 
 
 def collect_eml_files(paths: list[str], verbose: bool) -> list[Path]:
@@ -141,9 +197,14 @@ def collect_eml_files(paths: list[str], verbose: bool) -> list[Path]:
 
 
 def _parse_date(date_str: str) -> datetime:
-    """Parse a YYYY-MM-DD string into a timezone-aware datetime."""
+    """Parse a YYYY-MM-DD string into a timezone-aware datetime.
+
+    The date is interpreted in the local timezone (not UTC), so that
+    ``--after 2024-01-15`` means midnight local time.
+    """
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        # astimezone() on a naive datetime assumes local time (Python 3.6+)
+        return datetime.strptime(date_str, "%Y-%m-%d").astimezone()
     except ValueError:
         print(
             f"Error: Invalid date format '{date_str}'. Use YYYY-MM-DD.",
@@ -165,9 +226,9 @@ def _email_matches_date_filter(
         return True
     try:
         email_dt = datetime.fromisoformat(timestamp)
-        # Make offset-naive timestamps UTC for comparison
+        # Treat offset-naive timestamps as local time for comparison
         if email_dt.tzinfo is None:
-            email_dt = email_dt.replace(tzinfo=timezone.utc)
+            email_dt = email_dt.astimezone()
     except ValueError:
         return True
     if after and email_dt < after:
@@ -178,59 +239,24 @@ def _email_matches_date_filter(
 
 
 def _iter_emails(
-    eml_paths: list[str] | None,
-    mbox_path: str | None,
+    eml_paths: list[str],
     verbose: bool,
-    first_n: int | None,
-    last_n: int | None,
-) -> Iterable[tuple[str, EmailMessage, str]]:
-    """Yield (source_id, email, label) from the selected email sources.
+) -> Iterable[tuple[str, Path, str]]:
+    """Yield (source_id, file_path, label) from the given .eml paths.
 
-    For --eml: parses each .eml file and yields it.
-    For --mbox: iterates the mbox, applying --first/--last index range filtering.
-
-    Date filtering is NOT applied here; the caller handles it.
+    Does NOT parse the files; the caller imports only the emails it needs.
     """
-    if eml_paths:
-        with utils.timelog("Collecting .eml files"):
-            email_files = collect_eml_files(eml_paths, verbose)
-        if not email_files:
-            print("Error: No .eml files found", file=sys.stderr)
-            sys.exit(1)
-        total = len(email_files)
-        if verbose:
-            print(f"Found {total} .eml files to ingest")
-        for i, email_file in enumerate(email_files):
-            label = f"[{i + 1}/{total}] {email_file}"
-            email = import_email_from_file(str(email_file))
-            yield str(email_file), email, label
-
-    if mbox_path:
-        mbox = Path(mbox_path)
-        if not mbox.exists():
-            print(f"Error: mbox file not found: {mbox}", file=sys.stderr)
-            sys.exit(1)
-        mbox_total = count_emails_in_mbox(mbox_path)
-        print(f"mbox file: {mbox} ({mbox_total} emails)")
-
-        if last_n is not None:
-            mbox_start = max(0, mbox_total - last_n)
-            mbox_stop: int | None = None
-        elif first_n is not None:
-            mbox_start = 0
-            mbox_stop = first_n
-        else:
-            mbox_start = 0
-            mbox_stop = None
-
-        for msg_index, email in import_emails_from_mbox(mbox_path):
-            if msg_index < mbox_start:
-                continue
-            if mbox_stop is not None and msg_index >= mbox_stop:
-                break
-            source_id = f"{mbox_path}:{msg_index}"
-            label = f"[{msg_index + 1}/{mbox_total}] {mbox_path}:{msg_index}"
-            yield source_id, email, label
+    with utils.timelog("Collecting .eml files"):
+        email_files = collect_eml_files(eml_paths, verbose)
+    if not email_files:
+        print("Error: No .eml files found", file=sys.stderr)
+        sys.exit(1)
+    total = len(email_files)
+    if verbose:
+        print(f"Found {total} .eml files to ingest")
+    for i, email_file in enumerate(email_files):
+        label = f"[{i + 1}/{total}] {email_file}"
+        yield str(email_file), email_file, label
 
 
 def _print_email_verbose(email: EmailMessage) -> None:
@@ -251,7 +277,7 @@ def _print_email_verbose(email: EmailMessage) -> None:
     print(f"    Date: {email.timestamp}")
     print(f"    Body chunks: {len(email.text_chunks)}")
     for chunk in email.text_chunks:
-        VERBOSE_PREVIEW_LENGTH = 150
+        VERBOSE_PREVIEW_LENGTH = 50
         preview = repr(chunk[: VERBOSE_PREVIEW_LENGTH + 1])[1:-1]
         if len(preview) > VERBOSE_PREVIEW_LENGTH:
             preview = preview[: VERBOSE_PREVIEW_LENGTH - 3] + "..."
@@ -259,19 +285,15 @@ def _print_email_verbose(email: EmailMessage) -> None:
 
 
 async def ingest_emails(
-    eml_paths: list[str] | None,
-    mbox_path: str | None,
+    eml_paths: list[str],
     database: str,
     verbose: bool = False,
     after: datetime | None = None,
     before: datetime | None = None,
-    first_n: int | None = None,
-    last_n: int | None = None,
+    offset: int = 0,
+    limit: int | None = None,
 ) -> None:
-    """Ingest email files into a database.
-
-    Exactly one of eml_paths or mbox_path must be provided.
-    """
+    """Ingest email files into a database."""
 
     # Load environment for model API access
     if verbose:
@@ -304,27 +326,19 @@ async def ingest_emails(
     success_count = 0
     failed_count = 0
     skipped_count = 0
+    candidate_count = 0
     start_time = time.time()
 
     semref_coll = await settings.storage_provider.get_semantic_ref_collection()
     storage_provider = settings.storage_provider
 
-    for source_id, email, label in _iter_emails(
-        eml_paths, mbox_path, verbose, first_n, last_n
-    ):
+    for source_id, email_file, label in _iter_emails(eml_paths, verbose):
         try:
             if verbose:
                 print(label, end="", flush=True)
 
-            # Check if already ingested by source path/id
-            if status := await storage_provider.get_source_status(source_id):
-                skipped_count += 1
-                if verbose:
-                    print(f" [Previously {status}, skipping]")
-                continue
-            else:
-                if verbose:
-                    print()
+            # Parse the email only after confirming it hasn't been ingested
+            email = import_email_from_file(str(email_file))
 
             # Apply date filter
             if not _email_matches_date_filter(email.timestamp, after, before):
@@ -332,6 +346,18 @@ async def ingest_emails(
                 if verbose:
                     print("  [Outside date range, skipping]")
                 continue
+
+            # Apply offset/limit to qualifying candidates
+            candidate_count += 1
+            if candidate_count <= offset:
+                skipped_count += 1
+                if verbose:
+                    print("  [Skipped by --offset]")
+                continue
+            if limit is not None and success_count >= limit:
+                if verbose:
+                    print("  [Reached --limit, stopping]")
+                break
 
             # Check if already ingested by Message-ID
             email_id = email.metadata.id
@@ -426,10 +452,7 @@ def main() -> None:
     """Main entry point."""
     parser = create_arg_parser()
     args = parser.parse_args()
-
-    # Validate --first/--last are only used with --mbox
-    if (args.first is not None or args.last is not None) and not args.mbox:
-        parser.error("--first and --last can only be used with --mbox")
+    _validate_args(args)
 
     after = _parse_date(args.after) if args.after else None
     before = _parse_date(args.before) if args.before else None
@@ -437,13 +460,12 @@ def main() -> None:
     asyncio.run(
         ingest_emails(
             eml_paths=args.eml,
-            mbox_path=args.mbox,
             database=args.database,
             verbose=args.verbose,
             after=after,
             before=before,
-            first_n=args.first,
-            last_n=args.last,
+            offset=args.offset,
+            limit=args.limit,
         )
     )
 

@@ -5,7 +5,6 @@ from email import message_from_string
 from email.header import decode_header, make_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
-import mailbox
 from pathlib import Path
 import re
 from typing import Iterable
@@ -54,39 +53,6 @@ def import_email_from_file(
     return email
 
 
-def import_emails_from_mbox(
-    mbox_path: str, max_chunk_length: int = 4096
-) -> Iterable[tuple[int, EmailMessage]]:
-    """Import emails from an mbox file.
-
-    Args:
-        mbox_path: Path to the mbox file.
-        max_chunk_length: Maximum length of each text chunk.
-
-    Yields:
-        Tuples of (message_index, EmailMessage) for each email in the mbox file.
-        The message_index is 0-based.
-    """
-    mbox = mailbox.mbox(mbox_path)
-    for i, message in enumerate(mbox):
-        email = import_email_message(message, max_chunk_length)
-        email.src_url = f"{mbox_path}:{i}"
-        yield i, email
-
-
-def count_emails_in_mbox(mbox_path: str) -> int:
-    """Count the number of emails in an mbox file.
-
-    Args:
-        mbox_path: Path to the mbox file.
-
-    Returns:
-        The number of emails in the mbox file.
-    """
-    mbox = mailbox.mbox(mbox_path)
-    return sum(1 for _ in mbox)
-
-
 # Imports a single email MIME string and returns an EmailMessage object
 def import_email_string(
     email_string: str, max_chunk_length: int = 4096
@@ -114,12 +80,12 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     # msg.get() can return a Header object instead of str for encoded headers,
     # so coerce all values to str.
     email_meta = EmailMessageMeta(
-        sender=str(msg.get("From", "")),
+        sender=_header_to_str(msg.get("From", "")) or "",
         recipients=_import_address_headers(msg.get_all("To", [])),
         cc=_import_address_headers(msg.get_all("Cc", [])),
         bcc=_import_address_headers(msg.get_all("Bcc", [])),
         subject=_header_to_str(msg.get("Subject")),
-        id=_header_to_str(msg.get("Message-ID", None)),
+        id=_header_to_str(msg.get("Message-ID")),
     )
     timestamp: str | None = None
     timestamp_date = msg.get("Date", None)
