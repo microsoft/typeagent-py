@@ -223,12 +223,13 @@ def _decode_email_payload(part: Message) -> str:
             return payload
         return ""
     if isinstance(payload, bytes):
-        charset = part.get_content_charset() or "utf-8"
+        charset = part.get_content_charset() or "latin-1"
         try:
             return payload.decode(charset, errors="replace")
         except LookupError:
-            # Unknown encoding (e.g. iso-8859-8-i); fall back to utf-8
-            return payload.decode("utf-8", errors="replace")
+            # Unknown encoding (e.g. iso-8859-8-i); fall back to latin-1
+            # which accepts all 256 byte values without loss.
+            return payload.decode("latin-1")
     if isinstance(payload, str):
         return payload
     return ""
