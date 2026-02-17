@@ -1,144 +1,165 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Provider-agnostic model configuration.
+"""Provider-agnostic model configuration backed by pydantic_ai.
 
-Create chat and embedding models from ``provider/model`` spec strings::
+Create chat and embedding models from ``provider:model`` spec strings::
 
     from typeagent.aitools.model_registry import configure_models
 
     chat, embedder = configure_models(
-        "openai/gpt-4o",
-        "openai/text-embedding-3-small",
+        "openai:gpt-4o",
+        "openai:text-embedding-3-small",
     )
 
-Supported built-in providers
------------------------------
+The spec format is ``provider:model``, matching pydantic_ai conventions.
+Provider wiring (API keys, endpoints, etc.) is handled by pydantic_ai's
+model registry, which supports 25+ providers including ``openai``,
+``azure``, ``anthropic``, ``google``, ``bedrock``, ``groq``, ``mistral``,
+``ollama``, ``cohere``, and many more.
 
-* ``openai/<model>`` — requires ``OPENAI_API_KEY`` env var.
-* ``azure/<deployment>`` — requires ``AZURE_OPENAI_API_KEY`` (and
-  ``AZURE_OPENAI_ENDPOINT``) env vars.  For Azure, the *model* part of the
-  spec is the **deployment name**.
-
-Extending with new providers
-----------------------------
-
-Implement ``typechat.TypeChatLanguageModel`` for chat, or
-``IEmbeddingModel`` for embeddings, then register a factory::
-
-    from typeagent.aitools.model_registry import (
-        register_chat_provider,
-        register_embedding_provider,
-    )
-
-    register_chat_provider("anthropic", my_anthropic_chat_factory)
-    register_embedding_provider("gemini", my_gemini_embedding_factory)
-
-Each factory is a callable ``(model_name: str) -> Model``.
+See https://ai.pydantic.dev/models/ for all supported providers and their
+required environment variables.
 """
 
-from collections.abc import Callable
-import os
+import numpy as np
+from numpy.typing import NDArray
 
+from pydantic_ai import Embedder as _PydanticAIEmbedder
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    SystemPromptPart,
+    TextPart,
+    UserPromptPart,
+)
+from pydantic_ai.models import infer_model, Model, ModelRequestParameters
 import typechat
 
-from .embeddings import AsyncEmbeddingModel, IEmbeddingModel
+from .embeddings import IEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
 
 # ---------------------------------------------------------------------------
-# Spec parsing
+# Known embedding sizes for common models
 # ---------------------------------------------------------------------------
 
-type ChatModelFactory = Callable[[str], typechat.TypeChatLanguageModel]
-type EmbeddingModelFactory = Callable[[str], IEmbeddingModel]
+_KNOWN_EMBEDDING_SIZES: dict[str, int] = {
+    "text-embedding-ada-002": 1536,
+    "text-embedding-3-small": 1536,
+    "text-embedding-3-large": 3072,
+    "embed-english-v3.0": 1024,
+    "embed-multilingual-v3.0": 1024,
+    "embed-english-light-v3.0": 384,
+    "embed-multilingual-light-v3.0": 384,
+    "text-embedding-004": 768,
+    "embedding-001": 768,
+}
 
 
-def _parse_model_spec(spec: str) -> tuple[str, str]:
-    """Parse ``'provider/model'`` into ``(provider, model_name)``.
+# ---------------------------------------------------------------------------
+# Chat model adapter
+# ---------------------------------------------------------------------------
 
-    Raises ``ValueError`` on malformed specs.
+
+class PydanticAIChatModel:
+    """Adapter from :class:`pydantic_ai.models.Model` to TypeChat's
+    :class:`~typechat.TypeChatLanguageModel`.
+
+    This lets any pydantic_ai chat model (OpenAI, Anthropic, Google, …) be
+    used wherever TypeChat expects a ``TypeChatLanguageModel``.
     """
-    parts = spec.split("/", 1)
-    if len(parts) != 2 or not parts[0] or not parts[1]:
-        raise ValueError(
-            f"Invalid model spec {spec!r}. "
-            f"Expected 'provider/model', e.g. 'openai/gpt-4o'."
+
+    def __init__(self, model: Model) -> None:
+        self._model = model
+
+    async def complete(
+        self, prompt: str | list[typechat.PromptSection]
+    ) -> typechat.Result[str]:
+        parts: list[SystemPromptPart | UserPromptPart] = []
+        if isinstance(prompt, str):
+            parts.append(UserPromptPart(content=prompt))
+        else:
+            for section in prompt:
+                if section["role"] == "system":
+                    parts.append(SystemPromptPart(content=section["content"]))
+                else:
+                    parts.append(UserPromptPart(content=section["content"]))
+
+        messages: list[ModelMessage] = [ModelRequest(parts=parts)]
+        params = ModelRequestParameters()
+
+        response = await self._model.request(messages, None, params)
+        text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
+        if text_parts:
+            return typechat.Success("".join(text_parts))
+        return typechat.Failure("No text content in model response")
+
+
+# ---------------------------------------------------------------------------
+# Embedding model adapter
+# ---------------------------------------------------------------------------
+
+
+class PydanticAIEmbeddingModel:
+    """Adapter from :class:`pydantic_ai.Embedder` to :class:`IEmbeddingModel`.
+
+    This lets any pydantic_ai embedding provider (OpenAI, Cohere, Google, …)
+    be used wherever the codebase expects an ``IEmbeddingModel``, including
+    :class:`~typeagent.aitools.vectorbase.VectorBase` and
+    :class:`~typeagent.knowpro.convsettings.ConversationSettings`.
+    """
+
+    model_name: str
+    embedding_size: int
+
+    def __init__(
+        self,
+        embedder: _PydanticAIEmbedder,
+        model_name: str,
+        embedding_size: int,
+    ) -> None:
+        self._embedder = embedder
+        self.model_name = model_name
+        self.embedding_size = embedding_size
+        self._cache: dict[str, NormalizedEmbedding] = {}
+
+    def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
+        self._cache[key] = embedding
+
+    async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
+        result = await self._embedder.embed([input], input_type="document")
+        embedding: NDArray[np.float32] = np.array(
+            result.embeddings[0], dtype=np.float32
         )
-    return parts[0], parts[1]
+        norm = float(np.linalg.norm(embedding))
+        if norm > 0:
+            embedding = (embedding / norm).astype(np.float32)
+        return embedding
 
+    async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
+        if not input:
+            return np.empty((0, self.embedding_size), dtype=np.float32)
+        result = await self._embedder.embed(input, input_type="document")
+        embeddings: NDArray[np.float32] = np.array(result.embeddings, dtype=np.float32)
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True).astype(np.float32)
+        norms = np.where(norms > 0, norms, np.float32(1.0))
+        embeddings = (embeddings / norms).astype(np.float32)
+        return embeddings
 
-# ---------------------------------------------------------------------------
-# Chat model registry
-# ---------------------------------------------------------------------------
+    async def get_embedding(self, key: str) -> NormalizedEmbedding:
+        cached = self._cache.get(key)
+        if cached is not None:
+            return cached
+        embedding = await self.get_embedding_nocache(key)
+        self._cache[key] = embedding
+        return embedding
 
-_chat_providers: dict[str, ChatModelFactory] = {}
-
-
-def register_chat_provider(provider: str, factory: ChatModelFactory) -> None:
-    """Register a factory that creates chat models for *provider*."""
-    _chat_providers[provider] = factory
-
-
-def _openai_chat(model_name: str) -> typechat.TypeChatLanguageModel:
-    env: dict[str, str | None] = dict(os.environ)
-    if not env.get("OPENAI_API_KEY"):
-        raise RuntimeError("OPENAI_API_KEY required for openai/ chat models.")
-    env["OPENAI_MODEL"] = model_name
-    # Force the OpenAI path even when Azure env vars are also present.
-    env.pop("AZURE_OPENAI_API_KEY", None)
-    return typechat.create_language_model(env)
-
-
-def _azure_chat(model_name: str) -> typechat.TypeChatLanguageModel:
-    from .auth import AzureTokenProvider, get_shared_token_provider
-    from .utils import DEFAULT_MAX_RETRY_ATTEMPTS, DEFAULT_TIMEOUT_SECONDS, ModelWrapper
-
-    env: dict[str, str | None] = dict(os.environ)
-    key = env.get("AZURE_OPENAI_API_KEY")
-    if not key:
-        raise RuntimeError("AZURE_OPENAI_API_KEY required for azure/ chat models.")
-    env["OPENAI_MODEL"] = model_name
-    # Force the Azure path even when OPENAI_API_KEY is also present.
-    env.pop("OPENAI_API_KEY", None)
-
-    shared_token_provider: AzureTokenProvider | None = None
-    if isinstance(key, str) and key.lower() == "identity":
-        shared_token_provider = get_shared_token_provider()
-        env["AZURE_OPENAI_API_KEY"] = shared_token_provider.get_token()
-
-    model = typechat.create_language_model(env)
-    model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
-    model.max_retry_attempts = DEFAULT_MAX_RETRY_ATTEMPTS
-    if shared_token_provider is not None:
-        model = ModelWrapper(model, shared_token_provider)
-    return model
-
-
-register_chat_provider("openai", _openai_chat)
-register_chat_provider("azure", _azure_chat)
-
-
-# ---------------------------------------------------------------------------
-# Embedding model registry
-# ---------------------------------------------------------------------------
-
-_embedding_providers: dict[str, EmbeddingModelFactory] = {}
-
-
-def register_embedding_provider(provider: str, factory: EmbeddingModelFactory) -> None:
-    """Register a factory that creates embedding models for *provider*."""
-    _embedding_providers[provider] = factory
-
-
-def _openai_embedding(model_name: str) -> IEmbeddingModel:
-    return AsyncEmbeddingModel(model_name=model_name, use_azure=False)
-
-
-def _azure_embedding(model_name: str) -> IEmbeddingModel:
-    return AsyncEmbeddingModel(model_name=model_name, use_azure=True)
-
-
-register_embedding_provider("openai", _openai_embedding)
-register_embedding_provider("azure", _azure_embedding)
+    async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
+        missing_keys = [k for k in keys if k not in self._cache]
+        if missing_keys:
+            fresh = await self.get_embeddings_nocache(missing_keys)
+            for i, k in enumerate(missing_keys):
+                self._cache[k] = fresh[i]
+        return np.array([self._cache[k] for k in keys], dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------
@@ -149,66 +170,71 @@ register_embedding_provider("azure", _azure_embedding)
 def create_chat_model(
     model_spec: str,
 ) -> typechat.TypeChatLanguageModel:
-    """Create a chat model from a ``provider/model`` spec.
+    """Create a chat model from a ``provider:model`` spec.
+
+    Delegates to :func:`pydantic_ai.models.infer_model` for provider wiring.
 
     Examples::
 
-        model = create_chat_model("openai/gpt-4o")
-        model = create_chat_model("azure/my-gpt4o-deployment")
-
-    For Azure, *model* is the **deployment name**, not the underlying
-    model name.
+        model = create_chat_model("openai:gpt-4o")
+        model = create_chat_model("anthropic:claude-sonnet-4-20250514")
+        model = create_chat_model("google:gemini-2.0-flash")
     """
-    provider, model_name = _parse_model_spec(model_spec)
-    factory = _chat_providers.get(provider)
-    if factory is None:
-        avail = ", ".join(sorted(_chat_providers)) or "(none)"
-        raise ValueError(
-            f"Unknown chat provider {provider!r}. "
-            f"Available: {avail}. "
-            f"Use register_chat_provider() to add support."
-        )
-    return factory(model_name)
+    model = infer_model(model_spec)
+    return PydanticAIChatModel(model)
 
 
 def create_embedding_model(
     model_spec: str,
+    *,
+    embedding_size: int | None = None,
 ) -> IEmbeddingModel:
-    """Create an embedding model from a ``provider/model`` spec.
+    """Create an embedding model from a ``provider:model`` spec.
+
+    Delegates to :class:`pydantic_ai.Embedder` for provider wiring.
+
+    If *embedding_size* is not given, it is looked up in a table of common
+    models.  For unknown models, pass it explicitly.
 
     Examples::
 
-        model = create_embedding_model("openai/text-embedding-3-small")
-        model = create_embedding_model("azure/text-embedding-3-small")
+        model = create_embedding_model("openai:text-embedding-3-small")
+        model = create_embedding_model("cohere:embed-english-v3.0")
+        model = create_embedding_model("google:text-embedding-004")
     """
-    provider, model_name = _parse_model_spec(model_spec)
-    factory = _embedding_providers.get(provider)
-    if factory is None:
-        avail = ", ".join(sorted(_embedding_providers)) or "(none)"
+    model_name = model_spec.split(":")[-1] if ":" in model_spec else model_spec
+    if embedding_size is None:
+        embedding_size = _KNOWN_EMBEDDING_SIZES.get(model_name)
+    if embedding_size is None:
         raise ValueError(
-            f"Unknown embedding provider {provider!r}. "
-            f"Available: {avail}. "
-            f"Use register_embedding_provider() to add support."
+            f"Unknown embedding size for model {model_name!r}. "
+            f"Pass embedding_size= explicitly."
         )
-    return factory(model_name)
+    embedder = _PydanticAIEmbedder(model_spec)
+    return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)
 
 
 def configure_models(
     chat_model_spec: str,
     embedding_model_spec: str,
+    *,
+    embedding_size: int | None = None,
 ) -> tuple[typechat.TypeChatLanguageModel, IEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
+
+    Delegates to pydantic_ai's model registry for provider wiring.
 
     Example::
 
         chat, embedder = configure_models(
-            "openai/gpt-4o",
-            "openai/text-embedding-3-small",
+            "openai:gpt-4o",
+            "openai:text-embedding-3-small",
         )
 
         settings = ConversationSettings(model=embedder)
         extractor = KnowledgeExtractor(model=chat)
     """
-    return create_chat_model(chat_model_spec), create_embedding_model(
-        embedding_model_spec
+    return (
+        create_chat_model(chat_model_spec),
+        create_embedding_model(embedding_model_spec, embedding_size=embedding_size),
     )
