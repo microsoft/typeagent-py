@@ -33,11 +33,13 @@ pytest.local.ini
 /evals
 /tests/testdata/Episode_53_Answer_results.json
 /tests/testdata/Episode_53_Search_results.json
-/tests/testdata/email-mbox/*
+# E-Mail test data
+!/tests/testdata/email-testdata/.gitkeep
+/tests/testdata/email-testdata/*
 
 # Email demo
-/tools/gmail/client_secret.json
-/tools/gmail/token.json
+/tools/mail/client_secret.json
+/tools/mail/token.json
 *_dump/
 
 # Monty Python demo

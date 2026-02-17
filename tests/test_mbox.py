@@ -53,41 +53,37 @@ class TestEmailMatchesDateFilter:
             "not-a-date", self._utc(2024, 1, 1), self._utc(2024, 12, 31)
         )
 
-    def test_after_filter_includes(self) -> None:
-        """Email on or after the 'after' date passes."""
-        after = self._utc(2024, 1, 15)
-        assert _email_matches_date_filter("2024-01-15T00:00:00+00:00", after, None)
-        assert _email_matches_date_filter("2024-01-16T00:00:00+00:00", after, None)
+    def test_start_date_filter_includes(self) -> None:
+        """Email on or after the start_date passes."""
+        start = self._utc(2024, 1, 15)
+        assert _email_matches_date_filter("2024-01-15T00:00:00+00:00", start, None)
+        assert _email_matches_date_filter("2024-01-16T00:00:00+00:00", start, None)
 
-    def test_after_filter_excludes(self) -> None:
-        """Email before the 'after' date is excluded."""
-        after = self._utc(2024, 1, 15)
-        assert not _email_matches_date_filter("2024-01-14T23:59:59+00:00", after, None)
+    def test_start_date_filter_excludes(self) -> None:
+        """Email before the start_date is excluded."""
+        start = self._utc(2024, 1, 15)
+        assert not _email_matches_date_filter("2024-01-14T23:59:59+00:00", start, None)
 
-    def test_before_filter_includes(self) -> None:
-        """Email before the 'before' date passes."""
-        before = self._utc(2024, 2, 1)
-        assert _email_matches_date_filter("2024-01-31T23:59:59+00:00", None, before)
+    def test_stop_date_filter_includes(self) -> None:
+        """Email before the stop_date passes."""
+        stop = self._utc(2024, 2, 1)
+        assert _email_matches_date_filter("2024-01-31T23:59:59+00:00", None, stop)
 
-    def test_before_filter_excludes(self) -> None:
-        """Email on or after the 'before' date is excluded (exclusive upper bound)."""
-        before = self._utc(2024, 2, 1)
-        assert not _email_matches_date_filter("2024-02-01T00:00:00+00:00", None, before)
+    def test_stop_date_filter_excludes(self) -> None:
+        """Email on or after the stop_date is excluded (exclusive upper bound)."""
+        stop = self._utc(2024, 2, 1)
+        assert not _email_matches_date_filter("2024-02-01T00:00:00+00:00", None, stop)
 
     def test_date_range(self) -> None:
-        """Email within [after, before) passes; outside fails."""
-        after = self._utc(2024, 1, 1)
-        before = self._utc(2024, 2, 1)
+        """Email within [start_date, stop_date) passes; outside fails."""
+        start = self._utc(2024, 1, 1)
+        stop = self._utc(2024, 2, 1)
         # Inside
-        assert _email_matches_date_filter("2024-01-15T12:00:00+00:00", after, before)
+        assert _email_matches_date_filter("2024-01-15T12:00:00+00:00", start, stop)
         # Before range
-        assert not _email_matches_date_filter(
-            "2023-12-31T23:59:59+00:00", after, before
-        )
+        assert not _email_matches_date_filter("2023-12-31T23:59:59+00:00", start, stop)
         # At upper bound (exclusive)
-        assert not _email_matches_date_filter(
-            "2024-02-01T00:00:00+00:00", after, before
-        )
+        assert not _email_matches_date_filter("2024-02-01T00:00:00+00:00", start, stop)
 
     def test_naive_timestamp_treated_as_local(self) -> None:
         """Offset-naive timestamps should be treated as local time."""
@@ -95,17 +91,17 @@ class TestEmailMatchesDateFilter:
 
         # Build the filter boundary in local time so the test is TZ-independent
         local_tz = dt.now().astimezone().tzinfo
-        after = datetime(2024, 1, 15, tzinfo=local_tz)
-        assert _email_matches_date_filter("2024-01-15T00:00:00", after, None)
-        assert not _email_matches_date_filter("2024-01-14T23:59:59", after, None)
+        start = datetime(2024, 1, 15, tzinfo=local_tz)
+        assert _email_matches_date_filter("2024-01-15T00:00:00", start, None)
+        assert not _email_matches_date_filter("2024-01-14T23:59:59", start, None)
 
     def test_different_timezone(self) -> None:
         """Timestamps with non-UTC offsets are compared correctly."""
         # 2024-01-15T00:00:00+05:00 is 2024-01-14T19:00:00 UTC
-        after = self._utc(2024, 1, 15)
-        assert not _email_matches_date_filter("2024-01-15T00:00:00+05:00", after, None)
+        start = self._utc(2024, 1, 15)
+        assert not _email_matches_date_filter("2024-01-15T00:00:00+05:00", start, None)
         # 2024-01-15T10:00:00+05:00 is 2024-01-15T05:00:00 UTC
-        assert _email_matches_date_filter("2024-01-15T10:00:00+05:00", after, None)
+        assert _email_matches_date_filter("2024-01-15T10:00:00+05:00", start, None)
 
 
 # ===========================================================================

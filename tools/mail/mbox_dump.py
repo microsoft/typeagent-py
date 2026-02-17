@@ -4,13 +4,14 @@
 """Mbox Dump Tool
 
 Extract emails from an mbox file into individual .eml files.
-Creates a folder with the same name as the mbox file and places
-each email as a separate .eml file (1.eml, 2.eml, ...).
+Creates a folder with the same name as the mbox file (without the .mbox extension)
+and places each email as a separate .eml file (currently numbered sequentially).
 
 Usage:
-    python tools/gmail/mbox_dump.py mailbox.mbox
-    python tools/gmail/mbox_dump.py --url https://example.com/archive.mbox
-    python tools/gmail/mbox_dump.py --url https://example.com/archive.mbox -o local.mbox
+    python tools/mail/mbox_dump.py mailbox.mbox
+    python tools/mail/mbox_dump.py --url https://example.com/archive.mbox
+    python tools/mail/mbox_dump.py --url https://example.com/archive.mbox --mbox-dir /tmp
+    python tools/mail/mbox_dump.py --url https://example.com/archive.mbox --mbox-file local.mbox
 """
 
 import argparse
@@ -48,7 +49,7 @@ def dump_mbox(mbox_path: str, output_dir: str | None = None) -> int:
     mbox = mailbox.mbox(mbox_path)
     count = 0
     for i, message in enumerate(mbox):
-        eml_path = out_path / f"{i + 1}.eml"
+        eml_path = out_path / f"{i + 1:06d}.eml"
         eml_path.write_bytes(message.as_bytes())
         count += 1
 
@@ -85,20 +86,24 @@ def main() -> None:
         help="URL to download an mbox file from",
     )
     parser.add_argument(
-        "-o",
-        "--output",
-        help="Output path for downloaded mbox file (used with --url)",
+        "--mbox-dir",
+        default=".",
+        help="Directory to store the downloaded mbox file (default: current directory)",
+    )
+    parser.add_argument(
+        "--mbox-file",
+        default=None,
+        help="Filename for the downloaded mbox file (default: filename from the URL)",
     )
     args = parser.parse_args()
 
     if args.url:
-        if args.output:
-            mbox_path = args.output
+        if args.mbox_file:
+            filename = args.mbox_file
         else:
-            # Derive filename from URL
             url_path = urlparse(args.url).path
             filename = Path(url_path).name or "downloaded.mbox"
-            mbox_path = filename
+        mbox_path = str(Path(args.mbox_dir) / filename)
         download_mbox(args.url, mbox_path)
         if args.mbox is None:
             args.mbox = mbox_path
