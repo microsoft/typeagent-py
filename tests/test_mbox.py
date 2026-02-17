@@ -5,85 +5,66 @@
 
 from datetime import datetime, timezone
 
-# Import the filtering helpers from the tool module.
-import importlib
-import importlib.util
-from pathlib import Path
-import sys
-
-from typeagent.emails.email_import import import_email_string
-
-_tools_dir = str(Path(__file__).resolve().parent.parent / "tools")
-_spec = importlib.util.spec_from_file_location(
-    "ingest_email", Path(_tools_dir) / "ingest_email.py"
-)
-assert _spec and _spec.loader
-_ingest_mod = importlib.util.module_from_spec(_spec)
-sys.modules["ingest_email"] = _ingest_mod
-_spec.loader.exec_module(_ingest_mod)
-
-from ingest_email import (  # type: ignore[import-untyped]
-    _email_matches_date_filter,
-)
+from typeagent.emails.email_import import email_matches_date_filter, import_email_string
 
 # ===========================================================================
-# Tests for _email_matches_date_filter
+# Tests for email_matches_date_filter
 # ===========================================================================
 
 
 class TestEmailMatchesDateFilter:
-    """Tests for the _email_matches_date_filter helper in ingest_email.py."""
+    """Tests for the email_matches_date_filter helper in ingest_email.py."""
 
     def _utc(self, year: int, month: int, day: int) -> datetime:
         return datetime(year, month, day, tzinfo=timezone.utc)
 
     def test_no_filters(self) -> None:
         """All emails pass when no filters are set."""
-        assert _email_matches_date_filter("2024-01-15T10:00:00+00:00", None, None)
+        assert email_matches_date_filter("2024-01-15T10:00:00+00:00", None, None)
 
     def test_none_timestamp_always_passes(self) -> None:
         """Emails without a timestamp are always included."""
-        assert _email_matches_date_filter(
+        assert email_matches_date_filter(
             None, self._utc(2024, 1, 1), self._utc(2024, 12, 31)
         )
 
     def test_invalid_timestamp_always_passes(self) -> None:
         """Emails with unparseable timestamps are always included."""
-        assert _email_matches_date_filter(
+        assert email_matches_date_filter(
             "not-a-date", self._utc(2024, 1, 1), self._utc(2024, 12, 31)
         )
 
     def test_start_date_filter_includes(self) -> None:
         """Email on or after the start_date passes."""
         start = self._utc(2024, 1, 15)
-        assert _email_matches_date_filter("2024-01-15T00:00:00+00:00", start, None)
-        assert _email_matches_date_filter("2024-01-16T00:00:00+00:00", start, None)
+        assert email_matches_date_filter("2024-01-15T00:00:00+00:00", start, None)
+        assert email_matches_date_filter("2024-01-16T00:00:00+00:00", start, None)
 
     def test_start_date_filter_excludes(self) -> None:
         """Email before the start_date is excluded."""
         start = self._utc(2024, 1, 15)
-        assert not _email_matches_date_filter("2024-01-14T23:59:59+00:00", start, None)
+        assert not email_matches_date_filter("2024-01-14T23:59:59+00:00", start, None)
 
     def test_stop_date_filter_includes(self) -> None:
         """Email before the stop_date passes."""
         stop = self._utc(2024, 2, 1)
-        assert _email_matches_date_filter("2024-01-31T23:59:59+00:00", None, stop)
+        assert email_matches_date_filter("2024-01-31T23:59:59+00:00", None, stop)
 
     def test_stop_date_filter_excludes(self) -> None:
         """Email on or after the stop_date is excluded (exclusive upper bound)."""
         stop = self._utc(2024, 2, 1)
-        assert not _email_matches_date_filter("2024-02-01T00:00:00+00:00", None, stop)
+        assert not email_matches_date_filter("2024-02-01T00:00:00+00:00", None, stop)
 
     def test_date_range(self) -> None:
         """Email within [start_date, stop_date) passes; outside fails."""
         start = self._utc(2024, 1, 1)
         stop = self._utc(2024, 2, 1)
         # Inside
-        assert _email_matches_date_filter("2024-01-15T12:00:00+00:00", start, stop)
+        assert email_matches_date_filter("2024-01-15T12:00:00+00:00", start, stop)
         # Before range
-        assert not _email_matches_date_filter("2023-12-31T23:59:59+00:00", start, stop)
+        assert not email_matches_date_filter("2023-12-31T23:59:59+00:00", start, stop)
         # At upper bound (exclusive)
-        assert not _email_matches_date_filter("2024-02-01T00:00:00+00:00", start, stop)
+        assert not email_matches_date_filter("2024-02-01T00:00:00+00:00", start, stop)
 
     def test_naive_timestamp_treated_as_local(self) -> None:
         """Offset-naive timestamps should be treated as local time."""
@@ -92,16 +73,16 @@ class TestEmailMatchesDateFilter:
         # Build the filter boundary in local time so the test is TZ-independent
         local_tz = dt.now().astimezone().tzinfo
         start = datetime(2024, 1, 15, tzinfo=local_tz)
-        assert _email_matches_date_filter("2024-01-15T00:00:00", start, None)
-        assert not _email_matches_date_filter("2024-01-14T23:59:59", start, None)
+        assert email_matches_date_filter("2024-01-15T00:00:00", start, None)
+        assert not email_matches_date_filter("2024-01-14T23:59:59", start, None)
 
     def test_different_timezone(self) -> None:
         """Timestamps with non-UTC offsets are compared correctly."""
         # 2024-01-15T00:00:00+05:00 is 2024-01-14T19:00:00 UTC
         start = self._utc(2024, 1, 15)
-        assert not _email_matches_date_filter("2024-01-15T00:00:00+05:00", start, None)
+        assert not email_matches_date_filter("2024-01-15T00:00:00+05:00", start, None)
         # 2024-01-15T10:00:00+05:00 is 2024-01-15T05:00:00 UTC
-        assert _email_matches_date_filter("2024-01-15T10:00:00+05:00", start, None)
+        assert email_matches_date_filter("2024-01-15T10:00:00+05:00", start, None)
 
 
 # ===========================================================================
@@ -175,7 +156,7 @@ class TestMissingDate:
 
     def test_email_without_date_passes_date_filter(self) -> None:
         """Emails without timestamps should always pass the date filter."""
-        assert _email_matches_date_filter(
+        assert email_matches_date_filter(
             None, datetime(2024, 1, 1, tzinfo=timezone.utc), None
         )
 

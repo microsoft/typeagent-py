@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from datetime import datetime
 from email import message_from_string
 from email.header import decode_header, make_header
 from email.message import Message
@@ -258,3 +259,29 @@ def _merge_chunks(
 
     if (len(cur_chunk)) > 0:
         yield cur_chunk
+
+
+def email_matches_date_filter(
+    timestamp: str | None,
+    start_date: datetime | None,
+    stop_date: datetime | None,
+) -> bool:
+    """Check whether an email's ISO timestamp passes the date filters.
+
+    The range is half-open: [start_date, stop_date).
+    Emails without a parseable timestamp are always included.
+    """
+    if timestamp is None:
+        return True
+    try:
+        email_dt = datetime.fromisoformat(timestamp)
+        # Treat offset-naive timestamps as local time for comparison
+        if email_dt.tzinfo is None:
+            email_dt = email_dt.astimezone()
+    except ValueError:
+        return True
+    if start_date and email_dt < start_date:
+        return False
+    if stop_date and email_dt >= stop_date:
+        return False
+    return True

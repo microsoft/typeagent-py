@@ -39,6 +39,7 @@ import openai
 from typeagent.aitools import utils
 from typeagent.emails.email_import import (
     decode_encoded_words,
+    email_matches_date_filter,
     import_email_from_file,
 )
 from typeagent.emails.email_memory import EmailMemory
@@ -211,30 +212,8 @@ def _parse_date(date_str: str) -> datetime:
         sys.exit(1)
 
 
-def _email_matches_date_filter(
-    timestamp: str | None,
-    start_date: datetime | None,
-    stop_date: datetime | None,
-) -> bool:
-    """Check whether an email's ISO timestamp passes the date filters.
-
-    The range is half-open: [start_date, stop_date).
-    Emails without a parseable timestamp are always included.
-    """
-    if timestamp is None:
-        return True
-    try:
-        email_dt = datetime.fromisoformat(timestamp)
-        # Treat offset-naive timestamps as local time for comparison
-        if email_dt.tzinfo is None:
-            email_dt = email_dt.astimezone()
-    except ValueError:
-        return True
-    if start_date and email_dt < start_date:
-        return False
-    if stop_date and email_dt >= stop_date:
-        return False
-    return True
+# Alias kept for backward compatibility.
+_email_matches_date_filter = email_matches_date_filter
 
 
 def _iter_emails(
