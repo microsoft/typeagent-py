@@ -91,13 +91,13 @@ class TestEmailMatchesDateFilter:
 
 
 _EMAIL_WITH_ENCODED_HEADER = """\
-From: =?utf-8?b?SsO8cmdlbg==?= <juergen@example.com>\r
-To: recipient@example.com\r
-Subject: =?utf-8?q?M=C3=BCnchen_weather?=\r
-Date: Mon, 01 Jan 2024 10:00:00 +0000\r
-Message-ID: <encoded@example.com>\r
-\r
-Hello from Munich!\r
+From: =?utf-8?b?SsO8cmdlbg==?= <juergen@example.com>
+To: recipient@example.com
+Subject: =?utf-8?q?M=C3=BCnchen_weather?=
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+Message-ID: <encoded@example.com>
+
+Hello from Munich!
 """
 
 
@@ -114,16 +114,16 @@ class TestEncodingEdgeCases:
 
 
 _EMAIL_WITH_UNKNOWN_CHARSET = """\
-From: test@example.com\r
-To: recipient@example.com\r
-Subject: Unknown charset test\r
-Date: Mon, 01 Jan 2024 10:00:00 +0000\r
-Message-ID: <charset@example.com>\r
-MIME-Version: 1.0\r
-Content-Type: text/plain; charset="iso-8859-8-i"\r
-Content-Transfer-Encoding: base64\r
-\r
-SGVsbG8gV29ybGQ=\r
+From: test@example.com
+To: recipient@example.com
+Subject: Unknown charset test
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+Message-ID: <charset@example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-8-i"
+Content-Transfer-Encoding: base64
+
+SGVsbG8gV29ybGQ=
 """
 
 
@@ -140,12 +140,12 @@ class TestUnknownCharset:
 # ===========================================================================
 
 _EMAIL_NO_DATE = """\
-From: test@example.com\r
-To: recipient@example.com\r
-Subject: No date header\r
-Message-ID: <nodate@example.com>\r
-\r
-This email has no Date header.\r
+From: test@example.com
+To: recipient@example.com
+Subject: No date header
+Message-ID: <nodate@example.com>
+
+This email has no Date header.
 """
 
 
@@ -162,36 +162,36 @@ class TestMissingDate:
 
 
 # ===========================================================================
-# Tests for import_email_string (also exercised by mbox, but directly tested)
+# Tests for import_email_string and import_email_message edge cases
 # ===========================================================================
 
 _SIMPLE_EMAIL = """\
-From: alice@example.com\r
-To: bob@example.com\r
-Subject: Test\r
-Date: Mon, 01 Jan 2024 10:00:00 +0000\r
-Message-ID: <simple@example.com>\r
-\r
-Hello Bob!\r
+From: alice@example.com
+To: bob@example.com
+Subject: Test
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+Message-ID: <simple@example.com>
+
+Hello Bob!
 """
 
 _MULTIPART_EMAIL = """\
-From: alice@example.com\r
-To: bob@example.com\r
-Subject: Multipart\r
-Date: Mon, 01 Jan 2024 10:00:00 +0000\r
-MIME-Version: 1.0\r
-Content-Type: multipart/alternative; boundary="boundary"\r
-\r
---boundary\r
-Content-Type: text/plain\r
-\r
-Plain text body\r
---boundary\r
-Content-Type: text/html\r
-\r
-<p>HTML body</p>\r
---boundary--\r
+From: alice@example.com
+To: bob@example.com
+Subject: Multipart
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="boundary"
+
+--boundary
+Content-Type: text/plain
+
+Plain text body
+--boundary
+Content-Type: text/html
+
+<p>HTML body</p>
+--boundary--
 """
 
 
