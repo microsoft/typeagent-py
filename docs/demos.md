@@ -61,7 +61,7 @@ python tools/query.py -d gmail.db
 
 ### How to use the Gmail API to download messages
 
-In the `tools/gmail/` folder you'll find a tool named `gmail_dump.py` which
+In the `tools/mail/` folder you'll find a tool named `gmail_dump.py` which
 will download any number of messages (default 50) using the Gmail API.
 In order to use the Gmail API, however, you have to create a (free)
 Google Cloud app and configure it appropriately.
