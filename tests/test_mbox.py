@@ -68,11 +68,9 @@ class TestEmailMatchesDateFilter:
 
     def test_naive_timestamp_treated_as_local(self) -> None:
         """Offset-naive timestamps should be treated as local time."""
-        from datetime import datetime as dt
-
-        # Build the filter boundary in local time so the test is TZ-independent
-        local_tz = dt.now().astimezone().tzinfo
-        start = datetime(2024, 1, 15, tzinfo=local_tz)
+        # Use the same naive→aware conversion the function applies internally
+        # so the boundary's UTC offset matches the test dates regardless of DST.
+        start = datetime(2024, 1, 15).astimezone()
         assert email_matches_date_filter("2024-01-15T00:00:00", start, None)
         assert not email_matches_date_filter("2024-01-14T23:59:59", start, None)
 
