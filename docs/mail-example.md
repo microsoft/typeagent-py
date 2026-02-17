@@ -26,7 +26,9 @@ Run the ingestion tool to parse the `.eml` files, extract structure and
 embeddings, and store everything in a local database:
 
 ```bash
-python tools/ingest_email.py <path-to-eml-folder>
+python tools/ingest_email.py -d <database-path> <path-to-eml-folder>
+# Example:
+# python tools/ingest_email.py -d ./data/mail.sqlite ./mail_dump
 ```
 
 This creates (or updates) a database that the query tool can search against.
