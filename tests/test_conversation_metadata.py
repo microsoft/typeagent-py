@@ -16,7 +16,11 @@ import pytest_asyncio
 
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import (
+    AsyncEmbeddingModel,
+    IEmbeddingModel,
+    TEST_MODEL_NAME,
+)
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -54,7 +58,7 @@ class DummyMessage(IMessage):
 
 @pytest_asyncio.fixture
 async def storage_provider(
-    temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    temp_db_path: str, embedding_model: IEmbeddingModel
 ) -> AsyncGenerator[SqliteStorageProvider[DummyMessage], None]:
     """Create a SqliteStorageProvider for testing conversation metadata."""
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -270,7 +274,7 @@ class TestConversationMetadata:
 
     @pytest.mark.asyncio
     async def test_multiple_conversations_different_dbs(
-        self, embedding_model: AsyncEmbeddingModel
+        self, embedding_model: IEmbeddingModel
     ):
         """Test multiple conversations in different database files."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -343,7 +347,7 @@ class TestConversationMetadata:
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_single_per_db(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test that only one conversation metadata can exist per database."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -418,7 +422,7 @@ class TestConversationMetadata:
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_persistence(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test that conversation metadata persists across provider instances."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -486,7 +490,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_very_long_name_tag(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test conversation metadata with very long name_tag."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -517,7 +521,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_unicode_name_tag(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test conversation metadata with Unicode name_tag."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -548,7 +552,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_shared_access(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test shared access to metadata using the same database file."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -599,7 +603,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_embedding_metadata_mismatch_raises(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Ensure a mismatch between stored metadata and provided settings raises."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -643,7 +647,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_embedding_model_mismatch_raises(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Ensure providing a different embedding model name raises."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -683,7 +687,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_updated_at_changes_on_add_messages(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test that updated_at timestamp is updated when messages are added."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)

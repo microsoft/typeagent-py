@@ -16,7 +16,7 @@ import pytest_asyncio
 
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro import kplib
 from typeagent.knowpro.convsettings import (
@@ -52,7 +52,7 @@ class DummyTestMessage(IMessage):
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def storage_provider_type(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[tuple[IStorageProvider, str], None]:
     """Parameterized fixture that provides both memory and sqlite storage providers."""
@@ -328,7 +328,7 @@ async def test_conversation_threads_interface_parity(
 # Cross-provider validation tests
 @pytest.mark.asyncio
 async def test_cross_provider_message_collection_equivalence(
-    embedding_model: AsyncEmbeddingModel, temp_db_path: str, needs_auth: None
+    embedding_model: IEmbeddingModel, temp_db_path: str, needs_auth: None
 ):
     """Test that both providers handle message collections equivalently."""
     # Create both providers with identical settings
@@ -586,7 +586,7 @@ async def test_timestamp_index_with_data(
 
 @pytest.mark.asyncio
 async def test_storage_provider_independence(
-    embedding_model: AsyncEmbeddingModel, temp_db_path: str, needs_auth: None
+    embedding_model: IEmbeddingModel, temp_db_path: str, needs_auth: None
 ):
     """Test that different storage provider instances work independently."""
     # Create settings shared between providers

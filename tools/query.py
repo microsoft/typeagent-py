@@ -150,7 +150,7 @@ class ProcessingContext:
     debug2: typing.Literal["none", "diff", "full", "skip"]
     debug3: typing.Literal["none", "diff", "full", "nice"]
     debug4: typing.Literal["none", "diff", "full", "nice"]
-    embedding_model: embeddings.AsyncEmbeddingModel
+    embedding_model: embeddings.IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[
         answer_response_schema.AnswerResponse

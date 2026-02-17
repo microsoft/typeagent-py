@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import AsyncEmbeddingModel, IEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.transcripts.transcript import (
@@ -88,7 +88,7 @@ def test_get_transcript_info():
 
 @pytest.fixture
 def conversation_settings(
-    needs_auth: None, embedding_model: AsyncEmbeddingModel
+    needs_auth: None, embedding_model: IEmbeddingModel
 ) -> ConversationSettings:
     """Create conversation settings for testing."""
     return ConversationSettings(embedding_model)
@@ -242,7 +242,7 @@ async def test_transcript_creation():
 
 @pytest.mark.asyncio
 async def test_transcript_knowledge_extraction_slow(
-    really_needs_auth: None, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, embedding_model: IEmbeddingModel
 ):
     """
     Test that knowledge extraction works during transcript ingestion.
