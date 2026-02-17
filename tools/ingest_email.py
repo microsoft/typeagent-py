@@ -276,11 +276,11 @@ def _print_email_verbose(email: EmailMessage) -> None:
         )
     print(f"    Date: {email.timestamp}")
     print(f"    Body chunks: {len(email.text_chunks)}")
+    MAIL_PREVIEW_LEN = 80
     for chunk in email.text_chunks:
-        VERBOSE_PREVIEW_LENGTH = 50
-        preview = repr(chunk[: VERBOSE_PREVIEW_LENGTH + 1])[1:-1]
-        if len(preview) > VERBOSE_PREVIEW_LENGTH:
-            preview = preview[: VERBOSE_PREVIEW_LENGTH - 3] + "..."
+        preview = repr(chunk[: MAIL_PREVIEW_LEN + 1])[1:-1]
+        if len(preview) > MAIL_PREVIEW_LEN:
+            preview = preview[: MAIL_PREVIEW_LEN - 3] + "..."
         print(f"      {preview}")
 
 
