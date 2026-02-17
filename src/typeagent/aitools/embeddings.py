@@ -94,6 +94,7 @@ class AsyncEmbeddingModel:
         model_name: str | None = None,
         endpoint_envvar: str | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
+        use_azure: bool | None = None,
     ):
         if model_name is None:
             model_name = DEFAULT_MODEL_NAME
@@ -122,8 +123,12 @@ class AsyncEmbeddingModel:
         openai_api_key = os.getenv("OPENAI_API_KEY")
         azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
 
-        # Prefer OpenAI if both are set, use Azure if only Azure is set
-        self.use_azure = bool(azure_api_key) and not bool(openai_api_key)
+        # Determine provider: explicit use_azure overrides auto-detection.
+        if use_azure is not None:
+            self.use_azure = use_azure
+        else:
+            # Prefer OpenAI if both are set, use Azure if only Azure is set
+            self.use_azure = bool(azure_api_key) and not bool(openai_api_key)
 
         if endpoint_envvar is None:
             # Check if OpenAI credentials are available, prefer OpenAI over Azure

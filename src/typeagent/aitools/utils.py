@@ -125,12 +125,11 @@ class ModelWrapper(typechat.TypeChatLanguageModel):
 def create_typechat_model() -> typechat.TypeChatLanguageModel:
     """Create a TypeChat language model using OpenAI or Azure OpenAI.
 
-    Reads ``OPENAI_API_KEY``, ``AZURE_OPENAI_API_KEY`` and related env vars.
-    Handles Azure ``identity`` token provider for Microsoft internal usage.
+    Auto-detects the provider from ``OPENAI_API_KEY`` / ``AZURE_OPENAI_API_KEY``
+    environment variables.
 
-    To use a different provider (e.g. Anthropic, Gemini), implement
-    ``typechat.TypeChatLanguageModel`` directly and pass it to
-    ``KnowledgeExtractor`` or ``create_translator()``.
+    For explicit provider selection, use :func:`model_registry.create_chat_model`
+    with a spec string like ``"openai/gpt-4o"`` or ``"azure/my-deployment"``.
     """
     env: dict[str, str | None] = dict(os.environ)
     key_name = "AZURE_OPENAI_API_KEY"
