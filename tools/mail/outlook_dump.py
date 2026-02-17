@@ -9,27 +9,27 @@ Uses ``msgraph-sdk`` and ``azure-identity`` for authentication.
 Usage examples::
 
     # Download 50 most recent messages (interactive browser auth)
-    python outlook_dump.py
+    python tools/mail/outlook_dump.py
 
     # Download with explicit login and app IDs
-    python outlook_dump.py --client-id user@example.com \
+    python tools/mail/outlook_dump.py --client-id user@example.com \
         --application-client-id 6876366c-2635-4058-ae8a-cfbe152fbd4c
 
     # Download 200 messages using device-code auth
-    python outlook_dump.py --max-results 200 --device-code
+    python tools/mail/outlook_dump.py --max-results 200 --device-code
 
     # Filter messages by sender
-    python outlook_dump.py \
+    python tools/mail/outlook_dump.py \
         --filter "from/emailAddress/address eq 'alice@example.com'"
 
     # Full-text search (KQL)
-    python outlook_dump.py --search "subject:quarterly report"
+    python tools/mail/outlook_dump.py --search "subject:quarterly report"
 
     # Check permissions only
-    python outlook_dump.py --check-permissions
+    python tools/mail/outlook_dump.py --check-permissions
 
     # Add Mail.Read to the app registration (requires admin)
-    python outlook_dump.py --setup-permissions
+    python tools/mail/outlook_dump.py --setup-permissions
 """
 
 import argparse
