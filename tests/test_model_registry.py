@@ -34,9 +34,7 @@ def test_spec_uses_colon_separator() -> None:
 
 def test_explicit_embedding_size() -> None:
     """Passing embedding_size= sets it immediately."""
-    model = create_embedding_model(
-        "openai:text-embedding-3-small", embedding_size=42
-    )
+    model = create_embedding_model("openai:text-embedding-3-small", embedding_size=42)
     assert model.embedding_size == 42
 
 
@@ -53,7 +51,7 @@ def test_default_embedding_size_is_zero() -> None:
 
 def test_chat_model_is_typechat_model() -> None:
     """PydanticAIChatModel inherits from TypeChatLanguageModel."""
-    assert issubclass(PydanticAIChatModel, typechat.TypeChatLanguageModel)
+    assert typechat.TypeChatLanguageModel in PydanticAIChatModel.__mro__
 
 
 @pytest.mark.asyncio
@@ -113,7 +111,7 @@ async def test_chat_adapter_prompt_sections() -> None:
 
 def test_embedding_model_is_iembedding_model() -> None:
     """PydanticAIEmbeddingModel inherits from IEmbeddingModel."""
-    assert issubclass(PydanticAIEmbeddingModel, IEmbeddingModel)
+    assert IEmbeddingModel in PydanticAIEmbeddingModel.__mro__
 
 
 @pytest.mark.asyncio
@@ -251,5 +249,4 @@ def test_configure_models_returns_correct_types() -> None:
     chat, embedder = configure_models("openai:gpt-4o", "openai:text-embedding-3-small")
     assert isinstance(chat, PydanticAIChatModel)
     assert isinstance(embedder, PydanticAIEmbeddingModel)
-    assert isinstance(embedder, IEmbeddingModel)
-    assert isinstance(chat, typechat.TypeChatLanguageModel)
+    assert typechat.TypeChatLanguageModel in type(chat).__mro__

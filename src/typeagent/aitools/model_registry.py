@@ -166,7 +166,7 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
 
 def create_chat_model(
     model_spec: str,
-) -> typechat.TypeChatLanguageModel:
+) -> PydanticAIChatModel:
     """Create a chat model from a ``provider:model`` spec.
 
     Delegates to :func:`pydantic_ai.models.infer_model` for provider wiring.
