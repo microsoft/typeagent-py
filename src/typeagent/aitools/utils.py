@@ -128,8 +128,8 @@ def create_typechat_model() -> typechat.TypeChatLanguageModel:
     Auto-detects the provider from ``OPENAI_API_KEY`` / ``AZURE_OPENAI_API_KEY``
     environment variables.
 
-    For explicit provider selection, use :func:`model_registry.create_chat_model`
-    with a spec string like ``"openai/gpt-4o"`` or ``"azure/my-deployment"``.
+    For explicit provider selection, use :func:`model_adapters.create_chat_model`
+    with a spec string like ``"openai:gpt-4o"`` or ``"azure:my-deployment"``.
     """
     env: dict[str, str | None] = dict(os.environ)
     key_name = "AZURE_OPENAI_API_KEY"

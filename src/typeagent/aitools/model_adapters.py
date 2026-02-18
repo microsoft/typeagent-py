@@ -5,7 +5,7 @@
 
 Create chat and embedding models from ``provider:model`` spec strings::
 
-    from typeagent.aitools.model_registry import configure_models
+    from typeagent.aitools.model_adapters import configure_models
 
     chat, embedder = configure_models(
         "openai:gpt-4o",

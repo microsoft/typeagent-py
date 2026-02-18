@@ -7,7 +7,7 @@ import pytest
 import typechat
 
 from typeagent.aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
-from typeagent.aitools.model_registry import (
+from typeagent.aitools.model_adapters import (
     configure_models,
     create_chat_model,
     create_embedding_model,
