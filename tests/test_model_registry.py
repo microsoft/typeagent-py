@@ -8,7 +8,6 @@ import typechat
 
 from typeagent.aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from typeagent.aitools.model_registry import (
-    _KNOWN_EMBEDDING_SIZES,
     configure_models,
     create_chat_model,
     create_embedding_model,
@@ -29,33 +28,32 @@ def test_spec_uses_colon_separator() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Known embedding sizes
+# Embedding size
 # ---------------------------------------------------------------------------
 
 
-def test_known_embedding_sizes() -> None:
-    assert _KNOWN_EMBEDDING_SIZES["text-embedding-3-small"] == 1536
-    assert _KNOWN_EMBEDDING_SIZES["text-embedding-3-large"] == 3072
-    assert _KNOWN_EMBEDDING_SIZES["text-embedding-ada-002"] == 1536
-
-
-def test_unknown_embedding_size_raises() -> None:
-    with pytest.raises(ValueError, match="Unknown embedding size"):
-        create_embedding_model("openai:completely-unknown-model-xyz")
-
-
 def test_explicit_embedding_size() -> None:
-    """Passing embedding_size= bypasses the lookup table."""
-    # This should not raise even though the model name is unknown
+    """Passing embedding_size= sets it immediately."""
     model = create_embedding_model(
-        "openai:completely-unknown-model-xyz", embedding_size=42
+        "openai:text-embedding-3-small", embedding_size=42
     )
     assert model.embedding_size == 42
+
+
+def test_default_embedding_size_is_zero() -> None:
+    """Without embedding_size=, it defaults to 0 (probed on first call)."""
+    model = create_embedding_model("openai:text-embedding-3-small")
+    assert model.embedding_size == 0
 
 
 # ---------------------------------------------------------------------------
 # PydanticAIChatModel adapter
 # ---------------------------------------------------------------------------
+
+
+def test_chat_model_is_typechat_model() -> None:
+    """PydanticAIChatModel inherits from TypeChatLanguageModel."""
+    assert issubclass(PydanticAIChatModel, typechat.TypeChatLanguageModel)
 
 
 @pytest.mark.asyncio
@@ -113,6 +111,11 @@ async def test_chat_adapter_prompt_sections() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_embedding_model_is_iembedding_model() -> None:
+    """PydanticAIEmbeddingModel inherits from IEmbeddingModel."""
+    assert issubclass(PydanticAIEmbeddingModel, IEmbeddingModel)
+
+
 @pytest.mark.asyncio
 async def test_embedding_adapter_single() -> None:
     """PydanticAIEmbeddingModel computes a single normalized embedding."""
@@ -136,6 +139,29 @@ async def test_embedding_adapter_single() -> None:
     assert result.shape == (3,)
     norm = float(np.linalg.norm(result))
     assert abs(norm - 1.0) < 1e-6
+
+
+@pytest.mark.asyncio
+async def test_embedding_adapter_probes_size() -> None:
+    """embedding_size is discovered from the first embedding call."""
+    from unittest.mock import AsyncMock
+
+    from pydantic_ai import Embedder
+    from pydantic_ai.embeddings import EmbeddingResult
+
+    mock_embedder = AsyncMock(spec=Embedder)
+    mock_embedder.embed.return_value = EmbeddingResult(
+        embeddings=[[1.0, 0.0, 0.0]],
+        inputs=["probe"],
+        input_type="document",
+        model_name="test-model",
+        provider_name="test",
+    )
+
+    adapter = PydanticAIEmbeddingModel(mock_embedder, "test-model")
+    assert adapter.embedding_size == 0
+    await adapter.get_embedding_nocache("probe")
+    assert adapter.embedding_size == 3
 
 
 @pytest.mark.asyncio
@@ -204,7 +230,7 @@ async def test_embedding_adapter_add_embedding() -> None:
 
 @pytest.mark.asyncio
 async def test_embedding_adapter_empty_batch() -> None:
-    """Empty batch returns empty array."""
+    """Empty batch returns empty array with known size."""
     from unittest.mock import AsyncMock
 
     from pydantic_ai import Embedder
@@ -226,4 +252,4 @@ def test_configure_models_returns_correct_types() -> None:
     assert isinstance(chat, PydanticAIChatModel)
     assert isinstance(embedder, PydanticAIEmbeddingModel)
     assert isinstance(embedder, IEmbeddingModel)
-    assert embedder.embedding_size == 1536
+    assert isinstance(chat, typechat.TypeChatLanguageModel)

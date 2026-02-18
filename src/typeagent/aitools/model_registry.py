@@ -39,28 +39,11 @@ import typechat
 from .embeddings import IEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
 
 # ---------------------------------------------------------------------------
-# Known embedding sizes for common models
-# ---------------------------------------------------------------------------
-
-_KNOWN_EMBEDDING_SIZES: dict[str, int] = {
-    "text-embedding-ada-002": 1536,
-    "text-embedding-3-small": 1536,
-    "text-embedding-3-large": 3072,
-    "embed-english-v3.0": 1024,
-    "embed-multilingual-v3.0": 1024,
-    "embed-english-light-v3.0": 384,
-    "embed-multilingual-light-v3.0": 384,
-    "text-embedding-004": 768,
-    "embedding-001": 768,
-}
-
-
-# ---------------------------------------------------------------------------
 # Chat model adapter
 # ---------------------------------------------------------------------------
 
 
-class PydanticAIChatModel:
+class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     """Adapter from :class:`pydantic_ai.models.Model` to TypeChat's
     :class:`~typechat.TypeChatLanguageModel`.
 
@@ -99,13 +82,16 @@ class PydanticAIChatModel:
 # ---------------------------------------------------------------------------
 
 
-class PydanticAIEmbeddingModel:
+class PydanticAIEmbeddingModel(IEmbeddingModel):
     """Adapter from :class:`pydantic_ai.Embedder` to :class:`IEmbeddingModel`.
 
     This lets any pydantic_ai embedding provider (OpenAI, Cohere, Google, …)
     be used wherever the codebase expects an ``IEmbeddingModel``, including
     :class:`~typeagent.aitools.vectorbase.VectorBase` and
     :class:`~typeagent.knowpro.convsettings.ConversationSettings`.
+
+    If *embedding_size* is not given, it is probed automatically by making a
+    single embedding call.
     """
 
     model_name: str
@@ -115,7 +101,7 @@ class PydanticAIEmbeddingModel:
         self,
         embedder: _PydanticAIEmbedder,
         model_name: str,
-        embedding_size: int,
+        embedding_size: int = 0,
     ) -> None:
         self._embedder = embedder
         self.model_name = model_name
@@ -125,11 +111,18 @@ class PydanticAIEmbeddingModel:
     def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
         self._cache[key] = embedding
 
+    async def _probe_embedding_size(self) -> None:
+        """Discover embedding_size by making a single API call."""
+        result = await self._embedder.embed(["probe"], input_type="document")
+        self.embedding_size = len(result.embeddings[0])
+
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
         result = await self._embedder.embed([input], input_type="document")
         embedding: NDArray[np.float32] = np.array(
             result.embeddings[0], dtype=np.float32
         )
+        if self.embedding_size == 0:
+            self.embedding_size = len(embedding)
         norm = float(np.linalg.norm(embedding))
         if norm > 0:
             embedding = (embedding / norm).astype(np.float32)
@@ -137,9 +130,13 @@ class PydanticAIEmbeddingModel:
 
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
         if not input:
+            if self.embedding_size == 0:
+                await self._probe_embedding_size()
             return np.empty((0, self.embedding_size), dtype=np.float32)
         result = await self._embedder.embed(input, input_type="document")
         embeddings: NDArray[np.float32] = np.array(result.embeddings, dtype=np.float32)
+        if self.embedding_size == 0:
+            self.embedding_size = embeddings.shape[1]
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True).astype(np.float32)
         norms = np.where(norms > 0, norms, np.float32(1.0))
         embeddings = (embeddings / norms).astype(np.float32)
@@ -187,14 +184,14 @@ def create_chat_model(
 def create_embedding_model(
     model_spec: str,
     *,
-    embedding_size: int | None = None,
-) -> IEmbeddingModel:
+    embedding_size: int = 0,
+) -> PydanticAIEmbeddingModel:
     """Create an embedding model from a ``provider:model`` spec.
 
     Delegates to :class:`pydantic_ai.Embedder` for provider wiring.
 
-    If *embedding_size* is not given, it is looked up in a table of common
-    models.  For unknown models, pass it explicitly.
+    If *embedding_size* is not given, it will be probed automatically
+    on the first embedding call.
 
     Examples::
 
@@ -203,13 +200,6 @@ def create_embedding_model(
         model = create_embedding_model("google:text-embedding-004")
     """
     model_name = model_spec.split(":")[-1] if ":" in model_spec else model_spec
-    if embedding_size is None:
-        embedding_size = _KNOWN_EMBEDDING_SIZES.get(model_name)
-    if embedding_size is None:
-        raise ValueError(
-            f"Unknown embedding size for model {model_name!r}. "
-            f"Pass embedding_size= explicitly."
-        )
     embedder = _PydanticAIEmbedder(model_spec)
     return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)
 
@@ -218,8 +208,8 @@ def configure_models(
     chat_model_spec: str,
     embedding_model_spec: str,
     *,
-    embedding_size: int | None = None,
-) -> tuple[typechat.TypeChatLanguageModel, IEmbeddingModel]:
+    embedding_size: int = 0,
+) -> tuple[PydanticAIChatModel, PydanticAIEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
 
     Delegates to pydantic_ai's model registry for provider wiring.
