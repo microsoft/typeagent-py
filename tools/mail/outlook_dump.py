@@ -265,7 +265,7 @@ async def download_messages(
 ) -> int:
     """Download messages from the signed-in user's mailbox as ``.eml`` files.
 
-    Messages are saved as ``1.eml``, ``2.eml``, … in *output_dir*.
+    Messages are saved as ``000001.eml``, ``000002.eml``, … in *output_dir*.
     Returns the number of messages successfully downloaded.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -301,7 +301,7 @@ async def download_messages(
                 print(f"  [skip] empty MIME for message {msg.id}")
                 continue
 
-            eml_path = output_dir / f"{count + 1}.eml"
+            eml_path = output_dir / f"{count + 1:06d}.eml"
             if isinstance(mime_content, bytes):
                 eml_path.write_bytes(mime_content)
             else:
