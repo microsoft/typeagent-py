@@ -3,12 +3,12 @@
 
 from datetime import datetime
 from email import message_from_string
-from email.header import decode_header, make_header
+from email.header import decode_header, Header, make_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 import re
-from typing import Iterable
+from typing import Iterable, overload
 
 from .email_message import EmailMessage, EmailMessageMeta
 
@@ -21,15 +21,24 @@ def decode_encoded_words(value: str) -> str:
     return str(make_header(decode_header(value)))
 
 
-def _header_to_str(value: object) -> str | None:
-    """Coerce an email header value to str or None.
+# Coerce an email header value to str or None.
+#  msg.get() can return an email.header.Header object instead of a plain str when the header contains RFC 2047 encoded words.
+#  Pydantic expects str, so we normalise here.
 
-    msg.get() can return an email.header.Header object instead of a plain str
-    when the header contains RFC 2047 encoded words.  Pydantic expects str, so
-    we normalise here.
-    """
+
+@overload
+def _header_to_str(value: str | Header | None, default: str) -> str: ...
+
+
+@overload
+def _header_to_str(value: str | Header | None) -> str | None: ...
+
+
+def _header_to_str(
+    value: str | Header | None, default: str | None = None
+) -> str | None:
     if value is None:
-        return None
+        return default
     return str(value)
 
 
@@ -81,7 +90,7 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     # msg.get() can return a Header object instead of str for encoded headers,
     # so coerce all values to str.
     email_meta = EmailMessageMeta(
-        sender=_header_to_str(msg.get("From", "")) or "",
+        sender=_header_to_str(msg.get("From"), ""),
         recipients=_import_address_headers(msg.get_all("To", [])),
         cc=_import_address_headers(msg.get_all("Cc", [])),
         bcc=_import_address_headers(msg.get_all("Bcc", [])),
@@ -275,11 +284,11 @@ def email_matches_date_filter(
         return True
     try:
         email_dt = datetime.fromisoformat(timestamp)
-        # Treat offset-naive timestamps as local time for comparison
-        if email_dt.tzinfo is None:
-            email_dt = email_dt.astimezone()
     except ValueError:
         return True
+    # Treat offset-naive timestamps as local time for comparison
+    if email_dt.tzinfo is None:
+        email_dt = email_dt.astimezone()
     if start_date and email_dt < start_date:
         return False
     if stop_date and email_dt >= stop_date:

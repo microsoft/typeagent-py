@@ -198,8 +198,8 @@ def collect_eml_files(paths: list[str], verbose: bool) -> list[Path]:
 def _parse_date(date_str: str) -> datetime:
     """Parse a YYYY-MM-DD string into a timezone-aware datetime.
 
-    The date is interpreted in the local timezone (not UTC), so that
-    ``--start-date 2024-01-15`` means midnight local time.
+    The date is interpreted as 00:00:00 in the local timezone, so that
+    ``--start-date 2024-01-15`` means the start of that day locally.
     """
     try:
         # astimezone() on a naive datetime assumes local time (Python 3.6+)
@@ -210,10 +210,6 @@ def _parse_date(date_str: str) -> datetime:
             file=sys.stderr,
         )
         sys.exit(1)
-
-
-# Alias kept for backward compatibility.
-_email_matches_date_filter = email_matches_date_filter
 
 
 def _iter_emails(
@@ -327,7 +323,7 @@ async def ingest_emails(
             email = import_email_from_file(str(email_file))
 
             # Apply date filter
-            if not _email_matches_date_filter(email.timestamp, start_date, stop_date):
+            if not email_matches_date_filter(email.timestamp, start_date, stop_date):
                 skipped_count += 1
                 if verbose:
                     print("  [Outside date range, skipping]")

@@ -9,6 +9,7 @@ and places each email as a separate .eml file (currently numbered sequentially).
 
 Usage:
     python tools/mail/mbox_dump.py mailbox.mbox
+    python tools/mail/mbox_dump.py mailbox.mbox --output-dir ./emails
     python tools/mail/mbox_dump.py --url https://example.com/archive.mbox
     python tools/mail/mbox_dump.py --url https://example.com/archive.mbox --mbox-dir /tmp
     python tools/mail/mbox_dump.py --url https://example.com/archive.mbox --mbox-file local.mbox
@@ -95,6 +96,11 @@ def main() -> None:
         default=None,
         help="Filename for the downloaded mbox file (default: filename from the URL)",
     )
+    parser.add_argument(
+        "--output-dir",
+        default="mail_dump",
+        help="Output directory for .eml files (default: mail_dump)",
+    )
     args = parser.parse_args()
 
     if args.url:
@@ -111,8 +117,12 @@ def main() -> None:
     if args.mbox is None:
         parser.error("either provide an mbox file path or use --url to download one")
 
-    count = dump_mbox(args.mbox)
-    out_dir = Path(args.mbox).parent / Path(args.mbox).stem
+    count = dump_mbox(args.mbox, output_dir=args.output_dir)
+    out_dir = (
+        args.output_dir
+        if args.output_dir
+        else str(Path(args.mbox).parent / Path(args.mbox).stem)
+    )
     print(f"Extracted {count} emails to {out_dir}/")
 
 
