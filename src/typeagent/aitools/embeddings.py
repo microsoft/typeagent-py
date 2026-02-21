@@ -15,7 +15,7 @@ from tiktoken import model as tiktoken_model
 from tiktoken.core import Encoding
 
 from .auth import AzureTokenProvider, get_shared_token_provider
-from .utils import timelog
+from .utils import prefers_azure, timelog
 
 type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
@@ -127,8 +127,7 @@ class AsyncEmbeddingModel:
         if use_azure is not None:
             self.use_azure = use_azure
         else:
-            # Prefer OpenAI if both are set, use Azure if only Azure is set
-            self.use_azure = bool(azure_api_key) and not bool(openai_api_key)
+            self.use_azure = prefers_azure()
 
         if endpoint_envvar is None:
             # Check if OpenAI credentials are available, prefer OpenAI over Azure

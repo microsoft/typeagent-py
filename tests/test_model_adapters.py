@@ -11,9 +11,19 @@ from typeagent.aitools.model_adapters import (
     configure_models,
     create_chat_model,
     create_embedding_model,
+    DEFAULT_CHAT_MODEL_NAME,
+    DEFAULT_EMBEDDING_MODEL_NAME,
+    infer_provider_prefix,
     PydanticAIChatModel,
     PydanticAIEmbeddingModel,
 )
+
+
+@pytest.fixture
+def provider() -> str:
+    """Current provider prefix based on available API keys."""
+    return infer_provider_prefix()
+
 
 # ---------------------------------------------------------------------------
 # Spec format
@@ -32,15 +42,17 @@ def test_spec_uses_colon_separator() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_explicit_embedding_size() -> None:
+def test_explicit_embedding_size(provider: str) -> None:
     """Passing embedding_size= sets it immediately."""
-    model = create_embedding_model("openai:text-embedding-3-small", embedding_size=42)
+    model = create_embedding_model(
+        f"{provider}:text-embedding-3-small", embedding_size=42
+    )
     assert model.embedding_size == 42
 
 
-def test_default_embedding_size_is_zero() -> None:
+def test_default_embedding_size_is_zero(provider: str) -> None:
     """Without embedding_size=, it defaults to 0 (probed on first call)."""
-    model = create_embedding_model("openai:text-embedding-3-small")
+    model = create_embedding_model(f"{provider}:text-embedding-3-small")
     assert model.embedding_size == 0
 
 
@@ -244,9 +256,117 @@ async def test_embedding_adapter_empty_batch() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_configure_models_returns_correct_types() -> None:
+def test_configure_models_returns_correct_types(provider: str) -> None:
     """configure_models creates both adapters."""
-    chat, embedder = configure_models("openai:gpt-4o", "openai:text-embedding-3-small")
+    chat, embedder = configure_models(
+        f"{provider}:gpt-4o", f"{provider}:text-embedding-3-small"
+    )
     assert isinstance(chat, PydanticAIChatModel)
     assert isinstance(embedder, PydanticAIEmbeddingModel)
     assert typechat.TypeChatLanguageModel in type(chat).__mro__
+
+
+# ---------------------------------------------------------------------------
+# Environment-variable defaults
+# ---------------------------------------------------------------------------
+
+
+def test_create_chat_model_env_default(
+    monkeypatch: pytest.MonkeyPatch, provider: str
+) -> None:
+    """create_chat_model() reads PYDANTIC_AI_MODEL from the environment."""
+    monkeypatch.setenv("PYDANTIC_AI_MODEL", f"{provider}:gpt-4o-mini")
+    model = create_chat_model()
+    assert isinstance(model, PydanticAIChatModel)
+
+
+def test_create_chat_model_builtin_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without PYDANTIC_AI_MODEL, falls back to DEFAULT_CHAT_MODEL."""
+    monkeypatch.delenv("PYDANTIC_AI_MODEL", raising=False)
+    model = create_chat_model()
+    assert isinstance(model, PydanticAIChatModel)
+
+
+def test_create_embedding_model_env_default(
+    monkeypatch: pytest.MonkeyPatch, provider: str
+) -> None:
+    """create_embedding_model() reads PYDANTIC_AI_EMBEDDING_MODEL from the environment."""
+    monkeypatch.setenv(
+        "PYDANTIC_AI_EMBEDDING_MODEL", f"{provider}:text-embedding-3-small"
+    )
+    model = create_embedding_model()
+    assert isinstance(model, PydanticAIEmbeddingModel)
+
+
+def test_create_embedding_model_builtin_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without PYDANTIC_AI_EMBEDDING_MODEL, falls back to auto-detected provider."""
+    monkeypatch.delenv("PYDANTIC_AI_EMBEDDING_MODEL", raising=False)
+    model = create_embedding_model()
+    assert isinstance(model, PydanticAIEmbeddingModel)
+    assert model.model_name == DEFAULT_EMBEDDING_MODEL_NAME
+
+
+def test_configure_models_env_defaults(
+    monkeypatch: pytest.MonkeyPatch, provider: str
+) -> None:
+    """configure_models() falls back to env vars when specs are omitted."""
+    monkeypatch.setenv("PYDANTIC_AI_MODEL", f"{provider}:gpt-4o-mini")
+    monkeypatch.setenv(
+        "PYDANTIC_AI_EMBEDDING_MODEL", f"{provider}:text-embedding-3-small"
+    )
+    chat, embedder = configure_models()
+    assert isinstance(chat, PydanticAIChatModel)
+    assert isinstance(embedder, PydanticAIEmbeddingModel)
+
+
+def test_explicit_spec_overrides_env(
+    monkeypatch: pytest.MonkeyPatch, provider: str
+) -> None:
+    """An explicit model_spec takes precedence over the env var."""
+    monkeypatch.setenv("PYDANTIC_AI_MODEL", f"{provider}:gpt-4o-mini")
+    model = create_chat_model(f"{provider}:gpt-4o")
+    assert isinstance(model, PydanticAIChatModel)
+
+
+def test_default_constants() -> None:
+    """Verify the built-in default model name constants."""
+    assert DEFAULT_CHAT_MODEL_NAME == "gpt-4o"
+    assert DEFAULT_EMBEDDING_MODEL_NAME == "text-embedding-3-small"
+
+
+# ---------------------------------------------------------------------------
+# Provider auto-detection
+# ---------------------------------------------------------------------------
+
+
+def test_infer_provider_openai(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prefers openai when OPENAI_API_KEY is set."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+    assert infer_provider_prefix() == "openai"
+
+
+def test_infer_provider_openai_over_azure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prefers openai when both keys are set."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "az-test")
+    assert infer_provider_prefix() == "openai"
+
+
+def test_infer_provider_azure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Falls back to azure when only AZURE_OPENAI_API_KEY is set."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "az-test")
+    assert infer_provider_prefix() == "azure"
+
+
+def test_infer_provider_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raises RuntimeError when no API key is available."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+    with pytest.raises(
+        RuntimeError, match="Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY"
+    ):
+        infer_provider_prefix()
