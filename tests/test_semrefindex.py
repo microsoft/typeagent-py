@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 
 # TypeAgent imports
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
@@ -37,7 +37,7 @@ from typeagent.storage.memory.semrefindex import (
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def semantic_ref_index(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[ITermToSemanticRefIndex, None]:
     """Unified fixture to create a semantic ref index for both memory and SQLite providers."""
@@ -97,7 +97,7 @@ async def semantic_ref_index(
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def semantic_ref_setup(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection], None]:
     """Unified fixture that provides both semantic ref index and collection for testing helper functions."""

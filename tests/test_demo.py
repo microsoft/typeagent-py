@@ -6,7 +6,7 @@ import asyncio
 import textwrap
 import time
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ScoredSemanticRefOrdinal
 from typeagent.podcasts import podcast
@@ -33,7 +33,7 @@ async def main(filename_prefix: str):
     settings = ConversationSettings()
     model = settings.embedding_model
     assert model is not None
-    assert isinstance(model, AsyncEmbeddingModel), f"model is {model!r}"
+    assert isinstance(model, IEmbeddingModel), f"model is {model!r}"
     assert settings.thread_settings.embedding_model is model
     assert (
         settings.message_text_index_settings.embedding_index_settings.embedding_model

@@ -6,9 +6,14 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from openai import DEFAULT_MAX_RETRIES
+from .embeddings import (
+    create_embedding_model,
+    IEmbeddingModel,
+    NormalizedEmbedding,
+    NormalizedEmbeddings,
+)
 
-from .embeddings import AsyncEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
+DEFAULT_MAX_RETRIES = 2
 
 
 @dataclass
@@ -19,7 +24,7 @@ class ScoredInt:
 
 @dataclass
 class TextEmbeddingIndexSettings:
-    embedding_model: AsyncEmbeddingModel
+    embedding_model: IEmbeddingModel
     embedding_size: int  # Set to embedding_model.embedding_size
     min_score: float  # Between 0.0 and 1.0
     max_matches: int | None  # >= 1; None means no limit
@@ -28,7 +33,7 @@ class TextEmbeddingIndexSettings:
 
     def __init__(
         self,
-        embedding_model: AsyncEmbeddingModel | None = None,
+        embedding_model: IEmbeddingModel | None = None,
         embedding_size: int | None = None,
         min_score: float | None = None,
         max_matches: int | None = None,
@@ -41,7 +46,7 @@ class TextEmbeddingIndexSettings:
         self.max_retries = (
             max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
         )
-        self.embedding_model = embedding_model or AsyncEmbeddingModel(
+        self.embedding_model = embedding_model or create_embedding_model(
             embedding_size, max_retries=self.max_retries
         )
         self.embedding_size = self.embedding_model.embedding_size
@@ -53,7 +58,7 @@ class TextEmbeddingIndexSettings:
 class VectorBase:
     settings: TextEmbeddingIndexSettings
     _vectors: NormalizedEmbeddings
-    _model: AsyncEmbeddingModel
+    _model: IEmbeddingModel
     _embedding_size: int
 
     def __init__(self, settings: TextEmbeddingIndexSettings):

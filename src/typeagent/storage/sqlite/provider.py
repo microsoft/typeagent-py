@@ -6,7 +6,7 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from ...aitools.embeddings import AsyncEmbeddingModel
+from ...aitools.embeddings import create_embedding_model
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
@@ -125,7 +125,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         if provided_message_settings is None:
             if stored_size is not None or stored_name is not None:
-                embedding_model = AsyncEmbeddingModel(
+                embedding_model = create_embedding_model(
                     embedding_size=stored_size,
                     model_name=stored_name,
                 )

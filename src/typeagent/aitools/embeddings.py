@@ -3,6 +3,7 @@
 
 import asyncio
 import os
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -18,6 +19,39 @@ from .utils import timelog
 
 type NormalizedEmbedding = NDArray[np.float32]  # A single embedding
 type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
+
+
+@runtime_checkable
+class IEmbeddingModel(Protocol):
+    """Provider-agnostic interface for embedding models.
+
+    Implement this protocol to add support for a new embedding provider
+    (e.g. Anthropic, Gemini, local models). The existing AsyncEmbeddingModel
+    implements it for OpenAI and Azure OpenAI.
+    """
+
+    model_name: str
+    embedding_size: int
+
+    def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
+        """Cache an already-computed embedding under the given key."""
+        ...
+
+    async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
+        """Compute a single embedding without caching."""
+        ...
+
+    async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
+        """Compute embeddings for a batch of strings without caching."""
+        ...
+
+    async def get_embedding(self, key: str) -> NormalizedEmbedding:
+        """Retrieve a single embedding, using cache if available."""
+        ...
+
+    async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
+        """Retrieve embeddings for multiple keys, using cache if available."""
+        ...
 
 
 DEFAULT_MODEL_NAME = "text-embedding-ada-002"
@@ -60,6 +94,7 @@ class AsyncEmbeddingModel:
         model_name: str | None = None,
         endpoint_envvar: str | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
+        use_azure: bool | None = None,
     ):
         if model_name is None:
             model_name = DEFAULT_MODEL_NAME
@@ -88,8 +123,12 @@ class AsyncEmbeddingModel:
         openai_api_key = os.getenv("OPENAI_API_KEY")
         azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
 
-        # Prefer OpenAI if both are set, use Azure if only Azure is set
-        self.use_azure = bool(azure_api_key) and not bool(openai_api_key)
+        # Determine provider: explicit use_azure overrides auto-detection.
+        if use_azure is not None:
+            self.use_azure = use_azure
+        else:
+            # Prefer OpenAI if both are set, use Azure if only Azure is set
+            self.use_azure = bool(azure_api_key) and not bool(openai_api_key)
 
         if endpoint_envvar is None:
             # Check if OpenAI credentials are available, prefer OpenAI over Azure
@@ -311,3 +350,29 @@ class AsyncEmbeddingModel:
                 return self.encoding.decode(truncated_tokens), self.max_chunk_size
             else:
                 return input, len(tokens)
+
+
+def create_embedding_model(
+    embedding_size: int | None = None,
+    model_name: str | None = None,
+    **kwargs,
+) -> IEmbeddingModel:
+    """Create an embedding model using OpenAI/Azure OpenAI.
+
+    This is the default factory. To use a different provider, create an
+    instance of a class that implements ``IEmbeddingModel`` and pass it
+    directly to ``TextEmbeddingIndexSettings`` or ``ConversationSettings``.
+
+    Args:
+        embedding_size: Requested embedding dimensionality (provider-specific).
+        model_name: Model identifier (e.g. "text-embedding-ada-002").
+        **kwargs: Extra keyword arguments forwarded to ``AsyncEmbeddingModel``.
+
+    Returns:
+        An ``IEmbeddingModel`` instance backed by OpenAI / Azure OpenAI.
+    """
+    return AsyncEmbeddingModel(
+        embedding_size=embedding_size,
+        model_name=model_name,
+        **kwargs,
+    )

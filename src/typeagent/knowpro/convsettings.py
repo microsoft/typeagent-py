@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..aitools.embeddings import AsyncEmbeddingModel
+from ..aitools.embeddings import create_embedding_model, IEmbeddingModel
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .interfaces import IKnowledgeExtractor, IStorageProvider
 
@@ -38,11 +38,11 @@ class ConversationSettings:
 
     def __init__(
         self,
-        model: AsyncEmbeddingModel | None = None,
+        model: IEmbeddingModel | None = None,
         storage_provider: IStorageProvider | None = None,
     ):
         # All settings share the same model, so they share the embedding cache.
-        model = model or AsyncEmbeddingModel()
+        model = model or create_embedding_model()
         self.embedding_model = model
         min_score = 0.85
         self.related_term_index_settings = RelatedTermIndexSettings(

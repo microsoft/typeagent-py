@@ -15,7 +15,11 @@ from openai.types.create_embedding_response import CreateEmbeddingResponse, Usag
 from openai.types.embedding import Embedding
 import tiktoken
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import (
+    AsyncEmbeddingModel,
+    IEmbeddingModel,
+    TEST_MODEL_NAME,
+)
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -90,7 +94,7 @@ def really_needs_auth() -> None:
 
 
 @pytest.fixture(scope="session")
-def embedding_model() -> AsyncEmbeddingModel:
+def embedding_model() -> IEmbeddingModel:
     """Fixture to create a test embedding model with small embedding size for faster tests."""
     return AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
 
@@ -130,7 +134,7 @@ def temp_db_path() -> Iterator[str]:
 
 @pytest.fixture
 def memory_storage(
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
 ) -> MemoryStorageProvider:
     """Create a memory storage provider with settings."""
     embedding_settings = TextEmbeddingIndexSettings(embedding_model=embedding_model)
@@ -188,7 +192,7 @@ class FakeMessage(IMessage):
 
 @pytest_asyncio.fixture
 async def sqlite_storage(
-    temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    temp_db_path: str, embedding_model: IEmbeddingModel
 ) -> AsyncGenerator[SqliteStorageProvider[FakeMessage], None]:
     """Create a SqliteStorageProvider for testing."""
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)

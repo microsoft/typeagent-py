@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 
 # TypeAgent imports
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
@@ -30,7 +30,7 @@ from typeagent.storage.memory.reltermsindex import (
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def related_terms_index(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[ITermToRelatedTermsIndex, None]:
     class DummyTestMessage(IMessage):

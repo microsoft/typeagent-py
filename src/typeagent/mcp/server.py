@@ -102,7 +102,7 @@ class ProcessingContext:
     query_context: query.QueryEvalContext[
         podcast.PodcastMessage, TermToSemanticRefIndex
     ]
-    embedding_model: embeddings.AsyncEmbeddingModel
+    embedding_model: embeddings.IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse]
 
