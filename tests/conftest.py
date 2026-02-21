@@ -20,6 +20,7 @@ from typeagent.aitools.embeddings import (
     IEmbeddingModel,
     TEST_MODEL_NAME,
 )
+from typeagent.aitools.utils import has_api_key
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -88,8 +89,7 @@ def needs_auth() -> None:
 @pytest.fixture(scope="session")
 def really_needs_auth() -> None:
     load_dotenv()
-    # Check if any of the supported API keys is set
-    if not (os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")):
+    if not has_api_key():
         pytest.skip("No API key found")
 
 

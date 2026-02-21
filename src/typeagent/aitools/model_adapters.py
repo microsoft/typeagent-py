@@ -22,6 +22,8 @@ See https://ai.pydantic.dev/models/ for all supported providers and their
 required environment variables.
 """
 
+import os
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -160,14 +162,28 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
 
 
 # ---------------------------------------------------------------------------
+# Env-var defaults
+# ---------------------------------------------------------------------------
+
+DEFAULT_CHAT_MODEL_NAME = "gpt-4o"
+DEFAULT_EMBEDDING_MODEL_NAME = "text-embedding-3-small"
+
+# Re-export from utils for backward compatibility and convenience.
+from .utils import infer_provider_prefix as infer_provider_prefix  # noqa: E402
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 
 def create_chat_model(
-    model_spec: str,
+    model_spec: str | None = None,
 ) -> PydanticAIChatModel:
     """Create a chat model from a ``provider:model`` spec.
+
+    If *model_spec* is not given it falls back to the
+    ``PYDANTIC_AI_MODEL`` environment variable, then auto-detects the
+    provider from ``OPENAI_API_KEY`` / ``AZURE_OPENAI_API_KEY``.
 
     Delegates to :func:`pydantic_ai.models.infer_model` for provider wiring.
 
@@ -175,18 +191,30 @@ def create_chat_model(
 
         model = create_chat_model("openai:gpt-4o")
         model = create_chat_model("anthropic:claude-sonnet-4-20250514")
-        model = create_chat_model("google:gemini-2.0-flash")
+        model = create_chat_model()  # auto-detects provider
     """
+    if model_spec is None:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        model_spec = os.getenv(
+            "PYDANTIC_AI_MODEL",
+            f"{infer_provider_prefix()}:{DEFAULT_CHAT_MODEL_NAME}",
+        )
     model = infer_model(model_spec)
     return PydanticAIChatModel(model)
 
 
 def create_embedding_model(
-    model_spec: str,
+    model_spec: str | None = None,
     *,
     embedding_size: int = 0,
 ) -> PydanticAIEmbeddingModel:
     """Create an embedding model from a ``provider:model`` spec.
+
+    If *model_spec* is not given it falls back to the
+    ``PYDANTIC_AI_EMBEDDING_MODEL`` environment variable, then auto-detects
+    the provider from ``OPENAI_API_KEY`` / ``AZURE_OPENAI_API_KEY``.
 
     Delegates to :class:`pydantic_ai.Embedder` for provider wiring.
 
@@ -197,20 +225,33 @@ def create_embedding_model(
 
         model = create_embedding_model("openai:text-embedding-3-small")
         model = create_embedding_model("cohere:embed-english-v3.0")
-        model = create_embedding_model("google:text-embedding-004")
+        model = create_embedding_model()  # auto-detects provider
     """
+    if model_spec is None:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        model_spec = os.getenv(
+            "PYDANTIC_AI_EMBEDDING_MODEL",
+            f"{infer_provider_prefix()}:{DEFAULT_EMBEDDING_MODEL_NAME}",
+        )
     model_name = model_spec.split(":")[-1] if ":" in model_spec else model_spec
     embedder = _PydanticAIEmbedder(model_spec)
     return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)
 
 
 def configure_models(
-    chat_model_spec: str,
-    embedding_model_spec: str,
+    chat_model_spec: str | None = None,
+    embedding_model_spec: str | None = None,
     *,
     embedding_size: int = 0,
 ) -> tuple[PydanticAIChatModel, PydanticAIEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
+
+    Both specs fall back to their respective environment variables
+    (``PYDANTIC_AI_MODEL``, ``PYDANTIC_AI_EMBEDDING_MODEL``) and
+    then auto-detect the provider from ``OPENAI_API_KEY`` /
+    ``AZURE_OPENAI_API_KEY``.
 
     Delegates to pydantic_ai's model registry for provider wiring.
 

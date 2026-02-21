@@ -3,11 +3,11 @@
 
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
-import os
 
 from dotenv import load_dotenv
 
 import typeagent.aitools.utils as utils
+from typeagent.aitools.utils import has_api_key
 
 
 def test_timelog():
@@ -33,7 +33,7 @@ def test_pretty_print():
 def test_load_dotenv(really_needs_auth):
     # Call load_dotenv and check for at least one expected key
     load_dotenv()
-    assert "OPENAI_API_KEY" in os.environ or "AZURE_OPENAI_API_KEY" in os.environ
+    assert has_api_key()
 
 
 def test_create_translator():

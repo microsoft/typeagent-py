@@ -19,6 +19,38 @@ import typechat
 
 from .auth import AzureTokenProvider, get_shared_token_provider
 
+# ---------------------------------------------------------------------------
+# Provider / API-key detection helpers
+# ---------------------------------------------------------------------------
+
+
+def infer_provider_prefix() -> str:
+    """Return ``"openai"`` or ``"azure"`` based on available API keys.
+
+    Checks ``OPENAI_API_KEY`` first (preferred), then ``AZURE_OPENAI_API_KEY``.
+    Raises :class:`RuntimeError` if neither is set.
+
+    This is the single canonical check used throughout the codebase.
+    """
+    if os.getenv("OPENAI_API_KEY"):
+        return "openai"
+    if os.getenv("AZURE_OPENAI_API_KEY"):
+        return "azure"
+    raise RuntimeError(
+        "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set. "
+        "Set one of them or pass an explicit model spec (e.g. 'openai:gpt-4o')."
+    )
+
+
+def has_api_key() -> bool:
+    """Return ``True`` if at least one API key is available."""
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY"))
+
+
+def prefers_azure() -> bool:
+    """Return ``True`` when Azure should be used (no OpenAI key, but Azure key is set)."""
+    return not os.getenv("OPENAI_API_KEY") and bool(os.getenv("AZURE_OPENAI_API_KEY"))
+
 
 @contextmanager
 def timelog(label: str, verbose: bool = True):
@@ -299,23 +331,20 @@ def create_async_openai_client(
     """
     from openai import AsyncAzureOpenAI, AsyncOpenAI
 
-    if openai_api_key := os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
+    provider = infer_provider_prefix()  # raises RuntimeError if no key
 
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
+    if provider == "openai":
+        return AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=base_url)
 
-        return AsyncAzureOpenAI(
-            api_version=api_version,
-            azure_endpoint=azure_endpoint,
-            api_key=azure_api_key,
-        )
+    # provider == "azure"
+    azure_api_key = get_azure_api_key(os.environ["AZURE_OPENAI_API_KEY"])
+    azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
 
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
+    return AsyncAzureOpenAI(
+        api_version=api_version,
+        azure_endpoint=azure_endpoint,
+        api_key=azure_api_key,
+    )
 
 
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
@@ -325,14 +354,15 @@ def make_agent[T](cls: type[T]):
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.azure import AzureProvider
 
-    # Prefer straight OpenAI over Azure OpenAI.
-    if os.getenv("OPENAI_API_KEY"):
+    provider = infer_provider_prefix()  # raises RuntimeError if no key
+
+    if provider == "openai":
         Wrapper = NativeOutput
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
         model = OpenAIChatModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
 
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
+    else:  # provider == "azure"
+        azure_api_key = get_azure_api_key(os.environ["AZURE_OPENAI_API_KEY"])
         azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
 
         print(f"## {azure_endpoint} ##")
@@ -346,11 +376,6 @@ def make_agent[T](cls: type[T]):
                 api_version=api_version,
                 api_key=azure_api_key,
             ),
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
         )
 
     return Agent(model, output_type=Wrapper(cls, strict=True), retries=3)
