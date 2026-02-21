@@ -18,6 +18,7 @@ We have a driver program in the repo to ingest WebVTT files into a
 SQLite database.
 
 This is `tools/ingest_vtt.py`. You run it as follows:
+
 ```sh
 python tools/ingest_vtt.py FILE1.vtt ... FILEN.vtt -d mp.db
 ```
@@ -25,9 +26,11 @@ python tools/ingest_vtt.py FILE1.vtt ... FILEN.vtt -d mp.db
 The process took maybe 15 minutes for 11 sketches.
 
 The sketches can now be queried by using another tool:
+
 ```sh
 python tools/query.py -d mp.db
 ```
+
 (You just type questions and it prints answers.)
 
 ## How we did the Gmail demo
@@ -41,11 +44,39 @@ We used the Gmail API to download 550 messages from Guido's Gmail
 
 Given a folder with `*.eml` files in MIME format, we ran our email
 ingestion tool, `tools/ingest_email.py`. You run it as follows:
+
 ```sh
 python tools/ingest_email.py -d gmail.db email-folder/
 ```
+
 You can also pass individual `.eml` files instead of a directory.
 Use `-v` for verbose output.
+
+### Filtering by date
+
+Use `--start-date` and `--stop-date` to restrict ingestion to a date range with [start, stop):
+
+```sh
+# Ingest only January 2024 emails
+python tools/ingest_email.py -d gmail.db email-folder/ \
+    --start-date 2024-01-01 --stop-date 2024-02-01
+```
+
+### Pagination with --offset and --limit
+
+These flags slice the input file list before any other filtering:
+
+```sh
+# Ingest only the first 20 files
+python tools/ingest_email.py -d gmail.db email-folder/ --limit 20
+
+# Skip the first 100 files, then process the next 50
+python tools/ingest_email.py -d gmail.db email-folder/ \
+    --offset 100 --limit 50
+```
+
+All four flags can be combined. The filter pipeline is:
+offset/limit → already-ingested → date range.
 
 The process took over an hour for 500 messages. Moreover, it complained
 about nearly 10% of the messages due to timeouts or just overly large
@@ -55,13 +86,14 @@ subsequent runs.
 
 We can then query the `gmail.db` database using the same `query.py`
 tool that we used for the Monty Python demo:
+
 ```sh
 python tools/query.py -d gmail.db
 ```
 
 ### How to use the Gmail API to download messages
 
-In the `tools/gmail/` folder you'll find a tool named `gmail_dump.py` which
+In the `tools/mail/` folder you'll find a tool named `gmail_dump.py` which
 will download any number of messages (default 50) using the Gmail API.
 In order to use the Gmail API, however, you have to create a (free)
 Google Cloud app and configure it appropriately.
@@ -104,6 +136,7 @@ and saved to two files by calling the `.ingest()` method on the
 returned `src/typeagent/podcasts/podcast/Podcast` object.
 
 Here's a brief sample session:
+
 ```sh
 $ python tools/query.py
 1.318s -- Using Azure OpenAI
