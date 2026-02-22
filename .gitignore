@@ -33,6 +33,9 @@ pytest.local.ini
 /evals
 /tests/testdata/Episode_53_Answer_results.json
 /tests/testdata/Episode_53_Search_results.json
+# E-Mail test data
+!/tests/testdata/email-testdata/.gitkeep
+/tests/testdata/email-testdata/*
 
 # Email demo
 /tools/mail/client_secret.json

@@ -1,0 +1,210 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+"""Tests for email filtering logic and email parsing edge cases."""
+
+from datetime import datetime, timezone
+
+from typeagent.emails.email_import import email_matches_date_filter, import_email_string
+
+# ===========================================================================
+# Tests for email_matches_date_filter
+# ===========================================================================
+
+
+class TestEmailMatchesDateFilter:
+    """Tests for the email_matches_date_filter helper in ingest_email.py."""
+
+    def _utc(self, year: int, month: int, day: int) -> datetime:
+        return datetime(year, month, day, tzinfo=timezone.utc)
+
+    def test_no_filters(self) -> None:
+        """All emails pass when no filters are set."""
+        assert email_matches_date_filter("2024-01-15T10:00:00+00:00", None, None)
+
+    def test_none_timestamp_always_passes(self) -> None:
+        """Emails without a timestamp are always included."""
+        assert email_matches_date_filter(
+            None, self._utc(2024, 1, 1), self._utc(2024, 12, 31)
+        )
+
+    def test_invalid_timestamp_always_passes(self) -> None:
+        """Emails with unparseable timestamps are always included."""
+        assert email_matches_date_filter(
+            "not-a-date", self._utc(2024, 1, 1), self._utc(2024, 12, 31)
+        )
+
+    def test_start_date_filter_includes(self) -> None:
+        """Email on or after the start_date passes."""
+        start = self._utc(2024, 1, 15)
+        assert email_matches_date_filter("2024-01-15T00:00:00+00:00", start, None)
+        assert email_matches_date_filter("2024-01-16T00:00:00+00:00", start, None)
+
+    def test_start_date_filter_excludes(self) -> None:
+        """Email before the start_date is excluded."""
+        start = self._utc(2024, 1, 15)
+        assert not email_matches_date_filter("2024-01-14T23:59:59+00:00", start, None)
+
+    def test_stop_date_filter_includes(self) -> None:
+        """Email before the stop_date passes."""
+        stop = self._utc(2024, 2, 1)
+        assert email_matches_date_filter("2024-01-31T23:59:59+00:00", None, stop)
+
+    def test_stop_date_filter_excludes(self) -> None:
+        """Email on or after the stop_date is excluded (exclusive upper bound)."""
+        stop = self._utc(2024, 2, 1)
+        assert not email_matches_date_filter("2024-02-01T00:00:00+00:00", None, stop)
+
+    def test_date_range(self) -> None:
+        """Email within [start_date, stop_date) passes; outside fails."""
+        start = self._utc(2024, 1, 1)
+        stop = self._utc(2024, 2, 1)
+        # Inside
+        assert email_matches_date_filter("2024-01-15T12:00:00+00:00", start, stop)
+        # Before range
+        assert not email_matches_date_filter("2023-12-31T23:59:59+00:00", start, stop)
+        # At upper bound (exclusive)
+        assert not email_matches_date_filter("2024-02-01T00:00:00+00:00", start, stop)
+
+    def test_naive_timestamp_treated_as_local(self) -> None:
+        """Offset-naive timestamps should be treated as local time."""
+        # Use the same naive→aware conversion the function applies internally
+        # so the boundary's UTC offset matches the test dates regardless of DST.
+        start = datetime(2024, 1, 15).astimezone()
+        assert email_matches_date_filter("2024-01-15T00:00:00", start, None)
+        assert not email_matches_date_filter("2024-01-14T23:59:59", start, None)
+
+    def test_different_timezone(self) -> None:
+        """Timestamps with non-UTC offsets are compared correctly."""
+        # 2024-01-15T00:00:00+05:00 is 2024-01-14T19:00:00 UTC
+        start = self._utc(2024, 1, 15)
+        assert not email_matches_date_filter("2024-01-15T00:00:00+05:00", start, None)
+        # 2024-01-15T10:00:00+05:00 is 2024-01-15T05:00:00 UTC
+        assert email_matches_date_filter("2024-01-15T10:00:00+05:00", start, None)
+
+
+# ===========================================================================
+# Tests for email encoding edge cases
+# ===========================================================================
+
+
+_EMAIL_WITH_ENCODED_HEADER = """\
+From: =?utf-8?b?SsO8cmdlbg==?= <juergen@example.com>
+To: recipient@example.com
+Subject: =?utf-8?q?M=C3=BCnchen_weather?=
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+Message-ID: <encoded@example.com>
+
+Hello from Munich!
+"""
+
+
+class TestEncodingEdgeCases:
+    def test_encoded_header_sender(self) -> None:
+        """RFC 2047 encoded sender should be decoded to a string, not raise."""
+        email = import_email_string(_EMAIL_WITH_ENCODED_HEADER)
+        assert isinstance(email.metadata.sender, str)
+
+    def test_encoded_header_subject(self) -> None:
+        """RFC 2047 encoded subject should be decoded to a string."""
+        email = import_email_string(_EMAIL_WITH_ENCODED_HEADER)
+        assert isinstance(email.metadata.subject, str)
+
+
+_EMAIL_WITH_UNKNOWN_CHARSET = """\
+From: test@example.com
+To: recipient@example.com
+Subject: Unknown charset test
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+Message-ID: <charset@example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-8-i"
+Content-Transfer-Encoding: base64
+
+SGVsbG8gV29ybGQ=
+"""
+
+
+class TestUnknownCharset:
+    def test_unknown_charset_does_not_crash(self) -> None:
+        """An email with an unknown charset should be decoded without raising."""
+        email = import_email_string(_EMAIL_WITH_UNKNOWN_CHARSET)
+        body = " ".join(email.text_chunks)
+        assert "Hello World" in body or len(body) > 0
+
+
+# ===========================================================================
+# Tests for mbox with missing / malformed date
+# ===========================================================================
+
+_EMAIL_NO_DATE = """\
+From: test@example.com
+To: recipient@example.com
+Subject: No date header
+Message-ID: <nodate@example.com>
+
+This email has no Date header.
+"""
+
+
+class TestMissingDate:
+    def test_email_without_date_has_none_timestamp(self) -> None:
+        email = import_email_string(_EMAIL_NO_DATE)
+        assert email.timestamp is None
+
+    def test_email_without_date_passes_date_filter(self) -> None:
+        """Emails without timestamps should always pass the date filter."""
+        assert email_matches_date_filter(
+            None, datetime(2024, 1, 1, tzinfo=timezone.utc), None
+        )
+
+
+# ===========================================================================
+# Tests for import_email_string and import_email_message edge cases
+# ===========================================================================
+
+_SIMPLE_EMAIL = """\
+From: alice@example.com
+To: bob@example.com
+Subject: Test
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+Message-ID: <simple@example.com>
+
+Hello Bob!
+"""
+
+_MULTIPART_EMAIL = """\
+From: alice@example.com
+To: bob@example.com
+Subject: Multipart
+Date: Mon, 01 Jan 2024 10:00:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="boundary"
+
+--boundary
+Content-Type: text/plain
+
+Plain text body
+--boundary
+Content-Type: text/html
+
+<p>HTML body</p>
+--boundary--
+"""
+
+
+class TestImportEmailString:
+    def test_simple_email(self) -> None:
+        email = import_email_string(_SIMPLE_EMAIL)
+        assert "alice@example.com" in email.metadata.sender
+        assert email.metadata.subject is not None
+        assert "Test" in email.metadata.subject
+        assert email.metadata.id == "<simple@example.com>"
+        assert email.timestamp is not None
+        assert len(email.text_chunks) > 0
+
+    def test_multipart_email(self) -> None:
+        email = import_email_string(_MULTIPART_EMAIL)
+        # Should extract the plain text part
+        body = " ".join(email.text_chunks)
+        assert "Plain text body" in body
