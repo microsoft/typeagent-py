@@ -26,7 +26,7 @@ Usage examples::
     python tools/mail/outlook_dump.py --search "subject:quarterly report"
 
     # Check permissions only
-    python tools/mail/outlook_dump.py --check-permissions
+    python tools/mail/outlook_dump.py --check-app-reg-permissions
 
     # Add Mail.Read to the app registration (requires admin)
     python tools/mail/outlook_dump.py --setup-permissions
@@ -60,6 +60,12 @@ from msgraph.graph_service_client import GraphServiceClient
 
 # Delegated scopes requested at sign-in
 REQUIRED_SCOPES = ["Mail.Read"]
+
+# Required delegated permissions to check with --check-app-reg-permissions
+REQUIRED_DELEGATED_PERMISSIONS = [
+    "Mail.Read",
+    "User.Read",
+]
 
 # Default output directory
 OUT = Path("mail_dump")
@@ -132,6 +138,175 @@ async def check_permissions(client: GraphServiceClient) -> bool:
         return False
     print("Mail.Read permission verified successfully.")
     return True
+
+
+async def check_app_registration_permissions(
+    credential: Credential, application_client_id: str | None
+) -> bool:
+    """Check whether Mail.Read is present in the token's granted scopes.
+
+    Acquires an access token for the Microsoft Graph ``Mail.Read`` scope and
+    decodes the JWT (without cryptographic verification) to inspect:
+
+    * ``scp`` – delegated scopes actually granted to the token.
+    * ``appid`` / ``azp`` – confirms the correct application client ID.
+    * ``tid`` – tenant the token was issued for.
+
+    No admin permissions are required; the token is obtained with the same
+    credential used for all other operations.  Returns ``True`` when
+    ``Mail.Read`` appears in the granted scopes, ``False`` otherwise.
+    """
+    import base64
+    import json
+
+    if not application_client_id:
+        print("Cannot inspect permissions without --application-client-id.")
+        return False
+
+    # Acquire a token for the Graph Mail.Read scope
+    try:
+        token = credential.get_token("https://graph.microsoft.com/Mail.Read")
+    except Exception as e:
+        print(f"Failed to acquire token: {e}")
+        print("Ensure the app registration has Mail.Read configured and consented.")
+        return False
+
+    # Decode the JWT payload (no signature verification needed here)
+    parts = token.token.split(".")
+    if len(parts) < 2:
+        print("Access token is not a valid JWT.")
+        return False
+
+    payload_b64 = parts[1]
+    # Fix base64 padding
+    payload_b64 += "=" * (-len(payload_b64) % 4)
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Failed to decode token payload: {e}")
+        return False
+
+    # Display token metadata
+    app_id = payload.get("appid") or payload.get("azp") or "unknown"
+    tenant_id = payload.get("tid", "unknown")
+    upn = payload.get("upn") or payload.get("preferred_username") or "unknown"
+    print(f"Token info:")
+    print(f"  Application client ID: {app_id}")
+    print(f"  Tenant ID:             {tenant_id}")
+    print(f"  User:                  {upn}")
+
+    if app_id != application_client_id:
+        print(
+            f"  WARNING: token appid '{app_id}' does not match"
+            f" --application-client-id '{application_client_id}'"
+        )
+
+    # Check granted scopes
+    granted_scopes = set((payload.get("scp") or "").split())
+    print(f"  Granted scopes:        {' '.join(sorted(granted_scopes)) or '(none)'}")
+
+    all_ok = True
+    for scope in REQUIRED_DELEGATED_PERMISSIONS:
+        if scope in granted_scopes:
+            print(f"  {scope}: GRANTED")
+        else:
+            print(f"  {scope}: NOT GRANTED")
+            all_ok = False
+
+    if not all_ok:
+        missing = sorted(set(REQUIRED_DELEGATED_PERMISSIONS) - granted_scopes)
+        print(f"\n  Missing permissions: {', '.join(missing)}")
+        print("  The permissions may not be configured or admin consent is required.")
+        print("  Use --setup-permissions to add them, or visit:")
+        print(
+            f"    https://login.microsoftonline.com/common/adminconsent"
+            f"?client_id={application_client_id}"
+        )
+
+    # ------------------------------------------------------------------
+    # Check redirect URI configuration on the app registration
+    # ------------------------------------------------------------------
+    redirect_ok = await _check_redirect_uri(credential, application_client_id)
+    if not redirect_ok:
+        all_ok = False
+
+    return all_ok
+
+
+async def _check_redirect_uri(
+    credential: Credential, application_client_id: str
+) -> bool:
+    """Verify the app registration has http://localhost as a public client redirect URI.
+
+    Queries ``GET /applications?$filter=appId eq '...'`` and inspects
+    ``publicClient.redirectUris``.  Requires ``Application.Read.All`` or
+    ownership of the app registration.  If the query fails due to
+    insufficient permissions, prints a warning and returns ``True``
+    (optimistic — the caller cannot determine the answer).
+    """
+    EXPECTED_REDIRECT_URI = "http://localhost"
+
+    client = GraphServiceClient(credential, ["Application.Read.All"])
+
+    app_params = (
+        ApplicationsRequestBuilder.ApplicationsRequestBuilderGetQueryParameters(
+            filter=f"appId eq '{application_client_id}'",
+            select=["id", "appId", "displayName", "publicClient", "web", "spa"],
+        )
+    )
+    app_config = RequestConfiguration(query_parameters=app_params)
+
+    try:
+        apps_response = await client.applications.get(request_configuration=app_config)
+    except ODataError as e:
+        code = e.error.code if e.error else "Unknown"
+        message = e.error.message if e.error else str(e)
+        print(f"\nRedirect URI check skipped ({code}): {message}")
+        print("  This check requires Application.Read.All or app ownership.")
+        return True  # optimistic — cannot verify
+
+    if not apps_response or not apps_response.value:
+        print(
+            f"\nRedirect URI check: app registration not found ({application_client_id})"
+        )
+        return False
+
+    app = apps_response.value[0]
+
+    # "Mobile and desktop applications" → publicClient.redirectUris
+    public_uris: list[str] = []
+    if app.public_client and app.public_client.redirect_uris:
+        public_uris = list(app.public_client.redirect_uris)
+
+    # Also show web and SPA redirect URIs for context
+    web_uris: list[str] = []
+    if app.web and app.web.redirect_uris:
+        web_uris = list(app.web.redirect_uris)
+
+    spa_uris: list[str] = []
+    if app.spa and app.spa.redirect_uris:
+        spa_uris = list(app.spa.redirect_uris)
+
+    print("\nRedirect URI configuration:")
+    if public_uris:
+        print(f"  Mobile and desktop (publicClient): {', '.join(public_uris)}")
+    else:
+        print("  Mobile and desktop (publicClient): (none)")
+    if web_uris:
+        print(f"  Web:                               {', '.join(web_uris)}")
+    if spa_uris:
+        print(f"  SPA:                               {', '.join(spa_uris)}")
+
+    if EXPECTED_REDIRECT_URI in public_uris:
+        print(f"  {EXPECTED_REDIRECT_URI} in publicClient: OK")
+        return True
+
+    print(f"  {EXPECTED_REDIRECT_URI} in publicClient: NOT FOUND")
+    print("  To fix, go to Azure Portal > Microsoft Entra ID > App registrations")
+    print(f"  > {application_client_id} > Authentication")
+    print("  > Add a platform > Mobile and desktop applications")
+    print(f"  > check '{EXPECTED_REDIRECT_URI}' > Save")
+    return False
 
 
 async def setup_permissions(
@@ -336,8 +511,11 @@ async def async_main(args: argparse.Namespace) -> None:
     )
     client = GraphServiceClient(credential, REQUIRED_SCOPES)
 
-    if args.check_permissions:
-        await check_permissions(client)
+    if args.check_app_reg_permissions:
+        ok = await check_permissions(client)
+        await check_app_registration_permissions(credential, args.application_client_id)
+        if not ok:
+            return
         return
 
     if args.setup_permissions:
@@ -420,7 +598,7 @@ def main() -> None:
         help="Use device-code flow instead of interactive browser auth",
     )
     parser.add_argument(
-        "--check-permissions",
+        "--check-app-reg-permissions",
         action="store_true",
         help="Only verify that required Graph API permissions are available",
     )
