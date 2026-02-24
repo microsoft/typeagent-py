@@ -14,8 +14,7 @@
 
 ## Presentations
 
-- Download the [AgentCon Oslo slides as PDF](StructuredRag-AgentCon-Oslo-2026-02-10.pdf)
-- Download the [AgentCon Zuerich slides as PDF](StructuredRag-AgentCon-Zurich-2026-02-04.pdf)
+- Download the [AgentCon (Oslo) slides as PDF](StructuredRagAgentCon2026.pdf)
 - Download the [PyBay '25 slides as PDF](StructuredRagPyBay25.pdf)
 - Download the [PyBay '25 PowerPoint slides](StructuredRagPyBay25.pptx)
 
