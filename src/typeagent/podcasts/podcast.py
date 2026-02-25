@@ -143,13 +143,19 @@ class Podcast(ConversationBase[PodcastMessage]):
 
     @staticmethod
     def _read_conversation_data_from_file(
-        filename_prefix: str, embedding_size: int
+        filename_prefix: str,
     ) -> ConversationDataWithIndexes[Any]:
         """Read podcast conversation data from files. No exceptions are caught; they just bubble out."""
         with open(filename_prefix + "_data.json", "r", encoding="utf-8") as f:
             json_data: serialization.ConversationJsonData[PodcastMessageData] = (
                 json.load(f)
             )
+        embedding_file_header = json_data.get("embeddingFileHeader")
+        embedding_size = 0
+        if embedding_file_header:
+            model_metadata = embedding_file_header.get("modelMetadata")
+            if model_metadata:
+                embedding_size = model_metadata.get("embeddingSize", 0)
         embeddings_list: list[NormalizedEmbeddings] | None = None
         if embedding_size:
             with open(filename_prefix + "_embeddings.bin", "rb") as f:
@@ -159,7 +165,7 @@ class Podcast(ConversationBase[PodcastMessage]):
                 embeddings_list = [embeddings]
         else:
             print(
-                "Warning: not reading embeddings file because size is {embedding_size}"
+                f"Warning: not reading embeddings file because size is {embedding_size}"
             )
             embeddings_list = None
         file_data = serialization.ConversationFileData(
@@ -178,10 +184,7 @@ class Podcast(ConversationBase[PodcastMessage]):
         settings: ConversationSettings,
         dbname: str | None = None,
     ) -> "Podcast":
-        embedding_size = settings.embedding_model.embedding_size
-        data = Podcast._read_conversation_data_from_file(
-            filename_prefix, embedding_size
-        )
+        data = Podcast._read_conversation_data_from_file(filename_prefix)
 
         provider = await settings.get_storage_provider()
         msgs = await provider.get_message_collection()

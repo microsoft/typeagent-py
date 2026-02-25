@@ -181,8 +181,11 @@ def create_chat_model(
     return PydanticAIChatModel(model)
 
 
+DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-3-small"
+
+
 def create_embedding_model(
-    model_spec: str,
+    model_spec: str | None = None,
     *,
     embedding_size: int = 0,
 ) -> PydanticAIEmbeddingModel:
@@ -190,6 +193,7 @@ def create_embedding_model(
 
     Delegates to :class:`pydantic_ai.Embedder` for provider wiring.
 
+    If *model_spec* is ``None``, :data:`DEFAULT_EMBEDDING_SPEC` is used.
     If *embedding_size* is not given, it will be probed automatically
     on the first embedding call.
 
@@ -199,6 +203,8 @@ def create_embedding_model(
         model = create_embedding_model("cohere:embed-english-v3.0")
         model = create_embedding_model("google:text-embedding-004")
     """
+    if model_spec is None:
+        model_spec = DEFAULT_EMBEDDING_SPEC
     model_name = model_spec.split(":")[-1] if ":" in model_spec else model_spec
     embedder = _PydanticAIEmbedder(model_spec)
     return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)

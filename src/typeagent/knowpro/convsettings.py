@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..aitools.embeddings import create_embedding_model, IEmbeddingModel
+from ..aitools.embeddings import IEmbeddingModel
+from ..aitools.model_adapters import create_embedding_model
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .interfaces import IKnowledgeExtractor, IStorageProvider
 

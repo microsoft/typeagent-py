@@ -7,11 +7,11 @@ from dataclasses import dataclass
 import numpy as np
 
 from .embeddings import (
-    create_embedding_model,
     IEmbeddingModel,
     NormalizedEmbedding,
     NormalizedEmbeddings,
 )
+from .model_adapters import create_embedding_model
 
 DEFAULT_MAX_RETRIES = 2
 
@@ -47,7 +47,7 @@ class TextEmbeddingIndexSettings:
             max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
         )
         self.embedding_model = embedding_model or create_embedding_model(
-            embedding_size, max_retries=self.max_retries
+            embedding_size=embedding_size or 0,
         )
         self.embedding_size = self.embedding_model.embedding_size
         assert (
@@ -93,6 +93,9 @@ class VectorBase:
     ) -> None:
         if isinstance(embedding, list):
             embedding = np.array(embedding, dtype=np.float32)
+        if self._embedding_size == 0:
+            self._set_embedding_size(len(embedding))
+            self._vectors.shape = (0, self._embedding_size)
         embeddings = embedding.reshape(1, -1)  # Make it 2D: 1xN
         self._vectors = np.append(self._vectors, embeddings, axis=0)
         if key is not None:
@@ -102,6 +105,9 @@ class VectorBase:
         self, keys: None | list[str], embeddings: NormalizedEmbeddings
     ) -> None:
         assert embeddings.ndim == 2
+        if self._embedding_size == 0:
+            self._set_embedding_size(embeddings.shape[1])
+            self._vectors.shape = (0, self._embedding_size)
         assert embeddings.shape[1] == self._embedding_size
         self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
         if keys is not None:
@@ -165,9 +171,17 @@ class VectorBase:
             embedding, max_hits=max_hits, min_score=min_score, predicate=predicate
         )
 
+    def _set_embedding_size(self, size: int) -> None:
+        """Adopt *size* when it was not known at construction time."""
+        assert size > 0
+        self._embedding_size = size
+        self._model.embedding_size = size
+        self.settings.embedding_size = size
+
     def clear(self) -> None:
         self._vectors = np.array([], dtype=np.float32)
-        self._vectors.shape = (0, self._embedding_size)
+        if self._embedding_size > 0:
+            self._vectors.shape = (0, self._embedding_size)
 
     def get_embedding_at(self, pos: int) -> NormalizedEmbedding:
         if 0 <= pos < len(self._vectors):
@@ -180,13 +194,20 @@ class VectorBase:
         return self._vectors[pos] if 0 <= pos < len(self._vectors) else None
 
     def serialize(self) -> NormalizedEmbeddings:
-        assert self._vectors.shape == (len(self._vectors), self._embedding_size)
+        if self._embedding_size > 0:
+            assert self._vectors.shape == (len(self._vectors), self._embedding_size)
         return self._vectors  # TODO: Should we make a copy?
 
     def deserialize(self, data: NormalizedEmbeddings | None) -> None:
         if data is None:
             self.clear()
             return
+        if self._embedding_size == 0:
+            if data.ndim < 2 or data.shape[0] == 0:
+                # Empty data — can't determine size; just clear.
+                self.clear()
+                return
+            self._set_embedding_size(data.shape[1])
         assert data.shape == (len(data), self._embedding_size), [
             data.shape,
             self._embedding_size,

@@ -350,29 +350,3 @@ class AsyncEmbeddingModel:
                 return self.encoding.decode(truncated_tokens), self.max_chunk_size
             else:
                 return input, len(tokens)
-
-
-def create_embedding_model(
-    embedding_size: int | None = None,
-    model_name: str | None = None,
-    **kwargs,
-) -> IEmbeddingModel:
-    """Create an embedding model using OpenAI/Azure OpenAI.
-
-    This is the default factory. To use a different provider, create an
-    instance of a class that implements ``IEmbeddingModel`` and pass it
-    directly to ``TextEmbeddingIndexSettings`` or ``ConversationSettings``.
-
-    Args:
-        embedding_size: Requested embedding dimensionality (provider-specific).
-        model_name: Model identifier (e.g. "text-embedding-ada-002").
-        **kwargs: Extra keyword arguments forwarded to ``AsyncEmbeddingModel``.
-
-    Returns:
-        An ``IEmbeddingModel`` instance backed by OpenAI / Azure OpenAI.
-    """
-    return AsyncEmbeddingModel(
-        embedding_size=embedding_size,
-        model_name=model_name,
-        **kwargs,
-    )

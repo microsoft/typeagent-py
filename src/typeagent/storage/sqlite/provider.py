@@ -6,7 +6,7 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from ...aitools.embeddings import create_embedding_model
+from ...aitools.model_adapters import create_embedding_model
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
@@ -125,9 +125,12 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         if provided_message_settings is None:
             if stored_size is not None or stored_name is not None:
+                spec = stored_name or ""
+                if spec and ":" not in spec:
+                    spec = f"openai:{spec}"
                 embedding_model = create_embedding_model(
-                    embedding_size=stored_size,
-                    model_name=stored_name,
+                    spec,
+                    embedding_size=stored_size or 0,
                 )
                 base_embedding_settings = TextEmbeddingIndexSettings(
                     embedding_model=embedding_model,
