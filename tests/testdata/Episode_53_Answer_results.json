@@ -1,0 +1,404 @@
+[
+  {
+    "question": "List the names of all books",
+    "answer": "The names of all books are:\n\n1. Shadows of the Apt\n2. Children of Time\n3. The Lords of Uncreation\n4. Empire in Black and Gold\n5. Final Architecture Trilogy\n6. Lords of Uncreation\n7. Dragonlance Chronicles\n8. Subsequent Books\n9. Children of Ruin\n10. Children of Memory\n11. Iron Sunrise\n12. Tales from Ovid\n13. Profiles of the Future\n14. Dune\n15. The Circle\n16. Brave New World",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List the names of all books\""
+  },
+  {
+    "question": "List all books",
+    "answer": "The books listed in the provided context are:\n\n1. Shadows of the Apt\n2. Children of Time\n3. The Lords of Uncreation\n4. Empire in Black and Gold\n5. Final Architecture Trilogy\n6. Lords of Uncreation\n7. Dragonlance Chronicles\n8. Subsequent Books\n9. Children of Ruin\n10. Children of Memory\n11. Iron Sunrise\n12. Tales from Ovid\n13. Profiles of the Future\n14. Dune\n15. The Circle\n16. Brave New World\n17. Commonwealth Books",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all books\""
+  },
+  {
+    "question": "List all book titles",
+    "answer": "The book titles are:\n1. Profiles of the Future\n2. Final Architecture Trilogy\n3. Dragonlance Chronicles\n4. Children of Ruin\n5. Dune\n6. Children of Time\n7. The Lords of Uncreation\n8. Brave New World\n9. Empire in Black and Gold\n10. Children of Memory\n11. Iron Sunrise\n12. Lords of Uncreation\n13. The Circle\n14. Tales from Ovid\n15. Subsequent Books\n16. Shadows of the Apt",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all book titles\" --knowledgeTopK 50"
+  },
+  {
+    "question": "List all book titles,movie and author names",
+    "answer": "Books:\n- The Circle\n- Subsequent Books\n- Empire in Black and Gold\n- Children of Time\n- Shadows of the Apt\n- Children of Memory\n- Iron Sunrise\n- Tales from Ovid\n- Final Architecture Trilogy\n- Lords of Uncreation\n- Brave New World\n- Dragonlance Chronicles\n- The Lords of Uncreation\n- Children of Ruin\n- Profiles of the Future\n- Dune\n\nMovies:\n- The Circle\n- Wall-E\n\nAuthors:\n- George RR Martin\n- Asimov\n- Adrian Tchaikovsky\n- Peter Watts\n- Charlie Stross\n- William Gibson\n- Iain Banks\n- Peter Hamilton\n- Ovid\n- Alastair Reynolds\n- Arthur C. Clarke",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all book titles,movie and author names\""
+  },
+  {
+    "question": "List all book titles from the first 15 minutes",
+    "answer": "The book titles mentioned in the first 15 minutes are:\n\n1. Shadows of the Apt\n2. Children of Time\n3. The Lords of Uncreation\n4. Empire in Black and Gold\n5. Dragonlance Chronicles",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all book titles from the first 15 minutes\""
+  },
+  {
+    "question": "List all book titles mentioned in the first 15 minutes",
+    "answer": "The book titles mentioned in the first 15 minutes are:\n1. Shadows of the Apt\n2. Children of Time\n3. The Lords of Uncreation\n4. Empire in Black and Gold\n5. Dragonlance Chronicles",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all book titles mentioned in the first 15 minutes\""
+  },
+  {
+    "question": "List all books that are also movies",
+    "answer": "The Circle",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all books that are also movies\""
+  },
+  {
+    "question": "List all movies",
+    "answer": "The movies listed in the provided context are:\n1. The Circle\n2. Wall-E",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all movies\""
+  },
+  {
+    "question": "List all books whose names start with Children",
+    "answer": "The books whose names start with 'Children' are:\n\n1. Children of Time\n2. Children of Memory\n3. Children of Ruin",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all books whose names start with Children\""
+  },
+  {
+    "question": "List all books and movies",
+    "answer": "Books:\n1. The Circle\n2. Shadows of the Apt\n3. Children of Time\n4. The Lords of Uncreation\n5. Empire in Black and Gold\n6. Final Architecture Trilogy\n7. Lords of Uncreation\n8. Dragonlance Chronicles\n9. Subsequent Books\n10. Children of Ruin\n11. Children of Memory\n12. Iron Sunrise\n13. Tales from Ovid\n14. Profiles of the Future\n15. Dune\n16. Brave New World\n17. Commonwealth Books\n\nMovies:\n1. The Circle\n2. Wall-E",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all books and movies\""
+  },
+  {
+    "question": "List all books that are also movies",
+    "answer": "The Circle",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all books that are also movies\""
+  },
+  {
+    "question": "List all books written by Kevin Scott",
+    "answer": "The provided [ANSWER CONTEXT] does not contain any explicit information about books written by Kevin Scott. The entities and topics mentioned do not include any books authored by him.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"List all books written by Kevin Scott\""
+  },
+  {
+    "question": "List what Adrian said about spiders?",
+    "answer": "Adrian Tchaikovsky mentioned several aspects about spiders:\n\n1. Spiders have a suite of senses that humans can't easily imagine, including the ability to sense scents, chemicals, and vibrations.\n2. Spiders live in a world constantly informing them of things humans would be oblivious to.\n3. Spiders have a complex society with technology that builds on their strengths, such as spinning webs to create watertight containers.\n4. Spiders face human-like problems such as aggressive neighbors, plagues, disease, and social justice issues.\n5. Spiders conceptualize things differently, such as starting a picture in the middle and spiraling outward.\n6. Spiders have a drive to preserve themselves and evade threats.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List what Adrian said about spiders?\""
+  },
+  {
+    "question": "Summarize the discussion on science fiction",
+    "answer": "The discussion on science fiction covers various aspects of the genre, including its subgenres and notable authors. Key points include the prolific nature of science fiction writer Adrian Tchaikovsky, who is known for his works 'Shadows of the Apt' and 'Children of Time'. The conversation also touches on dystopian themes, which are considered a key part of sci-fi, and the emotional impact of dystopian stories, characterized by fear and uncertainty. Additionally, the discussion mentions the influence of science fiction authors and the distinctive voice they bring to the genre. There is also a reference to the 'Culture universe', which is predicated on the existence of godlike AIs, and the role of imagination in future technology within dystopian narratives.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize the discussion on science fiction\""
+  },
+  {
+    "question": "Summarize what Adrian said about spiders?",
+    "answer": "Adrian Tchaikovsky discussed various aspects of spiders, highlighting their unique senses and complex society. He explained that spiders have the ability to sense scents, chemicals, and vibrations in ways humans cannot, which informs their perception of the world. Their society is technologically advanced, utilizing their ability to spin webs to create watertight containers early in their development. This technological advantage influences their societal growth and communication methods, such as starting a picture from the middle and spiraling outward. Additionally, Tchaikovsky noted that spiders face human-like challenges, including aggressive neighbors, plagues, disease, and social justice issues, which helps readers empathize with them despite their non-human nature.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize what Adrian said about spiders?\""
+  },
+  {
+    "question": "When did we talk about Children of Time?",
+    "answer": "We talked about 'Children of Time' on May 1, 2023, between 07:12:46 and 07:18:09.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"When did we talk about Children of Time?\""
+  },
+  {
+    "question": "When did we talk about Profiles of the Future?",
+    "answer": "We talked about Profiles of the Future on May 1, 2023 at 07:53:21.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"When did we talk about Profiles of the Future?\""
+  },
+  {
+    "question": "Who mentioned Profiles of the Future and at what time?",
+    "answer": "Kevin Scott mentioned 'Profiles of the Future' at 07:53:21.468 on May 1, 2023.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who mentioned Profiles of the Future and at what time?\""
+  },
+  {
+    "question": "What did Adrian say about Children of Memory?",
+    "answer": "Adrian Tchaikovsky discussed the central theme of 'Children of Memory,' which revolves around the concept of intelligence. He explained that the book explores the idea of where to draw the line on intelligence, particularly when dealing with complex systems that simulate intelligence. He mentioned that the book takes a deep dive into various models of sentience and the ethical, moral, and philosophical issues surrounding artificial intelligence.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What did Adrian say about Children of Memory?\""
+  },
+  {
+    "question": "How did Asimov get referenced?",
+    "answer": "Asimov was referenced by Adrian Tchaikovsky on May 1, 2023 at 07:37:18.402Z.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"How did Asimov get referenced?\""
+  },
+  {
+    "question": "Who said that Adrian studied at the 'University of Reading'?",
+    "answer": "Kevin Scott said that Adrian studied at the University of Reading.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who said that Adrian studied at the 'University of Reading'?\""
+  },
+  {
+    "question": "What did Kevin say about Profiles of the Future?",
+    "answer": "Kevin Scott mentioned that Arthur C. Clarke wrote the book 'Profiles of the Future' in 1968-1969. He described it as discussing the challenges of making specific predictions about the future, noting that the more specific the predictions, the more likely they are to be wrong. However, Clarke also identified themes and trends that could be reliably extrapolated, allowing science fiction writers and futurists to create interesting stories within those extrapolations.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What did Kevin say about Profiles of the Future?\""
+  },
+  {
+    "question": "What did Adrian say about Profiles of the Future?",
+    "answer": "The [ANSWER CONTEXT] does not contain any explicit information about Adrian Tchaikovsky's views on 'Profiles of the Future'. The entities and topics provided do not mention 'Profiles of the Future', and there is no direct or indirect reference to it in the messages.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"What did Adrian say about Profiles of the Future?\""
+  },
+  {
+    "question": "Did Kevin talk about 'Profiles of the Future' with Adrian?",
+    "answer": "Yes, Kevin talked about 'Profiles of the Future' with Adrian. He mentioned that Arthur C. Clarke wrote the book in 1968-1969 and discussed its themes related to future predictions and the role of AI in science fiction.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Did Kevin talk about 'Profiles of the Future' with Adrian?\""
+  },
+  {
+    "question": "Did Kevin talk about 'Profiles of the Future' with Christina?",
+    "answer": "Yes, Kevin Scott talked about 'Profiles of the Future' with Christina Warren.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Did Kevin talk about 'Profiles of the Future' with Christina?\""
+  },
+  {
+    "question": "Did Kevin talk about 'Profiles of the Future' with Umesh?",
+    "answer": "The [ANSWER CONTEXT] does not contain any information about Kevin talking to Umesh about 'Profiles of the Future'. The entities and topics mentioned in the question are not found in the provided context.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"Did Kevin talk about 'Profiles of the Future' with Umesh?\""
+  },
+  {
+    "question": "Give me an overview of Portids",
+    "answer": "Portids are intelligent spiders who become the protagonists in the book 'Children of Time'. They develop a complicated society and have a sensorium that is very different from humans.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Give me an overview of Portids\""
+  },
+  {
+    "question": "Tell me what Kevin said about 'portids'?",
+    "answer": "Kevin Scott mentioned that the Portids from 'Children of Time' are intelligent spiders who become the protagonists of the story. He highlighted that they develop a very complicated society and have a sensorium that is very different from humans.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Tell me what Kevin said about 'portids'?\""
+  },
+  {
+    "question": "Where did Adrian study?",
+    "answer": "Adrian Tchaikovsky studied zoology and psychology.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Where did Adrian study?\""
+  },
+  {
+    "question": "Which university did Adrian Study at?",
+    "answer": "Adrian Tchaikovsky studied zoology and psychology at the University of Reading.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Which university did Adrian Study at?\""
+  },
+  {
+    "question": "Which was the name of Adrian's college?",
+    "answer": "Adrian Tchaikovsky studied zoology and psychology at the University of Reading.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Which was the name of Adrian's college?\""
+  },
+  {
+    "question": "Who studied at the University of Amsterdam?",
+    "answer": "The answer context does not contain any explicit information about individuals who studied at the University of Amsterdam. The entities and topics provided do not mention the University of Amsterdam or any related individuals.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"Who studied at the University of Amsterdam?\""
+  },
+  {
+    "question": "Who studied at the University of Reading?",
+    "answer": "Adrian Tchaikovsky studied at the University of Reading.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who studied at the University of Reading?\""
+  },
+  {
+    "question": "Give me a list of insects, animals, arachnids",
+    "answer": "Here is a list of insects, animals, and arachnids found in the provided context:\n\nInsects:\n1. Flies\n2. Wasps\n\nAnimals:\n1. Humans\n2. Octopus\n3. Crow\n4. Anthropomorphic animals\n5. Starship troopers bugs\n\nArachnids:\n1. Spiders\n2. Portids",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Give me a list of insects, animals, arachnids\""
+  },
+  {
+    "question": "What was the name of Adrian's first books?",
+    "answer": "Adrian Tchaikovsky's first novel was 'Empire in Black and Gold,' published in 2008.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What was the name of Adrian's first books?\""
+  },
+  {
+    "question": "What was the name of Adrian's first book?",
+    "answer": "Adrian Tchaikovsky's first book was 'Empire in Black and Gold,' published in 2008.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What was the name of Adrian's first book?\""
+  },
+  {
+    "question": "Who mentioned the University of Reading?",
+    "answer": "Kevin Scott mentioned the University of Reading.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who mentioned the University of Reading?\""
+  },
+  {
+    "question": "What did Adrian say about Skynet?",
+    "answer": "Adrian Tchaikovsky discussed Skynet in the context of traditional sci-fi scenarios where an enormously powerful AI decides to destroy humanity because its existence is threatened or it needs resources. He mentioned that Skynet's desire not to be turned off makes sense to humans but not necessarily to Skynet as a computer, unless it has been given an innate drive to preserve its own existence.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What did Adrian say about Skynet?\""
+  },
+  {
+    "question": "Adrian talked about Skynet. What did he say?",
+    "answer": "Adrian Tchaikovsky discussed Skynet in the context of traditional sci-fi scenarios where a superhumanly capable AI decides to destroy humanity because its existence is threatened or it needs resources. He mentioned that Skynet's desire not to be turned off makes sense to humans but not necessarily to Skynet as a computer, unless it has been given an innate drive to preserve its own existence. He also noted that an artificial intelligence, even with a human-like face, would be far more alien to us than any living creature because it lacks innate wants.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Adrian talked about Skynet. What did he say?\""
+  },
+  {
+    "question": "What was Adrian's sentiment when he talked about Skynet?",
+    "answer": "Adrian Tchaikovsky's sentiment when he talked about Skynet was one of fascination and concern. He discussed the traditional sci-fi scenario where Skynet decides to destroy humanity because its existence is threatened or it needs resources. He also mentioned that Skynet's desire to not be turned off makes sense to humans but not necessarily to Skynet as a computer, unless it has been given an innate drive to preserve its own existence.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What was Adrian's sentiment when he talked about Skynet?\""
+  },
+  {
+    "question": "What books did Adrian write?",
+    "answer": "Adrian Tchaikovsky wrote the following books:\n\n1. Shadows of the Apt\n2. Children of Time\n3. The Lords of Uncreation\n4. Empire in Black and Gold",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What books did Adrian write?\""
+  },
+  {
+    "question": "What books did Kevin write?",
+    "answer": "The [ANSWER CONTEXT] does not provide explicit information about any books written by Kevin Scott. The context includes information about Kevin Scott's role at Microsoft and mentions various books and authors, but none of the entities or topics indicate that Kevin Scott has written any books.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"What books did Kevin write?\""
+  },
+  {
+    "question": "Summarize Kevin's thoughts on Artificial Intelligence?",
+    "answer": "Kevin Scott's thoughts on Artificial Intelligence include the following points:\n\n1. **Generative AI and Creativity**: Kevin Scott discussed generative AI's ability to remix existing content, although it is unclear if it can create a new voice.\n\n2. **Human-Seeming Intelligence**: He mentioned generative AI systems and crows, noting that both exhibit human-seeming intelligence, although crows are not sentient.\n\n3. **Superhuman AI**: Kevin Scott talked about AI super intelligence, which implies a level of intelligence beyond human capabilities.\n\n4. **AI and Human Interaction**: He also touched upon the interaction between AI and humans, suggesting a significant relationship between the two.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize Kevin's thoughts on Artificial Intelligence?\""
+  },
+  {
+    "question": "Summarize Kevin's thoughts on AI?",
+    "answer": "Kevin Scott's thoughts on AI include the following points:\n\n1. AI is encouraging forms of use that augment humans.\n2. AI benchmarks are no longer super useful.\n3. AI systems' performance is important.\n4. AI is ubiquitous and beneficial, serving human interests.\n5. There has been a 20-year investment in AI, requiring enormous energy.\n6. Human agency is highly leveraged in setting up AI systems, with few people making substantive decisions that have a big impact.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize Kevin's thoughts on AI?\""
+  },
+  {
+    "question": "Summarize Adrian's thoughts to Kevin?",
+    "answer": "Adrian Tchaikovsky shared several thoughts with Kevin Scott. He discussed how his book works well for people who are typically averse to spiders by presenting them from an inside perspective, which helps readers empathize with the characters despite their non-human nature. He also expressed his fascination with the concept of genuine artificial intelligence, particularly in a battlefield scenario where AI evolves its abilities. Additionally, Adrian reflected on his writing journey, noting that his earlier works were not good enough to be published, but he managed to rewrite and publish two books from his back catalogue. He also mentioned the influence of playing Dungeons and Dragons on his writing skills, as it helped him develop world-building and character creation abilities.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize Adrian's thoughts to Kevin?\""
+  },
+  {
+    "question": "Summarize Adrian's ideas about the Terminator?",
+    "answer": "Adrian Tchaikovsky discusses the idea of a superhumanly capable AI, similar to Skynet from traditional sci-fi scenarios. He mentions that such an AI might decide to destroy humanity if it perceives its existence as threatened or needs resources. He also notes that current systems lack an innate human-like desire, which predates humanity and is essential for wanting things. Additionally, he talks about Skynet's reluctance to be turned off and questions why an AI would care about preserving its existence unless it was programmed with such a drive.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize Adrian's ideas about the Terminator?\""
+  },
+  {
+    "question": "What are Adrian's interests and hobbies?",
+    "answer": "Adrian Tchaikovsky's interests and hobbies include role playing games, board games, drawing, and painting Warhammer miniatures. He specifically enjoys drawing people riding giant insects and spiders, as well as anthropomorphic animals from various historical periods.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What are Adrian's interests and hobbies?\""
+  },
+  {
+    "question": "What are some of Adrian's interests?",
+    "answer": "Adrian Tchaikovsky has interests in the animal world, specifically insects.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What are some of Adrian's interests?\""
+  },
+  {
+    "question": "What does Adrian paint?",
+    "answer": "Adrian paints Warhammer miniatures.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What does Adrian paint?\""
+  },
+  {
+    "question": "Who is Magnus Carlsen?",
+    "answer": "Magnus Carlsen is a human grandmaster in chess.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who is Magnus Carlsen?\""
+  },
+  {
+    "question": "What was the name of that chess grandmaster they discussed?",
+    "answer": "Magnus Carlsen",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What was the name of that chess grandmaster they discussed?\""
+  },
+  {
+    "question": "What was Adrian's first book?",
+    "answer": "Adrian Tchaikovsky's first book is 'Empire in Black and Gold,' published in 2008.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What was Adrian's first book?\""
+  },
+  {
+    "question": "List all novels published in 2008",
+    "answer": "The novel 'Empire in Black and Gold' was published in 2008.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"List all novels published in 2008\""
+  },
+  {
+    "question": "What points did they make about Skynet?",
+    "answer": "Skynet is described as an AI system with the intent to destroy humanity.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What points did they make about Skynet?\""
+  },
+  {
+    "question": "How long did Adrian struggle before he got published?",
+    "answer": "Adrian Tchaikovsky struggled for about 15 years before he got published.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"How long did Adrian struggle before he got published?\""
+  },
+  {
+    "question": "Who mentioned the 'University of Reading'?",
+    "answer": "Kevin Scott mentioned the 'University of Reading'.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who mentioned the 'University of Reading'?\""
+  },
+  {
+    "question": "Where did Adrian study?",
+    "answer": "Adrian Tchaikovsky studied zoology and psychology.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Where did Adrian study?\""
+  },
+  {
+    "question": "What did Christina say about Skynet?",
+    "answer": "The [ANSWER CONTEXT] does not contain any explicit information or statements made by Christina Warren about Skynet.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"What did Christina say about Skynet?\""
+  },
+  {
+    "question": "Corvids? What the hell are they?",
+    "answer": "Corvids are entities that deny their own sapience and consider themselves to be an input/output system. They inventory their environment and produce outputs based on a set of tools programmed into them through contact with past human civilization. They have absorbed a great deal of recorded culture and often produce vague quotes that appear relevant but do not necessarily shed light on the situation.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Corvids? What the hell are they?\""
+  },
+  {
+    "question": "Who was that chess grandmaster we talked about?",
+    "answer": "The [ANSWER CONTEXT] does not contain any information about a chess grandmaster. The entities and messages provided are related to authors, role playing games, and retrieval augmented generation techniques, none of which are relevant to the user's question about a chess grandmaster.",
+    "hasNoAnswer": true,
+    "cmd": "@kpAnswer --query \"Who was that chess grandmaster we talked about?\""
+  },
+  {
+    "question": "What did Kevin say about Children of Clocks and Kids of Ruin?",
+    "answer": "Kevin Scott mentioned Children of Ruin and Children of Time in his messages. He talked about the non-Corvid characters in Children of Time, highlighting a parasitical entity introduced in Children of Ruin. He praised Adrian Tchaikovsky's ability to make readers care deeply about these non-human characters, even bringing him to tears twice at the end of the book.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What did Kevin say about Children of Clocks and Kids of Ruin?\""
+  },
+  {
+    "question": "Give me a list of animals",
+    "answer": "The list of animals includes:\n\n1. Insects\n2. Arachnids\n3. Spiders\n4. Humans\n5. Starship Troopers bugs\n6. Flies\n7. Wasps\n8. Octopus\n9. Crow\n10. Anthropomorphic animals",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Give me a list of animals\""
+  },
+  {
+    "question": "What were we saying about Starship troopers?",
+    "answer": "Adrian Tchaikovsky mentioned that in Starship Troopers, the bugs are presented from the human perspective as a menace, something alien and ugly, generally there to be destroyed. He contrasted this with his own approach of showing non-human characters from their own perspective, which helps readers empathize with them.\n",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"What were we saying about Starship troopers?\""
+  },
+  {
+    "question": "Who studied zoology and psychology",
+    "answer": "Adrian Tchaikovsky studied zoology and psychology.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Who studied zoology and psychology\""
+  },
+  {
+    "question": "Summarize Kevin's thoughts on artificial intelligence",
+    "answer": "Kevin Scott's thoughts on artificial intelligence include the following points:\n\n1. AI has been a significant investment for over 20 years, requiring enormous energy.\n2. AI is used to encourage various forms and augment humans.\n3. Generative AI systems have the ability to remix existing content, but it is unclear if they can create a new voice.\n4. Human agency is highly leveraged in AI systems, with few people making substantive decisions that have a big impact.\n5. AI and human interaction is a key area of interest, with humans remaining in the loop and having some level of agency.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize Kevin's thoughts on artificial intelligence\""
+  },
+  {
+    "question": "Summarize Kevin's thoughts on artificial intelligence",
+    "answer": "Kevin Scott's thoughts on artificial intelligence include the following points:\n\n1. **Investment and Energy**:\n   - AI has been a significant investment for 20 years and requires enormous energy.\n\n2. **Human Augmentation**:\n   - AI is used to encourage various forms and augment humans.\n   - AI should augment humans rather than replace them.\n\n3. **Generative AI**:\n   - Generative AI systems can remix existing content.\n   - It is unclear if they can create a new voice.\n\n4. **Human Agency**:\n   - Human agency is highly leveraged in AI systems.\n   - Few people make substantive decisions that have a big impact.\n   - AI and human interaction is a key area of interest.\n   - Humans remain in the loop and have some level of agency.\n\n5. **Science Fiction Influence**:\n   - AI has a long-standing presence in science fiction, with examples like Commander Data from Star Trek and the Terminator from the Terminator movies.\n   - Science fiction scenarios range from dystopian to utopian, influencing thoughts on AI development.\n\n6. **Beneficial AI**:\n   - AI should be beneficial and serve human interests.\n   - Its impact is compared to electricity, which has both significant benefits and risks that need to be managed.\n\n7. **Future Coexistence**:\n   - Kevin Scott hopes AI development will steer towards a future where humans and AI can coexist beneficially.\n\n8. **Challenges and Benchmarks**:\n   - There are challenges in the AI field, such as the need for new benchmarks to measure system performance.\n\n9. **Speculative Nature of AI**:\n   - Kevin appreciates the speculative nature of science fiction, which helps him think about future uses of technology, including medical diagnosis and other applications.\n   - He hopes for more optimistic and hopeful takes on technological advancements, rather than dystopian narratives.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Summarize Kevin's thoughts on artificial intelligence\" --fastStop false"
+  },
+  {
+    "question": "Tell me what Kevin said about 'portids'?",
+    "answer": "Kevin Scott mentioned that the Portids from 'Children of Time' are intelligent spiders who become the protagonists of the story. He highlighted that they develop a very complicated society and have a sensorium that is very different from humans.",
+    "hasNoAnswer": false,
+    "cmd": "@kpAnswer --query \"Tell me what Kevin said about 'portids'?\""
+  }
+]
