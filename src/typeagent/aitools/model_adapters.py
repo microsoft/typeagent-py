@@ -18,9 +18,15 @@ model registry, which supports 25+ providers including ``openai``,
 ``azure``, ``anthropic``, ``google``, ``bedrock``, ``groq``, ``mistral``,
 ``ollama``, ``cohere``, and many more.
 
+When a spec uses ``openai:`` as the provider and ``OPENAI_API_KEY`` is not
+set, but ``AZURE_OPENAI_API_KEY`` is available, the provider is
+automatically switched to Azure OpenAI.
+
 See https://ai.pydantic.dev/models/ for all supported providers and their
 required environment variables.
 """
+
+import os
 
 import numpy as np
 from numpy.typing import NDArray
@@ -160,6 +166,36 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
 
 
 # ---------------------------------------------------------------------------
+# Provider auto-detection
+# ---------------------------------------------------------------------------
+
+
+def _needs_azure_fallback(provider: str) -> bool:
+    """Return True if *provider* is ``openai`` but only Azure credentials exist."""
+    return (
+        provider == "openai"
+        and not os.getenv("OPENAI_API_KEY")
+        and bool(os.getenv("AZURE_OPENAI_API_KEY"))
+    )
+
+
+def _make_azure_provider():
+    """Create a :class:`pydantic_ai.providers.azure.AzureProvider`."""
+    from pydantic_ai.providers.azure import AzureProvider
+
+    from .utils import get_azure_api_key, parse_azure_endpoint
+
+    raw_key = os.environ["AZURE_OPENAI_API_KEY"]
+    api_key = get_azure_api_key(raw_key)
+    azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
+    return AzureProvider(
+        azure_endpoint=azure_endpoint,
+        api_version=api_version,
+        api_key=api_key,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -170,6 +206,8 @@ def create_chat_model(
     """Create a chat model from a ``provider:model`` spec.
 
     Delegates to :func:`pydantic_ai.models.infer_model` for provider wiring.
+    If the spec uses ``openai:`` and ``OPENAI_API_KEY`` is not set but
+    ``AZURE_OPENAI_API_KEY`` is, Azure OpenAI is used automatically.
 
     Examples::
 
@@ -177,7 +215,13 @@ def create_chat_model(
         model = create_chat_model("anthropic:claude-sonnet-4-20250514")
         model = create_chat_model("google:gemini-2.0-flash")
     """
-    model = infer_model(model_spec)
+    provider, _, model_name = model_spec.partition(":")
+    if _needs_azure_fallback(provider):
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = OpenAIChatModel(model_name, provider=_make_azure_provider())
+    else:
+        model = infer_model(model_spec)
     return PydanticAIChatModel(model)
 
 
@@ -192,6 +236,8 @@ def create_embedding_model(
     """Create an embedding model from a ``provider:model`` spec.
 
     Delegates to :class:`pydantic_ai.Embedder` for provider wiring.
+    If the spec uses ``openai:`` and ``OPENAI_API_KEY`` is not set but
+    ``AZURE_OPENAI_API_KEY`` is, Azure OpenAI is used automatically.
 
     If *model_spec* is ``None``, :data:`DEFAULT_EMBEDDING_SPEC` is used.
     If *embedding_size* is not given, it will be probed automatically
@@ -205,8 +251,18 @@ def create_embedding_model(
     """
     if model_spec is None:
         model_spec = DEFAULT_EMBEDDING_SPEC
-    model_name = model_spec.split(":")[-1] if ":" in model_spec else model_spec
-    embedder = _PydanticAIEmbedder(model_spec)
+    provider, _, model_name = model_spec.partition(":")
+    if not model_name:
+        model_name = provider  # No colon in spec
+    if _needs_azure_fallback(provider):
+        from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
+
+        embedding_model = OpenAIEmbeddingModel(
+            model_name, provider=_make_azure_provider()
+        )
+        embedder = _PydanticAIEmbedder(embedding_model)
+    else:
+        embedder = _PydanticAIEmbedder(model_spec)
     return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)
 
 

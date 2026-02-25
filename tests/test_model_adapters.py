@@ -244,7 +244,9 @@ async def test_embedding_adapter_empty_batch() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_configure_models_returns_correct_types(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_configure_models_returns_correct_types(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """configure_models creates both adapters."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     chat, embedder = configure_models("openai:gpt-4o", "openai:text-embedding-3-small")
