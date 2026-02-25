@@ -32,7 +32,7 @@ except ImportError:
 
 import typechat
 
-from typeagent.aitools import embeddings, utils
+from typeagent.aitools import embeddings, model_adapters, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
@@ -575,7 +575,7 @@ async def main():
                 "Error: non-empty --search-results required for batch mode."
             )
 
-    model = utils.create_typechat_model()
+    model = model_adapters.create_chat_model()
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
     if args.alt_schema:
         if args.verbose:

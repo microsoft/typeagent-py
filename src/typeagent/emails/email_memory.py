@@ -8,7 +8,7 @@ import os
 
 import typechat
 
-from ..aitools import utils
+from ..aitools import model_adapters, utils
 from ..knowpro import (
     answer_response_schema,
     answers,
@@ -23,7 +23,7 @@ from .email_message import EmailMessage
 
 class EmailMemorySettings:
     def __init__(self, conversation_settings: ConversationSettings) -> None:
-        self.language_model = utils.create_typechat_model()
+        self.language_model = model_adapters.create_chat_model()
         self.query_translator = utils.create_translator(
             self.language_model, search_query_schema.SearchQuery
         )

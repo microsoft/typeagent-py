@@ -18,7 +18,7 @@ from . import (
     searchlang,
     secindex,
 )
-from ..aitools import utils
+from ..aitools import model_adapters, utils
 from ..storage.memory import semrefindex
 from .convsettings import ConversationSettings
 from .interfaces import (
@@ -352,12 +352,12 @@ class ConversationBase(
         """
         # Create translators lazily (once per conversation instance)
         if self._query_translator is None:
-            model = utils.create_typechat_model()
+            model = model_adapters.create_chat_model()
             self._query_translator = utils.create_translator(
                 model, search_query_schema.SearchQuery
             )
         if self._answer_translator is None:
-            model = utils.create_typechat_model()
+            model = model_adapters.create_chat_model()
             self._answer_translator = utils.create_translator(
                 model, answer_response_schema.AnswerResponse
             )

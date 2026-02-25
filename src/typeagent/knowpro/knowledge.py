@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typechat import Result, TypeChatLanguageModel
 
 from . import convknowledge, kplib
-from ..aitools import utils
+from ..aitools import model_adapters
 from .interfaces import IKnowledgeExtractor
 
 
@@ -16,7 +16,7 @@ def create_knowledge_extractor(
     chat_model: TypeChatLanguageModel | None = None,
 ) -> convknowledge.KnowledgeExtractor:
     """Create a knowledge extractor using the given Chat Model."""
-    chat_model = chat_model or utils.create_typechat_model()
+    chat_model = chat_model or model_adapters.create_chat_model()
     extractor = convknowledge.KnowledgeExtractor(
         chat_model, max_chars_per_chunk=4096, merge_action_knowledge=False
     )

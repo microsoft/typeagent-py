@@ -3,7 +3,6 @@
 
 """Utilities that are hard to fit in any specific module."""
 
-import asyncio
 from contextlib import contextmanager
 import difflib
 import os
@@ -16,8 +15,6 @@ import black
 import colorama
 
 import typechat
-
-from .auth import AzureTokenProvider, get_shared_token_provider
 
 
 @contextmanager
@@ -88,62 +85,6 @@ def create_translator[T](
     validator = typechat.TypeChatValidator[T](schema_class)
     translator = typechat.TypeChatJsonTranslator[T](model, validator, schema_class)
     return translator
-
-
-# TODO: Make these parameters that can be configured (e.g. from command line).
-DEFAULT_MAX_RETRY_ATTEMPTS = 0
-DEFAULT_TIMEOUT_SECONDS = 25
-
-
-class ModelWrapper(typechat.TypeChatLanguageModel):
-    """Wraps a TypeChat model to handle Azure token refresh."""
-
-    def __init__(
-        self,
-        base_model: typechat.TypeChatLanguageModel,
-        token_provider: AzureTokenProvider,
-    ):
-        self.base_model = base_model
-        self.token_provider = token_provider
-
-    async def complete(
-        self, prompt: str | list[typechat.PromptSection]
-    ) -> typechat.Result[str]:
-        if self.token_provider.needs_refresh():
-            loop = asyncio.get_running_loop()
-            api_key = await loop.run_in_executor(
-                None, self.token_provider.refresh_token
-            )
-            env: dict[str, str | None] = dict(os.environ)
-            key_name = "AZURE_OPENAI_API_KEY"
-            env[key_name] = api_key
-            self.base_model = typechat.create_language_model(env)
-            self.base_model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
-        return await self.base_model.complete(prompt)
-
-
-def create_typechat_model() -> typechat.TypeChatLanguageModel:
-    """Create a TypeChat language model using OpenAI or Azure OpenAI.
-
-    Auto-detects the provider from ``OPENAI_API_KEY`` / ``AZURE_OPENAI_API_KEY``
-    environment variables.
-
-    For explicit provider selection, use :func:`model_adapters.create_chat_model`
-    with a spec string like ``"openai:gpt-4o"`` or ``"azure:my-deployment"``.
-    """
-    env: dict[str, str | None] = dict(os.environ)
-    key_name = "AZURE_OPENAI_API_KEY"
-    key = env.get(key_name)
-    shared_token_provider: AzureTokenProvider | None = None
-    if key is not None and key.lower() == "identity":
-        shared_token_provider = get_shared_token_provider()
-        env[key_name] = shared_token_provider.get_token()
-    model = typechat.create_language_model(env)
-    model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
-    model.max_retry_attempts = DEFAULT_MAX_RETRY_ATTEMPTS
-    if shared_token_provider is not None:
-        model = ModelWrapper(model, shared_token_provider)
-    return model
 
 
 # Vibe-coded by o4-mini-high

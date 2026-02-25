@@ -198,20 +198,34 @@ def _make_azure_provider(
     may contain a full Azure deployment URL (including path and
     ``api-version`` query parameter) — the same format used throughout
     this codebase.
+
+    When ``AZURE_OPENAI_API_KEY`` is set to ``"identity"``, the client
+    uses Azure Managed Identity via a token provider callback, which
+    refreshes tokens automatically before each request.
     """
     from openai import AsyncAzureOpenAI
     from pydantic_ai.providers.azure import AzureProvider
 
-    from .utils import get_azure_api_key, parse_azure_endpoint
+    from .utils import parse_azure_endpoint
 
     raw_key = os.environ[api_key_envvar]
-    api_key = get_azure_api_key(raw_key)
     azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
-    client = AsyncAzureOpenAI(
-        azure_endpoint=azure_endpoint,
-        api_version=api_version,
-        api_key=api_key,
-    )
+
+    if raw_key.lower() == "identity":
+        from .auth import get_shared_token_provider
+
+        token_provider = get_shared_token_provider()
+        client = AsyncAzureOpenAI(
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+            azure_ad_token_provider=token_provider.get_token,
+        )
+    else:
+        client = AsyncAzureOpenAI(
+            azure_endpoint=azure_endpoint,
+            api_version=api_version,
+            api_key=raw_key,
+        )
     return AzureProvider(openai_client=client)
 
 
@@ -220,8 +234,11 @@ def _make_azure_provider(
 # ---------------------------------------------------------------------------
 
 
+DEFAULT_CHAT_SPEC = "openai:gpt-4o"
+
+
 def create_chat_model(
-    model_spec: str,
+    model_spec: str | None = None,
 ) -> PydanticAIChatModel:
     """Create a chat model from a ``provider:model`` spec.
 
@@ -229,12 +246,22 @@ def create_chat_model(
     If the spec uses ``openai:`` and ``OPENAI_API_KEY`` is not set but
     ``AZURE_OPENAI_API_KEY`` is, Azure OpenAI is used automatically.
 
+    If *model_spec* is ``None``, it is constructed from the ``OPENAI_MODEL``
+    environment variable (falling back to :data:`DEFAULT_CHAT_SPEC`).
+
     Examples::
 
+        model = create_chat_model()  # uses OPENAI_MODEL or gpt-4o
         model = create_chat_model("openai:gpt-4o")
         model = create_chat_model("anthropic:claude-sonnet-4-20250514")
         model = create_chat_model("google:gemini-2.0-flash")
     """
+    if model_spec is None:
+        openai_model = os.getenv("OPENAI_MODEL")
+        if openai_model:
+            model_spec = f"openai:{openai_model}"
+        else:
+            model_spec = DEFAULT_CHAT_SPEC
     provider, _, model_name = model_spec.partition(":")
     if _needs_azure_fallback(provider):
         from pydantic_ai.models.openai import OpenAIChatModel

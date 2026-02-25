@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 import typechat
 
 from . import kplib
-from ..aitools.utils import create_typechat_model
+from ..aitools.model_adapters import create_chat_model
 
 
 @dataclass
 class KnowledgeExtractor:
-    model: typechat.TypeChatLanguageModel = field(default_factory=create_typechat_model)
+    model: typechat.TypeChatLanguageModel = field(default_factory=create_chat_model)
     max_chars_per_chunk: int = 2048
     merge_action_knowledge: bool = (
         False  # TODO: Implement merge_action_knowledge_into_response
