@@ -179,20 +179,32 @@ def _needs_azure_fallback(provider: str) -> bool:
     )
 
 
-def _make_azure_provider():
-    """Create a :class:`pydantic_ai.providers.azure.AzureProvider`."""
+def _make_azure_provider(
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+    api_key_envvar: str = "AZURE_OPENAI_API_KEY",
+):
+    """Create a :class:`pydantic_ai.providers.azure.AzureProvider`.
+
+    Constructs an ``AsyncAzureOpenAI`` client from the given environment
+    variables and wraps it in an ``AzureProvider``.  The endpoint env-var
+    may contain a full Azure deployment URL (including path and
+    ``api-version`` query parameter) — the same format used throughout
+    this codebase.
+    """
+    from openai import AsyncAzureOpenAI
     from pydantic_ai.providers.azure import AzureProvider
 
     from .utils import get_azure_api_key, parse_azure_endpoint
 
-    raw_key = os.environ["AZURE_OPENAI_API_KEY"]
+    raw_key = os.environ[api_key_envvar]
     api_key = get_azure_api_key(raw_key)
-    azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
-    return AzureProvider(
+    azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
+    client = AsyncAzureOpenAI(
         azure_endpoint=azure_endpoint,
         api_version=api_version,
         api_key=api_key,
     )
+    return AzureProvider(openai_client=client)
 
 
 # ---------------------------------------------------------------------------
@@ -257,9 +269,23 @@ def create_embedding_model(
     if _needs_azure_fallback(provider):
         from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 
-        embedding_model = OpenAIEmbeddingModel(
-            model_name, provider=_make_azure_provider()
+        from .embeddings import model_to_embedding_size_and_envvar
+
+        # Look up model-specific Azure endpoint, falling back to the generic one.
+        _, suggested_envvar = model_to_embedding_size_and_envvar.get(
+            model_name, (None, None)
         )
+        if suggested_envvar and os.getenv(suggested_envvar):
+            endpoint_envvar = suggested_envvar
+        else:
+            endpoint_envvar = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
+        # Allow a model-specific API key, falling back to the generic one.
+        api_key_envvar = "AZURE_OPENAI_API_KEY_EMBEDDING"
+        if not os.getenv(api_key_envvar):
+            api_key_envvar = "AZURE_OPENAI_API_KEY"
+
+        azure_provider = _make_azure_provider(endpoint_envvar, api_key_envvar)
+        embedding_model = OpenAIEmbeddingModel(model_name, provider=azure_provider)
         embedder = _PydanticAIEmbedder(embedding_model)
     else:
         embedder = _PydanticAIEmbedder(model_spec)
