@@ -87,6 +87,7 @@ dev = [
   "google-auth-oauthlib>=1.2.2",
   "isort>=7.0.0",
   "logfire>=4.1.0",  # So 'make check' passes
+  "msgraph-sdk>=1.54.0",
   "opentelemetry-instrumentation-httpx>=0.57b0",
   "pyright>=1.1.408",  # 407 has a regression
   "pytest>=8.3.5",
