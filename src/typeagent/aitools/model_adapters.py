@@ -119,11 +119,11 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
 
     async def _probe_embedding_size(self) -> None:
         """Discover embedding_size by making a single API call."""
-        result = await self._embedder.embed(["probe"], input_type="document")
+        result = await self._embedder.embed_documents(["probe"])
         self.embedding_size = len(result.embeddings[0])
 
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
-        result = await self._embedder.embed([input], input_type="document")
+        result = await self._embedder.embed_documents([input])
         embedding: NDArray[np.float32] = np.array(
             result.embeddings[0], dtype=np.float32
         )
@@ -139,7 +139,7 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
             if self.embedding_size == 0:
                 await self._probe_embedding_size()
             return np.empty((0, self.embedding_size), dtype=np.float32)
-        result = await self._embedder.embed(input, input_type="document")
+        result = await self._embedder.embed_documents(input)
         embeddings: NDArray[np.float32] = np.array(result.embeddings, dtype=np.float32)
         if self.embedding_size == 0:
             self.embedding_size = embeddings.shape[1]

@@ -124,7 +124,7 @@ async def test_embedding_adapter_single() -> None:
 
     mock_embedder = AsyncMock(spec=Embedder)
     raw_vec = [3.0, 4.0, 0.0]
-    mock_embedder.embed.return_value = EmbeddingResult(
+    mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[raw_vec],
         inputs=["test"],
         input_type="document",
@@ -148,7 +148,7 @@ async def test_embedding_adapter_probes_size() -> None:
     from pydantic_ai.embeddings import EmbeddingResult
 
     mock_embedder = AsyncMock(spec=Embedder)
-    mock_embedder.embed.return_value = EmbeddingResult(
+    mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[[1.0, 0.0, 0.0]],
         inputs=["probe"],
         input_type="document",
@@ -171,7 +171,7 @@ async def test_embedding_adapter_batch() -> None:
     from pydantic_ai.embeddings import EmbeddingResult
 
     mock_embedder = AsyncMock(spec=Embedder)
-    mock_embedder.embed.return_value = EmbeddingResult(
+    mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[[1.0, 0.0], [0.0, 1.0]],
         inputs=["a", "b"],
         input_type="document",
@@ -193,7 +193,7 @@ async def test_embedding_adapter_caching() -> None:
     from pydantic_ai.embeddings import EmbeddingResult
 
     mock_embedder = AsyncMock(spec=Embedder)
-    mock_embedder.embed.return_value = EmbeddingResult(
+    mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[[1.0, 0.0, 0.0]],
         inputs=["cached"],
         input_type="document",
@@ -205,8 +205,8 @@ async def test_embedding_adapter_caching() -> None:
     first = await adapter.get_embedding("cached")
     second = await adapter.get_embedding("cached")
     np.testing.assert_array_equal(first, second)
-    # embed() should only be called once
-    assert mock_embedder.embed.call_count == 1
+    # embed_documents() should only be called once
+    assert mock_embedder.embed_documents.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -222,8 +222,8 @@ async def test_embedding_adapter_add_embedding() -> None:
     adapter.add_embedding("key", vec)
     result = await adapter.get_embedding("key")
     np.testing.assert_array_equal(result, vec)
-    # No embed() call needed
-    mock_embedder.embed.assert_not_called()
+    # No embed_documents() call needed
+    mock_embedder.embed_documents.assert_not_called()
 
 
 @pytest.mark.asyncio
