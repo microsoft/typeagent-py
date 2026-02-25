@@ -7,7 +7,10 @@ import pytest
 from typeagent.aitools.embeddings import (
     NormalizedEmbedding,
 )
-from typeagent.aitools.model_adapters import create_test_embedding_model
+from typeagent.aitools.model_adapters import (
+    create_test_embedding_model,
+    PydanticAIEmbeddingModel,
+)
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
 
@@ -58,8 +61,10 @@ def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples):
     assert len(bulk_vector_base) == len(vector_base)
     np.testing.assert_array_equal(bulk_vector_base.serialize(), vector_base.serialize())
 
-    sequential_cache = vector_base._model._cache  # type: ignore[attr-defined]
-    bulk_cache = bulk_vector_base._model._cache  # type: ignore[attr-defined]
+    assert isinstance(vector_base._model, PydanticAIEmbeddingModel)
+    assert isinstance(bulk_vector_base._model, PydanticAIEmbeddingModel)
+    sequential_cache = vector_base._model._cache
+    bulk_cache = bulk_vector_base._model._cache
     assert set(sequential_cache.keys()) == set(bulk_cache.keys())
     for key in keys:
         np.testing.assert_array_equal(bulk_cache[key], sequential_cache[key])
@@ -81,9 +86,8 @@ async def test_add_key_no_cache(vector_base: VectorBase, sample_embeddings: Samp
         await vector_base.add_key(key, cache=False)
 
     assert len(vector_base) == len(sample_embeddings)
-    assert (
-        vector_base._model._cache == {}  # type: ignore[attr-defined]
-    ), "Cache should remain empty when cache=False"
+    assert isinstance(vector_base._model, PydanticAIEmbeddingModel)
+    assert vector_base._model._cache == {}, "Cache should remain empty when cache=False"
 
 
 @pytest.mark.asyncio
@@ -102,9 +106,8 @@ async def test_add_keys_no_cache(vector_base: VectorBase, sample_embeddings: Sam
     await vector_base.add_keys(keys, cache=False)
 
     assert len(vector_base) == len(sample_embeddings)
-    assert (
-        vector_base._model._cache == {}  # type: ignore[attr-defined]
-    ), "Cache should remain empty when cache=False"
+    assert isinstance(vector_base._model, PydanticAIEmbeddingModel)
+    assert vector_base._model._cache == {}, "Cache should remain empty when cache=False"
 
 
 @pytest.mark.asyncio
