@@ -36,7 +36,6 @@ from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
-    convknowledge,
     kplib,
     query,
     search,
@@ -576,7 +575,7 @@ async def main():
                 "Error: non-empty --search-results required for batch mode."
             )
 
-    model = convknowledge.create_typechat_model()
+    model = utils.create_typechat_model()
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
     if args.alt_schema:
         if args.verbose:

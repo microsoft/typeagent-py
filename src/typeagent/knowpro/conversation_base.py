@@ -352,12 +352,12 @@ class ConversationBase(
         """
         # Create translators lazily (once per conversation instance)
         if self._query_translator is None:
-            model = convknowledge.create_typechat_model()
+            model = utils.create_typechat_model()
             self._query_translator = utils.create_translator(
                 model, search_query_schema.SearchQuery
             )
         if self._answer_translator is None:
-            model = convknowledge.create_typechat_model()
+            model = utils.create_typechat_model()
             self._answer_translator = utils.create_translator(
                 model, answer_response_schema.AnswerResponse
             )

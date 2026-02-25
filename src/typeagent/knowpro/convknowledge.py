@@ -6,10 +6,7 @@ from dataclasses import dataclass, field
 import typechat
 
 from . import kplib
-from ..aitools.utils import create_typechat_model  # Re-export for backward compat
-
-# Re-export: callers may still do ``convknowledge.create_typechat_model()``.
-__all__ = ["create_typechat_model", "KnowledgeExtractor"]
+from ..aitools.utils import create_typechat_model
 
 
 @dataclass
