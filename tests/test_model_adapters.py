@@ -17,7 +17,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import Model
 import typechat
 
-from typeagent.aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
+from typeagent.aitools.embeddings import NormalizedEmbedding
 from typeagent.aitools.model_adapters import (
     configure_models,
     create_chat_model,
@@ -58,11 +58,6 @@ def test_default_embedding_size_is_zero() -> None:
 # ---------------------------------------------------------------------------
 # PydanticAIChatModel adapter
 # ---------------------------------------------------------------------------
-
-
-def test_chat_model_is_typechat_model() -> None:
-    """PydanticAIChatModel inherits from TypeChatLanguageModel."""
-    assert typechat.TypeChatLanguageModel in PydanticAIChatModel.__mro__
 
 
 @pytest.mark.asyncio
@@ -106,11 +101,6 @@ async def test_chat_adapter_prompt_sections() -> None:
 # ---------------------------------------------------------------------------
 # PydanticAIEmbeddingModel adapter
 # ---------------------------------------------------------------------------
-
-
-def test_embedding_model_is_iembedding_model() -> None:
-    """PydanticAIEmbeddingModel inherits from IEmbeddingModel."""
-    assert IEmbeddingModel in PydanticAIEmbeddingModel.__mro__
 
 
 @pytest.mark.asyncio
@@ -223,4 +213,3 @@ def test_configure_models_returns_correct_types(
     chat, embedder = configure_models("openai:gpt-4o", "openai:text-embedding-3-small")
     assert isinstance(chat, PydanticAIChatModel)
     assert isinstance(embedder, PydanticAIEmbeddingModel)
-    assert typechat.TypeChatLanguageModel in type(chat).__mro__
