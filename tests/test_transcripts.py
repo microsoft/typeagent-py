@@ -6,7 +6,8 @@ import os
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, IEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.transcripts.transcript import (
@@ -224,10 +225,8 @@ def test_transcript_message_creation():
 @pytest.mark.asyncio
 async def test_transcript_creation():
     """Test creating an empty transcript."""
-    from typeagent.aitools.embeddings import TEST_MODEL_NAME
-
     # Create a minimal transcript for testing structure
-    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    embedding_model = create_test_embedding_model()
     settings = ConversationSettings(embedding_model)
 
     transcript = await Transcript.create(

@@ -10,7 +10,7 @@ import tempfile
 from dotenv import load_dotenv
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
@@ -30,7 +30,7 @@ async def test_message_text_index_population_from_database():
 
     try:
         # Use the test model that's already configured in the system
-        embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_model = create_test_embedding_model()
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)

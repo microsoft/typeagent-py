@@ -26,12 +26,16 @@ See https://ai.pydantic.dev/models/ for all supported providers and their
 required environment variables.
 """
 
+from collections.abc import Sequence
 import os
 
 import numpy as np
 from numpy.typing import NDArray
 
 from pydantic_ai import Embedder as _PydanticAIEmbedder
+from pydantic_ai.embeddings.base import EmbeddingModel as _PydanticAIEmbeddingModelBase
+from pydantic_ai.embeddings.result import EmbeddingResult, EmbedInputType
+from pydantic_ai.embeddings.settings import EmbeddingSettings
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -157,6 +161,10 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
         return embedding
 
     async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
+        if not keys:
+            if self.embedding_size == 0:
+                await self._probe_embedding_size()
+            return np.empty((0, self.embedding_size), dtype=np.float32)
         missing_keys = [k for k in keys if k not in self._cache]
         if missing_keys:
             fresh = await self.get_embeddings_nocache(missing_keys)
@@ -290,6 +298,87 @@ def create_embedding_model(
     else:
         embedder = _PydanticAIEmbedder(model_spec)
     return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)
+
+
+# ---------------------------------------------------------------------------
+# Test helpers
+# ---------------------------------------------------------------------------
+
+
+def _hashish(s: str) -> int:
+    """Deterministic hash function for fake embeddings (hash() varies per run)."""
+    h = 0
+    for ch in s:
+        h = (h * 31 + ord(ch)) & 0xFFFFFFFF
+    return h
+
+
+def _compute_fake_embeddings(
+    input_texts: list[str], embedding_size: int
+) -> list[list[float]]:
+    """Generate deterministic fake embeddings for testing (unnormalized).
+
+    Raises :class:`ValueError` on empty input strings.
+    """
+    prime = 1961
+    result: list[list[float]] = []
+    for item in input_texts:
+        if not item:
+            raise ValueError("Empty input text")
+        length = len(item)
+        floats: list[float] = []
+        for i in range(embedding_size):
+            cut = i % length
+            scrambled = item[cut:] + item[:cut]
+            hashed = _hashish(scrambled)
+            reduced = (hashed % prime) / prime
+            floats.append(reduced)
+        result.append(floats)
+    return result
+
+
+class _FakePydanticAIEmbeddingModel(_PydanticAIEmbeddingModelBase):
+    """A pydantic_ai :class:`EmbeddingModel` that returns deterministic fake
+    embeddings.  Used only for testing — no network calls are made."""
+
+    def __init__(self, embedding_size: int = 3) -> None:
+        super().__init__()
+        self._embedding_size = embedding_size
+
+    @property
+    def model_name(self) -> str:
+        return "test"
+
+    @property
+    def system(self) -> str:
+        return "test"
+
+    async def embed(
+        self,
+        inputs: str | Sequence[str],
+        *,
+        input_type: EmbedInputType,
+        settings: EmbeddingSettings | None = None,
+    ) -> EmbeddingResult:
+        inputs_list, settings = self.prepare_embed(inputs, settings)
+        embeddings = _compute_fake_embeddings(inputs_list, self._embedding_size)
+        return EmbeddingResult(
+            embeddings=embeddings,
+            inputs=inputs_list,
+            input_type=input_type,
+            model_name="test",
+            provider_name="test",
+        )
+
+
+def create_test_embedding_model(
+    embedding_size: int = 3,
+) -> PydanticAIEmbeddingModel:
+    """Create a :class:`PydanticAIEmbeddingModel` with deterministic fake
+    embeddings for testing.  No API keys or network access required."""
+    fake_model = _FakePydanticAIEmbeddingModel(embedding_size)
+    embedder = _PydanticAIEmbedder(fake_model)
+    return PydanticAIEmbeddingModel(embedder, "test", embedding_size)
 
 
 def configure_models(

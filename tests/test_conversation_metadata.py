@@ -16,11 +16,8 @@ import pytest_asyncio
 
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import (
-    AsyncEmbeddingModel,
-    IEmbeddingModel,
-    TEST_MODEL_NAME,
-)
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -80,7 +77,7 @@ async def storage_provider_memory() -> (
     AsyncGenerator[SqliteStorageProvider[DummyMessage], None]
 ):
     """Create an in-memory SqliteStorageProvider for testing conversation metadata."""
-    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    embedding_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -624,9 +621,8 @@ class TestConversationMetadataEdgeCases:
         provider.db.commit()
         await provider.close()
 
-        mismatched_model = AsyncEmbeddingModel(
+        mismatched_model = create_test_embedding_model(
             embedding_size=embedding_settings.embedding_size + 1,
-            model_name=embedding_model.model_name,
         )
         mismatched_settings = TextEmbeddingIndexSettings(
             embedding_model=mismatched_model,

@@ -8,7 +8,7 @@ import tempfile
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
@@ -24,7 +24,7 @@ async def test_add_messages_with_indexing_basic():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
 
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 
@@ -65,7 +65,7 @@ async def test_add_messages_with_indexing_batched():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
 
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 
@@ -122,7 +122,7 @@ async def test_transaction_rollback_on_error():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
 
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 

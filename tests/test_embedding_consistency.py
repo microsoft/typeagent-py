@@ -9,7 +9,7 @@ import tempfile
 import pytest
 
 from typeagent import create_conversation
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.storage.sqlite import SqliteStorageProvider
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
@@ -25,7 +25,7 @@ async def test_embedding_size_mismatch_in_message_index():
     try:
         # Create a conversation with test model (embedding size 3)
         settings1 = ConversationSettings(
-            model=AsyncEmbeddingModel(embedding_size=3, model_name="test")
+            model=create_test_embedding_model(embedding_size=3)
         )
         # Disable LLM knowledge extraction to avoid API key requirement
         settings1.semantic_ref_index_settings.auto_extract_knowledge = False
@@ -46,7 +46,7 @@ async def test_embedding_size_mismatch_in_message_index():
         # Now try to open the same database with a different embedding size
         # This should raise an error
         settings2 = ConversationSettings(
-            model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
+            model=create_test_embedding_model(embedding_size=5)
         )
 
         with pytest.raises(ValueError, match="embedding_size"):
@@ -74,7 +74,7 @@ async def test_embedding_size_mismatch_in_related_terms():
     try:
         # Create a conversation with default embedding size
         settings1 = ConversationSettings(
-            model=AsyncEmbeddingModel(embedding_size=3, model_name="test")
+            model=create_test_embedding_model(embedding_size=3)
         )
         # Disable LLM knowledge extraction to avoid API key requirement
         settings1.semantic_ref_index_settings.auto_extract_knowledge = False
@@ -95,7 +95,7 @@ async def test_embedding_size_mismatch_in_related_terms():
         # Now try to open the same database with a different embedding size
         # This should raise an error
         settings2 = ConversationSettings(
-            model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
+            model=create_test_embedding_model(embedding_size=5)
         )
 
         with pytest.raises(ValueError, match="embedding_size"):
@@ -123,7 +123,7 @@ async def test_empty_db_no_error():
     try:
         # Create an empty database
         settings1 = ConversationSettings(
-            model=AsyncEmbeddingModel(embedding_size=3, model_name="test")
+            model=create_test_embedding_model(embedding_size=3)
         )
         # Disable LLM knowledge extraction to avoid API key requirement
         settings1.semantic_ref_index_settings.auto_extract_knowledge = False
@@ -134,7 +134,7 @@ async def test_empty_db_no_error():
 
         # Open with different embedding size should work since DB is empty
         settings2 = ConversationSettings(
-            model=AsyncEmbeddingModel(embedding_size=5, model_name="test")
+            model=create_test_embedding_model(embedding_size=5)
         )
         provider = SqliteStorageProvider(
             db_path=db_path,

@@ -5,10 +5,9 @@ import numpy as np
 import pytest
 
 from typeagent.aitools.embeddings import (
-    AsyncEmbeddingModel,
     NormalizedEmbedding,
-    TEST_MODEL_NAME,
 )
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
 
@@ -19,9 +18,7 @@ def vector_base() -> VectorBase:
 
 
 def make_vector_base() -> VectorBase:
-    settings = TextEmbeddingIndexSettings(
-        AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
-    )
+    settings = TextEmbeddingIndexSettings(create_test_embedding_model())
     return VectorBase(settings)
 
 
@@ -61,8 +58,8 @@ def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples):
     assert len(bulk_vector_base) == len(vector_base)
     np.testing.assert_array_equal(bulk_vector_base.serialize(), vector_base.serialize())
 
-    sequential_cache = vector_base._model._embedding_cache  # type: ignore[attr-defined]
-    bulk_cache = bulk_vector_base._model._embedding_cache  # type: ignore[attr-defined]
+    sequential_cache = vector_base._model._cache  # type: ignore[attr-defined]
+    bulk_cache = bulk_vector_base._model._cache  # type: ignore[attr-defined]
     assert set(sequential_cache.keys()) == set(bulk_cache.keys())
     for key in keys:
         np.testing.assert_array_equal(bulk_cache[key], sequential_cache[key])
@@ -85,7 +82,7 @@ async def test_add_key_no_cache(vector_base: VectorBase, sample_embeddings: Samp
 
     assert len(vector_base) == len(sample_embeddings)
     assert (
-        vector_base._model._embedding_cache == {}  # type: ignore[attr-defined]
+        vector_base._model._cache == {}  # type: ignore[attr-defined]
     ), "Cache should remain empty when cache=False"
 
 
@@ -106,7 +103,7 @@ async def test_add_keys_no_cache(vector_base: VectorBase, sample_embeddings: Sam
 
     assert len(vector_base) == len(sample_embeddings)
     assert (
-        vector_base._model._embedding_cache == {}  # type: ignore[attr-defined]
+        vector_base._model._cache == {}  # type: ignore[attr-defined]
     ), "Cache should remain empty when cache=False"
 
 
