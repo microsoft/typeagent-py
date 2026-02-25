@@ -1,9 +1,20 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from unittest.mock import AsyncMock
+
 import numpy as np
 import pytest
 
+from pydantic_ai import Embedder
+from pydantic_ai.embeddings import EmbeddingResult
+from pydantic_ai.messages import (
+    ModelResponse,
+    SystemPromptPart,
+    TextPart,
+    UserPromptPart,
+)
+from pydantic_ai.models import Model
 import typechat
 
 from typeagent.aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
@@ -57,11 +68,6 @@ def test_chat_model_is_typechat_model() -> None:
 @pytest.mark.asyncio
 async def test_chat_adapter_complete() -> None:
     """PydanticAIChatModel wraps a pydantic_ai Model."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai.messages import ModelResponse, TextPart
-    from pydantic_ai.models import Model
-
     mock_model = AsyncMock(spec=Model)
     mock_model.request.return_value = ModelResponse(parts=[TextPart(content="hello")])
 
@@ -74,11 +80,6 @@ async def test_chat_adapter_complete() -> None:
 @pytest.mark.asyncio
 async def test_chat_adapter_prompt_sections() -> None:
     """PydanticAIChatModel handles list[PromptSection] prompts."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai.messages import ModelResponse, TextPart
-    from pydantic_ai.models import Model
-
     mock_model = AsyncMock(spec=Model)
     mock_model.request.return_value = ModelResponse(
         parts=[TextPart(content="response")]
@@ -98,8 +99,6 @@ async def test_chat_adapter_prompt_sections() -> None:
     messages = call_args[0][0]
     assert len(messages) == 1
     request = messages[0]
-    from pydantic_ai.messages import SystemPromptPart, UserPromptPart
-
     assert isinstance(request.parts[0], SystemPromptPart)
     assert isinstance(request.parts[1], UserPromptPart)
 
@@ -117,11 +116,6 @@ def test_embedding_model_is_iembedding_model() -> None:
 @pytest.mark.asyncio
 async def test_embedding_adapter_single() -> None:
     """PydanticAIEmbeddingModel computes a single normalized embedding."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai import Embedder
-    from pydantic_ai.embeddings import EmbeddingResult
-
     mock_embedder = AsyncMock(spec=Embedder)
     raw_vec = [3.0, 4.0, 0.0]
     mock_embedder.embed_documents.return_value = EmbeddingResult(
@@ -142,11 +136,6 @@ async def test_embedding_adapter_single() -> None:
 @pytest.mark.asyncio
 async def test_embedding_adapter_probes_size() -> None:
     """embedding_size is discovered from the first embedding call."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai import Embedder
-    from pydantic_ai.embeddings import EmbeddingResult
-
     mock_embedder = AsyncMock(spec=Embedder)
     mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[[1.0, 0.0, 0.0]],
@@ -165,11 +154,6 @@ async def test_embedding_adapter_probes_size() -> None:
 @pytest.mark.asyncio
 async def test_embedding_adapter_batch() -> None:
     """PydanticAIEmbeddingModel computes batch embeddings."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai import Embedder
-    from pydantic_ai.embeddings import EmbeddingResult
-
     mock_embedder = AsyncMock(spec=Embedder)
     mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[[1.0, 0.0], [0.0, 1.0]],
@@ -187,11 +171,6 @@ async def test_embedding_adapter_batch() -> None:
 @pytest.mark.asyncio
 async def test_embedding_adapter_caching() -> None:
     """Caching avoids re-computing embeddings."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai import Embedder
-    from pydantic_ai.embeddings import EmbeddingResult
-
     mock_embedder = AsyncMock(spec=Embedder)
     mock_embedder.embed_documents.return_value = EmbeddingResult(
         embeddings=[[1.0, 0.0, 0.0]],
@@ -212,10 +191,6 @@ async def test_embedding_adapter_caching() -> None:
 @pytest.mark.asyncio
 async def test_embedding_adapter_add_embedding() -> None:
     """add_embedding() populates the cache."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai import Embedder
-
     mock_embedder = AsyncMock(spec=Embedder)
     adapter = PydanticAIEmbeddingModel(mock_embedder, "test-model", 3)
     vec: NormalizedEmbedding = np.array([1.0, 0.0, 0.0], dtype=np.float32)
@@ -229,10 +204,6 @@ async def test_embedding_adapter_add_embedding() -> None:
 @pytest.mark.asyncio
 async def test_embedding_adapter_empty_batch() -> None:
     """Empty batch returns empty array with known size."""
-    from unittest.mock import AsyncMock
-
-    from pydantic_ai import Embedder
-
     mock_embedder = AsyncMock(spec=Embedder)
     adapter = PydanticAIEmbeddingModel(mock_embedder, "test-model", 4)
     result = await adapter.get_embeddings_nocache([])

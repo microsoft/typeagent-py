@@ -7,6 +7,9 @@ import os
 
 from dotenv import load_dotenv
 
+import pydantic.dataclasses
+import typechat
+
 import typeagent.aitools.utils as utils
 
 
@@ -37,13 +40,9 @@ def test_load_dotenv(really_needs_auth):
 
 
 def test_create_translator():
-    import typechat
-
     class DummyModel(typechat.TypeChatLanguageModel):
         async def complete(self, *args, **kwargs) -> typechat.Result:
             return typechat.Failure("dummy response")
-
-    import pydantic.dataclasses
 
     @pydantic.dataclasses.dataclass
     class DummySchema:

@@ -9,6 +9,8 @@ to ensure behavioral parity across implementations.
 """
 
 from dataclasses import field
+import os
+import tempfile
 from typing import assert_never, AsyncGenerator
 
 import pytest
@@ -605,9 +607,6 @@ async def test_storage_provider_independence(
     )
 
     # Create two sqlite providers (with different temp files)
-    import os
-    import tempfile
-
     temp_file1 = tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False)
     temp_path1 = temp_file1.name
     temp_file1.close()

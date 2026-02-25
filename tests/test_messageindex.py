@@ -4,6 +4,7 @@
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
+import numpy as np
 import pytest
 
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
@@ -145,8 +146,6 @@ async def test_lookup_messages_in_subset(
 @pytest.mark.asyncio
 async def test_generate_embedding(needs_auth: None):
     """Test generating an embedding for a message without mocking."""
-    import numpy as np
-
     from typeagent.aitools.model_adapters import create_test_embedding_model
     from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 

@@ -3,6 +3,7 @@
 
 from collections.abc import AsyncGenerator
 from dataclasses import field
+from datetime import datetime
 
 import pytest
 import pytest_asyncio
@@ -128,8 +129,6 @@ async def test_sqlite_timestamp_index(
     dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
 ):
     """Test SqliteTimestampToTextRangeIndex functionality."""
-    from datetime import datetime
-
     from typeagent.knowpro.interfaces import DateRange
 
     # Set up database with some messages

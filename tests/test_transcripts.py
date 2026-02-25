@@ -5,6 +5,7 @@ from datetime import timedelta
 import os
 
 import pytest
+import webvtt
 
 from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.model_adapters import create_test_embedding_model
@@ -102,8 +103,6 @@ def conversation_settings(
 @pytest.mark.asyncio
 async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
     """Test importing a VTT file into a Transcript object."""
-    import webvtt
-
     from typeagent.storage.memory.collections import (
         MemoryMessageCollection,
         MemorySemanticRefCollection,
@@ -253,8 +252,6 @@ async def test_transcript_knowledge_extraction_slow(
     4. Verifies both mechanical extraction (entities/actions from metadata)
        and LLM extraction (topics from content) work correctly
     """
-    import webvtt
-
     from typeagent.storage.memory.collections import (
         MemoryMessageCollection,
         MemorySemanticRefCollection,
