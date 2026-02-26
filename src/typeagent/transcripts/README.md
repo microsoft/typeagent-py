@@ -23,10 +23,10 @@ various types of transcripts.
 ```python
 from typeagent.transcripts.transcript_ingest import ingest_vtt_transcript
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.aitools import utils
+from dotenv import load_dotenv
 
 # Load environment variables for API keys from .env file
-utils.load_dotenv()
+load_dotenv()
 
 # Create settings (tweak as needed)
 settings = ConversationSettings()

@@ -1,13 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from datetime import datetime
 from email import message_from_string
-from email.header import decode_header, make_header
+from email.header import decode_header, Header, make_header
 from email.message import Message
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 import re
-from typing import Iterable
+from typing import Iterable, overload
 
 from .email_message import EmailMessage, EmailMessageMeta
 
@@ -18,6 +19,27 @@ def decode_encoded_words(value: str) -> str:
         return ""
 
     return str(make_header(decode_header(value)))
+
+
+# Coerce an email header value to str or None.
+#  msg.get() can return an email.header.Header object instead of a plain str when the header contains RFC 2047 encoded words.
+#  Pydantic expects str, so we normalise here.
+
+
+@overload
+def _header_to_str(value: str | Header | None, default: str) -> str: ...
+
+
+@overload
+def _header_to_str(value: str | Header | None) -> str | None: ...
+
+
+def _header_to_str(
+    value: str | Header | None, default: str | None = None
+) -> str | None:
+    if value is None:
+        return default
+    return str(value)
 
 
 def import_emails_from_dir(
@@ -64,14 +86,16 @@ def import_forwarded_email_string(
 # Imports an email.message.Message object and returns an EmailMessage object
 # If the message is a reply, returns only the latest response.
 def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
-    # Extract metadata from
+    # Extract metadata from headers.
+    # msg.get() can return a Header object instead of str for encoded headers,
+    # so coerce all values to str.
     email_meta = EmailMessageMeta(
-        sender=msg.get("From", ""),
+        sender=_header_to_str(msg.get("From"), ""),
         recipients=_import_address_headers(msg.get_all("To", [])),
         cc=_import_address_headers(msg.get_all("Cc", [])),
         bcc=_import_address_headers(msg.get_all("Bcc", [])),
-        subject=msg.get("Subject"),  # TODO: Remove newlines
-        id=msg.get("Message-ID", None),
+        subject=_header_to_str(msg.get("Subject")),
+        id=_header_to_str(msg.get("Message-ID")),
     )
     timestamp: str | None = None
     timestamp_date = msg.get("Date", None)
@@ -175,7 +199,13 @@ def _decode_email_payload(part: Message) -> str:
             return payload
         return ""
     if isinstance(payload, bytes):
-        return payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        charset = part.get_content_charset() or "latin-1"
+        try:
+            return payload.decode(charset, errors="replace")
+        except LookupError:
+            # Unknown encoding (e.g. iso-8859-8-i); fall back to latin-1
+            # which accepts all 256 byte values without loss.
+            return payload.decode("latin-1")
     if isinstance(payload, str):
         return payload
     return ""
@@ -187,7 +217,7 @@ def _import_address_headers(headers: list[str]) -> list[str]:
     unique_addresses: set[str] = set()
     for header in headers:
         if header:
-            addresses = _remove_empty_strings(header.split(","))
+            addresses = _remove_empty_strings(str(header).split(","))
             for address in addresses:
                 unique_addresses.add(address)
 
@@ -207,11 +237,11 @@ def _text_to_chunks(text: str, max_chunk_length: int) -> list[str]:
     if len(text) < max_chunk_length:
         return [text]
 
-    paragraphs = _splitIntoParagraphs(text)
+    paragraphs = _split_into_paragraphs(text)
     return list(_merge_chunks(paragraphs, "\n\n", max_chunk_length))
 
 
-def _splitIntoParagraphs(text: str) -> list[str]:
+def _split_into_paragraphs(text: str) -> list[str]:
     return _remove_empty_strings(re.split(r"\n{2,}", text))
 
 
@@ -238,3 +268,29 @@ def _merge_chunks(
 
     if (len(cur_chunk)) > 0:
         yield cur_chunk
+
+
+def email_matches_date_filter(
+    timestamp: str | None,
+    start_date: datetime | None,
+    stop_date: datetime | None,
+) -> bool:
+    """Check whether an email's ISO timestamp passes the date filters.
+
+    The range is half-open: [start_date, stop_date).
+    Emails without a parseable timestamp are always included.
+    """
+    if timestamp is None:
+        return True
+    try:
+        email_dt = datetime.fromisoformat(timestamp)
+    except ValueError:
+        return True
+    # Treat offset-naive timestamps as local time for comparison
+    if email_dt.tzinfo is None:
+        email_dt = email_dt.astimezone()
+    if start_date and email_dt < start_date:
+        return False
+    if stop_date and email_dt >= stop_date:
+        return False
+    return True

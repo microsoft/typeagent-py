@@ -32,9 +32,13 @@ pytest.local.ini
 # Evaluations
 /evals
 
+# E-Mail test data
+!/tests/testdata/email-testdata/.gitkeep
+/tests/testdata/email-testdata/*
+
 # Email demo
-/tools/gmail/client_secret.json
-/tools/gmail/token.json
+/tools/mail/client_secret.json
+/tools/mail/token.json
 *_dump/
 
 # Monty Python demo

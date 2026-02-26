@@ -3,7 +3,6 @@
 
 """In-memory storage provider implementation."""
 
-
 from datetime import datetime
 
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
@@ -105,7 +104,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """Close the storage provider."""
         pass
 
-    def get_conversation_metadata(self) -> ConversationMetadata:
+    async def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata.
 
         For in-memory storage, returns the metadata provided during initialization
@@ -113,7 +112,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         return self._metadata
 
-    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+    async def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set conversation metadata (no-op for in-memory storage).
 
         This method exists for API compatibility with SqliteStorageProvider
@@ -124,7 +123,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         pass
 
-    def update_conversation_timestamps(
+    async def update_conversation_timestamps(
         self,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
@@ -140,7 +139,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         pass
 
-    def is_source_ingested(self, source_id: str) -> bool:
+    async def is_source_ingested(self, source_id: str) -> bool:
         """Check if a source has already been ingested.
 
         Args:
@@ -151,7 +150,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         return source_id in self._ingested_sources
 
-    def get_source_status(self, source_id: str) -> str | None:
+    async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 
         Args:
@@ -164,7 +163,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
             return STATUS_INGESTED
         return None
 
-    def mark_source_ingested(
+    async def mark_source_ingested(
         self, source_id: str, status: str = STATUS_INGESTED
     ) -> None:
         """Mark a source as ingested.

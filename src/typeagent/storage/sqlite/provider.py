@@ -52,8 +52,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         provided_message_settings = message_text_index_settings
         provided_related_settings = related_term_index_settings
 
-        # Initialize database connection
-        self.db = sqlite3.connect(db_path)
+        # Initialize database connection with autocommit mode
+        # isolation_level=None enables manual transaction control via BEGIN/COMMIT
+        self.db = sqlite3.connect(db_path, isolation_level=None)
 
         # Configure SQLite for optimal bulk insertion performance
         # TODO: Move into init_db_schema()
@@ -312,6 +313,13 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
         """Enter transaction context."""
+        if self.db.in_transaction:
+            raise RuntimeError(
+                "Cannot start a new transaction: a transaction is already in progress. "
+                "This may happen if: (1) you're nesting 'async with storage:' blocks, "
+                "(2) a previous transaction was not properly committed/rolled back, or "
+                "(3) the database file was left in an inconsistent state from a crash."
+            )
         self.db.execute("BEGIN IMMEDIATE")
         # Initialize metadata on first write transaction
         self._init_conversation_metadata_if_needed()
@@ -452,7 +460,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         if data.get("messageIndexData"):
             await self._message_text_index.deserialize(data["messageIndexData"])
 
-    def get_conversation_metadata(self) -> ConversationMetadata:
+    async def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata."""
         cursor = self.db.cursor()
 
@@ -540,7 +548,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             extra=extra if extra else None,
         )
 
-    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+    async def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set or update conversation metadata key-value pairs.
 
         Args:
@@ -560,7 +568,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         _set_conversation_metadata(self.db, **kwds)
 
-    def update_conversation_timestamps(
+    async def update_conversation_timestamps(
         self,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
@@ -613,7 +621,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """Get the database schema version."""
         return get_db_schema_version(self.db)
 
-    def is_source_ingested(self, source_id: str) -> bool:
+    async def is_source_ingested(self, source_id: str) -> bool:
         """Check if a source has already been ingested.
 
         This is a read-only operation that can be called outside of a transaction.
@@ -631,7 +639,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row is not None and row[0] == STATUS_INGESTED
 
-    def get_source_status(self, source_id: str) -> str | None:
+    async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 
         Args:
@@ -647,7 +655,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row[0] if row else None
 
-    def mark_source_ingested(
+    async def mark_source_ingested(
         self, source_id: str, status: str = STATUS_INGESTED
     ) -> None:
         """Mark a source as ingested.

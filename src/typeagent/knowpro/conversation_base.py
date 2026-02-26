@@ -152,7 +152,7 @@ class ConversationBase(
             # Mark source IDs as ingested (will be rolled back on error)
             if source_ids:
                 for source_id in source_ids:
-                    storage.mark_source_ingested(source_id)
+                    await storage.mark_source_ingested(source_id)
 
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
@@ -178,7 +178,7 @@ class ConversationBase(
             )
 
             # Update the updated_at timestamp
-            storage.update_conversation_timestamps(
+            await storage.update_conversation_timestamps(
                 updated_at=datetime.now(timezone.utc)
             )
 
@@ -403,7 +403,7 @@ class ConversationBase(
 
         match combined_answer.type:
             case "NoAnswer":
-                return f"No answer found: {combined_answer.whyNoAnswer or 'Unable to find relevant information'}"
+                return f"No answer found: {combined_answer.why_no_answer or 'Unable to find relevant information'}"
             case "Answered":
                 return combined_answer.answer or "No answer provided"
             case _:  # Cannot happen in type-checked code

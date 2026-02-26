@@ -21,9 +21,9 @@ from pathlib import Path
 import sys
 import time
 
+from dotenv import load_dotenv
 import webvtt
 
-from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ConversationMetadata
@@ -190,7 +190,7 @@ async def ingest_vtt_files(
     # Load environment for API access
     if verbose:
         print("Loading environment...")
-    utils.load_dotenv()
+    load_dotenv()
 
     # Determine transcript name before creating storage provider
     if not name:

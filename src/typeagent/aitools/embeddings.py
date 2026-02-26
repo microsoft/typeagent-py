@@ -22,7 +22,7 @@ type NormalizedEmbeddings = NDArray[np.float32]  # An array of embeddings
 
 DEFAULT_MODEL_NAME = "text-embedding-ada-002"
 DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
-DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"
+DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"  # We support OpenAI and Azure OpenAI
 TEST_MODEL_NAME = "test"
 MAX_BATCH_SIZE = 2048
 MAX_TOKEN_SIZE = 4096
@@ -43,6 +43,7 @@ class AsyncEmbeddingModel:
     model_name: str
     embedding_size: int
     endpoint_envvar: str
+    use_azure: bool
     azure_token_provider: AzureTokenProvider | None
     async_client: AsyncOpenAI | None
     azure_endpoint: str
@@ -83,32 +84,39 @@ class AsyncEmbeddingModel:
                 f"Cannot customize embedding_size for default model {DEFAULT_MODEL_NAME}"
             )
 
+        # Read API keys once
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        azure_api_key = os.getenv("AZURE_OPENAI_API_KEY")
+
+        # Prefer OpenAI if both are set, use Azure if only Azure is set
+        self.use_azure = bool(azure_api_key) and not bool(openai_api_key)
+
         if endpoint_envvar is None:
-            if suggested_endpoint_envvar is not None:
+            # Check if OpenAI credentials are available, prefer OpenAI over Azure
+            if openai_api_key:
+                endpoint_envvar = "OPENAI_BASE_URL"  # Use OpenAI
+            elif suggested_endpoint_envvar is not None:
                 endpoint_envvar = suggested_endpoint_envvar
             else:
                 endpoint_envvar = DEFAULT_ENVVAR
-        self.endpoint_envvar = endpoint_envvar
 
+        self.endpoint_envvar = endpoint_envvar
         self.azure_token_provider = None
 
         if self.model_name == TEST_MODEL_NAME:
             self.async_client = None
+        elif self.use_azure:
+            if not azure_api_key:
+                raise ValueError("AZURE_OPENAI_API_KEY not found in environment.")
+            with timelog("Using Azure OpenAI"):
+                self._setup_azure(azure_api_key)
         else:
-            openai_key_name = "OPENAI_API_KEY"
-            azure_key_name = "AZURE_OPENAI_API_KEY"
-            if openai_key := os.getenv(openai_key_name):
-                endpoint = os.getenv(self.endpoint_envvar)
-                with timelog(f"Using OpenAI"):
-                    self.async_client = AsyncOpenAI(
-                        base_url=endpoint, api_key=openai_key, max_retries=max_retries
-                    )
-            elif azure_api_key := os.getenv(azure_key_name):
-                with timelog("Using Azure OpenAI"):
-                    self._setup_azure(azure_api_key)
-            else:
-                raise ValueError(
-                    f"Neither {openai_key_name} nor {azure_key_name} found in environment."
+            if not openai_api_key:
+                raise ValueError("OPENAI_API_KEY not found in environment.")
+            endpoint = os.getenv(self.endpoint_envvar)
+            with timelog("Using OpenAI"):
+                self.async_client = AsyncOpenAI(
+                    base_url=endpoint, api_key=openai_api_key, max_retries=max_retries
                 )
 
         if self.model_name in tiktoken_model.MODEL_TO_ENCODING:

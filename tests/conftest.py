@@ -7,6 +7,7 @@ from pathlib import Path
 import tempfile
 from typing import Any
 
+from dotenv import load_dotenv
 import pytest
 import pytest_asyncio
 
@@ -14,7 +15,6 @@ from openai.types.create_embedding_response import CreateEmbeddingResponse, Usag
 from openai.types.embedding import Embedding
 import tiktoken
 
-from typeagent.aitools import utils
 from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
@@ -78,12 +78,12 @@ EPISODE_53_SEARCH = get_testdata_path("Episode_53_Search_results.json")
 
 @pytest.fixture(scope="session")
 def needs_auth() -> None:
-    utils.load_dotenv()
+    load_dotenv()
 
 
 @pytest.fixture(scope="session")
 def really_needs_auth() -> None:
-    utils.load_dotenv()
+    load_dotenv()
     # Check if any of the supported API keys is set
     if not (os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")):
         pytest.skip("No API key found")

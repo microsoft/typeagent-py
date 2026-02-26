@@ -35,13 +35,15 @@ The (public) OpenAI environment variables include the following:
 If you are using the OpenAI service hosted by Azure, you need different
 environment variables, starting with:
 
-- `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key.
+- `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key (or in some cases `identity`).
 - `AZURE_OPENAI_ENDPOINT`: The full URL of the Azure OpenAI REST API
-  (e.g. https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15).
-- `AZURE_OPENAI_ENDPOINT_EMBEDDING`: The full URL of the Azure OpenAI REST API for embeddings (e.g. https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_EMBEDDING_DEPLOYMENT_NAME/embeddings?api-version=2024-08-01-preview).
+  (e.g. `https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT_NAME/chat/completions?api-version=2023-05-15`).
+- `AZURE_OPENAI_ENDPOINT_EMBEDDING`:
+  The full URL of the Azure OpenAI REST API for embeddings
+  (e.g. `https://YOUR_RESOURCE_NAME.openai.azure.com/openai/deployments/YOUR_EMBEDDING_DEPLOYMENT_NAME/embeddings?api-version=2024-08-01-preview`).
 
-- If you use Azure OpenAI you will know where to get these
-  (or ask your sysadmin).
+If you use Azure OpenAI you will know where to get these
+(or ask your sysadmin).
 
 ## Conflicts
 
@@ -52,7 +54,7 @@ If you set both `OPENAI_API_KEY` and `AZURE_OPENAI_API_KEY`,
 
 It is recommended to put your environment variables in a file named
 `.env` in the current or parent directory.
-To pick up these variables, call `typeagent.aitools.utils.load_dotenv()`
+To pick up these variables, call `load_dotenv()` (`from dotenv import load_dotenv`)
 at the start of your program (before calling any typeagent functions).
 (For simplicity this is not shown in
 [Getting Started](getting-started.md).)
