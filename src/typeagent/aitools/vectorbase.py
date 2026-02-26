@@ -13,8 +13,6 @@ from .embeddings import (
 )
 from .model_adapters import create_embedding_model
 
-DEFAULT_MAX_RETRIES = 2
-
 
 @dataclass
 class ScoredInt:
@@ -29,7 +27,6 @@ class TextEmbeddingIndexSettings:
     min_score: float  # Between 0.0 and 1.0
     max_matches: int | None  # >= 1; None means no limit
     batch_size: int  # >= 1
-    max_retries: int
 
     def __init__(
         self,
@@ -38,14 +35,10 @@ class TextEmbeddingIndexSettings:
         min_score: float | None = None,
         max_matches: int | None = None,
         batch_size: int | None = None,
-        max_retries: int | None = None,
     ):
         self.min_score = min_score if min_score is not None else 0.85
         self.max_matches = max_matches if max_matches and max_matches >= 1 else None
         self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
-        self.max_retries = (
-            max_retries if max_retries is not None else DEFAULT_MAX_RETRIES
-        )
         self.embedding_model = embedding_model or create_embedding_model(
             embedding_size=embedding_size or 0,
         )
