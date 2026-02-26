@@ -109,7 +109,6 @@ class ConversationHistory:
             self.entries.pop(0)
 
     def clear(self) -> None:
-        """Clear all history."""
         self.entries.clear()
 
     def to_prompt_section(self) -> typechat.PromptSection | None:

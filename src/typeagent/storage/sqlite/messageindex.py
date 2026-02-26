@@ -57,7 +57,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         start_message_ordinal: int,
         messages: list[interfaces.IMessage],
     ) -> None:
-        """Add messages to the text index starting at the given ordinal."""
         chunks_to_embed: list[tuple[int, int, str]] = []
         for msg_ord, message in enumerate(messages, start_message_ordinal):
             for chunk_ord, chunk in enumerate(message.text_chunks):
@@ -121,7 +120,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
             await self.add_messages_starting_at(start_ordinal, messages_to_add)
 
     async def rebuild_from_all_messages(self) -> None:
-        """Rebuild the entire message text index from all messages in the collection."""
         if self._message_collection is None:
             return
 
@@ -141,7 +139,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
     async def lookup_text(
         self, text: str, max_matches: int | None = None, min_score: float | None = None
     ) -> list[ScoredTextLocation]:
-        """Look up text using VectorBase."""
         fuzzy_results = await self._vectorbase.fuzzy_lookup(
             text, max_hits=max_matches, min_score=min_score
         )
@@ -230,7 +227,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[interfaces.ScoredMessageOrdinal]:
-        """Look up messages by text content."""
         scored_locations = await self.lookup_text(message_text, None, threshold_score)
         return self._scored_locations_to_message_ordinals(scored_locations, max_matches)
 
@@ -241,7 +237,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[interfaces.ScoredMessageOrdinal]:
-        """Look up messages in a subset of ordinals."""
         # Get all matches first
         all_matches = await self.lookup_messages(message_text, None, threshold_score)
 
@@ -258,7 +253,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         return filtered_matches
 
     async def generate_embedding(self, text: str) -> NormalizedEmbedding:
-        """Generate an embedding for the given text."""
         return await self._vectorbase.get_embedding(text)
 
     async def lookup_by_embedding(
@@ -284,7 +278,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[interfaces.ScoredMessageOrdinal]:
-        """Look up messages in a subset by embedding."""
         ordinals_set = set(ordinals_to_search)
         return await self.lookup_by_embedding(
             text_embedding,
@@ -294,12 +287,10 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         )
 
     async def is_empty(self) -> bool:
-        """Check if the index is empty."""
         size = await self.size()
         return size == 0
 
     async def serialize(self) -> interfaces.MessageTextIndexData:
-        """Serialize the message text index."""
         # Get all data from the MessageTextIndex table
         cursor = self.db.cursor()
         cursor.execute("""
@@ -344,7 +335,6 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         return {}
 
     async def deserialize(self, data: interfaces.MessageTextIndexData) -> None:
-        """Deserialize message text index data."""
         cursor = self.db.cursor()
 
         # Clear existing data
@@ -394,6 +384,5 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         self._vectorbase.add_embeddings(None, embeddings)
 
     async def clear(self) -> None:
-        """Clear the message text index."""
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM MessageTextIndex")

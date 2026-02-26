@@ -97,7 +97,6 @@ class AzPIMClient:
 
     @staticmethod
     async def create():
-        """Create a new AzPIMClient instance."""
         return AzPIMClient(await get_az_cli_logged_in_info())
 
     async def elevate(self, options: Dict):
@@ -233,7 +232,6 @@ class AzCliKeyVaultClient:
 
     @staticmethod
     async def create():
-        """Create and validate the client."""
         try:
             result = subprocess.run(
                 [AZ_COMMAND, "account", "show"],
@@ -262,7 +260,6 @@ class AzCliKeyVaultClient:
             sys.exit(1)
 
     def get_secrets(self, vault_name: str) -> List[Dict]:
-        """List all secrets in a vault."""
         result = subprocess.run(
             [AZ_COMMAND, "keyvault", "secret", "list", "--vault-name", vault_name],
             capture_output=True,
@@ -272,7 +269,6 @@ class AzCliKeyVaultClient:
         return json.loads(result.stdout)
 
     def read_secret(self, vault_name: str, secret_name: str) -> Dict:
-        """Read a specific secret from a vault."""
         result = subprocess.run(
             [
                 AZ_COMMAND,
@@ -293,7 +289,6 @@ class AzCliKeyVaultClient:
     def write_secret(
         self, vault_name: str, secret_name: str, secret_value: str
     ) -> Dict:
-        """Write a secret to a vault."""
         result = subprocess.run(
             [
                 AZ_COMMAND,
@@ -413,7 +408,6 @@ async def get_secrets(
 
 
 def read_dotenv() -> List[Tuple[str, str]]:
-    """Read the .env file."""
     if not DOTENV_PATH.exists():
         return []
 
@@ -648,7 +642,6 @@ async def pull_secrets():
 
 
 def print_help():
-    """Print help message."""
     print("""
 Usage: get_keys.py [command] [options]
 
@@ -670,7 +663,6 @@ Examples:
 
 
 async def main():
-    """Main entry point."""
     global param_shared_vault, param_private_vault
 
     parser = argparse.ArgumentParser(description="Manage Azure Key Vault secrets")

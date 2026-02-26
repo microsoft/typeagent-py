@@ -438,7 +438,6 @@ async def ingest_vtt_files(
 
 
 def main():
-    """Main entry point."""
     parser = create_arg_parser()
     args = parser.parse_args()
 

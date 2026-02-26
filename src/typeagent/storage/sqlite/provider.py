@@ -275,7 +275,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         )
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
-        """Enter transaction context."""
         if self.db.in_transaction:
             raise RuntimeError(
                 "Cannot start a new transaction: a transaction is already in progress. "
@@ -347,35 +346,27 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     async def get_message_collection(
         self, message_type: type[TMessage] | None = None
     ) -> interfaces.IMessageCollection[TMessage]:
-        """Get the message collection."""
         return self._message_collection
 
     async def get_semantic_ref_collection(self) -> interfaces.ISemanticRefCollection:
-        """Get the semantic reference collection."""
         return self._semantic_ref_collection
 
     async def get_semantic_ref_index(self) -> interfaces.ITermToSemanticRefIndex:
-        """Get the semantic reference index."""
         return self._term_to_semantic_ref_index
 
     async def get_property_index(self) -> interfaces.IPropertyToSemanticRefIndex:
-        """Get the property index."""
         return self._property_index
 
     async def get_timestamp_index(self) -> interfaces.ITimestampToTextRangeIndex:
-        """Get the timestamp index."""
         return self._timestamp_index
 
     async def get_message_text_index(self) -> interfaces.IMessageTextIndex[TMessage]:
-        """Get the message text index."""
         return self._message_text_index
 
     async def get_related_terms_index(self) -> interfaces.ITermToRelatedTermsIndex:
-        """Get the related terms index."""
         return self._related_terms_index
 
     async def get_conversation_threads(self) -> interfaces.IConversationThreads:
-        """Get the conversation threads."""
         # For now, return a simple implementation
         # In a full implementation, this would be stored/retrieved from SQLite
         from ...storage.memory.convthreads import ConversationThreads
@@ -385,7 +376,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         )
 
     async def clear(self) -> None:
-        """Clear all data from the storage provider."""
         cursor = self.db.cursor()
         # Clear in reverse dependency order
         cursor.execute("DELETE FROM RelatedTermsFuzzy")
@@ -401,14 +391,12 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         await self._message_text_index.clear()
 
     def serialize(self) -> dict:
-        """Serialize all storage provider data."""
         return {
             "termToSemanticRefIndexData": self._term_to_semantic_ref_index.serialize(),
             "relatedTermsIndexData": self._related_terms_index.serialize(),
         }
 
     async def deserialize(self, data: dict) -> None:
-        """Deserialize storage provider data."""
         # Deserialize term to semantic ref index
         if data.get("termToSemanticRefIndexData"):
             await self._term_to_semantic_ref_index.deserialize(
@@ -424,7 +412,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             await self._message_text_index.deserialize(data["messageIndexData"])
 
     async def get_conversation_metadata(self) -> ConversationMetadata:
-        """Get conversation metadata."""
         cursor = self.db.cursor()
 
         # Get all key-value pairs
@@ -573,7 +560,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
                 _set_conversation_metadata(self.db, **metadata_kwds)
 
     def get_db_version(self) -> int:
-        """Get the database schema version."""
         return get_db_schema_version(self.db)
 
     async def is_source_ingested(self, source_id: str) -> bool:

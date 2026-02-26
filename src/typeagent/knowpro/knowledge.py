@@ -148,7 +148,6 @@ def _add_facet_to_merged(
     facet: kplib.Facet,
     normalize: Callable[[str], str],
 ) -> None:
-    """Add a single facet to a merged facets dict."""
     name = normalize(facet.name)
     value = normalize(str(facet.value)) if facet.value is not None else ""
     merged.setdefault(name, set()).add(value)
@@ -173,13 +172,11 @@ def _merge_facets(
     facets: list[kplib.Facet],
     normalize: Callable[[str], str],
 ) -> None:
-    """Merge facets into an existing facets dict."""
     for facet in facets:
         _add_facet_to_merged(existing, facet, normalize)
 
 
 def _merged_to_facets(merged_facets: dict[str, set[str]]) -> list[kplib.Facet]:
-    """Convert a merged facets dict back to a list of Facets."""
     facets = []
     for name, values in sorted(merged_facets.items()):
         if values:
@@ -188,7 +185,6 @@ def _merged_to_facets(merged_facets: dict[str, set[str]]) -> list[kplib.Facet]:
 
 
 def merge_topics(topics: list[str]) -> list[str]:
-    """Merge a list of topics into a unique list of topics."""
     # TODO: Preserve order of first occurrence?
     merged_topics = set(topics)
     return list(merged_topics)

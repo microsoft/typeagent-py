@@ -259,21 +259,17 @@ class QueryEvalContext[TMessage: IMessage, TIndex: ITermToSemanticRefIndex]:
     async def get_semantic_ref(
         self, semantic_ref_ordinal: SemanticRefOrdinal
     ) -> SemanticRef:
-        """Retrieve a semantic reference by its ordinal."""
         assert self.conversation.semantic_refs is not None
         return await self.conversation.semantic_refs.get_item(semantic_ref_ordinal)
 
     async def get_message_for_ref(self, semantic_ref: SemanticRef) -> TMessage:
-        """Retrieve the message associated with a semantic reference."""
         message_ordinal = semantic_ref.range.start.message_ordinal
         return await self.conversation.messages.get_item(message_ordinal)
 
     async def get_message(self, message_ordinal: MessageOrdinal) -> TMessage:
-        """Retrieve a message by its ordinal."""
         return await self.messages.get_item(message_ordinal)
 
     def clear_matched_terms(self) -> None:
-        """Clear all matched terms and property terms."""
         self.matched_terms.clear()
         self.matched_property_terms.clear()
 
@@ -307,7 +303,6 @@ class SelectTopNExpr[T: MatchAccumulator](QueryOpExpr[T]):
     min_hit_count: int | None = None
 
     async def eval(self, context: QueryEvalContext) -> T:
-        """Evaluate the expression and return the top N matches."""
         matches = await self.source_expr.eval(context)
         matches.select_top_n_scoring(self.max_matches, self.min_hit_count)
         return matches
@@ -323,7 +318,6 @@ class MatchTermsBooleanExpr(QueryOpExpr[SemanticRefAccumulator]):
     get_scope_expr: "GetScopeExpr | None" = None
 
     async def begin_match(self, context: QueryEvalContext) -> None:
-        """Prepare for matching terms in the context by resetting some things."""
         if self.get_scope_expr is not None:
             context.text_ranges_in_scope = await self.get_scope_expr.eval(context)
         context.clear_matched_terms()
@@ -432,7 +426,6 @@ class MatchSearchTermExpr(MatchTermExpr):
     async def accumulate_matches(
         self, context: QueryEvalContext, matches: SemanticRefAccumulator
     ) -> None:
-        """Accumulate matches for the search term and its related terms."""
         # Match the search term
         await self.accumulate_matches_for_term(context, matches, self.search_term.term)
 
@@ -446,7 +439,6 @@ class MatchSearchTermExpr(MatchTermExpr):
     async def lookup_term(
         self, context: QueryEvalContext, term: Term
     ) -> list[ScoredSemanticRefOrdinal] | None:
-        """Look up a term in the semantic reference index."""
         matches = await lookup_term(
             context.semantic_ref_index,
             term,
@@ -469,7 +461,6 @@ class MatchSearchTermExpr(MatchTermExpr):
         term: Term,
         related_term: Term | None = None,
     ) -> None:
-        """Accumulate matches for a term or a related term."""
         if related_term is None:
             if term not in context.matched_terms:
                 semantic_refs = await self.lookup_term(context, term)
@@ -742,9 +733,7 @@ class IQueryTextRangeSelector(Protocol):
         self,
         context: QueryEvalContext,
         semantic_refs: SemanticRefAccumulator | None = None,
-    ) -> TextRangeCollection | None:
-        """Evaluate the selector and return the text range."""
-        ...
+    ) -> TextRangeCollection | None: ...
 
 
 class TextRangeSelector(IQueryTextRangeSelector):
@@ -770,7 +759,6 @@ class GetScopeExpr(QueryOpExpr[TextRangesInScope]):
     range_selectors: list[IQueryTextRangeSelector]
 
     async def eval(self, context: QueryEvalContext) -> TextRangesInScope:
-        """Evaluate the expression and return the text ranges in scope."""
         ranges_in_scope = TextRangesInScope()
         for selector in self.range_selectors:
             range_collection = await selector.eval(context)
@@ -791,7 +779,6 @@ class TextRangesInDateRangeSelector(IQueryTextRangeSelector):
         context: QueryEvalContext,
         semantic_refs: SemanticRefAccumulator | None = None,
     ) -> TextRangeCollection | None:
-        """Evaluate the selector and return text ranges in the specified date range."""
         text_ranges_in_scope = TextRangeCollection()
 
         if context.timestamp_index is not None:

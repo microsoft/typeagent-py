@@ -87,7 +87,6 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
         start_message_ordinal: int,
         messages: list[IMessage],
     ) -> None:
-        """Add messages to the index starting at the given ordinal."""
         all_chunks: list[tuple[str, TextLocation]] = []
         for idx, message in enumerate(messages):
             msg_ord = start_message_ordinal + idx

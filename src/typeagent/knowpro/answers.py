@@ -137,7 +137,6 @@ def create_context_prompt(context: AnswerContext) -> str:
 
 
 def dictify(object: object) -> Any:
-    """Convert an object to a dictionary, recursively."""
     # NOTE: Can't use dataclasses.asdict() because not every object is a dataclass.
     if ann := getattr(object.__class__, "__annotations__", None):
         return {
@@ -553,7 +552,6 @@ async def combine_answers(
     answers: list[str],
     original_query_text: str,
 ) -> AnswerResponse:
-    """Combine multiple answers into a single answer."""
     if not answers:
         return AnswerResponse(type="NoAnswer", why_no_answer="No answers provided.")
     if len(answers) == 1:

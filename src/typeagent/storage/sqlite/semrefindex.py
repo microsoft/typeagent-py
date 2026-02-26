@@ -84,7 +84,6 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
         return results
 
     async def clear(self) -> None:
-        """Clear all terms from the semantic ref index."""
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM SemanticRefIndex")
 

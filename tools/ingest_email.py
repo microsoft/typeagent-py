@@ -402,7 +402,6 @@ async def ingest_emails(
 
 
 def main() -> None:
-    """Main entry point."""
     parser = create_arg_parser()
     args = parser.parse_args()
     _validate_args(args)

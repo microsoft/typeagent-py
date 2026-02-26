@@ -257,7 +257,6 @@ def _set_conversation_metadata(
 
 
 def init_db_schema(db: sqlite3.Connection) -> None:
-    """Initialize the database schema with all required tables."""
     cursor = db.cursor()
 
     # Create all tables
@@ -282,7 +281,6 @@ def init_db_schema(db: sqlite3.Connection) -> None:
 
 
 def get_db_schema_version(db: sqlite3.Connection) -> int:
-    """Get the database schema version."""
     try:
         cursor = db.cursor()
         cursor.execute(

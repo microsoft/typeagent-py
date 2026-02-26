@@ -88,7 +88,6 @@ async def load_json_to_database(
 
 
 def main():
-    """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Load JSON-serialized podcast data into a SQLite database",
     )

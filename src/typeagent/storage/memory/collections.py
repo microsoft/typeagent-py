@@ -24,24 +24,19 @@ class MemoryCollection[T, TOrdinal: int](ICollection[T, TOrdinal]):
         return len(self.items)
 
     def __aiter__(self):
-        """Return an async iterator over the collection."""
         return self._async_iterator()
 
     async def _async_iterator(self):
-        """Async generator that yields items from the collection."""
         for item in self.items:
             yield item
 
     async def get_item(self, arg: int) -> T:
-        """Retrieve an item by its ordinal."""
         return self.items[arg]
 
     async def get_slice(self, start: int, stop: int) -> list[T]:
-        """Retrieve a slice of items."""
         return self.items[start:stop]
 
     async def get_multiple(self, arg: list[TOrdinal]) -> list[T]:
-        """Retrieve multiple items by their ordinals."""
         size = len(self.items)
         if not all((0 <= i < size) for i in arg):
             raise IndexError("One or more indices are out of bounds")
@@ -52,11 +47,9 @@ class MemoryCollection[T, TOrdinal: int](ICollection[T, TOrdinal]):
         return False
 
     async def append(self, item: T) -> None:
-        """Append an item to the collection."""
         self.items.append(item)
 
     async def extend(self, items: Iterable[T]) -> None:
-        """Extend the collection with multiple items."""
         self.items.extend(items)
 
 

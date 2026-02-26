@@ -85,7 +85,6 @@ def parse_version(version_str: str) -> Tuple[int, int, int]:
 
 
 def format_version(major: int, minor: int, patch: int) -> str:
-    """Format version components back into a version string."""
     return f"{major}.{minor}.{patch}"
 
 
@@ -198,17 +197,14 @@ def check_git_status() -> bool:
 
 
 def check_uv_available() -> bool:
-    """Check if the 'uv' command is available."""
     return shutil.which("uv") is not None
 
 
 def check_gh_available() -> bool:
-    """Check if the 'gh' CLI is available."""
     return shutil.which("gh") is not None
 
 
 def update_uv_lock(dry_run: bool = False) -> bool:
-    """Update uv.lock by running 'uv lock'."""
     if dry_run:
         print("[DRY RUN] Would run: uv lock")
         return True

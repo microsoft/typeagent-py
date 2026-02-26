@@ -33,7 +33,6 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
     def _add_timestamp(
         self, message_ordinal: interfaces.MessageOrdinal, timestamp: str
     ) -> bool:
-        """Add timestamp to Messages table start_timestamp column."""
         cursor = self.db.cursor()
         cursor.execute(
             "UPDATE Messages SET start_timestamp = ? WHERE msg_id = ?",
@@ -44,7 +43,6 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
     async def get_timestamp_ranges(
         self, start_timestamp: str, end_timestamp: str | None = None
     ) -> list[interfaces.TimestampedTextRange]:
-        """Get timestamp ranges from Messages table."""
         cursor = self.db.cursor()
 
         if end_timestamp is None:
@@ -87,7 +85,6 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
     async def add_timestamps(
         self, message_timestamps: list[tuple[interfaces.MessageOrdinal, str]]
     ) -> None:
-        """Add multiple timestamps."""
         cursor = self.db.cursor()
         for message_ordinal, timestamp in message_timestamps:
             cursor.execute(
@@ -98,7 +95,6 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
     async def lookup_range(
         self, date_range: interfaces.DateRange
     ) -> list[interfaces.TimestampedTextRange]:
-        """Lookup messages in a date range."""
         cursor = self.db.cursor()
 
         # Convert datetime objects to ISO format strings with Z suffix
