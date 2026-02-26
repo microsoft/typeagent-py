@@ -229,6 +229,11 @@ def create_chat_model(
     if _needs_azure_fallback(provider):
         from pydantic_ai.models.openai import OpenAIChatModel
 
+        if os.getenv("OPENAI_MODEL"):
+            print(
+                f"OPENAI_MODEL={os.getenv('OPENAI_MODEL')!r} ignored; "
+                f"Azure deployment is determined by AZURE_OPENAI_ENDPOINT"
+            )
         model = OpenAIChatModel(model_name, provider=_make_azure_provider())
     else:
         model = infer_model(model_spec)
@@ -247,19 +252,26 @@ def create_embedding_model(
     If the spec uses ``openai:`` and ``OPENAI_API_KEY`` is not set but
     ``AZURE_OPENAI_API_KEY`` is, Azure OpenAI is used automatically.
 
-    If *model_spec* is ``None``, :data:`DEFAULT_EMBEDDING_SPEC` is used.
+    If *model_spec* is ``None``, it is constructed from the
+    ``OPENAI_EMBEDDING_MODEL`` environment variable (falling back to
+    :data:`DEFAULT_EMBEDDING_SPEC`).
 
     Returns a :class:`~typeagent.aitools.embeddings.CachingEmbeddingModel`
     wrapping a :class:`PydanticAIEmbedder`.
 
     Examples::
 
+        model = create_embedding_model()  # uses OPENAI_EMBEDDING_MODEL or ada-002
         model = create_embedding_model("openai:text-embedding-3-small")
         model = create_embedding_model("cohere:embed-english-v3.0")
         model = create_embedding_model("google:text-embedding-004")
     """
     if model_spec is None:
-        model_spec = DEFAULT_EMBEDDING_SPEC
+        openai_embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL")
+        if openai_embedding_model:
+            model_spec = f"openai:{openai_embedding_model}"
+        else:
+            model_spec = DEFAULT_EMBEDDING_SPEC
     provider, _, model_name = model_spec.partition(":")
     if not model_name:
         model_name = provider  # No colon in spec
