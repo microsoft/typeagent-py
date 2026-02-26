@@ -25,15 +25,15 @@ class IEmbedder(Protocol):
     @property
     def model_name(self) -> str: ...
 
-    @property
-    def embedding_size(self) -> int: ...
-
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
         """Compute a single embedding without caching."""
         ...
 
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
-        """Compute embeddings for a batch of strings without caching."""
+        """Compute embeddings for a batch of strings without caching.
+
+        Raises :class:`ValueError` if *input* is empty.
+        """
         ...
 
 
@@ -48,9 +48,6 @@ class IEmbeddingModel(Protocol):
 
     @property
     def model_name(self) -> str: ...
-
-    @property
-    def embedding_size(self) -> int: ...
 
     def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
         """Cache an already-computed embedding under the given key."""
@@ -89,10 +86,6 @@ class CachingEmbeddingModel:
     def model_name(self) -> str:
         return self._embedder.model_name
 
-    @property
-    def embedding_size(self) -> int:
-        return self._embedder.embedding_size
-
     def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
         self._cache[key] = embedding
 
@@ -112,7 +105,7 @@ class CachingEmbeddingModel:
 
     async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
         if not keys:
-            return await self._embedder.get_embeddings_nocache([])
+            raise ValueError("Cannot embed an empty list")
         missing_keys = [k for k in keys if k not in self._cache]
         if missing_keys:
             fresh = await self._embedder.get_embeddings_nocache(missing_keys)
@@ -122,14 +115,11 @@ class CachingEmbeddingModel:
 
 
 DEFAULT_MODEL_NAME = "text-embedding-ada-002"
-DEFAULT_EMBEDDING_SIZE = 1536  # Default embedding size (required for ada-002)
 DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"  # We support OpenAI and Azure OpenAI
 TEST_MODEL_NAME = "test"
 
-model_to_embedding_size_and_envvar: dict[str, tuple[int | None, str]] = {
-    DEFAULT_MODEL_NAME: (DEFAULT_EMBEDDING_SIZE, DEFAULT_ENVVAR),
-    "text-embedding-3-small": (1536, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL"),
-    "text-embedding-3-large": (3072, "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE"),
-    # For testing only, not a real model (insert real embeddings above)
-    TEST_MODEL_NAME: (3, "SIR_NOT_APPEARING_IN_THIS_FILM"),
+model_to_envvar: dict[str, str] = {
+    DEFAULT_MODEL_NAME: DEFAULT_ENVVAR,
+    "text-embedding-3-small": "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL",
+    "text-embedding-3-large": "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE",
 }

@@ -103,36 +103,23 @@ class PydanticAIEmbedder:
     be used wherever the codebase expects an ``IEmbedder``.  Wrap in
     :class:`~typeagent.aitools.embeddings.CachingEmbeddingModel` to get a
     ready-to-use ``IEmbeddingModel`` with caching.
-
-    If *embedding_size* is not given, it is probed automatically by making a
-    single embedding call.
     """
 
     model_name: str
-    embedding_size: int
 
     def __init__(
         self,
         embedder: _PydanticAIEmbedder,
         model_name: str,
-        embedding_size: int = 0,
     ) -> None:
         self._embedder = embedder
         self.model_name = model_name
-        self.embedding_size = embedding_size
-
-    async def _probe_embedding_size(self) -> None:
-        """Discover embedding_size by making a single API call."""
-        result = await self._embedder.embed_documents(["probe"])
-        self.embedding_size = len(result.embeddings[0])
 
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
         result = await self._embedder.embed_documents([input])
         embedding: NDArray[np.float32] = np.array(
             result.embeddings[0], dtype=np.float32
         )
-        if self.embedding_size == 0:
-            self.embedding_size = len(embedding)
         norm = float(np.linalg.norm(embedding))
         if norm > 0:
             embedding = (embedding / norm).astype(np.float32)
@@ -140,13 +127,9 @@ class PydanticAIEmbedder:
 
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
         if not input:
-            if self.embedding_size == 0:
-                await self._probe_embedding_size()
-            return np.empty((0, self.embedding_size), dtype=np.float32)
+            raise ValueError("Cannot embed an empty list")
         result = await self._embedder.embed_documents(input)
         embeddings: NDArray[np.float32] = np.array(result.embeddings, dtype=np.float32)
-        if self.embedding_size == 0:
-            self.embedding_size = embeddings.shape[1]
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True).astype(np.float32)
         norms = np.where(norms > 0, norms, np.float32(1.0))
         embeddings = (embeddings / norms).astype(np.float32)
@@ -257,8 +240,6 @@ DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-3-small"
 
 def create_embedding_model(
     model_spec: str | None = None,
-    *,
-    embedding_size: int = 0,
 ) -> CachingEmbeddingModel:
     """Create an embedding model from a ``provider:model`` spec.
 
@@ -267,8 +248,6 @@ def create_embedding_model(
     ``AZURE_OPENAI_API_KEY`` is, Azure OpenAI is used automatically.
 
     If *model_spec* is ``None``, :data:`DEFAULT_EMBEDDING_SPEC` is used.
-    If *embedding_size* is not given, it will be probed automatically
-    on the first embedding call.
 
     Returns a :class:`~typeagent.aitools.embeddings.CachingEmbeddingModel`
     wrapping a :class:`PydanticAIEmbedder`.
@@ -287,12 +266,10 @@ def create_embedding_model(
     if _needs_azure_fallback(provider):
         from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 
-        from .embeddings import model_to_embedding_size_and_envvar
+        from .embeddings import model_to_envvar
 
         # Look up model-specific Azure endpoint, falling back to the generic one.
-        _, suggested_envvar = model_to_embedding_size_and_envvar.get(
-            model_name, (None, None)
-        )
+        suggested_envvar = model_to_envvar.get(model_name)
         if suggested_envvar and os.getenv(suggested_envvar):
             endpoint_envvar = suggested_envvar
         else:
@@ -307,9 +284,7 @@ def create_embedding_model(
         embedder = _PydanticAIEmbedder(embedding_model)
     else:
         embedder = _PydanticAIEmbedder(model_spec)
-    return CachingEmbeddingModel(
-        PydanticAIEmbedder(embedder, model_name, embedding_size)
-    )
+    return CachingEmbeddingModel(PydanticAIEmbedder(embedder, model_name))
 
 
 # ---------------------------------------------------------------------------
@@ -390,16 +365,12 @@ def create_test_embedding_model(
     embeddings for testing.  No API keys or network access required."""
     fake_model = _FakePydanticAIEmbeddingModel(embedding_size)
     pydantic_embedder = _PydanticAIEmbedder(fake_model)
-    return CachingEmbeddingModel(
-        PydanticAIEmbedder(pydantic_embedder, "test", embedding_size)
-    )
+    return CachingEmbeddingModel(PydanticAIEmbedder(pydantic_embedder, "test"))
 
 
 def configure_models(
     chat_model_spec: str,
     embedding_model_spec: str,
-    *,
-    embedding_size: int = 0,
 ) -> tuple[PydanticAIChatModel, CachingEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
 
@@ -417,5 +388,5 @@ def configure_models(
     """
     return (
         create_chat_model(chat_model_spec),
-        create_embedding_model(embedding_model_spec, embedding_size=embedding_size),
+        create_embedding_model(embedding_model_spec),
     )

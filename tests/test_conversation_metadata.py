@@ -106,7 +106,6 @@ class TestConversationMetadata:
         assert metadata.schema_version is None
         assert metadata.created_at is None
         assert metadata.updated_at is None
-        assert metadata.embedding_size is None
         assert metadata.embedding_model is None
         assert metadata.tags is None
         assert metadata.extra is None
@@ -131,9 +130,7 @@ class TestConversationMetadata:
         assert metadata.created_at == created_at
         assert metadata.updated_at == updated_at
         settings = storage_provider.message_text_index_settings.embedding_index_settings
-        expected_size = settings.embedding_size
         expected_model = settings.embedding_model.model_name
-        assert metadata.embedding_size == expected_size
         assert metadata.embedding_model == expected_model
         assert metadata.tags is None
         assert metadata.extra is None
@@ -458,9 +455,7 @@ class TestConversationMetadata:
             assert metadata.name_tag == "conversation_persistent_test"
             assert metadata.created_at == created_at
             assert metadata.updated_at == updated_at
-            expected_size = embedding_settings.embedding_size
             expected_model = embedding_settings.embedding_model.model_name
-            assert metadata.embedding_size == expected_size
             assert metadata.embedding_model == expected_model
         finally:
             await provider2.close()
@@ -597,49 +592,6 @@ class TestConversationMetadataEdgeCases:
         finally:
             await provider1.close()
             await provider2.close()
-
-    @pytest.mark.asyncio
-    async def test_embedding_metadata_mismatch_raises(
-        self, temp_db_path: str, embedding_model: IEmbeddingModel
-    ):
-        """Ensure a mismatch between stored metadata and provided settings raises."""
-        embedding_settings = TextEmbeddingIndexSettings(embedding_model)
-        message_text_settings = MessageTextIndexSettings(embedding_settings)
-        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
-
-        provider = SqliteStorageProvider(
-            db_path=temp_db_path,
-            message_type=DummyMessage,
-            message_text_index_settings=message_text_settings,
-            related_term_index_settings=related_terms_settings,
-        )
-
-        await provider.update_conversation_timestamps(
-            created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-        )
-        provider.db.commit()
-        await provider.close()
-
-        mismatched_model = create_test_embedding_model(
-            embedding_size=embedding_settings.embedding_size + 1,
-        )
-        mismatched_settings = TextEmbeddingIndexSettings(
-            embedding_model=mismatched_model,
-            embedding_size=mismatched_model.embedding_size,
-        )
-
-        with pytest.raises(ValueError, match="embedding_size"):
-            SqliteStorageProvider(
-                db_path=temp_db_path,
-                message_type=DummyMessage,
-                message_text_index_settings=MessageTextIndexSettings(
-                    mismatched_settings
-                ),
-                related_term_index_settings=RelatedTermIndexSettings(
-                    mismatched_settings
-                ),
-            )
 
     @pytest.mark.asyncio
     async def test_embedding_model_mismatch_raises(

@@ -23,7 +23,6 @@ class ScoredInt:
 @dataclass
 class TextEmbeddingIndexSettings:
     embedding_model: IEmbeddingModel
-    embedding_size: int  # Set to embedding_model.embedding_size
     min_score: float  # Between 0.0 and 1.0
     max_matches: int | None  # >= 1; None means no limit
     batch_size: int  # >= 1
@@ -31,7 +30,6 @@ class TextEmbeddingIndexSettings:
     def __init__(
         self,
         embedding_model: IEmbeddingModel | None = None,
-        embedding_size: int | None = None,
         min_score: float | None = None,
         max_matches: int | None = None,
         batch_size: int | None = None,
@@ -39,13 +37,7 @@ class TextEmbeddingIndexSettings:
         self.min_score = min_score if min_score is not None else 0.85
         self.max_matches = max_matches if max_matches and max_matches >= 1 else None
         self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
-        self.embedding_model = embedding_model or create_embedding_model(
-            embedding_size=embedding_size or 0,
-        )
-        self.embedding_size = self.embedding_model.embedding_size
-        assert (
-            embedding_size is None or self.embedding_size == embedding_size
-        ), f"Given embedding size {embedding_size} doesn't match model's embedding size {self.embedding_size}"
+        self.embedding_model = embedding_model or create_embedding_model()
 
 
 class VectorBase:
@@ -57,7 +49,7 @@ class VectorBase:
     def __init__(self, settings: TextEmbeddingIndexSettings):
         self.settings = settings
         self._model = settings.embedding_model
-        self._embedding_size = self._model.embedding_size
+        self._embedding_size = 0
         self.clear()
 
     async def get_embedding(self, key: str, cache: bool = True) -> NormalizedEmbedding:
@@ -89,6 +81,11 @@ class VectorBase:
         if self._embedding_size == 0:
             self._set_embedding_size(len(embedding))
             self._vectors.shape = (0, self._embedding_size)
+        if len(embedding) != self._embedding_size:
+            raise ValueError(
+                f"Embedding size mismatch: expected {self._embedding_size}, "
+                f"got {len(embedding)}"
+            )
         embeddings = embedding.reshape(1, -1)  # Make it 2D: 1xN
         self._vectors = np.append(self._vectors, embeddings, axis=0)
         if key is not None:
@@ -97,23 +94,30 @@ class VectorBase:
     def add_embeddings(
         self, keys: None | list[str], embeddings: NormalizedEmbeddings
     ) -> None:
-        assert embeddings.ndim == 2
+        if embeddings.ndim != 2:
+            raise ValueError(f"Expected 2D embeddings array, got {embeddings.ndim}D")
         if self._embedding_size == 0:
             self._set_embedding_size(embeddings.shape[1])
             self._vectors.shape = (0, self._embedding_size)
-        assert embeddings.shape[1] == self._embedding_size
+        if embeddings.shape[1] != self._embedding_size:
+            raise ValueError(
+                f"Embedding size mismatch: expected {self._embedding_size}, "
+                f"got {embeddings.shape[1]}"
+            )
         self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
         if keys is not None:
             for key, embedding in zip(keys, embeddings):
                 self._model.add_embedding(key, embedding)
 
     async def add_key(self, key: str, cache: bool = True) -> None:
-        embeddings = (await self.get_embedding(key, cache=cache)).reshape(1, -1)
-        self._vectors = np.append(self._vectors, embeddings, axis=0)
+        embedding = await self.get_embedding(key, cache=cache)
+        self.add_embedding(key if cache else None, embedding)
 
     async def add_keys(self, keys: list[str], cache: bool = True) -> None:
+        if not keys:
+            return
         embeddings = await self.get_embeddings(keys, cache=cache)
-        self._vectors = np.concatenate((self._vectors, embeddings), axis=0)
+        self.add_embeddings(keys if cache else None, embeddings)
 
     def fuzzy_lookup_embedding(
         self,
@@ -126,6 +130,8 @@ class VectorBase:
             max_hits = 10
         if min_score is None:
             min_score = 0.0
+        if len(self._vectors) == 0:
+            return []
         # This line does most of the work:
         scores: Iterable[float] = np.dot(self._vectors, embedding)
         scored_ordinals = [
@@ -168,7 +174,6 @@ class VectorBase:
         """Adopt *size* when it was not known at construction time."""
         assert size > 0
         self._embedding_size = size
-        self.settings.embedding_size = size
 
     def clear(self) -> None:
         self._vectors = np.array([], dtype=np.float32)

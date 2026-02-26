@@ -31,7 +31,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     """SQLite-backed storage provider implementation.
 
     This provider performs consistency checks on database initialization to ensure
-    that existing embeddings match the configured embedding_size. If a mismatch is
+    that existing embeddings match the configured embedding model. If a mismatch is
     detected, a ValueError is raised with a descriptive error message.
     """
 
@@ -119,22 +119,16 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         provided_related_settings: RelatedTermIndexSettings | None,
     ) -> tuple[MessageTextIndexSettings, RelatedTermIndexSettings]:
         metadata_exists = self._conversation_metadata_exists()
-        stored_size_str = self._get_single_metadata_value("embedding_size")
         stored_name = self._get_single_metadata_value("embedding_name")
-        stored_size = int(stored_size_str) if stored_size_str else None
 
         if provided_message_settings is None:
-            if stored_size is not None or stored_name is not None:
-                spec = stored_name or ""
+            if stored_name is not None:
+                spec = stored_name
                 if spec and ":" not in spec:
                     spec = f"openai:{spec}"
-                embedding_model = create_embedding_model(
-                    spec,
-                    embedding_size=stored_size or 0,
-                )
+                embedding_model = create_embedding_model(spec)
                 base_embedding_settings = TextEmbeddingIndexSettings(
                     embedding_model=embedding_model,
-                    embedding_size=stored_size,
                 )
             else:
                 base_embedding_settings = TextEmbeddingIndexSettings()
@@ -142,13 +136,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         else:
             message_settings = provided_message_settings
             base_embedding_settings = message_settings.embedding_index_settings
-            provided_size = base_embedding_settings.embedding_size
             provided_name = base_embedding_settings.embedding_model.model_name
-            if stored_size is not None and stored_size != provided_size:
-                raise ValueError(
-                    f"Conversation metadata embedding_size "
-                    f"({stored_size}) does not match provided embedding size ({provided_size})."
-                )
             if stored_name is not None and stored_name != provided_name:
                 raise ValueError(
                     f"Conversation metadata embedding_model "
@@ -160,12 +148,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         else:
             related_settings = provided_related_settings
             related_embedding_settings = related_settings.embedding_index_settings
-            related_size = related_embedding_settings.embedding_size
             related_name = related_embedding_settings.embedding_model.model_name
-            if related_size != base_embedding_settings.embedding_size:
-                raise ValueError(
-                    "Related term index embedding_size does not match message text index embedding_size"
-                )
             if related_name != base_embedding_settings.embedding_model.model_name:
                 raise ValueError(
                     "Related term index embedding_model does not match message text index embedding_model"
@@ -173,17 +156,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             if related_settings.embedding_index_settings is not base_embedding_settings:
                 related_settings.embedding_index_settings = base_embedding_settings
 
-        actual_size = base_embedding_settings.embedding_size
         actual_name = base_embedding_settings.embedding_model.model_name
 
         if self._metadata is not None:
-            if self._metadata.embedding_size is None:
-                self._metadata.embedding_size = actual_size
-            elif self._metadata.embedding_size != actual_size:
-                raise ValueError(
-                    "Conversation metadata embedding_size does not match provider settings"
-                )
-
             if self._metadata.embedding_model is None:
                 self._metadata.embedding_model = actual_name
             elif self._metadata.embedding_model != actual_name:
@@ -193,8 +168,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         if metadata_exists:
             metadata_updates: dict[str, str] = {}
-            if stored_size is None:
-                metadata_updates["embedding_size"] = str(actual_size)
             if stored_name is None:
                 metadata_updates["embedding_name"] = actual_name
             if metadata_updates:
@@ -203,51 +176,47 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         return message_settings, related_settings
 
     def _check_embedding_consistency(self) -> None:
-        """Check that existing embeddings in the database match the expected embedding size.
+        """Check that existing embeddings in the database are consistent.
 
-        This method is called during initialization to ensure that embeddings stored in the
-        database match the embedding_size specified in ConversationSettings. This prevents
-        runtime errors when trying to use embeddings of incompatible sizes.
+        This method is called during initialization to ensure that embeddings
+        stored in the message text index and related terms index have the same
+        size. This prevents runtime errors when trying to use embeddings of
+        incompatible sizes.
 
         Raises:
-            ValueError: If embeddings in the database don't match the expected size.
+            ValueError: If embeddings in the database have inconsistent sizes.
         """
         from .schema import deserialize_embedding
 
         cursor = self.db.cursor()
-        expected_size = (
-            self.message_text_index_settings.embedding_index_settings.embedding_size
-        )
 
-        # Check message text index embeddings
+        # Get size from message text index embeddings
+        message_size: int | None = None
         cursor.execute("SELECT embedding FROM MessageTextIndex LIMIT 1")
         row = cursor.fetchone()
         if row and row[0]:
             embedding = deserialize_embedding(row[0])
-            actual_size = len(embedding)
-            if actual_size != expected_size:
-                raise ValueError(
-                    f"Message text index embedding size mismatch: "
-                    f"database contains embeddings of size {actual_size}, "
-                    f"but ConversationSettings specifies embedding_size={expected_size}. "
-                    f"The database was likely created with a different embedding model. "
-                    f"Please use the same embedding model or create a new database."
-                )
+            message_size = len(embedding)
 
-        # Check related terms fuzzy index embeddings
+        # Get size from related terms fuzzy index embeddings
+        related_size: int | None = None
         cursor.execute("SELECT term_embedding FROM RelatedTermsFuzzy LIMIT 1")
         row = cursor.fetchone()
         if row and row[0]:
             embedding = deserialize_embedding(row[0])
-            actual_size = len(embedding)
-            if actual_size != expected_size:
-                raise ValueError(
-                    f"Related terms index embedding size mismatch: "
-                    f"database contains embeddings of size {actual_size}, "
-                    f"but ConversationSettings specifies embedding_size={expected_size}. "
-                    f"The database was likely created with a different embedding model. "
-                    f"Please use the same embedding model or create a new database."
-                )
+            related_size = len(embedding)
+
+        if (
+            message_size is not None
+            and related_size is not None
+            and message_size != related_size
+        ):
+            raise ValueError(
+                f"Embedding size mismatch: "
+                f"message text index has size {message_size}, "
+                f"but related terms index has size {related_size}. "
+                f"The database may be corrupted."
+            )
 
     def _init_conversation_metadata_if_needed(self) -> None:
         """Initialize conversation metadata if the database is new (empty metadata table).
@@ -276,18 +245,10 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             tags = None
             extras = {}
 
-        actual_embedding_size = (
-            self.message_text_index_settings.embedding_index_settings.embedding_size
-        )
         actual_embedding_name = (
             self.message_text_index_settings.embedding_index_settings.embedding_model.model_name
         )
 
-        metadata_embedding_size = (
-            self._metadata.embedding_size
-            if self._metadata and self._metadata.embedding_size is not None
-            else actual_embedding_size
-        )
         metadata_embedding_name = (
             self._metadata.embedding_model
             if self._metadata and self._metadata.embedding_model is not None
@@ -309,7 +270,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             created_at=format_timestamp_utc(current_time),
             updated_at=format_timestamp_utc(current_time),
             tag=tags,  # None or list of tags
-            embedding_size=str(metadata_embedding_size),
             embedding_name=metadata_embedding_name,
             **extras,
         )
@@ -516,9 +476,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         updated_at_str = get_single("updated_at")
         updated_at = parse_datetime(updated_at_str) if updated_at_str else None
 
-        embedding_size_str = get_single("embedding_size")
-        embedding_size = int(embedding_size_str) if embedding_size_str else None
-
         embedding_model = get_single("embedding_name")
 
         # Handle tags (multiple values allowed, None if key doesn't exist)
@@ -545,7 +502,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             schema_version=schema_version,
             created_at=created_at,
             updated_at=updated_at,
-            embedding_size=embedding_size,
             embedding_model=embedding_model,
             tags=tags,
             extra=extra if extra else None,
@@ -592,9 +548,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             # Insert default values if no metadata exists
             name_tag = self._metadata.name_tag if self._metadata else "conversation"
             schema_version = str(CONVERSATION_SCHEMA_VERSION)
-            actual_embedding_size = (
-                self.message_text_index_settings.embedding_index_settings.embedding_size
-            )
             actual_embedding_name = (
                 self.message_text_index_settings.embedding_index_settings.embedding_model.model_name
             )
@@ -602,7 +555,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             metadata_kwds: dict[str, str | None] = {
                 "name_tag": name_tag or "conversation",
                 "schema_version": schema_version,
-                "embedding_size": str(actual_embedding_size),
                 "embedding_name": actual_embedding_name,
             }
             if created_at is not None:

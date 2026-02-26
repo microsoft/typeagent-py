@@ -19,7 +19,6 @@ async def test_get_embedding_nocache(embedding_model: CachingEmbeddingModel):
     embedding = await embedding_model.get_embedding_nocache(input_text)
 
     assert isinstance(embedding, np.ndarray)
-    assert embedding.shape == (embedding_model.embedding_size,)
     assert embedding.dtype == np.float32
 
 
@@ -30,7 +29,7 @@ async def test_get_embeddings_nocache(embedding_model: CachingEmbeddingModel):
     embeddings = await embedding_model.get_embeddings_nocache(inputs)
 
     assert isinstance(embeddings, np.ndarray)
-    assert embeddings.shape == (len(inputs), embedding_model.embedding_size)
+    assert embeddings.shape[0] == len(inputs)
     assert embeddings.dtype == np.float32
 
 
@@ -85,13 +84,9 @@ async def test_get_embeddings_with_cache(
 
 @pytest.mark.asyncio
 async def test_get_embeddings_empty_input(embedding_model: CachingEmbeddingModel):
-    """Test retrieving embeddings for an empty input list."""
-    inputs: list[str] = []
-    embeddings = await embedding_model.get_embeddings(inputs)
-
-    assert isinstance(embeddings, np.ndarray)
-    assert embeddings.shape == (0, embedding_model.embedding_size)
-    assert embeddings.dtype == np.float32
+    """Test retrieving embeddings for an empty input list raises ValueError."""
+    with pytest.raises(ValueError, match="Cannot embed an empty list"):
+        await embedding_model.get_embeddings([])
 
 
 @pytest.mark.asyncio

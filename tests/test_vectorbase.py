@@ -195,3 +195,28 @@ def test_fuzzy_lookup_embedding_in_subset(
     # Empty subset returns empty list
     result = vector_base.fuzzy_lookup_embedding_in_subset(query, [])
     assert result == []
+
+
+def test_add_embedding_size_mismatch(vector_base: VectorBase) -> None:
+    """Adding an embedding of wrong size raises ValueError."""
+    emb3 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    emb5 = np.array([0.1, 0.2, 0.3, 0.4, 0.5], dtype=np.float32)
+    vector_base.add_embedding(None, emb3)
+    with pytest.raises(ValueError, match="Embedding size mismatch"):
+        vector_base.add_embedding(None, emb5)
+
+
+def test_add_embeddings_size_mismatch(vector_base: VectorBase) -> None:
+    """Adding a batch of embeddings of wrong size raises ValueError."""
+    batch3 = np.array([[0.1, 0.2, 0.3]], dtype=np.float32)
+    batch5 = np.array([[0.1, 0.2, 0.3, 0.4, 0.5]], dtype=np.float32)
+    vector_base.add_embeddings(None, batch3)
+    with pytest.raises(ValueError, match="Embedding size mismatch"):
+        vector_base.add_embeddings(None, batch5)
+
+
+def test_add_embeddings_wrong_ndim(vector_base: VectorBase) -> None:
+    """Adding a 1D array via add_embeddings raises ValueError."""
+    emb1d = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    with pytest.raises(ValueError, match="Expected 2D"):
+        vector_base.add_embeddings(None, emb1d)

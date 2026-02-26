@@ -21,7 +21,6 @@ from typeagent.aitools.embeddings import CachingEmbeddingModel, NormalizedEmbedd
 from typeagent.aitools.model_adapters import (
     configure_models,
     create_chat_model,
-    create_embedding_model,
     PydanticAIChatModel,
     PydanticAIEmbedder,
 )
@@ -36,23 +35,6 @@ def test_spec_uses_colon_separator() -> None:
     with pytest.raises(Exception):
         # A nonsense provider should fail
         create_chat_model("nonexistent_provider_xyz:fake-model")
-
-
-# ---------------------------------------------------------------------------
-# Embedding size
-# ---------------------------------------------------------------------------
-
-
-def test_explicit_embedding_size() -> None:
-    """Passing embedding_size= sets it immediately."""
-    model = create_embedding_model("openai:text-embedding-3-small", embedding_size=42)
-    assert model.embedding_size == 42
-
-
-def test_default_embedding_size_is_zero() -> None:
-    """Without embedding_size=, it defaults to 0 (probed on first call)."""
-    model = create_embedding_model("openai:text-embedding-3-small")
-    assert model.embedding_size == 0
 
 
 # ---------------------------------------------------------------------------
@@ -116,7 +98,7 @@ async def test_embedding_adapter_single() -> None:
         provider_name="test",
     )
 
-    adapter = PydanticAIEmbedder(mock_embedder, "test-model", 3)
+    adapter = PydanticAIEmbedder(mock_embedder, "test-model")
     result = await adapter.get_embedding_nocache("test")
     assert result.shape == (3,)
     norm = float(np.linalg.norm(result))
@@ -124,21 +106,12 @@ async def test_embedding_adapter_single() -> None:
 
 
 @pytest.mark.asyncio
-async def test_embedding_adapter_probes_size() -> None:
-    """embedding_size is discovered from the first embedding call."""
+async def test_embedding_adapter_empty_batch_raises() -> None:
+    """Empty batch raises ValueError."""
     mock_embedder = AsyncMock(spec=Embedder)
-    mock_embedder.embed_documents.return_value = EmbeddingResult(
-        embeddings=[[1.0, 0.0, 0.0]],
-        inputs=["probe"],
-        input_type="document",
-        model_name="test-model",
-        provider_name="test",
-    )
-
     adapter = PydanticAIEmbedder(mock_embedder, "test-model")
-    assert adapter.embedding_size == 0
-    await adapter.get_embedding_nocache("probe")
-    assert adapter.embedding_size == 3
+    with pytest.raises(ValueError, match="Cannot embed an empty list"):
+        await adapter.get_embeddings_nocache([])
 
 
 @pytest.mark.asyncio
@@ -153,7 +126,7 @@ async def test_embedding_adapter_batch() -> None:
         provider_name="test",
     )
 
-    adapter = PydanticAIEmbedder(mock_embedder, "test-model", 2)
+    adapter = PydanticAIEmbedder(mock_embedder, "test-model")
     result = await adapter.get_embeddings_nocache(["a", "b"])
     assert result.shape == (2, 2)
 
@@ -170,7 +143,7 @@ async def test_embedding_adapter_caching() -> None:
         provider_name="test",
     )
 
-    embedder = PydanticAIEmbedder(mock_embedder, "test-model", 3)
+    embedder = PydanticAIEmbedder(mock_embedder, "test-model")
     adapter = CachingEmbeddingModel(embedder)
     first = await adapter.get_embedding("cached")
     second = await adapter.get_embedding("cached")
@@ -183,7 +156,7 @@ async def test_embedding_adapter_caching() -> None:
 async def test_embedding_adapter_add_embedding() -> None:
     """add_embedding() populates the cache."""
     mock_embedder = AsyncMock(spec=Embedder)
-    embedder = PydanticAIEmbedder(mock_embedder, "test-model", 3)
+    embedder = PydanticAIEmbedder(mock_embedder, "test-model")
     adapter = CachingEmbeddingModel(embedder)
     vec: NormalizedEmbedding = np.array([1.0, 0.0, 0.0], dtype=np.float32)
     adapter.add_embedding("key", vec)
@@ -194,13 +167,13 @@ async def test_embedding_adapter_add_embedding() -> None:
 
 
 @pytest.mark.asyncio
-async def test_embedding_adapter_empty_batch() -> None:
-    """Empty batch returns empty array with known size."""
+async def test_embedding_adapter_empty_batch_returns_empty() -> None:
+    """Empty batch via CachingEmbeddingModel raises ValueError."""
     mock_embedder = AsyncMock(spec=Embedder)
-    embedder = PydanticAIEmbedder(mock_embedder, "test-model", 4)
+    embedder = PydanticAIEmbedder(mock_embedder, "test-model")
     adapter = CachingEmbeddingModel(embedder)
-    result = await adapter.get_embeddings_nocache([])
-    assert result.shape == (0, 4)
+    with pytest.raises(ValueError, match="Cannot embed an empty list"):
+        await adapter.get_embeddings([])
 
 
 # ---------------------------------------------------------------------------

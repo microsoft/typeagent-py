@@ -158,7 +158,7 @@ async def test_generate_embedding(needs_auth: None):
     embedding = await index.generate_embedding("test message")
 
     assert embedding is not None
-    assert len(embedding) == test_model.embedding_size  # 3 for test model
+    assert len(embedding) == 3  # test model uses embedding size 3
 
     dot = float(np.dot(embedding, embedding))
     assert abs(dot - 1.0) < 1e-6, f"Embedding not normalized: {dot}"
