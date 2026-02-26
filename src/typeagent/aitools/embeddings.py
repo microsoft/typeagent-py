@@ -114,12 +114,10 @@ class CachingEmbeddingModel:
         return np.array([self._cache[k] for k in keys], dtype=np.float32)
 
 
-DEFAULT_MODEL_NAME = "text-embedding-ada-002"
-DEFAULT_ENVVAR = "AZURE_OPENAI_ENDPOINT_EMBEDDING"  # We support OpenAI and Azure OpenAI
 TEST_MODEL_NAME = "test"
 
 model_to_envvar: dict[str, str] = {
-    DEFAULT_MODEL_NAME: DEFAULT_ENVVAR,
+    "text-embedding-ada-002": "AZURE_OPENAI_ENDPOINT_EMBEDDING",
     "text-embedding-3-small": "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_SMALL",
     "text-embedding-3-large": "AZURE_OPENAI_ENDPOINT_EMBEDDING_3_LARGE",
 }

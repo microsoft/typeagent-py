@@ -235,7 +235,7 @@ def create_chat_model(
     return PydanticAIChatModel(model)
 
 
-DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-3-small"
+DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"
 
 
 def create_embedding_model(
