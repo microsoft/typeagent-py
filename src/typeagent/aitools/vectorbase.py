@@ -175,7 +175,6 @@ class VectorBase:
         """Adopt *size* when it was not known at construction time."""
         assert size > 0
         self._embedding_size = size
-        self._model.embedding_size = size
         self.settings.embedding_size = size
 
     def clear(self) -> None:

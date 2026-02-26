@@ -5,8 +5,7 @@ import numpy as np
 import pytest
 from pytest_mock import MockerFixture
 
-from typeagent.aitools.embeddings import IEmbeddingModel
-from typeagent.aitools.model_adapters import PydanticAIEmbeddingModel
+from typeagent.aitools.embeddings import CachingEmbeddingModel, IEmbeddingModel
 
 from conftest import (
     embedding_model,  # type: ignore  # Magic, prevents side effects of mocking
@@ -14,7 +13,7 @@ from conftest import (
 
 
 @pytest.mark.asyncio
-async def test_get_embedding_nocache(embedding_model: PydanticAIEmbeddingModel):
+async def test_get_embedding_nocache(embedding_model: CachingEmbeddingModel):
     """Test retrieving an embedding without using the cache."""
     input_text = "Hello, world"
     embedding = await embedding_model.get_embedding_nocache(input_text)
@@ -25,7 +24,7 @@ async def test_get_embedding_nocache(embedding_model: PydanticAIEmbeddingModel):
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_nocache(embedding_model: PydanticAIEmbeddingModel):
+async def test_get_embeddings_nocache(embedding_model: CachingEmbeddingModel):
     """Test retrieving multiple embeddings without using the cache."""
     inputs = ["Hello, world", "Foo bar baz"]
     embeddings = await embedding_model.get_embeddings_nocache(inputs)
@@ -37,7 +36,7 @@ async def test_get_embeddings_nocache(embedding_model: PydanticAIEmbeddingModel)
 
 @pytest.mark.asyncio
 async def test_get_embedding_with_cache(
-    embedding_model: PydanticAIEmbeddingModel, mocker: MockerFixture
+    embedding_model: CachingEmbeddingModel, mocker: MockerFixture
 ):
     """Test retrieving an embedding with caching."""
     input_text = "Hello, world"
@@ -46,9 +45,9 @@ async def test_get_embedding_with_cache(
     embedding1 = await embedding_model.get_embedding(input_text)
     assert input_text in embedding_model._cache
 
-    # Mock the nocache method to ensure it's not called
+    # Mock the nocache method on the underlying embedder to ensure it's not called
     mock_get_embedding_nocache = mocker.patch.object(
-        embedding_model, "get_embedding_nocache", autospec=True
+        embedding_model._embedder, "get_embedding_nocache", autospec=True
     )
 
     # Second call should retrieve from the cache
@@ -61,7 +60,7 @@ async def test_get_embedding_with_cache(
 
 @pytest.mark.asyncio
 async def test_get_embeddings_with_cache(
-    embedding_model: PydanticAIEmbeddingModel, mocker: MockerFixture
+    embedding_model: CachingEmbeddingModel, mocker: MockerFixture
 ):
     """Test retrieving multiple embeddings with caching."""
     inputs = ["Hello, world", "Foo bar baz"]
@@ -71,9 +70,9 @@ async def test_get_embeddings_with_cache(
     for input_text in inputs:
         assert input_text in embedding_model._cache
 
-    # Mock the nocache method to ensure it's not called
+    # Mock the nocache method on the underlying embedder to ensure it's not called
     mock_get_embeddings_nocache = mocker.patch.object(
-        embedding_model, "get_embeddings_nocache", autospec=True
+        embedding_model._embedder, "get_embeddings_nocache", autospec=True
     )
 
     # Second call should retrieve from the cache
@@ -85,7 +84,7 @@ async def test_get_embeddings_with_cache(
 
 
 @pytest.mark.asyncio
-async def test_get_embeddings_empty_input(embedding_model: PydanticAIEmbeddingModel):
+async def test_get_embeddings_empty_input(embedding_model: CachingEmbeddingModel):
     """Test retrieving embeddings for an empty input list."""
     inputs: list[str] = []
     embeddings = await embedding_model.get_embeddings(inputs)
@@ -96,7 +95,7 @@ async def test_get_embeddings_empty_input(embedding_model: PydanticAIEmbeddingMo
 
 
 @pytest.mark.asyncio
-async def test_add_embedding_to_cache(embedding_model: PydanticAIEmbeddingModel):
+async def test_add_embedding_to_cache(embedding_model: CachingEmbeddingModel):
     """Test adding an embedding to the cache."""
     key = "test_key"
     embedding = np.array([0.1, 0.2, 0.3], dtype=np.float32)
@@ -108,7 +107,7 @@ async def test_add_embedding_to_cache(embedding_model: PydanticAIEmbeddingModel)
 
 @pytest.mark.asyncio
 async def test_get_embedding_nocache_empty_input(
-    embedding_model: PydanticAIEmbeddingModel,
+    embedding_model: CachingEmbeddingModel,
 ):
     """Test retrieving an embedding with no cache for an empty input."""
     with pytest.raises(ValueError, match="Empty input text"):
@@ -116,7 +115,7 @@ async def test_get_embedding_nocache_empty_input(
 
 
 @pytest.mark.asyncio
-async def test_embeddings_are_normalized(embedding_model: PydanticAIEmbeddingModel):
+async def test_embeddings_are_normalized(embedding_model: CachingEmbeddingModel):
     """Test that returned embeddings are unit-normalized."""
     inputs = ["Hello, world", "Foo bar baz", "Testing normalization"]
     embeddings = await embedding_model.get_embeddings_nocache(inputs)
@@ -128,7 +127,7 @@ async def test_embeddings_are_normalized(embedding_model: PydanticAIEmbeddingMod
 
 @pytest.mark.asyncio
 async def test_embeddings_are_deterministic(
-    embedding_model: PydanticAIEmbeddingModel,
+    embedding_model: CachingEmbeddingModel,
 ):
     """Test that the same input always produces the same embedding."""
     input_text = "Deterministic test"
@@ -139,7 +138,7 @@ async def test_embeddings_are_deterministic(
 
 @pytest.mark.asyncio
 async def test_different_inputs_produce_different_embeddings(
-    embedding_model: PydanticAIEmbeddingModel,
+    embedding_model: CachingEmbeddingModel,
 ):
     """Test that different inputs produce different embeddings."""
     e1 = await embedding_model.get_embedding_nocache("Hello")
@@ -149,7 +148,7 @@ async def test_different_inputs_produce_different_embeddings(
 
 @pytest.mark.asyncio
 async def test_implements_iembedding_model(
-    embedding_model: PydanticAIEmbeddingModel,
+    embedding_model: CachingEmbeddingModel,
 ):
-    """Test that PydanticAIEmbeddingModel satisfies the IEmbeddingModel protocol."""
+    """Test that CachingEmbeddingModel satisfies the IEmbeddingModel protocol."""
     assert isinstance(embedding_model, IEmbeddingModel)

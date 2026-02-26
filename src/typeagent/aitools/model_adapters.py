@@ -46,7 +46,11 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import infer_model, Model, ModelRequestParameters
 import typechat
 
-from .embeddings import IEmbeddingModel, NormalizedEmbedding, NormalizedEmbeddings
+from .embeddings import (
+    CachingEmbeddingModel,
+    NormalizedEmbedding,
+    NormalizedEmbeddings,
+)
 
 # ---------------------------------------------------------------------------
 # Chat model adapter
@@ -92,13 +96,13 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
 # ---------------------------------------------------------------------------
 
 
-class PydanticAIEmbeddingModel(IEmbeddingModel):
-    """Adapter from :class:`pydantic_ai.Embedder` to :class:`IEmbeddingModel`.
+class PydanticAIEmbedder:
+    """Adapter from :class:`pydantic_ai.Embedder` to :class:`IEmbedder`.
 
     This lets any pydantic_ai embedding provider (OpenAI, Cohere, Google, …)
-    be used wherever the codebase expects an ``IEmbeddingModel``, including
-    :class:`~typeagent.aitools.vectorbase.VectorBase` and
-    :class:`~typeagent.knowpro.convsettings.ConversationSettings`.
+    be used wherever the codebase expects an ``IEmbedder``.  Wrap in
+    :class:`~typeagent.aitools.embeddings.CachingEmbeddingModel` to get a
+    ready-to-use ``IEmbeddingModel`` with caching.
 
     If *embedding_size* is not given, it is probed automatically by making a
     single embedding call.
@@ -116,10 +120,6 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
         self._embedder = embedder
         self.model_name = model_name
         self.embedding_size = embedding_size
-        self._cache: dict[str, NormalizedEmbedding] = {}
-
-    def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
-        self._cache[key] = embedding
 
     async def _probe_embedding_size(self) -> None:
         """Discover embedding_size by making a single API call."""
@@ -151,26 +151,6 @@ class PydanticAIEmbeddingModel(IEmbeddingModel):
         norms = np.where(norms > 0, norms, np.float32(1.0))
         embeddings = (embeddings / norms).astype(np.float32)
         return embeddings
-
-    async def get_embedding(self, key: str) -> NormalizedEmbedding:
-        cached = self._cache.get(key)
-        if cached is not None:
-            return cached
-        embedding = await self.get_embedding_nocache(key)
-        self._cache[key] = embedding
-        return embedding
-
-    async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
-        if not keys:
-            if self.embedding_size == 0:
-                await self._probe_embedding_size()
-            return np.empty((0, self.embedding_size), dtype=np.float32)
-        missing_keys = [k for k in keys if k not in self._cache]
-        if missing_keys:
-            fresh = await self.get_embeddings_nocache(missing_keys)
-            for i, k in enumerate(missing_keys):
-                self._cache[k] = fresh[i]
-        return np.array([self._cache[k] for k in keys], dtype=np.float32)
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +259,7 @@ def create_embedding_model(
     model_spec: str | None = None,
     *,
     embedding_size: int = 0,
-) -> PydanticAIEmbeddingModel:
+) -> CachingEmbeddingModel:
     """Create an embedding model from a ``provider:model`` spec.
 
     Delegates to :class:`pydantic_ai.Embedder` for provider wiring.
@@ -289,6 +269,9 @@ def create_embedding_model(
     If *model_spec* is ``None``, :data:`DEFAULT_EMBEDDING_SPEC` is used.
     If *embedding_size* is not given, it will be probed automatically
     on the first embedding call.
+
+    Returns a :class:`~typeagent.aitools.embeddings.CachingEmbeddingModel`
+    wrapping a :class:`PydanticAIEmbedder`.
 
     Examples::
 
@@ -324,7 +307,9 @@ def create_embedding_model(
         embedder = _PydanticAIEmbedder(embedding_model)
     else:
         embedder = _PydanticAIEmbedder(model_spec)
-    return PydanticAIEmbeddingModel(embedder, model_name, embedding_size)
+    return CachingEmbeddingModel(
+        PydanticAIEmbedder(embedder, model_name, embedding_size)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -400,12 +385,14 @@ class _FakePydanticAIEmbeddingModel(_PydanticAIEmbeddingModelBase):
 
 def create_test_embedding_model(
     embedding_size: int = 3,
-) -> PydanticAIEmbeddingModel:
-    """Create a :class:`PydanticAIEmbeddingModel` with deterministic fake
+) -> CachingEmbeddingModel:
+    """Create a :class:`CachingEmbeddingModel` with deterministic fake
     embeddings for testing.  No API keys or network access required."""
     fake_model = _FakePydanticAIEmbeddingModel(embedding_size)
-    embedder = _PydanticAIEmbedder(fake_model)
-    return PydanticAIEmbeddingModel(embedder, "test", embedding_size)
+    pydantic_embedder = _PydanticAIEmbedder(fake_model)
+    return CachingEmbeddingModel(
+        PydanticAIEmbedder(pydantic_embedder, "test", embedding_size)
+    )
 
 
 def configure_models(
@@ -413,7 +400,7 @@ def configure_models(
     embedding_model_spec: str,
     *,
     embedding_size: int = 0,
-) -> tuple[PydanticAIChatModel, PydanticAIEmbeddingModel]:
+) -> tuple[PydanticAIChatModel, CachingEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
 
     Delegates to pydantic_ai's model registry for provider wiring.
