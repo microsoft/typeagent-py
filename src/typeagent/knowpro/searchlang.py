@@ -83,11 +83,9 @@ class LanguageSearchOptions(SearchOptions):
 
     def __repr__(self):
         parts = []
-        for key in dir(self):
-            if not key.startswith("_"):
-                value = getattr(self, key)
-                if value is not None:
-                    parts.append(f"{key}={value!r}")
+        for key, value in vars(self).items():
+            if not key.startswith("_") and value is not None:
+                parts.append(f"{key}={value!r}")
         return f"{self.__class__.__name__}({', '.join(parts)})"
 
 
@@ -371,6 +369,8 @@ class SearchQueryCompiler:
             self.compile_entity_terms_as_search_terms(
                 action_term.additional_entities, action_group
             )
+        if use_or_max and action_group.terms:
+            term_group.terms.append(action_group)
         return term_group
 
     def compile_search_terms(
@@ -595,21 +595,6 @@ class SearchQueryCompiler:
             )
 
     def add_entity_name_to_group(
-        self,
-        entity_term: EntityTerm,
-        property_name: PropertyNames,
-        term_group: SearchTermGroup,
-        exact_match_value: bool = False,
-    ) -> None:
-        if not entity_term.is_name_pronoun:
-            self.add_property_term_to_group(
-                property_name.value,
-                entity_term.name,
-                term_group,
-                exact_match_value,
-            )
-
-    def add_search_term_to_groupadd_entity_name_to_group(
         self,
         entity_term: EntityTerm,
         property_name: PropertyNames,
