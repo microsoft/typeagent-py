@@ -27,6 +27,8 @@ __all__ = [
     "SemanticRefSearchResult",
     "WhenFilter",
 ]
+
+
 @dataclass
 class SearchTerm:
     """Represents a term being searched for.
@@ -141,5 +143,3 @@ class SemanticRefSearchResult:
 
     term_matches: set[str]
     semantic_ref_matches: list[ScoredSemanticRefOrdinal]
-
-
