@@ -6,6 +6,7 @@ from io import StringIO
 import os
 
 from dotenv import load_dotenv
+import pytest
 
 import pydantic.dataclasses
 import typechat
@@ -51,3 +52,52 @@ def test_create_translator():
     # This will raise if the environment or typechat is not set up correctly
     translator = utils.create_translator(DummyModel(), DummySchema)
     assert hasattr(translator, "model")
+
+
+class TestParseAzureEndpoint:
+    """Tests for parse_azure_endpoint regex matching."""
+
+    def test_api_version_after_question_mark(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """api-version as the first (and only) query parameter."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4?api-version=2025-01-01-preview",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert version == "2025-01-01-preview"
+        assert endpoint.startswith("https://")
+
+    def test_api_version_after_ampersand(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """api-version preceded by & (not the first query parameter)."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4?foo=bar&api-version=2025-01-01-preview",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert version == "2025-01-01-preview"
+
+    def test_api_version_after_comma(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """api-version preceded by comma (alternate separator)."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4?foo=bar,api-version=2024-06-01",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert version == "2024-06-01"
+
+    def test_missing_env_var_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """RuntimeError when the environment variable is not set."""
+        monkeypatch.delenv("NONEXISTENT_ENDPOINT", raising=False)
+        with pytest.raises(RuntimeError, match="not found"):
+            utils.parse_azure_endpoint("NONEXISTENT_ENDPOINT")
+
+    def test_no_api_version_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """RuntimeError when the endpoint has no api-version field."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4",
+        )
+        with pytest.raises(RuntimeError, match="doesn't contain valid api-version"):
+            utils.parse_azure_endpoint("TEST_ENDPOINT")
