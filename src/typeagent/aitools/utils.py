@@ -191,7 +191,7 @@ def parse_azure_endpoint(
     if not azure_endpoint:
         raise RuntimeError(f"Environment variable {endpoint_envvar} not found")
 
-    m = re.search(r"[?,]api-version=([\d-]+(?:preview)?)", azure_endpoint)
+    m = re.search(r"[?&,]api-version=([\d-]+(?:preview)?)", azure_endpoint)
     if not m:
         raise RuntimeError(
             f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
