@@ -405,7 +405,7 @@ async def get_enclosing_date_range_for_text_range(
     if not start_timestamp:
         return None
     end_timestamp = (
-        (await messages.get_item(range.end.message_ordinal)).timestamp
+        (await messages.get_item(range.end.message_ordinal - 1)).timestamp
         if range.end
         else None
     )
@@ -535,7 +535,7 @@ def facets_to_merged_facets(facets: list[Facet]) -> MergedFacets:
     merged_facets: MergedFacets = {}
     for facet in facets:
         name = facet.name.lower()
-        value = str(facet).lower()
+        value = str(facet.value).lower()
         merged_facets.setdefault(name, []).append(value)
     return merged_facets
 
