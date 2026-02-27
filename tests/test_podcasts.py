@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
@@ -18,7 +18,7 @@ from conftest import FAKE_PODCAST_TXT
 
 @pytest.mark.asyncio
 async def test_ingest_podcast(
-    really_needs_auth: None, temp_dir: str, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, temp_dir: str, embedding_model: IEmbeddingModel
 ):
     # Import the podcast
     settings = ConversationSettings(embedding_model)

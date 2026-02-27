@@ -8,7 +8,7 @@ import sqlite3
 import numpy as np
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     TextEmbeddingIndexSettings,
@@ -44,7 +44,7 @@ class TestMessageTextIndexSerialization:
     async def test_message_text_index_serialize_not_empty(
         self,
         sqlite_db: sqlite3.Connection,
-        embedding_model: AsyncEmbeddingModel,
+        embedding_model: IEmbeddingModel,
         needs_auth: None,
     ):
         """Test that MessageTextIndex serialization produces non-empty data when populated."""
@@ -111,7 +111,7 @@ class TestMessageTextIndexSerialization:
     async def test_message_text_index_deserialize_restores_data(
         self,
         sqlite_db: sqlite3.Connection,
-        embedding_model: AsyncEmbeddingModel,
+        embedding_model: IEmbeddingModel,
         needs_auth: None,
     ):
         """Test that MessageTextIndex deserialization actually restores data."""

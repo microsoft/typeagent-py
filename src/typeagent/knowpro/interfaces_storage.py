@@ -52,7 +52,6 @@ class ConversationMetadata:
     schema_version: int | None = None
     created_at: Datetime | None = None
     updated_at: Datetime | None = None
-    embedding_size: int | None = None
     embedding_model: str | None = None
     tags: list[str] | None = None
     extra: dict[str, str] | None = None

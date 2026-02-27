@@ -24,7 +24,7 @@ import time
 from dotenv import load_dotenv
 import webvtt
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.model_adapters import create_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ConversationMetadata
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
@@ -203,7 +203,10 @@ async def ingest_vtt_files(
     if verbose:
         print("Setting up conversation settings...")
     try:
-        embedding_model = AsyncEmbeddingModel(model_name=embedding_name)
+        spec = embedding_name
+        if spec and ":" not in spec:
+            spec = f"openai:{spec}"
+        embedding_model = create_embedding_model(spec)
         settings = ConversationSettings(embedding_model)
 
         # Create metadata with the conversation name

@@ -1,67 +1,17 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-import asyncio
 from dataclasses import dataclass, field
-import os
 
 import typechat
 
 from . import kplib
-from ..aitools import auth
-
-# TODO: Move ModelWrapper and create_typechat_model() to aitools package.
-
-
-# TODO: Make these parameters that can be configured (e.g. from command line).
-DEFAULT_MAX_RETRY_ATTEMPTS = 0
-DEFAULT_TIMEOUT_SECONDS = 25
-
-
-class ModelWrapper(typechat.TypeChatLanguageModel):
-    def __init__(
-        self,
-        base_model: typechat.TypeChatLanguageModel,
-        token_provider: auth.AzureTokenProvider,
-    ):
-        self.base_model = base_model
-        self.token_provider = token_provider
-
-    async def complete(
-        self, prompt: str | list[typechat.PromptSection]
-    ) -> typechat.Result[str]:
-        if self.token_provider.needs_refresh():
-            loop = asyncio.get_running_loop()
-            api_key = await loop.run_in_executor(
-                None, self.token_provider.refresh_token
-            )
-            env: dict[str, str | None] = dict(os.environ)
-            key_name = "AZURE_OPENAI_API_KEY"
-            env[key_name] = api_key
-            self.base_model = typechat.create_language_model(env)
-            self.base_model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
-        return await self.base_model.complete(prompt)
-
-
-def create_typechat_model() -> typechat.TypeChatLanguageModel:
-    env: dict[str, str | None] = dict(os.environ)
-    key_name = "AZURE_OPENAI_API_KEY"
-    key = env.get(key_name)
-    shared_token_provider: auth.AzureTokenProvider | None = None
-    if key is not None and key.lower() == "identity":
-        shared_token_provider = auth.get_shared_token_provider()
-        env[key_name] = shared_token_provider.get_token()
-    model = typechat.create_language_model(env)
-    model.timeout_seconds = DEFAULT_TIMEOUT_SECONDS
-    model.max_retry_attempts = DEFAULT_MAX_RETRY_ATTEMPTS
-    if shared_token_provider is not None:
-        model = ModelWrapper(model, shared_token_provider)
-    return model
+from ..aitools.model_adapters import create_chat_model
 
 
 @dataclass
 class KnowledgeExtractor:
-    model: typechat.TypeChatLanguageModel = field(default_factory=create_typechat_model)
+    model: typechat.TypeChatLanguageModel = field(default_factory=create_chat_model)
     max_chars_per_chunk: int = 2048
     merge_action_knowledge: bool = (
         False  # TODO: Implement merge_action_knowledge_into_response

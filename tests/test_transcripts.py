@@ -5,8 +5,10 @@ from datetime import timedelta
 import os
 
 import pytest
+import webvtt
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.transcripts.transcript import (
@@ -88,7 +90,7 @@ def test_get_transcript_info():
 
 @pytest.fixture
 def conversation_settings(
-    needs_auth: None, embedding_model: AsyncEmbeddingModel
+    needs_auth: None, embedding_model: IEmbeddingModel
 ) -> ConversationSettings:
     """Create conversation settings for testing."""
     return ConversationSettings(embedding_model)
@@ -101,8 +103,6 @@ def conversation_settings(
 @pytest.mark.asyncio
 async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
     """Test importing a VTT file into a Transcript object."""
-    import webvtt
-
     from typeagent.storage.memory.collections import (
         MemoryMessageCollection,
         MemorySemanticRefCollection,
@@ -224,10 +224,8 @@ def test_transcript_message_creation():
 @pytest.mark.asyncio
 async def test_transcript_creation():
     """Test creating an empty transcript."""
-    from typeagent.aitools.embeddings import TEST_MODEL_NAME
-
     # Create a minimal transcript for testing structure
-    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    embedding_model = create_test_embedding_model()
     settings = ConversationSettings(embedding_model)
 
     transcript = await Transcript.create(
@@ -242,7 +240,7 @@ async def test_transcript_creation():
 
 @pytest.mark.asyncio
 async def test_transcript_knowledge_extraction_slow(
-    really_needs_auth: None, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, embedding_model: IEmbeddingModel
 ):
     """
     Test that knowledge extraction works during transcript ingestion.
@@ -254,8 +252,6 @@ async def test_transcript_knowledge_extraction_slow(
     4. Verifies both mechanical extraction (entities/actions from metadata)
        and LLM extraction (topics from content) work correctly
     """
-    import webvtt
-
     from typeagent.storage.memory.collections import (
         MemoryMessageCollection,
         MemorySemanticRefCollection,

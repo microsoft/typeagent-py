@@ -63,6 +63,9 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
             for chunk_ord, chunk in enumerate(message.text_chunks):
                 chunks_to_embed.append((msg_ord, chunk_ord, chunk))
 
+        if not chunks_to_embed:
+            return
+
         embeddings = await self._vectorbase.get_embeddings(
             [chunk for _, _, chunk in chunks_to_embed], cache=False
         )

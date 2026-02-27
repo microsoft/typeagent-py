@@ -16,7 +16,8 @@ import pytest_asyncio
 
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -54,7 +55,7 @@ class DummyMessage(IMessage):
 
 @pytest_asyncio.fixture
 async def storage_provider(
-    temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    temp_db_path: str, embedding_model: IEmbeddingModel
 ) -> AsyncGenerator[SqliteStorageProvider[DummyMessage], None]:
     """Create a SqliteStorageProvider for testing conversation metadata."""
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -76,7 +77,7 @@ async def storage_provider_memory() -> (
     AsyncGenerator[SqliteStorageProvider[DummyMessage], None]
 ):
     """Create an in-memory SqliteStorageProvider for testing conversation metadata."""
-    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    embedding_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -105,7 +106,6 @@ class TestConversationMetadata:
         assert metadata.schema_version is None
         assert metadata.created_at is None
         assert metadata.updated_at is None
-        assert metadata.embedding_size is None
         assert metadata.embedding_model is None
         assert metadata.tags is None
         assert metadata.extra is None
@@ -130,9 +130,7 @@ class TestConversationMetadata:
         assert metadata.created_at == created_at
         assert metadata.updated_at == updated_at
         settings = storage_provider.message_text_index_settings.embedding_index_settings
-        expected_size = settings.embedding_size
         expected_model = settings.embedding_model.model_name
-        assert metadata.embedding_size == expected_size
         assert metadata.embedding_model == expected_model
         assert metadata.tags is None
         assert metadata.extra is None
@@ -270,7 +268,7 @@ class TestConversationMetadata:
 
     @pytest.mark.asyncio
     async def test_multiple_conversations_different_dbs(
-        self, embedding_model: AsyncEmbeddingModel
+        self, embedding_model: IEmbeddingModel
     ):
         """Test multiple conversations in different database files."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -343,7 +341,7 @@ class TestConversationMetadata:
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_single_per_db(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test that only one conversation metadata can exist per database."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -418,7 +416,7 @@ class TestConversationMetadata:
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_persistence(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test that conversation metadata persists across provider instances."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -457,9 +455,7 @@ class TestConversationMetadata:
             assert metadata.name_tag == "conversation_persistent_test"
             assert metadata.created_at == created_at
             assert metadata.updated_at == updated_at
-            expected_size = embedding_settings.embedding_size
             expected_model = embedding_settings.embedding_model.model_name
-            assert metadata.embedding_size == expected_size
             assert metadata.embedding_model == expected_model
         finally:
             await provider2.close()
@@ -486,7 +482,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_very_long_name_tag(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test conversation metadata with very long name_tag."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -517,7 +513,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_unicode_name_tag(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test conversation metadata with Unicode name_tag."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -548,7 +544,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_conversation_metadata_shared_access(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test shared access to metadata using the same database file."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -598,52 +594,8 @@ class TestConversationMetadataEdgeCases:
             await provider2.close()
 
     @pytest.mark.asyncio
-    async def test_embedding_metadata_mismatch_raises(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
-    ):
-        """Ensure a mismatch between stored metadata and provided settings raises."""
-        embedding_settings = TextEmbeddingIndexSettings(embedding_model)
-        message_text_settings = MessageTextIndexSettings(embedding_settings)
-        related_terms_settings = RelatedTermIndexSettings(embedding_settings)
-
-        provider = SqliteStorageProvider(
-            db_path=temp_db_path,
-            message_type=DummyMessage,
-            message_text_index_settings=message_text_settings,
-            related_term_index_settings=related_terms_settings,
-        )
-
-        await provider.update_conversation_timestamps(
-            created_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-            updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
-        )
-        provider.db.commit()
-        await provider.close()
-
-        mismatched_model = AsyncEmbeddingModel(
-            embedding_size=embedding_settings.embedding_size + 1,
-            model_name=embedding_model.model_name,
-        )
-        mismatched_settings = TextEmbeddingIndexSettings(
-            embedding_model=mismatched_model,
-            embedding_size=mismatched_model.embedding_size,
-        )
-
-        with pytest.raises(ValueError, match="embedding_size"):
-            SqliteStorageProvider(
-                db_path=temp_db_path,
-                message_type=DummyMessage,
-                message_text_index_settings=MessageTextIndexSettings(
-                    mismatched_settings
-                ),
-                related_term_index_settings=RelatedTermIndexSettings(
-                    mismatched_settings
-                ),
-            )
-
-    @pytest.mark.asyncio
     async def test_embedding_model_mismatch_raises(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Ensure providing a different embedding model name raises."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -683,7 +635,7 @@ class TestConversationMetadataEdgeCases:
 
     @pytest.mark.asyncio
     async def test_updated_at_changes_on_add_messages(
-        self, temp_db_path: str, embedding_model: AsyncEmbeddingModel
+        self, temp_db_path: str, embedding_model: IEmbeddingModel
     ):
         """Test that updated_at timestamp is updated when messages are added."""
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)

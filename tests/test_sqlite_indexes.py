@@ -10,7 +10,7 @@ from typing import Generator
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro import interfaces
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
@@ -35,7 +35,7 @@ from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIn
 
 @pytest.fixture
 def embedding_settings(
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
 ) -> TextEmbeddingIndexSettings:
     """Create TextEmbeddingIndexSettings for testing."""
     return TextEmbeddingIndexSettings(embedding_model)

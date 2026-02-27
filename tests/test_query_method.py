@@ -6,7 +6,7 @@
 import pytest
 
 from typeagent import create_conversation
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
 
@@ -15,7 +15,7 @@ from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessag
 async def test_query_method_basic(really_needs_auth: None):
     """Test the basic query method workflow."""
     # Create a conversation with some test data
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     settings = ConversationSettings(model=test_model)
     conversation = await create_conversation(
         None,
@@ -60,7 +60,7 @@ async def test_query_method_basic(really_needs_auth: None):
 @pytest.mark.asyncio
 async def test_query_method_empty_conversation(really_needs_auth: None):
     """Test query method on an empty conversation."""
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     settings = ConversationSettings(model=test_model)
     conversation = await create_conversation(
         None,

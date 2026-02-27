@@ -93,3 +93,6 @@ please follow these guidelines:
 
 * **Code Validation**: Don't use `py_compile` for syntax checking.
   Use `pyright` or `make check` instead for proper type checking and validation.
+
+* **Deprecations**: Don't deprecate things -- just delete them and fix the usage sites.
+  Don't create backward compatibility APIs or exports or whatever. Fix the usage sites.

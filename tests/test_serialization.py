@@ -113,7 +113,7 @@ def test_write_and_read_conversation_data(
 
     # Read back the data
     read_data = Podcast._read_conversation_data_from_file(
-        str(filename), embedding_size=2
+        str(filename),
     )
     assert read_data is not None
     assert read_data.get("relatedTermsIndexData") is not None

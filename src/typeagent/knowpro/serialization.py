@@ -46,9 +46,14 @@ def create_file_header() -> FileHeader:
     return FileHeader(version="0.1")
 
 
+class ModelMetadata(TypedDict):
+    embeddingSize: int
+
+
 class EmbeddingFileHeader(TypedDict):
     relatedCount: NotRequired[int | None]
     messageCount: NotRequired[int | None]
+    modelMetadata: NotRequired[ModelMetadata | None]
 
 
 class EmbeddingData(TypedDict):
@@ -104,6 +109,7 @@ def to_conversation_file_data[TMessageData](
     embedding_file_header = EmbeddingFileHeader()
 
     embeddings_list: list[NormalizedEmbeddings] = []
+    embedding_size = 0
 
     related_terms_index_data = conversation_data.get("relatedTermsIndexData")
     if related_terms_index_data is not None:
@@ -114,6 +120,8 @@ def to_conversation_file_data[TMessageData](
                 embeddings_list.append(embeddings)
                 text_embedding_data["embeddings"] = None
                 embedding_file_header["relatedCount"] = len(embeddings)
+                if embedding_size == 0 and embeddings.ndim == 2:
+                    embedding_size = embeddings.shape[1]
 
     message_index_data = conversation_data.get("messageIndexData")
     if message_index_data is not None:
@@ -124,6 +132,13 @@ def to_conversation_file_data[TMessageData](
                 embeddings_list.append(embeddings)
                 text_embedding_data["embeddings"] = None
                 embedding_file_header["messageCount"] = len(embeddings)
+                if embedding_size == 0 and embeddings.ndim == 2:
+                    embedding_size = embeddings.shape[1]
+
+    if embedding_size > 0:
+        embedding_file_header["modelMetadata"] = ModelMetadata(
+            embeddingSize=embedding_size
+        )
 
     binary_data = ConversationBinaryData(embeddingsList=embeddings_list)
     json_data = ConversationJsonData(
