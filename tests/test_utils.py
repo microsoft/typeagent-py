@@ -75,7 +75,7 @@ class TestParseAzureEndpoint:
             "TEST_ENDPOINT",
             "https://myhost.openai.azure.com/openai/deployments/gpt-4?foo=bar&api-version=2025-01-01-preview",
         )
-        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        _, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert version == "2025-01-01-preview"
 
     def test_api_version_after_comma(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,7 +84,7 @@ class TestParseAzureEndpoint:
             "TEST_ENDPOINT",
             "https://myhost.openai.azure.com/openai/deployments/gpt-4?foo=bar,api-version=2024-06-01",
         )
-        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        _, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert version == "2024-06-01"
 
     def test_missing_env_var_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
