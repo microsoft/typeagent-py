@@ -18,16 +18,15 @@ from .interfaces_core import (
 )
 
 __all__ = [
-    "SearchTerm",
     "KnowledgePropertyName",
     "PropertySearchTerm",
+    "SearchSelectExpr",
+    "SearchTerm",
     "SearchTermGroup",
     "SearchTermGroupTypes",
+    "SemanticRefSearchResult",
     "WhenFilter",
-    "SearchSelectExpr",
 ]
-
-
 @dataclass
 class SearchTerm:
     """Represents a term being searched for.
@@ -144,13 +143,3 @@ class SemanticRefSearchResult:
     semantic_ref_matches: list[ScoredSemanticRefOrdinal]
 
 
-__all__ = [
-    "KnowledgePropertyName",
-    "PropertySearchTerm",
-    "SearchSelectExpr",
-    "SearchTerm",
-    "SearchTermGroup",
-    "SearchTermGroupTypes",
-    "SemanticRefSearchResult",
-    "WhenFilter",
-]
