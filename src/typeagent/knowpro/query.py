@@ -101,15 +101,20 @@ async def get_text_range_for_date_range(
     messages = conversation.messages
     range_start_ordinal: MessageOrdinal = -1
     range_end_ordinal = range_start_ordinal
+    ordinal = 0
     async for message in messages:
-        if Datetime.fromisoformat(message.timestamp) in date_range:
+        if (
+            message.timestamp
+            and Datetime.fromisoformat(message.timestamp) in date_range
+        ):
             if range_start_ordinal < 0:
-                range_start_ordinal = message.ordinal
-            range_end_ordinal = message.ordinal
+                range_start_ordinal = ordinal
+            range_end_ordinal = ordinal
         else:
             if range_start_ordinal >= 0:
                 # We have a range, so break.
                 break
+        ordinal += 1
     if range_start_ordinal >= 0:
         return TextRange(
             start=TextLocation(range_start_ordinal),
@@ -696,7 +701,7 @@ class WhereSemanticRefExpr(QueryOpExpr[SemanticRefAccumulator]):
 
     async def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
         accumulator = await self.source_expr.eval(context)
-        filtered = SemanticRefAccumulator(accumulator.search_term_matches)
+        filtered = SemanticRefAccumulator.with_term_matches(accumulator)
 
         # Filter matches asynchronously
         filtered_matches = []
