@@ -39,6 +39,37 @@ class TestSearchOptionsRepr:
         opts = SearchOptions(exact_match=True)
         assert "exact_match=True" in repr(opts)
 
+    def test_all_fields_set(self) -> None:
+        """When every field is non-None, all appear in repr."""
+        opts = SearchOptions(
+            max_knowledge_matches=10,
+            exact_match=True,
+            max_message_matches=20,
+            max_chars_in_budget=5000,
+            threshold_score=0.75,
+        )
+        r = repr(opts)
+        assert "max_knowledge_matches=10" in r
+        assert "exact_match=True" in r
+        assert "max_message_matches=20" in r
+        assert "max_chars_in_budget=5000" in r
+        assert "threshold_score=0.75" in r
+
+    def test_zero_values_shown(self) -> None:
+        """Zero is not None, so numeric zeros should appear."""
+        opts = SearchOptions(max_knowledge_matches=0, threshold_score=0.0)
+        r = repr(opts)
+        assert "max_knowledge_matches=0" in r
+        assert "threshold_score=0.0" in r
+
+    def test_no_dunder_or_method_names(self) -> None:
+        """The repr must not contain dunder names or method objects."""
+        opts = SearchOptions(max_knowledge_matches=5)
+        r = repr(opts)
+        assert "__init__" not in r
+        assert "__eq__" not in r
+        assert "bound method" not in r
+
 
 class TestLanguageSearchOptionsRepr:
     """Tests for LanguageSearchOptions.__repr__ (subclass of SearchOptions)."""
