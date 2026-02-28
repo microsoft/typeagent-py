@@ -29,7 +29,6 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
     def set_message_text_index(
         self, message_text_index: "interfaces.IMessageTextIndex[TMessage]"
     ) -> None:
-        """Set the message text index for automatic indexing of new messages."""
         self.message_text_index = message_text_index
 
     @property

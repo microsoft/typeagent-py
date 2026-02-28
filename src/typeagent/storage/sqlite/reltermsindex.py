@@ -75,7 +75,6 @@ class SqliteRelatedTermsAliases(interfaces.ITermToRelatedTerms):
         return cursor.fetchone()[0] == 0
 
     async def serialize(self) -> interfaces.TermToRelatedTermsData:
-        """Serialize the aliases data."""
         cursor = self.db.cursor()
         cursor.execute(
             "SELECT term, alias FROM RelatedTermsAliases ORDER BY term, alias"
@@ -101,7 +100,6 @@ class SqliteRelatedTermsAliases(interfaces.ITermToRelatedTerms):
         return interfaces.TermToRelatedTermsData(relatedTerms=items)
 
     async def deserialize(self, data: interfaces.TermToRelatedTermsData | None) -> None:
-        """Deserialize alias data."""
         cursor = self.db.cursor()
 
         # Clear existing data
@@ -161,7 +159,6 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[interfaces.Term]:
-        """Look up similar terms using fuzzy matching."""
 
         # Search for similar terms using VectorBase
         similar_results = await self._vector_base.fuzzy_lookup(
@@ -209,7 +206,6 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         return [row[0] for row in cursor.fetchall()]
 
     async def add_terms(self, texts: list[str]) -> None:
-        """Add terms."""
         cursor = self.db.cursor()
         # TODO: Batch additions to database
         for text in texts:
@@ -240,7 +236,6 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[list[interfaces.Term]]:
-        """Look up multiple terms at once."""
         # TODO: Some kind of batching?
         results = []
         for text in texts:
@@ -249,7 +244,6 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         return results
 
     def serialize(self) -> interfaces.TextEmbeddingIndexData:
-        """Serialize the fuzzy index data."""
         return interfaces.TextEmbeddingIndexData(
             textItems=self._terms_list.copy(),
             embeddings=self._vector_base.serialize(),
@@ -321,14 +315,12 @@ class SqliteRelatedTermsIndex(interfaces.ITermToRelatedTermsIndex):
         return self._fuzzy_index
 
     async def serialize(self) -> interfaces.TermsToRelatedTermsIndexData:
-        """Serialize the related terms index (both aliases and fuzzy index)."""
         return interfaces.TermsToRelatedTermsIndexData(
             aliasData=await self._aliases.serialize(),
             textEmbeddingData=self._fuzzy_index.serialize(),
         )
 
     async def deserialize(self, data: interfaces.TermsToRelatedTermsIndexData) -> None:
-        """Deserialize related terms index data."""
         # Deserialize alias data
         alias_data = data.get("aliasData")
         if alias_data is not None:

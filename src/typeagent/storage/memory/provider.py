@@ -47,7 +47,6 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         related_terms_settings: RelatedTermIndexSettings,
         metadata: ConversationMetadata | None = None,
     ) -> None:
-        """Create and initialize a MemoryStorageProvider with all indexes."""
         self._metadata = metadata or ConversationMetadata()
         self._message_collection = MemoryMessageCollection[TMessage]()
         self._semantic_ref_collection = MemorySemanticRefCollection()
@@ -101,7 +100,6 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         return self._semantic_ref_collection
 
     async def close(self) -> None:
-        """Close the storage provider."""
         pass
 
     async def get_conversation_metadata(self) -> ConversationMetadata:

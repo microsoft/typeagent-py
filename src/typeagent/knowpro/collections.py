@@ -102,7 +102,6 @@ class MatchAccumulator[T]:
                 )
 
     def add_union(self, other: "MatchAccumulator[T]") -> None:
-        """Add matches from another collection of matches."""
         for other_match in other:
             existing_match = self.get_match(other_match.value)
             if existing_match is None:
@@ -113,7 +112,6 @@ class MatchAccumulator[T]:
     def intersect(
         self, other: "MatchAccumulator[T]", intersection: "MatchAccumulator[T]"
     ) -> "MatchAccumulator[T]":
-        """Intersect with another collection of matches."""
         for self_match in self:
             other_match = other.get_match(self_match.value)
             if other_match is not None:
@@ -122,7 +120,6 @@ class MatchAccumulator[T]:
         return intersection
 
     def combine_matches(self, match: Match[T], other: Match[T]) -> None:
-        """Combine the other match into the first."""
         match.hit_count += other.hit_count
         match.score += other.score
         match.related_hit_count += other.related_hit_count
@@ -137,7 +134,6 @@ class MatchAccumulator[T]:
             scorer(match)
 
     def get_sorted_by_score(self, min_hit_count: int | None = None) -> list[Match[T]]:
-        """Get matches sorted by score"""
         if len(self._matches) == 0:
             return []
         matches = [*self._matches_with_min_hit_count(min_hit_count)]
@@ -149,7 +145,6 @@ class MatchAccumulator[T]:
         max_matches: int | None = None,
         min_hit_count: int | None = None,
     ) -> list[Match[T]]:
-        """Get the top N scoring matches."""
         if not self._matches:
             return []
         if max_matches and max_matches > 0:
@@ -162,20 +157,17 @@ class MatchAccumulator[T]:
             return self.get_sorted_by_score(min_hit_count)
 
     def get_with_hit_count(self, min_hit_count: int) -> list[Match[T]]:
-        """Get matches with a minimum hit count."""
         return list(self.matches_with_min_hit_count(min_hit_count))
 
     def get_matches(
         self, predicate: Callable[[Match[T]], bool] | None = None
     ) -> Iterator[Match[T]]:
-        """Iterate over all matches."""
         if predicate is None:
             return iter(self._matches.values())
         else:
             return filter(predicate, self._matches.values())
 
     def get_matched_values(self) -> Iterator[T]:
-        """Iterate over all matched values."""
         return iter(self._matches)
 
     def clear_matches(self):
@@ -186,13 +178,11 @@ class MatchAccumulator[T]:
         max_matches: int | None = None,
         min_hit_count: int | None = None,
     ) -> int:
-        """Retain only the top N matches sorted by score."""
         top_n = self.get_top_n_scoring(max_matches, min_hit_count)
         self.set_matches(top_n, clear=True)
         return len(top_n)
 
     def select_with_hit_count(self, min_hit_count: int) -> int:
-        """Retain only matches with a minimum hit count."""
         matches = self.get_with_hit_count(min_hit_count)
         self.set_matches(matches, clear=True)
         return len(matches)
@@ -200,7 +190,6 @@ class MatchAccumulator[T]:
     def _matches_with_min_hit_count(
         self, min_hit_count: int | None
     ) -> Iterable[Match[T]]:
-        """Get matches with a minimum hit count"""
         if min_hit_count is not None and min_hit_count > 0:
             return self.get_matches(lambda m: m.hit_count >= min_hit_count)
         else:
@@ -231,7 +220,6 @@ def get_smooth_score(
 
 
 def add_smooth_related_score_to_match_score[T](match: Match[T]) -> None:
-    """Add the smooth related score to the match score."""
     if match.related_hit_count > 0:
         # Related term matches can be noisy and duplicative.
         # See the comment on getSmoothScore  in collections.ts.
@@ -262,7 +250,6 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         *,
         weight: float | None = None,
     ) -> None:
-        """Add term matches to the accumulator"""
         if scored_refs is not None:
             if weight is None:
                 weight = search_term.weight
@@ -283,7 +270,6 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         is_exact_match: bool,
         weight: float | None = None,
     ) -> None:
-        """Add term matches if they are new."""
         if scored_refs is not None:
             if weight is None:
                 weight = search_term.weight
@@ -350,7 +336,6 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         return accumulator
 
     def add_union(self, other: "MatchAccumulator[SemanticRefOrdinal]") -> None:
-        """Add matches from another SemanticRefAccumulator."""
         assert isinstance(other, SemanticRefAccumulator)
         super().add_union(other)
         self.search_term_matches.update(other.search_term_matches)
@@ -360,7 +345,6 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         other: MatchAccumulator[SemanticRefOrdinal],
         intersection: MatchAccumulator[SemanticRefOrdinal] | None = None,
     ) -> "SemanticRefAccumulator":
-        """Intersect with another SemanticRefAccumulator."""
         assert isinstance(other, SemanticRefAccumulator)
         if intersection is None:
             intersection = SemanticRefAccumulator()
@@ -373,7 +357,6 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         return intersection
 
     def to_scored_semantic_refs(self) -> list[ScoredSemanticRefOrdinal]:
-        """Convert the accumulator to a list of scored semantic references."""
         return [
             ScoredSemanticRefOrdinal(
                 semantic_ref_ordinal=match.value,
@@ -419,7 +402,6 @@ class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
             self.add(message_ordinal_start, score)
 
     def add_scored_matches(self, scored_ordinals: list[ScoredMessageOrdinal]) -> None:
-        """Add scored message ordinals to the accumulator."""
         for scored_ordinal in scored_ordinals:
             self.add(scored_ordinal.message_ordinal, scored_ordinal.score)
 
@@ -446,7 +428,6 @@ class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
     async def select_messages_in_budget(
         self, messages: IMessageCollection, max_chars_in_budget: int
     ) -> None:
-        """Select messages that fit within the character budget."""
         scored_matches = self.get_sorted_by_score()
         ranked_ordinals = [m.value for m in scored_matches]
         message_count_in_budget = await get_count_of_messages_in_char_budget(
@@ -461,7 +442,6 @@ class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
     def from_scored_ordinals(
         ordinals: list[ScoredMessageOrdinal] | None,
     ) -> "MessageAccumulator":
-        """Create a MessageAccumulator from scored ordinals."""
         accumulator = MessageAccumulator()
         if ordinals and len(ordinals) > 0:
             accumulator.add_scored_matches(ordinals)
@@ -560,11 +540,9 @@ class TermSet:
         self.add_or_union(terms)
 
     def __len__(self) -> int:
-        """Return the number of terms in the set."""
         return len(self.terms)
 
     def add(self, term: Term) -> bool:
-        """Add a term to the set if it doesn't already exist."""
         if term.text in self.terms:
             return False
         self.terms[term.text] = term
@@ -588,28 +566,22 @@ class TermSet:
                 self.terms[terms.text] = terms
 
     def get(self, term: str | Term) -> Term | None:
-        """Retrieve a term by its text."""
         return self.terms.get(term if isinstance(term, str) else term.text)
 
     def get_weight(self, term: Term) -> float | None:
-        """Retrieve the weight of a term."""
         t = self.terms.get(term.text)
         return t.weight if t is not None else None
 
     def __contains__(self, term: Term) -> bool:
-        """Check if a term exists in the set."""
         return term.text in self.terms
 
     def remove(self, term: Term):
-        """Remove a term from the set, if present."""
         self.terms.pop(term.text, None)
 
     def clear(self):
-        """Clear all terms from the set."""
         self.terms.clear()
 
     def values(self) -> list[Term]:
-        """Retrieve all terms in the set."""
         return list(self.terms.values())
 
 
@@ -620,22 +592,18 @@ class PropertyTermSet:
     terms: dict[str, Term] = field(default_factory=dict[str, Term])
 
     def add(self, property_name: str, property_value: Term) -> None:
-        """Add a property term to the set."""
         key = self._make_key(property_name, property_value)
         if key not in self.terms:
             self.terms[key] = property_value
 
     def has(self, property_name: str, property_value: Term | str) -> bool:
-        """Check if a property term exists in the set."""
         key = self._make_key(property_name, property_value)
         return key in self.terms
 
     def clear(self) -> None:
-        """Clear all property terms from the set."""
         self.terms.clear()
 
     def _make_key(self, property_name: str, property_value: Term | str) -> str:
-        """Create a unique key for a property term."""
         value = (
             property_value if isinstance(property_value, str) else property_value.text
         )
@@ -728,12 +696,10 @@ def add_to_set[T](
     set: Set[T],
     values: Iterable[T],
 ) -> None:
-    """Add values to a set."""
     set.update(values)
 
 
 def get_message_char_count(message: IMessage) -> int:
-    """Get the character count of a message."""
     total = 0
     for chunk in message.text_chunks:
         total += len(chunk)
@@ -745,7 +711,6 @@ async def get_count_of_messages_in_char_budget(
     message_ordinals: Iterable[MessageOrdinal],
     max_chars_in_budget: int,
 ) -> int:
-    """Get the count of messages that fit within the character budget."""
     i = 0
     total_char_count = 0
     for message_ordinal in message_ordinals:

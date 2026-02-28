@@ -72,7 +72,6 @@ def rewrite_patch(patch_content: str) -> str:
 
 
 def main():
-    """Main entry point for the patch rewriter."""
     if len(sys.argv) < 2:
         print(
             "Usage: rewrite-patches.py <patch-file> [patch-file ...]", file=sys.stderr
