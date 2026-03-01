@@ -11,6 +11,9 @@ import pytest
 import pydantic.dataclasses
 import typechat
 
+import pydantic.dataclasses
+import typechat
+
 import typeagent.aitools.utils as utils
 
 
