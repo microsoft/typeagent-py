@@ -369,6 +369,7 @@ class SearchQueryCompiler:
             self.compile_entity_terms_as_search_terms(
                 action_term.additional_entities, action_group
             )
+        # only append the nested or_max wrapper when created one (use_or_max) and it's non-empty.
         if use_or_max and action_group.terms:
             term_group.terms.append(action_group)
         return term_group
