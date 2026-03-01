@@ -45,6 +45,7 @@ from .interfaces import (
     Thread,
 )
 from .kplib import ConcreteEntity
+from .utils import aenumerate
 
 # TODO: Move to compilelib.py
 type BooleanOp = Literal["and", "or", "or_max"]
@@ -101,8 +102,7 @@ async def get_text_range_for_date_range(
     messages = conversation.messages
     range_start_ordinal: MessageOrdinal = -1
     range_end_ordinal = range_start_ordinal
-    ordinal = 0
-    async for message in messages:
+    async for ordinal, message in aenumerate(messages):
         if (
             message.timestamp
             and Datetime.fromisoformat(message.timestamp) in date_range
@@ -114,7 +114,6 @@ async def get_text_range_for_date_range(
             if range_start_ordinal >= 0:
                 # We have a range, so break.
                 break
-        ordinal += 1
     if range_start_ordinal >= 0:
         return TextRange(
             start=TextLocation(range_start_ordinal),
