@@ -45,6 +45,7 @@ from .interfaces import (
     Thread,
 )
 from .kplib import ConcreteEntity
+from .utils import aenumerate
 
 # TODO: Move to compilelib.py
 type BooleanOp = Literal["and", "or", "or_max"]
@@ -101,11 +102,14 @@ async def get_text_range_for_date_range(
     messages = conversation.messages
     range_start_ordinal: MessageOrdinal = -1
     range_end_ordinal = range_start_ordinal
-    async for message in messages:
-        if Datetime.fromisoformat(message.timestamp) in date_range:
+    async for ordinal, message in aenumerate(messages):
+        if (
+            message.timestamp
+            and Datetime.fromisoformat(message.timestamp) in date_range
+        ):
             if range_start_ordinal < 0:
-                range_start_ordinal = message.ordinal
-            range_end_ordinal = message.ordinal
+                range_start_ordinal = ordinal
+            range_end_ordinal = ordinal
         else:
             if range_start_ordinal >= 0:
                 # We have a range, so break.
@@ -696,7 +700,7 @@ class WhereSemanticRefExpr(QueryOpExpr[SemanticRefAccumulator]):
 
     async def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
         accumulator = await self.source_expr.eval(context)
-        filtered = SemanticRefAccumulator(accumulator.search_term_matches)
+        filtered = accumulator.clone()
 
         # Filter matches asynchronously
         filtered_matches = []

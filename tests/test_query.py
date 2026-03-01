@@ -680,3 +680,133 @@ async def test_lookup_knowledge_type():
     assert {r.semantic_ref_ordinal for r in result} == {0, 2}
     # Should return empty list if no match
     assert await lookup_knowledge_type(collection, "action") == []
+
+
+# ---------------------------------------------------------------------------
+# Change 1: get_text_range_for_date_range uses manual ordinal counter
+#            (not message.ordinal) and guards against None timestamp.
+# ---------------------------------------------------------------------------
+
+
+class TestGetTextRangeForDateRange:
+    """Tests for the ordinal counter fix and timestamp None guard."""
+
+    @pytest.mark.asyncio
+    async def test_messages_without_ordinal_attribute(self) -> None:
+        """Messages that lack .ordinal should still work (manual counter)."""
+
+        class BareMessage(FakeMessage):
+            """A message subclass that explicitly lacks .ordinal."""
+
+            def __init__(self, ts: str) -> None:
+                super().__init__("text")
+                self.timestamp = ts
+                if hasattr(self, "ordinal"):
+                    del self.ordinal
+
+        conv = FakeConversation(
+            messages=[
+                BareMessage("2020-01-01T01:00:00"),
+                BareMessage("2020-01-01T02:00:00"),
+            ],
+        )
+        date_range = DateRange(
+            start=Datetime(2020, 1, 1, 0, 0, 0),
+            end=Datetime(2020, 1, 2, 0, 0, 0),
+        )
+        result = await get_text_range_for_date_range(conv, date_range)
+        assert result is not None
+        assert result.start.message_ordinal == 0
+        assert result.end is not None
+        assert result.end.message_ordinal == 2  # exclusive end
+
+    @pytest.mark.asyncio
+    async def test_none_timestamp_skipped(self) -> None:
+        """Messages with None timestamp should be skipped, not crash."""
+        conv = FakeConversation(
+            messages=[
+                FakeMessage("no timestamp"),  # timestamp=None
+                FakeMessage("has timestamp", message_ordinal=1),
+            ],
+        )
+        date_range = DateRange(
+            start=Datetime(2020, 1, 1, 0, 0, 0),
+            end=Datetime(2020, 1, 2, 0, 0, 0),
+        )
+        result = await get_text_range_for_date_range(conv, date_range)
+        # Only message at ordinal 1 matches:
+        assert result is not None
+        assert result.start.message_ordinal == 1
+        assert result.end is not None
+        assert result.end.message_ordinal == 2
+
+    @pytest.mark.asyncio
+    async def test_all_none_timestamps_returns_none(self) -> None:
+        """If every message has None timestamp, result should be None."""
+        conv = FakeConversation(
+            messages=[FakeMessage("a"), FakeMessage("b")],
+        )
+        date_range = DateRange(
+            start=Datetime(2020, 1, 1, 0, 0, 0),
+            end=Datetime(2020, 1, 2, 0, 0, 0),
+        )
+        assert await get_text_range_for_date_range(conv, date_range) is None
+
+    @pytest.mark.asyncio
+    async def test_single_message_in_range(self) -> None:
+        conv = FakeConversation(
+            messages=[FakeMessage("msg", message_ordinal=0)],
+        )
+        date_range = DateRange(
+            start=Datetime(2020, 1, 1, 0, 0, 0),
+            end=Datetime(2020, 1, 2, 0, 0, 0),
+        )
+        result = await get_text_range_for_date_range(conv, date_range)
+        assert result is not None
+        assert result.start.message_ordinal == 0
+        assert result.end is not None
+        assert result.end.message_ordinal == 1
+
+
+# ---------------------------------------------------------------------------
+# Change 3: WhereSemanticRefExpr uses clone() (provenance copy)
+# ---------------------------------------------------------------------------
+
+
+class TestWhereSemanticRefExprProvenance:
+    """Verify that WhereSemanticRefExpr copies (not shares) search_term_matches."""
+
+    @pytest.mark.asyncio
+    async def test_filtered_accumulator_has_copied_provenance(
+        self, searchable_conversation: FakeConversation
+    ) -> None:
+        """The filtered accumulator's search_term_matches is a copy."""
+        from typeagent.knowpro.query import WhereSemanticRefExpr
+
+        # Build a source accumulator with some provenance
+        src = SemanticRefAccumulator()
+        src.search_term_matches.add("term_a")
+        src.add_term_matches(
+            Term("test"),
+            [ScoredSemanticRefOrdinal(0, 1.0)],
+            is_exact_match=True,
+            weight=1.0,
+        )
+
+        # Create a trivial source expression that returns the above accumulator
+        class ConstExpr(QueryOpExpr[SemanticRefAccumulator]):
+            async def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
+                return src
+
+        # WhereSemanticRefExpr with no predicates (all matches pass)
+        expr = WhereSemanticRefExpr(
+            source_expr=ConstExpr(),
+            predicates=[],
+        )
+        ctx = QueryEvalContext(searchable_conversation)
+        filtered = await expr.eval(ctx)
+
+        # Provenance was copied, not shared:
+        assert "term_a" in filtered.search_term_matches
+        filtered.search_term_matches.add("new_term")
+        assert "new_term" not in src.search_term_matches

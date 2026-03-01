@@ -77,10 +77,12 @@ class MatchAccumulator[T]:
                 existing_match.hit_count += 1
                 existing_match.score += score
             else:
+                # Related (non-exact) match: only accumulate related counters.
                 existing_match.related_hit_count += 1
                 existing_match.related_score += score
         else:
             if is_exact_match:
+                # New exact match: starts with hit_count=1 and the given score.
                 self.set_match(
                     Match(
                         value,
@@ -91,10 +93,14 @@ class MatchAccumulator[T]:
                     )
                 )
             else:
+                # New related-only match: hit_count stays 0 because
+                # only exact matches count as direct hits.  This matters
+                # for select_with_hit_count / _matches_with_min_hit_count
+                # which filter on hit_count to weed out noise.
                 self.set_match(
                     Match(
                         value,
-                        hit_count=1,
+                        hit_count=0,
                         score=0.0,
                         related_hit_count=1,
                         related_score=score,
@@ -250,9 +256,22 @@ type KnowledgePredicate[T: Knowledge] = Callable[[T], bool]
 
 
 class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
-    def __init__(self, search_term_matches: set[str] = set()):
+    """Accumulates scored semantic reference matches.
+
+    ``search_term_matches`` tracks which search terms produced hits (provenance).
+    Use ``clone`` to create a derived accumulator that inherits a
+    *copy* of the parent's provenance.
+    """
+
+    def __init__(self) -> None:
         super().__init__()
-        self.search_term_matches = search_term_matches
+        self.search_term_matches: set[str] = set()
+
+    def clone(self) -> "SemanticRefAccumulator":
+        """Create a new empty accumulator inheriting a copy of this one's term-match provenance."""
+        acc = self.__class__()
+        acc.search_term_matches = set(self.search_term_matches)
+        return acc
 
     def add_term_matches(
         self,
@@ -330,8 +349,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             semantic_ref = await semantic_refs.get_item(match.value)
             group = groups.get(semantic_ref.knowledge.knowledge_type)
             if group is None:
-                group = SemanticRefAccumulator()
-                group.search_term_matches = self.search_term_matches
+                group = self.clone()
                 groups[semantic_ref.knowledge.knowledge_type] = group
             group.set_match(match)
         return groups
@@ -341,7 +359,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         semantic_refs: ISemanticRefCollection,
         ranges_in_scope: "TextRangesInScope",
     ) -> "SemanticRefAccumulator":
-        accumulator = SemanticRefAccumulator(self.search_term_matches)
+        accumulator = self.clone()
         for match in self:
             if ranges_in_scope.is_range_in_scope(
                 (await semantic_refs.get_item(match.value)).range
@@ -513,15 +531,16 @@ class TextRangeCollection(Iterable[TextRange]):
             for text_range in text_ranges._ranges:
                 self.add_range(text_range)
 
-    def is_in_range(self, inner_range: TextRange) -> bool:
+    def contains_range(self, inner_range: TextRange) -> bool:
         if len(self._ranges) == 0:
             return False
-        i = bisect.bisect_left(self._ranges, inner_range)
-        for outer_range in self._ranges[i:]:
-            if outer_range.start > inner_range.start:
-                break
+        for outer_range in self._ranges:
             if inner_range in outer_range:
                 return True
+            # Since ranges are sorted by start, once we pass inner_range's start
+            # no further range can contain it.
+            if outer_range.start > inner_range.start:
+                break
         return False
 
 
@@ -544,7 +563,7 @@ class TextRangesInScope:
             # We have a very simple impl: we don't intersect/union ranges yet.
             # Instead, we ensure that the inner range is not rejected by any outer ranges.
             for outer_ranges in self.text_ranges:
-                if not outer_ranges.is_in_range(inner_range):
+                if not outer_ranges.contains_range(inner_range):
                     return False
         return True
 
