@@ -769,7 +769,7 @@ class TestGetTextRangeForDateRange:
 
 
 # ---------------------------------------------------------------------------
-# Change 3: WhereSemanticRefExpr uses with_term_matches (provenance copy)
+# Change 3: WhereSemanticRefExpr uses clone() (provenance copy)
 # ---------------------------------------------------------------------------
 
 

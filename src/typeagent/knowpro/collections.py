@@ -259,7 +259,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
     """Accumulates scored semantic reference matches.
 
     ``search_term_matches`` tracks which search terms produced hits (provenance).
-    Use ``with_term_matches`` to create a derived accumulator that inherits a
+    Use ``clone`` to create a derived accumulator that inherits a
     *copy* of the parent's provenance.
     """
 
@@ -267,13 +267,10 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         super().__init__()
         self.search_term_matches: set[str] = set()
 
-    @classmethod
-    def with_term_matches(
-        cls, source: "SemanticRefAccumulator"
-    ) -> "SemanticRefAccumulator":
-        """Create a new accumulator inheriting a copy of *source*'s term-match provenance."""
-        acc = cls()
-        acc.search_term_matches = set(source.search_term_matches)
+    def clone(self) -> "SemanticRefAccumulator":
+        """Create a new empty accumulator inheriting a copy of this one's term-match provenance."""
+        acc = self.__class__()
+        acc.search_term_matches = set(self.search_term_matches)
         return acc
 
     def add_term_matches(
@@ -352,7 +349,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             semantic_ref = await semantic_refs.get_item(match.value)
             group = groups.get(semantic_ref.knowledge.knowledge_type)
             if group is None:
-                group = SemanticRefAccumulator.with_term_matches(self)
+                group = self.clone()
                 groups[semantic_ref.knowledge.knowledge_type] = group
             group.set_match(match)
         return groups
@@ -362,7 +359,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         semantic_refs: ISemanticRefCollection,
         ranges_in_scope: "TextRangesInScope",
     ) -> "SemanticRefAccumulator":
-        accumulator = SemanticRefAccumulator.with_term_matches(self)
+        accumulator = self.clone()
         for match in self:
             if ranges_in_scope.is_range_in_scope(
                 (await semantic_refs.get_item(match.value)).range
