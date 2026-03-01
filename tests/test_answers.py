@@ -98,10 +98,10 @@ class TestGetEnclosingDateRangeForTextRange:
         assert dr.end is None
 
     @pytest.mark.asyncio
-    async def test_multi_message_range_uses_last_included(
+    async def test_multi_message_range_uses_exclusive_end(
         self, messages: FakeMessageCollection
     ) -> None:
-        """Range [0, 2) should use message 1 for end (ordinal 2-1=1), not message 2."""
+        """Range [0, 2) should use message 2 (the exclusive end) for end timestamp."""
         tr = TextRange(
             start=TextLocation(0),
             end=TextLocation(2),  # exclusive end
@@ -109,13 +109,13 @@ class TestGetEnclosingDateRangeForTextRange:
         dr = await get_enclosing_date_range_for_text_range(messages, tr)
         assert dr is not None
         assert dr.start.hour == 0
-        # End timestamp comes from message ordinal 1 (= 2-1), NOT ordinal 2:
+        # End timestamp comes from the message at the exclusive end ordinal:
         assert dr.end is not None
-        assert dr.end.hour == 1
+        assert dr.end.hour == 2
 
     @pytest.mark.asyncio
     async def test_adjacent_messages(self, messages: FakeMessageCollection) -> None:
-        """Range [1, 2) covers only message 1."""
+        """Range [1, 2) covers only message 1; end timestamp is message 2."""
         tr = TextRange(
             start=TextLocation(1),
             end=TextLocation(2),
@@ -124,7 +124,19 @@ class TestGetEnclosingDateRangeForTextRange:
         assert dr is not None
         assert dr.start.hour == 1
         assert dr.end is not None
-        assert dr.end.hour == 1  # same message: end-1 == start
+        assert dr.end.hour == 2  # exclusive end: timestamp of the next message
+
+    @pytest.mark.asyncio
+    async def test_end_past_last_message(self, messages: FakeMessageCollection) -> None:
+        """If the exclusive end ordinal is past the last message, end is None."""
+        tr = TextRange(
+            start=TextLocation(0),
+            end=TextLocation(3),  # messages only have ordinals 0, 1, 2
+        )
+        dr = await get_enclosing_date_range_for_text_range(messages, tr)
+        assert dr is not None
+        assert dr.start.hour == 0
+        assert dr.end is None
 
     @pytest.mark.asyncio
     async def test_no_timestamp_returns_none(self) -> None:
