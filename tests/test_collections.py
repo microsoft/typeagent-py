@@ -110,13 +110,15 @@ def test_text_range_collection_add_and_check():
 
     assert len(collection) == 2
 
-    assert collection.is_in_range(range1) is True
-    assert collection.is_in_range(range2) is True
+    assert collection.contains_range(range1) is True
+    assert collection.contains_range(range2) is True
     assert (
-        collection.is_in_range(range3) is True
+        collection.contains_range(range3) is True
     )  # range3 [5,10) is inside range1 [0,10)
-    assert collection.is_in_range(range4) is False  # range4 [5,25) spans across ranges
-    assert collection.is_in_range(range5) is False
+    assert (
+        collection.contains_range(range4) is False
+    )  # range4 [5,25) spans across ranges
+    assert collection.contains_range(range5) is False
 
 
 def test_text_ranges_in_scope():

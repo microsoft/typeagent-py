@@ -534,7 +534,7 @@ class TextRangeCollection(Iterable[TextRange]):
             for text_range in text_ranges._ranges:
                 self.add_range(text_range)
 
-    def is_in_range(self, inner_range: TextRange) -> bool:
+    def contains_range(self, inner_range: TextRange) -> bool:
         if len(self._ranges) == 0:
             return False
         for outer_range in self._ranges:
@@ -566,7 +566,7 @@ class TextRangesInScope:
             # We have a very simple impl: we don't intersect/union ranges yet.
             # Instead, we ensure that the inner range is not rejected by any outer ranges.
             for outer_ranges in self.text_ranges:
-                if not outer_ranges.is_in_range(inner_range):
+                if not outer_ranges.contains_range(inner_range):
                     return False
         return True
 
