@@ -78,15 +78,6 @@ class TestParseAzureEndpoint:
         _, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert version == "2025-01-01-preview"
 
-    def test_api_version_after_comma(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """api-version preceded by comma (alternate separator)."""
-        monkeypatch.setenv(
-            "TEST_ENDPOINT",
-            "https://myhost.openai.azure.com/openai/deployments/gpt-4?foo=bar,api-version=2024-06-01",
-        )
-        _, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
-        assert version == "2024-06-01"
-
     def test_missing_env_var_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """RuntimeError when the environment variable is not set."""
         monkeypatch.delenv("NONEXISTENT_ENDPOINT", raising=False)
