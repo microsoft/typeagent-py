@@ -682,12 +682,6 @@ async def test_lookup_knowledge_type():
     assert await lookup_knowledge_type(collection, "action") == []
 
 
-# ---------------------------------------------------------------------------
-# Change 1: get_text_range_for_date_range uses manual ordinal counter
-#            (not message.ordinal) and guards against None timestamp.
-# ---------------------------------------------------------------------------
-
-
 class TestGetTextRangeForDateRange:
     """Tests for the ordinal counter fix and timestamp None guard."""
 
@@ -766,11 +760,6 @@ class TestGetTextRangeForDateRange:
         assert result.start.message_ordinal == 0
         assert result.end is not None
         assert result.end.message_ordinal == 1
-
-
-# ---------------------------------------------------------------------------
-# Change 3: WhereSemanticRefExpr uses clone() (provenance copy)
-# ---------------------------------------------------------------------------
 
 
 class TestWhereSemanticRefExprProvenance:
