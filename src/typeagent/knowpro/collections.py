@@ -91,10 +91,14 @@ class MatchAccumulator[T]:
                     )
                 )
             else:
+                # New related-only match: hit_count stays 0 because
+                # only exact matches count as direct hits.  This matters
+                # for select_with_hit_count / _matches_with_min_hit_count
+                # which filter on hit_count to weed out noise.
                 self.set_match(
                     Match(
                         value,
-                        hit_count=1,
+                        hit_count=0,
                         score=0.0,
                         related_hit_count=1,
                         related_score=score,
@@ -250,9 +254,17 @@ type KnowledgePredicate[T: Knowledge] = Callable[[T], bool]
 
 
 class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
-    def __init__(self, search_term_matches: set[str] = set()):
+    def __init__(self, search_term_matches: set[str] | None = None):
         super().__init__()
-        self.search_term_matches = search_term_matches
+        self.search_term_matches = (
+            search_term_matches if search_term_matches is not None else set()
+        )
+
+    def clone(self) -> "SemanticRefAccumulator":
+        """Create a new empty accumulator inheriting a copy of this one's term-match provenance."""
+        acc = self.__class__()
+        acc.search_term_matches = set(self.search_term_matches)
+        return acc
 
     def add_term_matches(
         self,
@@ -513,11 +525,10 @@ class TextRangeCollection(Iterable[TextRange]):
             for text_range in text_ranges._ranges:
                 self.add_range(text_range)
 
-    def is_in_range(self, inner_range: TextRange) -> bool:
-        if len(self._ranges) == 0:
-            return False
-        i = bisect.bisect_left(self._ranges, inner_range)
-        for outer_range in self._ranges[i:]:
+    def contains_range(self, inner_range: TextRange) -> bool:
+        # Since ranges are sorted by start, once we pass inner_range's start
+        # no further range can contain it.
+        for outer_range in self._ranges:
             if outer_range.start > inner_range.start:
                 break
             if inner_range in outer_range:
@@ -544,7 +555,7 @@ class TextRangesInScope:
             # We have a very simple impl: we don't intersect/union ranges yet.
             # Instead, we ensure that the inner range is not rejected by any outer ranges.
             for outer_ranges in self.text_ranges:
-                if not outer_ranges.is_in_range(inner_range):
+                if not outer_ranges.contains_range(inner_range):
                     return False
         return True
 
