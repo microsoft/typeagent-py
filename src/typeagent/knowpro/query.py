@@ -700,7 +700,7 @@ class WhereSemanticRefExpr(QueryOpExpr[SemanticRefAccumulator]):
 
     async def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
         accumulator = await self.source_expr.eval(context)
-        filtered = SemanticRefAccumulator(self.search_term_matches)
+        filtered = SemanticRefAccumulator(set(accumulator.search_term_matches))
 
         # Filter matches asynchronously
         filtered_matches = []
