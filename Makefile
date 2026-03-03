@@ -14,11 +14,11 @@ format: venv
 .PHONY: check
 check: venv
 	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools examples
+	echo "security test"
 
 .PHONY: test
 test: venv
 	.venv/bin/pytest $(FLAGS)
-security test
 
 .PHONY: coverage
 coverage: venv
