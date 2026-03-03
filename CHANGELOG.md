@@ -2,13 +2,14 @@
 
 ## 2026
 
-### 0.4.0 (Feb 26)
+### 0.4.0 (March 3)
 
 Lots of improvements; the highlights are provider-agnostic model
 configuration backed by pydantic_ai, email ingestion, and a major
 infrastructure overhaul.
 
 #### Core typeagent package
+- Fixed a number of bugs that affected the core query algorithms
 - Provider-agnostic chat and embedding model configuration via new
   `model_adapters` module backed by pydantic_ai (#200):
   - Use `provider:model` spec strings,
