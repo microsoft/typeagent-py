@@ -18,6 +18,7 @@ check: venv
 .PHONY: test
 test: venv
 	.venv/bin/pytest $(FLAGS)
+security test
 
 .PHONY: coverage
 coverage: venv
