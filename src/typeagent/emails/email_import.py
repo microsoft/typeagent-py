@@ -263,7 +263,8 @@ def _merge_chunks(
                 yield cur_chunk
             cur_chunk = new_chunk
         else:
-            cur_chunk += separator
+            if cur_chunk:
+                cur_chunk += separator
             cur_chunk += new_chunk
 
     if (len(cur_chunk)) > 0:

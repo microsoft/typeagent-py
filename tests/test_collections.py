@@ -110,11 +110,15 @@ def test_text_range_collection_add_and_check():
 
     assert len(collection) == 2
 
-    assert collection.is_in_range(range1) is True
-    assert collection.is_in_range(range2) is True
-    assert collection.is_in_range(range3) is False
-    assert collection.is_in_range(range4) is False
-    assert collection.is_in_range(range5) is False
+    assert collection.contains_range(range1) is True
+    assert collection.contains_range(range2) is True
+    assert (
+        collection.contains_range(range3) is True
+    )  # range3 [5,10) is inside range1 [0,10)
+    assert (
+        collection.contains_range(range4) is False
+    )  # range4 [5,25) spans across ranges
+    assert collection.contains_range(range5) is False
 
 
 def test_text_ranges_in_scope():
@@ -404,6 +408,90 @@ def test_match_accumulator_select_top_n_scoring():
     assert len(matches) == 2
     assert matches[0].value == "high"
     assert matches[1].value == "medium"
+
+
+def test_match_accumulator_add_non_exact_match():
+    """Non-exact (related) matches must start with hit_count=0."""
+    accumulator = MatchAccumulator[str]()
+    accumulator.add("related_term", score=0.7, is_exact_match=False)
+
+    match = accumulator.get_match("related_term")
+    assert match is not None
+    assert match.hit_count == 0
+    assert match.score == 0.0
+    assert match.related_hit_count == 1
+    assert match.related_score == 0.7
+
+
+def test_match_accumulator_non_exact_filtered_by_min_hit_count():
+    """Related-only matches should be excluded by min_hit_count=1 filter."""
+    accumulator = MatchAccumulator[str]()
+    accumulator.add("exact_term", score=1.0, is_exact_match=True)
+    accumulator.add("related_term", score=0.9, is_exact_match=False)
+
+    matches = list(accumulator._matches_with_min_hit_count(min_hit_count=1))  # type: ignore
+    assert len(matches) == 1
+    assert matches[0].value == "exact_term"
+
+
+def test_match_accumulator_related_then_exact_same_value():
+    """Adding a related match then an exact match for the same value."""
+    accumulator = MatchAccumulator[str]()
+    accumulator.add("term", score=0.5, is_exact_match=False)
+    accumulator.add("term", score=1.0, is_exact_match=True)
+
+    match = accumulator.get_match("term")
+    assert match is not None
+    assert match.hit_count == 1
+    assert match.score == 1.0
+    assert match.related_hit_count == 1
+    assert match.related_score == 0.5
+
+
+def test_match_accumulator_exact_then_related_same_value():
+    """Adding an exact match then a related match for the same value."""
+    accumulator = MatchAccumulator[str]()
+    accumulator.add("term", score=1.0, is_exact_match=True)
+    accumulator.add("term", score=0.3, is_exact_match=False)
+
+    match = accumulator.get_match("term")
+    assert match is not None
+    assert match.hit_count == 1
+    assert match.score == 1.0
+    assert match.related_hit_count == 1
+    assert match.related_score == 0.3
+
+
+def test_match_accumulator_multiple_related_accumulate():
+    """Multiple related matches for the same value accumulate correctly."""
+    accumulator = MatchAccumulator[str]()
+    accumulator.add("term", score=0.4, is_exact_match=False)
+    accumulator.add("term", score=0.6, is_exact_match=False)
+
+    match = accumulator.get_match("term")
+    assert match is not None
+    assert match.hit_count == 0
+    assert match.score == 0.0
+    assert match.related_hit_count == 2
+    assert match.related_score == pytest.approx(1.0)
+
+
+def test_match_accumulator_total_score_includes_related():
+    """calculate_total_score adds smoothed related score to the main score."""
+    accumulator = MatchAccumulator[str]()
+    accumulator.add("exact_only", score=2.0, is_exact_match=True)
+    accumulator.add("mixed", score=1.0, is_exact_match=True)
+    accumulator.add("mixed", score=0.5, is_exact_match=False)
+
+    accumulator.calculate_total_score()
+
+    exact_only = accumulator.get_match("exact_only")
+    mixed = accumulator.get_match("mixed")
+    assert exact_only is not None
+    assert mixed is not None
+    # "mixed" should have a higher score than its raw 1.0
+    # because the related_score of 0.5 is added (smoothed).
+    assert mixed.score > 1.0
 
 
 def test_get_smooth_score():

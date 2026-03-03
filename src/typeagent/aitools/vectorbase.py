@@ -150,8 +150,9 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[ScoredInt]:
+        ordinals_set = set(ordinals_of_subset)
         return self.fuzzy_lookup_embedding(
-            embedding, max_hits, min_score, lambda i: i in ordinals_of_subset
+            embedding, max_hits, min_score, lambda i: i in ordinals_set
         )
 
     async def fuzzy_lookup(

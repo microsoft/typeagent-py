@@ -404,11 +404,12 @@ async def get_enclosing_date_range_for_text_range(
     start_timestamp = (await messages.get_item(range.start.message_ordinal)).timestamp
     if not start_timestamp:
         return None
-    end_timestamp = (
-        (await messages.get_item(range.end.message_ordinal)).timestamp
-        if range.end
-        else None
-    )
+    end_timestamp: str | None = None
+    if range.end:
+        end_ordinal = range.end.message_ordinal
+        if end_ordinal < await messages.size():
+            end_timestamp = (await messages.get_item(end_ordinal)).timestamp
+        # else: range extends to the end of the conversation; leave as None.
     return DateRange(
         start=Datetime.fromisoformat(start_timestamp),
         end=Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
@@ -535,7 +536,7 @@ def facets_to_merged_facets(facets: list[Facet]) -> MergedFacets:
     merged_facets: MergedFacets = {}
     for facet in facets:
         name = facet.name.lower()
-        value = str(facet).lower()
+        value = str(facet.value).lower()
         merged_facets.setdefault(name, []).append(value)
     return merged_facets
 
