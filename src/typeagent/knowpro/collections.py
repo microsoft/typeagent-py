@@ -260,12 +260,6 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             search_term_matches if search_term_matches is not None else set()
         )
 
-    def clone(self) -> "SemanticRefAccumulator":
-        """Create a new empty accumulator inheriting a copy of this one's term-match provenance."""
-        acc = self.__class__()
-        acc.search_term_matches = set(self.search_term_matches)
-        return acc
-
     def add_term_matches(
         self,
         search_term: Term,
@@ -342,8 +336,7 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
             semantic_ref = await semantic_refs.get_item(match.value)
             group = groups.get(semantic_ref.knowledge.knowledge_type)
             if group is None:
-                group = SemanticRefAccumulator()
-                group.search_term_matches = self.search_term_matches
+                group = SemanticRefAccumulator(self.search_term_matches)
                 groups[semantic_ref.knowledge.knowledge_type] = group
             group.set_match(match)
         return groups
