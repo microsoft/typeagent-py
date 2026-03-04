@@ -449,8 +449,11 @@ Examples:
     )
 
     if exit_code != 0:
-        print("Error: Failed to create PR", file=sys.stderr)
-        return 1
+        if args.force:
+            print("Warning: Failed to create PR -- you can create it yourself", file=sys.stderr)
+        else:
+            print("Error: Failed to create PR -- but you can create it yourself", file=sys.stderr)
+            return 1
 
     if args.dry_run:
         print(f"\n[DRY RUN] Release process completed successfully!")
@@ -461,8 +464,11 @@ Examples:
         print(f"\nRelease process completed successfully!")
         print(f"Created branch: {branch_name}")
         print(f"Created tag: {tag_name}")
-        print(f"Created PR: {pr_url}")
+        if exit_code == 0:
+            print(f"Created PR: {pr_url}")
         print(f"\nNext steps:")
+        if exit_code == 0:
+            print(f"  0. Create the PR (since it wasn't created)")
         print(f"  1. Get the PR approved and merged")
         print(f"  2. The GitHub Actions release workflow will be triggered by the tag")
 
