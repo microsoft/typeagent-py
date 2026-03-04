@@ -15,7 +15,7 @@ from typeagent.knowpro.convsettings import (
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import IMessage, ITermToRelatedTermsIndex, Term
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider

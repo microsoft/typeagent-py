@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-from ..knowpro import kplib
+from ..knowpro import knowledge_schema as kplib
 from ..knowpro.field_helpers import CamelCaseField
 from ..knowpro.interfaces import IKnowledgeSource, IMessage, IMessageMetadata
 

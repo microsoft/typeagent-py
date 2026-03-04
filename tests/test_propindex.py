@@ -5,7 +5,7 @@ import pytest
 
 from typeagent.knowpro.collections import TextRangeCollection, TextRangesInScope
 from typeagent.knowpro.interfaces import SemanticRef, Tag, TextLocation, TextRange
-from typeagent.knowpro.kplib import Action, ConcreteEntity, Facet
+from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet
 from typeagent.storage.memory import MemorySemanticRefCollection
 from typeagent.storage.memory.propindex import (
     add_action_properties_to_index,

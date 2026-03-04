@@ -23,7 +23,7 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage import SqliteStorageProvider
 
 

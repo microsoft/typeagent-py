@@ -25,7 +25,7 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
     TextRange,
 )
-from typeagent.knowpro.kplib import Action, ConcreteEntity
+from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity
 from typeagent.storage.memory.collections import MemorySemanticRefCollection
 
 

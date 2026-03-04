@@ -36,7 +36,7 @@ from typeagent.aitools import embeddings, model_adapters, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
-    kplib,
+    knowledge_schema as kplib,
     query,
     search,
     search_query_schema,

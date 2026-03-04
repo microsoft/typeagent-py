@@ -13,7 +13,7 @@ from typeagent.knowpro.interfaces import (
     TermsToRelatedTermsIndexData,
     TextToTextLocationIndexData,
 )
-from typeagent.knowpro.kplib import ConcreteEntity, Quantity
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, Quantity
 from typeagent.knowpro.serialization import (
     create_file_header,
     DeserializationError,

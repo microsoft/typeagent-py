@@ -32,7 +32,7 @@ from .interfaces import (
     TextRange,
     Topic,
 )
-from .kplib import ConcreteEntity, Facet
+from .knowledge_schema import ConcreteEntity, Facet
 from .search import ConversationSearchResult
 
 

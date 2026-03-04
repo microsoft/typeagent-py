@@ -18,7 +18,7 @@ from typeagent.knowpro.interfaces import (
     Thread,
     WhenFilter,
 )
-from typeagent.knowpro.kplib import ConcreteEntity
+from typeagent.knowpro.knowledge_schema import ConcreteEntity
 
 
 def test_text_location_serialization():

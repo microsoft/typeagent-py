@@ -24,7 +24,7 @@ from .interfaces import (
     Term,
     WhenFilter,
 )
-from .kplib import ConcreteEntity
+from .knowledge_schema import ConcreteEntity
 from .query import (
     BooleanOp,
     CompiledSearchTerm,

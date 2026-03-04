@@ -8,7 +8,7 @@ from typing import TypedDict
 
 from pydantic import AliasChoices, Field
 
-from . import kplib
+from . import knowledge_schema as kplib
 from .dataclasses import dataclass as pydantic_dataclass
 from .field_helpers import CamelCaseField
 from .interfaces import IKnowledgeSource, IMessage, IMessageMetadata

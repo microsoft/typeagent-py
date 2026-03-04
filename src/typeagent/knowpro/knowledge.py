@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from typechat import Result, TypeChatLanguageModel
 
-from . import convknowledge, kplib
+from . import convknowledge, knowledge_schema as kplib
 from ..aitools import model_adapters
 from .interfaces import IKnowledgeExtractor
 

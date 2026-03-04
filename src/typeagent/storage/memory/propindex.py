@@ -4,7 +4,7 @@
 import enum
 from typing import assert_never
 
-from ...knowpro import kplib
+from ...knowpro import knowledge_schema as kplib
 from ...knowpro.collections import TextRangesInScope
 from ...knowpro.interfaces import (
     IConversation,

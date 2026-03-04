@@ -19,7 +19,7 @@ from typing import (
 from pydantic.dataclasses import dataclass
 import typechat
 
-from . import kplib
+from . import knowledge_schema as kplib
 from .field_helpers import CamelCaseField
 
 __all__ = [

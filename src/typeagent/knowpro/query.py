@@ -44,7 +44,7 @@ from .interfaces import (
     TextRange,
     Thread,
 )
-from .kplib import ConcreteEntity
+from .knowledge_schema import ConcreteEntity
 from .utils import aenumerate
 
 # TODO: Move to compilelib.py

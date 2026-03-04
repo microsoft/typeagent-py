@@ -24,7 +24,7 @@ import numpy as np
 
 from pydantic.alias_generators import to_camel
 
-from . import kplib
+from . import knowledge_schema as kplib
 from ..aitools.embeddings import NormalizedEmbeddings
 from .interfaces import ConversationDataWithIndexes, SearchTermGroupTypes, Tag, Topic
 
