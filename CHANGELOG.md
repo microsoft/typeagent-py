@@ -53,6 +53,10 @@ infrastructure overhaul.
   (Bernhard Merkle, #150).
 
 #### Infrastructure
+- Changes pyproject.toml to use uv more idiomatically.
+  - Local devs write `uv sync` instead of `uv sync --extra dev`.
+  - From PyPI (with uv or pip) you can use `typeagent[dev]`
+    to install the dev dependencies with the package.
 - Move _typeagent/_ to _src/typeagent/_ (Bernhard Merkle, #139).
 - Move tests and test data to _tests/_ directory (Bernhard Merkle, #144).
 - Move ancillary dirs into subdirs (Bernhard Merkle, #145).
