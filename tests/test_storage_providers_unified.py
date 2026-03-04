@@ -20,7 +20,7 @@ from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import kplib
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
@@ -36,7 +36,7 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
 

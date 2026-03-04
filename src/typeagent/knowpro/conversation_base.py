@@ -13,7 +13,7 @@ from . import (
     answer_response_schema,
     answers,
     convknowledge,
-    kplib,
+    knowledge_schema as kplib,
     search_query_schema,
     searchlang,
     secindex,

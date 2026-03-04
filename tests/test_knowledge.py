@@ -5,7 +5,7 @@ import pytest
 
 from typechat import Failure, Result, Success
 
-from typeagent.knowpro import convknowledge, kplib
+from typeagent.knowpro import convknowledge, knowledge_schema as kplib
 from typeagent.knowpro.knowledge import (
     create_knowledge_extractor,
     extract_knowledge_from_text,
@@ -13,7 +13,7 @@ from typeagent.knowpro.knowledge import (
     merge_concrete_entities,
     merge_topics,
 )
-from typeagent.knowpro.kplib import ConcreteEntity, Facet
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, Facet
 
 
 class MockKnowledgeExtractor:

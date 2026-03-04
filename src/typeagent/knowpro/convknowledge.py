@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 import typechat
 
-from . import kplib
+from . import knowledge_schema as kplib
 from ..aitools.model_adapters import create_chat_model
 
 

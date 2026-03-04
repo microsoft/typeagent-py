@@ -32,7 +32,7 @@ from typeagent.knowpro.interfaces import (
     SemanticRef,
     TextLocation,
 )
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider

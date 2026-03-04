@@ -12,7 +12,7 @@ import pytest
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
-from typeagent.knowpro.kplib import ConcreteEntity
+from typeagent.knowpro.knowledge_schema import ConcreteEntity
 from typeagent.podcasts.podcast import Podcast, PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 

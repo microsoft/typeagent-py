@@ -646,7 +646,7 @@ async def test_lookup_knowledge_type():
         TextRange,
         Topic,
     )
-    from typeagent.knowpro.kplib import ConcreteEntity
+    from typeagent.knowpro.knowledge_schema import ConcreteEntity
     from typeagent.knowpro.query import lookup_knowledge_type
 
     # Create valid TextRange and knowledge objects

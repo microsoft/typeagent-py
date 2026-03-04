@@ -25,7 +25,7 @@ from typeagent.knowpro.convsettings import (
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import ConversationMetadata, IMessage
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
     Transcript,

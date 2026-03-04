@@ -12,7 +12,7 @@ import pytest
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import kplib
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,

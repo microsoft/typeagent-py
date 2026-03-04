@@ -14,7 +14,7 @@ from typeagent.knowpro.answers import (
     text_range_from_message_range,
 )
 from typeagent.knowpro.interfaces import TextLocation, TextRange
-from typeagent.knowpro.kplib import Facet
+from typeagent.knowpro.knowledge_schema import Facet
 
 from conftest import FakeMessage, FakeMessageCollection
 
