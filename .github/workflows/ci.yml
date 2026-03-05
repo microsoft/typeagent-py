@@ -4,7 +4,7 @@ name: CI
 on:
   push:
     branches: [ "main" ]
-  pull_request_target:
+  pull_request:
     branches: [ "main" ]
   workflow_dispatch:     # manual run
 
@@ -15,7 +15,6 @@ concurrency:
 permissions:
   pull-requests: read
   contents: read
-  id-token: write
   actions: read
 
 jobs:
