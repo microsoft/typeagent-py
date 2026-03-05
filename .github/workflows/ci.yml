@@ -4,7 +4,7 @@ name: CI
 on:
   push:
     branches: [ "main" ]
-  pull_request:     # changed from pull_request_target. fork PRs now run in fork context
+  pull_request:
     branches: [ "main" ]
   workflow_dispatch:     # manual run
 
@@ -15,7 +15,6 @@ concurrency:
 permissions:
   pull-requests: read
   contents: read
-  # id-token: write     #  removed. no active job needs OIDC; was a leftover from commented-out online-test
   actions: read
 
 jobs:
