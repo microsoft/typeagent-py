@@ -34,10 +34,34 @@ class TextEmbeddingIndexSettings:
         max_matches: int | None = None,
         batch_size: int | None = None,
     ):
-        self.min_score = min_score if min_score is not None else 0.85
-        self.max_matches = max_matches if max_matches and max_matches >= 1 else None
-        self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
         self.embedding_model = embedding_model or create_embedding_model()
+
+        # Default fallback values
+        default_min_score = 0.85
+        default_max_matches = None
+
+        # Determine optimal parameters automatically for well-known models.
+        # Format: (min_score, max_matches)
+        # Note: text-embedding-3 models produce structurally lower cosine scores than older models
+        # and typically perform best in the 0.3 - 0.5 range for relevance filtering.
+        MODEL_DEFAULTS = {
+            "text-embedding-3-large": (0.30, 20),
+            "text-embedding-3-small": (0.35, 20),
+            "text-embedding-ada-002": (0.75, 20),
+        }
+
+        # Check if the model_name matches any known ones
+        model_name = getattr(self.embedding_model, 'model_name', "")
+        
+        if model_name:
+            for known_model, defaults in MODEL_DEFAULTS.items():
+                if known_model in model_name:
+                    default_min_score, default_max_matches = defaults
+                    break
+
+        self.min_score = min_score if min_score is not None else default_min_score
+        self.max_matches = max_matches if max_matches is not None else default_max_matches
+        self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
 
 
 class VectorBase:
