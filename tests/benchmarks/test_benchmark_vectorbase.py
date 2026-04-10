@@ -3,7 +3,8 @@
 Measures whether the numpy-vectorized path is meaningfully faster than
 Python-level iteration at realistic conversation sizes (1K–10K vectors).
 
-Usage:
+Requires ``pytest-benchmark`` (``uv pip install pytest-benchmark``)::
+
     uv run python -m pytest tests/benchmarks/test_benchmark_vectorbase.py -v
 """
 
@@ -12,29 +13,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import ScoredInt, TextEmbeddingIndexSettings, VectorBase
 
 
 # -- Helpers ------------------------------------------------------------------
-
-
-class StubEmbeddingModel:
-    """Minimal stub that satisfies TextEmbeddingIndexSettings without network."""
-
-    async def get_embedding(self, key: str) -> np.ndarray:
-        raise NotImplementedError
-
-    async def get_embedding_nocache(self, key: str) -> np.ndarray:
-        raise NotImplementedError
-
-    async def get_embeddings(self, keys: list[str]) -> np.ndarray:
-        raise NotImplementedError
-
-    async def get_embeddings_nocache(self, keys: list[str]) -> np.ndarray:
-        raise NotImplementedError
-
-    def add_embedding(self, key: str, embedding: np.ndarray) -> None:
-        pass
 
 
 def make_vectorbase(n: int, dim: int = 384) -> tuple[VectorBase, np.ndarray]:
@@ -44,7 +27,7 @@ def make_vectorbase(n: int, dim: int = 384) -> tuple[VectorBase, np.ndarray]:
     norms = np.linalg.norm(vecs, axis=1, keepdims=True)
     vecs /= norms
 
-    settings = TextEmbeddingIndexSettings(embedding_model=StubEmbeddingModel())
+    settings = TextEmbeddingIndexSettings(embedding_model=create_test_embedding_model())
     vb = VectorBase(settings)
     vb.add_embeddings(None, vecs)
 
