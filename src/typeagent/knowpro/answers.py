@@ -452,19 +452,22 @@ async def get_scored_semantic_refs_from_ordinals_iter(
     semantic_ref_matches: list[ScoredSemanticRefOrdinal],
     knowledge_type: KnowledgeType,
 ) -> list[Scored[SemanticRef]]:
-    result = []
-    for semantic_ref_match in semantic_ref_matches:
-        semantic_ref = await semantic_refs.get_item(
-            semantic_ref_match.semantic_ref_ordinal
-        )
-        if semantic_ref.knowledge.knowledge_type == knowledge_type:
-            result.append(
-                Scored(
-                    item=semantic_ref,
-                    score=semantic_ref_match.score,
-                )
-            )
-    return result
+    if not semantic_ref_matches:
+        return []
+    ordinals = [m.semantic_ref_ordinal for m in semantic_ref_matches]
+    metadata = await semantic_refs.get_metadata_multiple(ordinals)
+    matching = [
+        (sr_match, m.ordinal)
+        for sr_match, m in zip(semantic_ref_matches, metadata)
+        if m.knowledge_type == knowledge_type
+    ]
+    if not matching:
+        return []
+    full_refs = await semantic_refs.get_multiple([o for _, o in matching])
+    return [
+        Scored(item=ref, score=sr_match.score)
+        for (sr_match, _), ref in zip(matching, full_refs)
+    ]
 
 
 def merge_scored_concrete_entities(

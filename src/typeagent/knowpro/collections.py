@@ -331,13 +331,17 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         self,
         semantic_refs: ISemanticRefCollection,
     ) -> dict[KnowledgeType, "SemanticRefAccumulator"]:
+        matches = list(self)
+        if not matches:
+            return {}
+        ordinals = [match.value for match in matches]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
-        for match in self:
-            semantic_ref = await semantic_refs.get_item(match.value)
-            group = groups.get(semantic_ref.knowledge.knowledge_type)
+        for match, m in zip(matches, metadata):
+            group = groups.get(m.knowledge_type)
             if group is None:
                 group = SemanticRefAccumulator(self.search_term_matches)
-                groups[semantic_ref.knowledge.knowledge_type] = group
+                groups[m.knowledge_type] = group
             group.set_match(match)
         return groups
 
@@ -346,11 +350,14 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         semantic_refs: ISemanticRefCollection,
         ranges_in_scope: "TextRangesInScope",
     ) -> "SemanticRefAccumulator":
+        matches = list(self)
+        if not matches:
+            return SemanticRefAccumulator(self.search_term_matches)
+        ordinals = [match.value for match in matches]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
         accumulator = SemanticRefAccumulator(self.search_term_matches)
-        for match in self:
-            if ranges_in_scope.is_range_in_scope(
-                (await semantic_refs.get_item(match.value)).range
-            ):
+        for match, m in zip(matches, metadata):
+            if ranges_in_scope.is_range_in_scope(m.range):
                 accumulator.set_match(match)
         return accumulator
 
