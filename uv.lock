@@ -1923,6 +1923,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-async-benchmark"
+version = "0.2.0"
+source = { git = "https://github.com/KRRT7/pytest-async-benchmark.git?rev=feat%2Fpedantic-mode#029d03634d140789baebc6c3c8f72d5c81a67f9a" }
+dependencies = [
+    { name = "pytest" },
+    { name = "rich" },
+]
+
+[[package]]
 name = "pytest-asyncio"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2398,6 +2407,7 @@ dev = [
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "pyright" },
     { name = "pytest" },
+    { name = "pytest-async-benchmark" },
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
 ]
@@ -2436,6 +2446,7 @@ dev = [
     { name = "opentelemetry-instrumentation-httpx", specifier = ">=0.57b0" },
     { name = "pyright", specifier = ">=1.1.408" },
     { name = "pytest", specifier = ">=8.3.5" },
+    { name = "pytest-async-benchmark", git = "https://github.com/KRRT7/pytest-async-benchmark.git?rev=feat%2Fpedantic-mode" },
     { name = "pytest-asyncio", specifier = ">=0.26.0" },
     { name = "pytest-mock", specifier = ">=3.14.0" },
 ]
