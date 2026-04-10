@@ -309,6 +309,8 @@ def list_sessions(
         if reqs:
             first_msg = reqs[0].get("user", "")[:80]
         label = title or first_msg or "(empty)"
+        # Remove newlines to prevent formatting issues
+        label = label.replace("\n", " ").replace("\r", "")
         date_str = format_timestamp(s.get("creation_date"))
         workspace = s.get("workspace", "?")
         print(f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}")
