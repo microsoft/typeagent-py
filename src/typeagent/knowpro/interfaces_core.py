@@ -168,6 +168,11 @@ class ITermToSemanticRefIndex(Protocol):
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> str: ...
 
+    async def add_terms_batch(
+        self,
+        terms: list[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+    ) -> None: ...
+
     async def remove_term(
         self, term: str, semantic_ref_ordinal: SemanticRefOrdinal
     ) -> None: ...
