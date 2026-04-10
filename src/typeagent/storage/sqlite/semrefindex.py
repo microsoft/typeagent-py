@@ -3,6 +3,7 @@
 
 """SQLite-based semantic reference index implementation."""
 
+from collections.abc import Sequence
 import re
 import sqlite3
 import unicodedata
@@ -58,7 +59,11 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
 
     async def add_terms_batch(
         self,
-        terms: list[tuple[str, interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal]],
+        terms: Sequence[
+            tuple[
+                str, interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal
+            ]
+        ],
     ) -> None:
         if not terms:
             return
