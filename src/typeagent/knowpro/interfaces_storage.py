@@ -6,16 +6,18 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterable, Iterable
 from datetime import datetime as Datetime
-from typing import Any, Protocol, Self
+from typing import Any, NamedTuple, Protocol, Self
 
 from pydantic.dataclasses import dataclass
 
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,
+    KnowledgeType,
     MessageOrdinal,
     SemanticRef,
     SemanticRefOrdinal,
+    TextRange,
 )
 from .interfaces_indexes import (
     IConversationSecondaryIndexes,
@@ -57,6 +59,14 @@ class ConversationMetadata:
     extra: dict[str, str] | None = None
 
 
+class SemanticRefMetadata(NamedTuple):
+    """Lightweight metadata for filtering without full knowledge deserialization."""
+
+    ordinal: SemanticRefOrdinal
+    range: TextRange
+    knowledge_type: KnowledgeType
+
+
 class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
     async def size(self) -> int: ...
 
@@ -90,6 +100,12 @@ class IMessageCollection[TMessage: IMessage](
 
 class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Protocol):
     """A collection of SemanticRefs."""
+
+    async def get_metadata_multiple(
+        self, ordinals: list[SemanticRefOrdinal]
+    ) -> list[SemanticRefMetadata]:
+        """Batch-fetch lightweight metadata without deserializing knowledge."""
+        ...
 
 
 class IStorageProvider[TMessage: IMessage](Protocol):
@@ -190,4 +206,5 @@ __all__ = [
     "ISemanticRefCollection",
     "IStorageProvider",
     "STATUS_INGESTED",
+    "SemanticRefMetadata",
 ]

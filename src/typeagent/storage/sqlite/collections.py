@@ -340,6 +340,31 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         assert set(rowdict) == set(arg)
         return [self._deserialize_semantic_ref_from_row(rowdict[ordl]) for ordl in arg]
 
+    async def get_metadata_multiple(
+        self, ordinals: list[int]
+    ) -> list[interfaces.SemanticRefMetadata]:
+        if not ordinals:
+            return []
+        cursor = self.db.cursor()
+        placeholders = ",".join("?" * len(ordinals))
+        cursor.execute(
+            f"""
+            SELECT semref_id, range_json, knowledge_type
+            FROM SemanticRefs WHERE semref_id IN ({placeholders})
+            """,
+            ordinals,
+        )
+        rows = cursor.fetchall()
+        rowdict = {r[0]: r for r in rows}
+        return [
+            interfaces.SemanticRefMetadata(
+                ordinal=rowdict[o][0],
+                range=interfaces.TextRange.deserialize(json.loads(rowdict[o][1])),
+                knowledge_type=rowdict[o][2],
+            )
+            for o in ordinals
+        ]
+
     async def append(self, item: interfaces.SemanticRef) -> None:
         cursor = self.db.cursor()
         semref_id, range_json, knowledge_type, knowledge_json = (
