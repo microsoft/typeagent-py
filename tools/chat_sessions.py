@@ -31,9 +31,32 @@ import termios
 import textwrap
 from typing import Any
 
+from colorama import Fore, init, Style
+
 VSCODE_USER_DIR = Path.home() / "Library" / "Application Support" / "Code" / "User"
 # Linux: Path.home() / ".config" / "Code" / "User"
 # Windows: Path.home() / "AppData" / "Roaming" / "Code" / "User"
+
+# Color settings
+use_color = True
+
+
+def should_use_color(args: argparse.Namespace | None = None) -> bool:
+    """Determine if color should be used based on args and environment."""
+    # Check explicit command-line flags first
+    if args is not None:
+        if hasattr(args, "color"):
+            if args.color == "always":
+                return True
+            if args.color == "never":
+                return False
+    # Check environment variables
+    if os.environ.get("NO_COLOR"):
+        return False
+    if os.environ.get("FORCE_COLOR"):
+        return True
+    # Default: use color if output is a TTY
+    return sys.stdout.isatty()
 
 
 def find_session_dirs() -> list[Path]:
@@ -326,10 +349,20 @@ def list_sessions(
         label = label.replace("\n", " ").replace("\r", "")
         date_str = format_timestamp(s.get("creation_date"))
         workspace = s.get("workspace", "?")
-        line = f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}"
+
+        if use_color:
+            # Colorize the session listing
+            line = (
+                f"  {Fore.CYAN}{i + 1:3d}{Style.RESET_ALL}. "
+                f"[{Fore.YELLOW}{date_str}{Style.RESET_ALL}] "
+                f"({Fore.MAGENTA}{workspace}{Style.RESET_ALL}, "
+                f"{Fore.GREEN}{n_msgs}{Style.RESET_ALL} msgs) {label}"
+            )
+        else:
+            line = f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}"
         # Clip to terminal width
         if len(line) > width:
-            line = line[:width - 1]
+            line = line[: width - 1]
         print(line)
 
 
@@ -341,12 +374,22 @@ def show_session(session: SessionInfo) -> None:
     model = session.get("model", "?")
     session_id = session.get("session_id", "?")
 
-    print(f"Session: {title}")
-    print(f"  ID:        {session_id}")
-    print(f"  Date:      {date_str}")
-    print(f"  Workspace: {workspace}")
-    print(f"  Model:     {model}")
-    print(f"  Messages:  {len(session.get('requests', []))}")
+    if use_color:
+        print(f"Session: {Fore.CYAN}{title}{Style.RESET_ALL}")
+        print(f"  ID:        {Fore.YELLOW}{session_id}{Style.RESET_ALL}")
+        print(f"  Date:      {Fore.YELLOW}{date_str}{Style.RESET_ALL}")
+        print(f"  Workspace: {Fore.MAGENTA}{workspace}{Style.RESET_ALL}")
+        print(f"  Model:     {Fore.GREEN}{model}{Style.RESET_ALL}")
+        print(
+            f"  Messages:  {Fore.CYAN}{len(session.get('requests', []))}{Style.RESET_ALL}"
+        )
+    else:
+        print(f"Session: {title}")
+        print(f"  ID:        {session_id}")
+        print(f"  Date:      {date_str}")
+        print(f"  Workspace: {workspace}")
+        print(f"  Model:     {model}")
+        print(f"  Messages:  {len(session.get('requests', []))}")
     print("=" * 72)
 
     for req in session.get("requests", []):
@@ -363,33 +406,65 @@ def show_session(session: SessionInfo) -> None:
         cancelled = model_state == 4
         status = " (cancelled)" if cancelled else ""
 
-        print(f"\n--- [{ts}]{status} ---")
-        print(f"\nYOU: {user_text}")
-
-        if thinking:
-            wrapped = textwrap.fill(
-                thinking, width=70, initial_indent="  ", subsequent_indent="  "
-            )
-            print(f"\n<thinking>\n{wrapped}\n</thinking>")
-
-        if tools:
-            for tool_cmd in tools:
-                if tool_cmd.startswith("["):
-                    print(f"\n  {tool_cmd}")
-                else:
-                    print(f"\n  $ {tool_cmd}")
-
-        if assistant_text:
-            print(f"\nCOPILOT ({model_short}):\n{assistant_text}")
-        elif tools and not cancelled:
+        if use_color:
             print(
-                f"\nCOPILOT ({model_short}): ({len(tools)} tool call(s), no text response)"
+                f"\n--- [{Fore.YELLOW}{ts}{Style.RESET_ALL}]{Fore.YELLOW}{status}{Style.RESET_ALL} ---"
             )
+            print(f"\n{Fore.CYAN}YOU{Style.RESET_ALL}: {user_text}")
+
+            if thinking:
+                wrapped = textwrap.fill(
+                    thinking, width=70, initial_indent="  ", subsequent_indent="  "
+                )
+                print(
+                    f"\n{Fore.MAGENTA}<thinking>{Style.RESET_ALL}\n{wrapped}\n{Fore.MAGENTA}</thinking>{Style.RESET_ALL}"
+                )
+
+            if tools:
+                for tool_cmd in tools:
+                    if tool_cmd.startswith("["):
+                        print(f"\n  {Fore.GREEN}{tool_cmd}{Style.RESET_ALL}")
+                    else:
+                        print(f"\n  {Fore.GREEN}${Style.RESET_ALL} {tool_cmd}")
+
+            if assistant_text:
+                print(
+                    f"\n{Fore.CYAN}COPILOT{Style.RESET_ALL} ({Fore.GREEN}{model_short}{Style.RESET_ALL}):\n{assistant_text}"
+                )
+            elif tools and not cancelled:
+                print(
+                    f"\n{Fore.CYAN}COPILOT{Style.RESET_ALL} ({Fore.GREEN}{model_short}{Style.RESET_ALL}): ({len(tools)} tool call(s), no text response)"
+                )
+        else:
+            print(f"\n--- [{ts}]{status} ---")
+            print(f"\nYOU: {user_text}")
+
+            if thinking:
+                wrapped = textwrap.fill(
+                    thinking, width=70, initial_indent="  ", subsequent_indent="  "
+                )
+                print(f"\n<thinking>\n{wrapped}\n</thinking>")
+
+            if tools:
+                for tool_cmd in tools:
+                    if tool_cmd.startswith("["):
+                        print(f"\n  {tool_cmd}")
+                    else:
+                        print(f"\n  $ {tool_cmd}")
+
+            if assistant_text:
+                print(f"\nCOPILOT ({model_short}):\n{assistant_text}")
+            elif tools and not cancelled:
+                print(
+                    f"\nCOPILOT ({model_short}): ({len(tools)} tool call(s), no text response)"
+                )
 
         print()
 
 
-def search_sessions(sessions: list[SessionInfo], query: str, term_width: int | None = None) -> None:
+def search_sessions(
+    sessions: list[SessionInfo], query: str, term_width: int | None = None
+) -> None:
     """Search all sessions for messages containing query text."""
     query_lower = query.lower()
     hits = 0
@@ -404,7 +479,7 @@ def search_sessions(sessions: list[SessionInfo], query: str, term_width: int | N
                 workspace = s.get("workspace", "?")
                 line1 = f"\n  [{date_str}] ({workspace}) {title}"
                 if len(line1) > width:
-                    line1 = line1[:width - 1]
+                    line1 = line1[: width - 1]
                 print(line1)
                 print(f"  Session #{i + 1}")
                 # Show the matching message snippet
@@ -420,17 +495,24 @@ def search_sessions(sessions: list[SessionInfo], query: str, term_width: int | N
                             snippet = "..." + snippet
                         if has_end_ellipsis:
                             snippet = snippet + "..."
-                        prefix = f"    {label}: "
+
+                        if use_color:
+                            prefix = f"    {Fore.CYAN}{label}{Style.RESET_ALL}: "
+                        else:
+                            prefix = f"    {label}: "
+
                         line2 = prefix + snippet
                         # If line is too long, clip but ensure "..." stays at the end
                         if len(line2) > width:
                             available = width - len(prefix)
-                            if available >= 3 and (has_start_ellipsis or has_end_ellipsis):
+                            if available >= 3 and (
+                                has_start_ellipsis or has_end_ellipsis
+                            ):
                                 # Clip content but keep "..." at the end
                                 line2 = prefix + snippet[: available - 3] + "..."
                             else:
                                 # No room for ellipsis or no ellipsis needed, just clip
-                                line2 = line2[:width - 1]
+                                line2 = line2[: width - 1]
                         print(line2)
                 hits += 1
     if hits == 0:
@@ -546,13 +628,29 @@ def main() -> None:
         default=False,
         help="Disable pager",
     )
+    parser.add_argument(
+        "--color",
+        type=str,
+        choices=["always", "never", "auto"],
+        default="auto",
+        help="When to use color (always, never, auto)",
+    )
     args = parser.parse_args()
+
+    # Initialize colorama with autoreset disabled so we can use explicit Style.RESET_ALL
+    # Use strip=False to preserve ANSI codes even when piped (caller can strip if needed)
+    init(autoreset=False, strip=False)
+    global use_color
+    use_color = should_use_color(args)
 
     pager_cmd = args.pager if args.pager is not None else get_default_pager()
 
     sessions = load_all_sessions()
     if not sessions:
-        print("No chat sessions found.")
+        if use_color:
+            print(f"{Fore.RED}No chat sessions found.{Style.RESET_ALL}")
+        else:
+            print("No chat sessions found.")
         return
 
     use_pager = not args.no_pager
@@ -584,12 +682,29 @@ def main() -> None:
             return
 
         n_empty = sum(1 for s in sessions if not s.get("requests"))
-        if n_empty:
-            print(f"Found {len(sessions)} chat session(s), {n_empty} empty:\n")
+        if use_color:
+            if n_empty:
+                print(
+                    f"Found {Fore.CYAN}{len(sessions)}{Style.RESET_ALL} chat session(s), "
+                    f"{Fore.YELLOW}{n_empty}{Style.RESET_ALL} empty:\n"
+                )
+            else:
+                print(
+                    f"Found {Fore.CYAN}{len(sessions)}{Style.RESET_ALL} chat session(s):\n"
+                )
         else:
-            print(f"Found {len(sessions)} chat session(s):\n")
+            if n_empty:
+                print(f"Found {len(sessions)} chat session(s), {n_empty} empty:\n")
+            else:
+                print(f"Found {len(sessions)} chat session(s):\n")
         list_sessions(sessions, args.n, show_all=args.all, term_width=term_width)
-        print(f"\nUse: python {sys.argv[0]} <number> to view a session")
+        if use_color:
+            print(
+                f"\nUse: {Fore.CYAN}python {sys.argv[0]} <number>{Style.RESET_ALL} "
+                f"to view a session"
+            )
+        else:
+            print(f"\nUse: python {sys.argv[0]} <number> to view a session")
 
 
 if __name__ == "__main__":
