@@ -37,6 +37,7 @@ from .interfaces import (
     ScoredSemanticRefOrdinal,
     SearchTerm,
     SemanticRef,
+    SemanticRefMetadata,
     SemanticRefOrdinal,
     SemanticRefSearchResult,
     Term,
@@ -174,17 +175,14 @@ async def lookup_term_filtered(
     semantic_ref_index: ITermToSemanticRefIndex,
     term: Term,
     semantic_refs: ISemanticRefCollection,
-    filter: Callable[[SemanticRef, ScoredSemanticRefOrdinal], bool],
+    filter: Callable[[SemanticRefMetadata, ScoredSemanticRefOrdinal], bool],
 ) -> list[ScoredSemanticRefOrdinal] | None:
     """Look up a term in the semantic reference index and filter the results."""
     scored_refs = await semantic_ref_index.lookup_term(term.text)
     if scored_refs:
-        filtered = []
-        for sr in scored_refs:
-            semantic_ref = await semantic_refs.get_item(sr.semantic_ref_ordinal)
-            if filter(semantic_ref, sr):
-                filtered.append(sr)
-        return filtered
+        ordinals = [sr.semantic_ref_ordinal for sr in scored_refs]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
+        return [sr for sr, m in zip(scored_refs, metadata) if filter(m, sr)]
     return None
 
 
@@ -202,10 +200,10 @@ async def lookup_term(
             semantic_ref_index,
             term,
             semantic_refs,
-            lambda sr, _: (
-                not knowledge_type or sr.knowledge.knowledge_type == knowledge_type
+            lambda m, _: (
+                not knowledge_type or m.knowledge_type == knowledge_type
             )
-            and ranges_in_scope.is_range_in_scope(sr.range),
+            and ranges_in_scope.is_range_in_scope(m.range),
         )
     return await semantic_ref_index.lookup_term(term.text)
 

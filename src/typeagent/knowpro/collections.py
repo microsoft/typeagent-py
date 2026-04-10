@@ -331,13 +331,17 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         self,
         semantic_refs: ISemanticRefCollection,
     ) -> dict[KnowledgeType, "SemanticRefAccumulator"]:
+        matches = list(self)
+        if not matches:
+            return {}
+        ordinals = [match.value for match in matches]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
-        for match in self:
-            semantic_ref = await semantic_refs.get_item(match.value)
-            group = groups.get(semantic_ref.knowledge.knowledge_type)
+        for match, m in zip(matches, metadata):
+            group = groups.get(m.knowledge_type)
             if group is None:
                 group = SemanticRefAccumulator(self.search_term_matches)
-                groups[semantic_ref.knowledge.knowledge_type] = group
+                groups[m.knowledge_type] = group
             group.set_match(match)
         return groups
 
@@ -346,11 +350,14 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         semantic_refs: ISemanticRefCollection,
         ranges_in_scope: "TextRangesInScope",
     ) -> "SemanticRefAccumulator":
+        matches = list(self)
+        if not matches:
+            return SemanticRefAccumulator(self.search_term_matches)
+        ordinals = [match.value for match in matches]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
         accumulator = SemanticRefAccumulator(self.search_term_matches)
-        for match in self:
-            if ranges_in_scope.is_range_in_scope(
-                (await semantic_refs.get_item(match.value)).range
-            ):
+        for match, m in zip(matches, metadata):
+            if ranges_in_scope.is_range_in_scope(m.range):
                 accumulator.set_match(match)
         return accumulator
 
@@ -519,12 +526,16 @@ class TextRangeCollection(Iterable[TextRange]):
                 self.add_range(text_range)
 
     def contains_range(self, inner_range: TextRange) -> bool:
-        # Since ranges are sorted by start, once we pass inner_range's start
-        # no further range can contain it.
-        for outer_range in self._ranges:
-            if outer_range.start > inner_range.start:
-                break
-            if inner_range in outer_range:
+        if not self._ranges:
+            return False
+        # Bisect on start only to find all ranges with start <= inner.start,
+        # then scan backwards — the most likely containing range has the
+        # largest start still <= inner's.
+        hi = bisect.bisect_right(
+            self._ranges, inner_range.start, key=lambda r: r.start
+        )
+        for i in range(hi - 1, -1, -1):
+            if inner_range in self._ranges[i]:
                 return True
         return False
 

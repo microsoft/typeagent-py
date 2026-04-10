@@ -3,6 +3,7 @@
 
 """SQLite-based property index implementation."""
 
+from collections.abc import Sequence
 import sqlite3
 
 from ...knowpro import interfaces
@@ -65,6 +66,43 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             VALUES (?, ?, ?, ?)
             """,
             (property_name, value, score, semref_id),
+        )
+
+    async def add_properties_batch(
+        self,
+        properties: Sequence[
+            tuple[
+                str,
+                str,
+                interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal,
+            ]
+        ],
+    ) -> None:
+        if not properties:
+            return
+        from ...storage.memory.propindex import (
+            make_property_term_text,
+            split_property_term_text,
+        )
+
+        rows = []
+        for property_name, value, ordinal in properties:
+            if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):
+                semref_id = ordinal.semantic_ref_ordinal
+                score = ordinal.score
+            else:
+                semref_id = ordinal
+                score = 1.0
+            term_text = make_property_term_text(property_name, value)
+            term_text = term_text.lower()
+            property_name, value = split_property_term_text(term_text)
+            if property_name.startswith("prop."):
+                property_name = property_name[5:]
+            rows.append((property_name, value, score, semref_id))
+        cursor = self.db.cursor()
+        cursor.executemany(
+            "INSERT INTO PropertyIndex (prop_name, value_str, score, semref_id) VALUES (?, ?, ?, ?)",
+            rows,
         )
 
     async def clear(self) -> None:

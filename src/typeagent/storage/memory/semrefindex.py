@@ -3,11 +3,13 @@
 
 from __future__ import annotations  # TODO: Avoid
 
-from collections.abc import AsyncIterable, Callable
+from collections.abc import AsyncIterable, Callable, Sequence
 
 from typechat import Failure
 
-from ...knowpro import convknowledge, knowledge_schema as kplib, secindex
+from ...knowpro import convknowledge
+from ...knowpro import knowledge_schema as kplib
+from ...knowpro import secindex
 from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
 from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
@@ -577,6 +579,48 @@ async def add_metadata_to_index[TMessage: IMessage](
         i += 1
 
 
+def collect_facet_terms(facet: kplib.Facet | None) -> list[str]:
+    """Collect terms from a facet without touching any index."""
+    if facet is None:
+        return []
+    terms = [facet.name]
+    if facet.value is not None:
+        terms.append(str(facet.value))
+    return terms
+
+
+def collect_entity_terms(entity: kplib.ConcreteEntity) -> list[str]:
+    """Collect all terms an entity would add to the semantic ref index."""
+    terms = [entity.name]
+    for t in entity.type:
+        terms.append(t)
+    if entity.facets:
+        for facet in entity.facets:
+            terms.extend(collect_facet_terms(facet))
+    return terms
+
+
+def collect_action_terms(action: kplib.Action) -> list[str]:
+    """Collect all terms an action would add to the semantic ref index."""
+    terms = [" ".join(action.verbs)]
+    if action.subject_entity_name != "none":
+        terms.append(action.subject_entity_name)
+    if action.object_entity_name != "none":
+        terms.append(action.object_entity_name)
+    if action.indirect_object_entity_name != "none":
+        terms.append(action.indirect_object_entity_name)
+    if action.params:
+        for param in action.params:
+            if isinstance(param, str):
+                terms.append(param)
+            else:
+                terms.append(param.name)
+                if isinstance(param.value, str):
+                    terms.append(param.value)
+    terms.extend(collect_facet_terms(action.subject_entity_facet))
+    return terms
+
+
 async def add_metadata_to_index_from_list[TMessage: IMessage](
     messages: list[TMessage],
     semantic_refs: ISemanticRefCollection,
@@ -585,18 +629,50 @@ async def add_metadata_to_index_from_list[TMessage: IMessage](
     knowledge_validator: KnowledgeValidator | None = None,
 ) -> None:
     """Extract metadata knowledge from a list of messages starting at ordinal."""
+    next_ordinal = await semantic_refs.size()
+    collected_refs: list[SemanticRef] = []
+    collected_terms: list[tuple[str, SemanticRefOrdinal]] = []
+
     for i, msg in enumerate(messages, start_from_ordinal):
         knowledge_response = msg.get_knowledge()
         for entity in knowledge_response.entities:
             if knowledge_validator is None or knowledge_validator("entity", entity):
-                await add_entity_to_index(entity, semantic_refs, semantic_ref_index, i)
+                ref = SemanticRef(
+                    semantic_ref_ordinal=next_ordinal,
+                    range=text_range_from_location(i),
+                    knowledge=entity,
+                )
+                collected_refs.append(ref)
+                for term in collect_entity_terms(entity):
+                    collected_terms.append((term, next_ordinal))
+                next_ordinal += 1
         for action in knowledge_response.actions:
             if knowledge_validator is None or knowledge_validator("action", action):
-                await add_action_to_index(action, semantic_refs, semantic_ref_index, i)
+                ref = SemanticRef(
+                    semantic_ref_ordinal=next_ordinal,
+                    range=text_range_from_location(i),
+                    knowledge=action,
+                )
+                collected_refs.append(ref)
+                for term in collect_action_terms(action):
+                    collected_terms.append((term, next_ordinal))
+                next_ordinal += 1
         for topic_response in knowledge_response.topics:
             topic = Topic(text=topic_response)
             if knowledge_validator is None or knowledge_validator("topic", topic):
-                await add_topic_to_index(topic, semantic_refs, semantic_ref_index, i)
+                ref = SemanticRef(
+                    semantic_ref_ordinal=next_ordinal,
+                    range=text_range_from_location(i),
+                    knowledge=topic,
+                )
+                collected_refs.append(ref)
+                collected_terms.append((topic.text, next_ordinal))
+                next_ordinal += 1
+
+    if collected_refs:
+        await semantic_refs.extend(collected_refs)
+    if collected_terms:
+        await semantic_ref_index.add_terms_batch(collected_terms)
 
 
 class TermToSemanticRefIndex(ITermToSemanticRefIndex):
@@ -634,6 +710,13 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
         else:
             self._map[term] = [semantic_ref_ordinal]
         return term
+
+    async def add_terms_batch(
+        self,
+        terms: Sequence[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+    ) -> None:
+        for term, ordinal in terms:
+            await self.add_term(term, ordinal)
 
     async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
         return self._map.get(self._prepare_term(term)) or []

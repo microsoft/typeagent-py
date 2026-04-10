@@ -58,6 +58,9 @@ Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README
 [tool.uv.build-backend]
 module-root = "src"
 
+[tool.uv.sources]
+pytest-async-benchmark = { git = "https://github.com/KRRT7/pytest-async-benchmark.git", rev = "feat/pedantic-mode" }
+
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
@@ -91,6 +94,7 @@ dev = [
   "opentelemetry-instrumentation-httpx>=0.57b0",
   "pyright>=1.1.408",  # 407 has a regression
   "pytest>=8.3.5",
+  "pytest-async-benchmark",
   "pytest-asyncio>=0.26.0",
   "pytest-mock>=3.14.0",
 ]
