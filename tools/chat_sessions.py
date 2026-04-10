@@ -49,6 +49,50 @@ def visible_len(text: str) -> int:
     return len(ANSI_ESCAPE.sub("", text))
 
 
+def highlight_query(text: str, query: str) -> str:
+    """Highlight all occurrences of query in text (case-insensitive)."""
+    if not use_color:
+        return text
+    # Replace all occurrences of query with highlighted version (case-insensitive)
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    highlighted = pattern.sub(
+        lambda m: f"{Fore.RED}{m.group()}{Style.RESET_ALL}",
+        text,
+    )
+    return highlighted
+
+
+def clip_to_visible_length(text: str, target_length: int) -> str:
+    """Clip text to a target visible length, accounting for ANSI escape codes.
+
+    Splits the string into ANSI-code tokens and plain-character tokens, then
+    reconstructs from the left until the visible character count reaches the
+    target.  This avoids splitting in the middle of an escape sequence.
+    """
+    # Tokenize: alternate between non-ANSI runs and ANSI sequences
+    tokens = ANSI_ESCAPE.split(text)
+    ansi_codes = ANSI_ESCAPE.findall(text)
+
+    result = []
+    visible = 0
+    # Interleave: tokens[0], ansi_codes[0], tokens[1], ansi_codes[1], ...
+    for i, plain in enumerate(tokens):
+        remaining = target_length - visible
+        if len(plain) <= remaining:
+            result.append(plain)
+            visible += len(plain)
+        else:
+            result.append(plain[:remaining])
+            visible += remaining
+            # Consume any pending ANSI codes to reset state, then stop
+            if i < len(ansi_codes):
+                result.append(ansi_codes[i])
+            break
+        if i < len(ansi_codes):
+            result.append(ansi_codes[i])  # ANSI codes don't count as visible
+    return "".join(result)
+
+
 def should_use_color(args: argparse.Namespace | None = None) -> bool:
     """Determine if color should be used based on args and environment."""
     # Check explicit command-line flags first
@@ -351,7 +395,7 @@ def list_sessions(
         title = s.get("title")
         first_msg = ""
         if reqs:
-            first_msg = reqs[0].get("user", "")[:80]
+            first_msg = reqs[0].get("user", "")
         label = title or first_msg or "(empty)"
         # Remove newlines to prevent formatting issues
         label = label.replace("\n", " ").replace("\r", "")
@@ -370,9 +414,7 @@ def list_sessions(
             line = f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}"
         # Clip to terminal width (use visible length to account for ANSI codes)
         if visible_len(line) > width:
-            # Remove characters from the end until we're under the width limit
-            while visible_len(line) > width - 1:
-                line = line[:-1]
+            line = clip_to_visible_length(line, width - 1)
         print(line)
 
 
@@ -491,20 +533,36 @@ def search_sessions(
                 workspace = s.get("workspace", "?")
                 line1 = f"\n  [{date_str}] ({workspace}) {title}"
                 if visible_len(line1) > width:
-                    # Remove characters from the end until we're under the width limit
-                    while visible_len(line1) > width - 1:
-                        line1 = line1[:-1]
+                    line1 = clip_to_visible_length(line1, width - 1)
                 print(line1)
                 print(f"  Session #{i + 1}")
                 # Show the matching message snippet
                 for text, label in [(user, "YOU"), (assistant, "COPILOT")]:
                     idx = text.lower().find(query_lower)
                     if idx >= 0:
-                        start = max(0, idx - 40)
-                        end = min(len(text), idx + len(query) + 40)
+                        # Extract enough to fill the line width around the match
+                        # Account for prefix length to leave room for: "    YOU/COPILOT: "
+                        prefix_len = len("    YOU: ")  # rough estimate
+                        available = max(
+                            40, width - prefix_len - 10
+                        )  # -10 for ANSI codes
+                        half_avail = available // 2
+                        start = max(0, idx - half_avail)
+                        end = min(len(text), idx + len(query) + half_avail)
+                        # Redistribute unused budget when one side hits a boundary
+                        if start == 0 and end < len(text):
+                            end = min(len(text), end + (half_avail - idx))
+                        elif end == len(text) and start > 0:
+                            start = max(
+                                0, start - (half_avail - (len(text) - idx - len(query)))
+                            )
                         snippet = text[start:end].replace("\n", " ")
                         has_start_ellipsis = start > 0
                         has_end_ellipsis = end < len(text)
+
+                        # Highlight the query in the snippet
+                        snippet = highlight_query(snippet, query)
+
                         if has_start_ellipsis:
                             snippet = "..." + snippet
                         if has_end_ellipsis:
@@ -516,10 +574,9 @@ def search_sessions(
                             prefix = f"    {label}: "
 
                         line2 = prefix + snippet
-                        # If line is too long, clip using visible length
+                        # Clip to terminal width using visible length, preserving trailing "..."
                         if visible_len(line2) > width:
-                            while visible_len(line2) > width - 1:
-                                line2 = line2[:-1]
+                            line2 = clip_to_visible_length(line2, width - 4) + "..."
                         print(line2)
                 hits += 1
     if hits == 0:
@@ -663,9 +720,9 @@ def main() -> None:
     use_pager = not args.no_pager
     ctx = smart_pager(pager_cmd) if use_pager else contextlib.nullcontext()
 
-    # Get terminal width for clipping list/search output only if stdout is a TTY
-    # (smart_pager will skip paging if output isn't going to terminal anyway)
-    term_width = get_terminal_width() if (use_pager and sys.stdout.isatty()) else None
+    # Always get terminal width for reasonable snippet extraction and display
+    # Only used for clipping if stdout is a TTY or using pager
+    term_width = get_terminal_width()
 
     with ctx:
         if args.search:
