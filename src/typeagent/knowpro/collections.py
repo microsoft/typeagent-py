@@ -526,12 +526,16 @@ class TextRangeCollection(Iterable[TextRange]):
                 self.add_range(text_range)
 
     def contains_range(self, inner_range: TextRange) -> bool:
-        # Since ranges are sorted by start, once we pass inner_range's start
-        # no further range can contain it.
-        for outer_range in self._ranges:
-            if outer_range.start > inner_range.start:
-                break
-            if inner_range in outer_range:
+        if not self._ranges:
+            return False
+        # Bisect on start only to find all ranges with start <= inner.start,
+        # then scan backwards — the most likely containing range has the
+        # largest start still <= inner's.
+        hi = bisect.bisect_right(
+            self._ranges, inner_range.start, key=lambda r: r.start
+        )
+        for i in range(hi - 1, -1, -1):
+            if inner_range in self._ranges[i]:
                 return True
         return False
 

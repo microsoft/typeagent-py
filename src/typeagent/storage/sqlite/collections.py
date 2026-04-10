@@ -356,14 +356,33 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         )
         rows = cursor.fetchall()
         rowdict = {r[0]: r for r in rows}
-        return [
-            interfaces.SemanticRefMetadata(
-                ordinal=rowdict[o][0],
-                range=interfaces.TextRange.deserialize(json.loads(rowdict[o][1])),
-                knowledge_type=rowdict[o][2],
+        result = []
+        for o in ordinals:
+            row = rowdict[o]
+            range_data = json.loads(row[1])
+            start = range_data["start"]
+            end_data = range_data.get("end")
+            result.append(
+                interfaces.SemanticRefMetadata(
+                    ordinal=row[0],
+                    range=interfaces.TextRange(
+                        start=interfaces.TextLocation(
+                            start["messageOrdinal"],
+                            start.get("chunkOrdinal", 0),
+                        ),
+                        end=(
+                            interfaces.TextLocation(
+                                end_data["messageOrdinal"],
+                                end_data.get("chunkOrdinal", 0),
+                            )
+                            if end_data
+                            else None
+                        ),
+                    ),
+                    knowledge_type=row[2],
+                )
             )
-            for o in ordinals
-        ]
+        return result
 
     async def append(self, item: interfaces.SemanticRef) -> None:
         cursor = self.db.cursor()

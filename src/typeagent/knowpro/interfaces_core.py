@@ -255,32 +255,24 @@ class TextRange:
         else:
             return f"{self.__class__.__name__}({self.start}, {self.end})"
 
+    @staticmethod
+    def _effective_end(tr: "TextRange") -> tuple[int, int]:
+        """Return (message_ordinal, chunk_ordinal) for the effective end."""
+        if tr.end is not None:
+            return (tr.end.message_ordinal, tr.end.chunk_ordinal)
+        return (tr.start.message_ordinal, tr.start.chunk_ordinal + 1)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TextRange):
             return NotImplemented
-
         if self.start != other.start:
             return False
-
-        # Get the effective end for both ranges
-        self_end = self.end or TextLocation(
-            self.start.message_ordinal, self.start.chunk_ordinal + 1
-        )
-        other_end = other.end or TextLocation(
-            other.start.message_ordinal, other.start.chunk_ordinal + 1
-        )
-        return self_end == other_end
+        return TextRange._effective_end(self) == TextRange._effective_end(other)
 
     def __lt__(self, other: Self) -> bool:
         if self.start != other.start:
             return self.start < other.start
-        self_end = self.end or TextLocation(
-            self.start.message_ordinal, self.start.chunk_ordinal + 1
-        )
-        other_end = other.end or TextLocation(
-            other.start.message_ordinal, other.start.chunk_ordinal + 1
-        )
-        return self_end < other_end
+        return TextRange._effective_end(self) < TextRange._effective_end(other)
 
     def __gt__(self, other: Self) -> bool:
         return other.__lt__(self)
@@ -292,13 +284,9 @@ class TextRange:
         return not other.__lt__(self)
 
     def __contains__(self, other: Self) -> bool:
-        other_end = other.end or TextLocation(
-            other.start.message_ordinal, other.start.chunk_ordinal + 1
-        )
-        self_end = self.end or TextLocation(
-            self.start.message_ordinal, self.start.chunk_ordinal + 1
-        )
-        return self.start <= other.start and other_end <= self_end
+        if not (self.start <= other.start):
+            return False
+        return TextRange._effective_end(other) <= TextRange._effective_end(self)
 
     def serialize(self) -> TextRangeData:
         return self.__pydantic_serializer__.to_python(  # type: ignore
