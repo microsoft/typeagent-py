@@ -577,7 +577,7 @@ async def add_metadata_to_index[TMessage: IMessage](
         i += 1
 
 
-def _collect_facet_terms(facet: kplib.Facet | None) -> list[str]:
+def collect_facet_terms(facet: kplib.Facet | None) -> list[str]:
     """Collect terms from a facet without touching any index."""
     if facet is None:
         return []
@@ -587,18 +587,18 @@ def _collect_facet_terms(facet: kplib.Facet | None) -> list[str]:
     return terms
 
 
-def _collect_entity_terms(entity: kplib.ConcreteEntity) -> list[str]:
+def collect_entity_terms(entity: kplib.ConcreteEntity) -> list[str]:
     """Collect all terms an entity would add to the semantic ref index."""
     terms = [entity.name]
     for t in entity.type:
         terms.append(t)
     if entity.facets:
         for facet in entity.facets:
-            terms.extend(_collect_facet_terms(facet))
+            terms.extend(collect_facet_terms(facet))
     return terms
 
 
-def _collect_action_terms(action: kplib.Action) -> list[str]:
+def collect_action_terms(action: kplib.Action) -> list[str]:
     """Collect all terms an action would add to the semantic ref index."""
     terms = [" ".join(action.verbs)]
     if action.subject_entity_name != "none":
@@ -615,7 +615,7 @@ def _collect_action_terms(action: kplib.Action) -> list[str]:
                 terms.append(param.name)
                 if isinstance(param.value, str):
                     terms.append(param.value)
-    terms.extend(_collect_facet_terms(action.subject_entity_facet))
+    terms.extend(collect_facet_terms(action.subject_entity_facet))
     return terms
 
 
@@ -641,7 +641,7 @@ async def add_metadata_to_index_from_list[TMessage: IMessage](
                     knowledge=entity,
                 )
                 collected_refs.append(ref)
-                for term in _collect_entity_terms(entity):
+                for term in collect_entity_terms(entity):
                     collected_terms.append((term, next_ordinal))
                 next_ordinal += 1
         for action in knowledge_response.actions:
@@ -652,7 +652,7 @@ async def add_metadata_to_index_from_list[TMessage: IMessage](
                     knowledge=action,
                 )
                 collected_refs.append(ref)
-                for term in _collect_action_terms(action):
+                for term in collect_action_terms(action):
                     collected_terms.append((term, next_ordinal))
                 next_ordinal += 1
         for topic_response in knowledge_response.topics:
