@@ -109,7 +109,7 @@ async def build_property_index(conversation: IConversation) -> None:
     await add_to_property_index(conversation, 0)
 
 
-def _collect_facet_properties(
+def collect_facet_properties(
     facet: kplib.Facet | None,
     ordinal: SemanticRefOrdinal,
 ) -> list[tuple[str, str, SemanticRefOrdinal]]:
@@ -127,7 +127,7 @@ def _collect_facet_properties(
     return props
 
 
-def _collect_entity_properties(
+def collect_entity_properties(
     entity: kplib.ConcreteEntity,
     ordinal: SemanticRefOrdinal,
 ) -> list[tuple[str, str, SemanticRefOrdinal]]:
@@ -139,11 +139,11 @@ def _collect_entity_properties(
         props.append((PropertyNames.EntityType.value, t, ordinal))
     if entity.facets:
         for facet in entity.facets:
-            props.extend(_collect_facet_properties(facet, ordinal))
+            props.extend(collect_facet_properties(facet, ordinal))
     return props
 
 
-def _collect_action_properties(
+def collect_action_properties(
     action: kplib.Action,
     ordinal: SemanticRefOrdinal,
 ) -> list[tuple[str, str, SemanticRefOrdinal]]:
@@ -186,11 +186,11 @@ async def add_to_property_index(
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
             if isinstance(semantic_ref.knowledge, kplib.Action):
                 collected.extend(
-                    _collect_action_properties(semantic_ref.knowledge, semantic_ref_ordinal)
+                    collect_action_properties(semantic_ref.knowledge, semantic_ref_ordinal)
                 )
             elif isinstance(semantic_ref.knowledge, kplib.ConcreteEntity):
                 collected.extend(
-                    _collect_entity_properties(semantic_ref.knowledge, semantic_ref_ordinal)
+                    collect_entity_properties(semantic_ref.knowledge, semantic_ref_ordinal)
                 )
             elif isinstance(semantic_ref.knowledge, Tag):
                 collected.append(
