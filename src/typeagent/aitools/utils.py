@@ -197,7 +197,11 @@ def parse_azure_endpoint(
             f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
         )
 
-    return azure_endpoint, m.group(1)
+    # Strip query string — AsyncAzureOpenAI expects a clean base URL and
+    # receives api_version as a separate parameter.
+    clean_endpoint = azure_endpoint.split("?", 1)[0]
+
+    return clean_endpoint, m.group(1)
 
 
 def get_azure_api_key(azure_api_key: str) -> str:
