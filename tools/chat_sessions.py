@@ -28,7 +28,6 @@ import struct
 import subprocess
 import sys
 import termios
-import textwrap
 from typing import Any
 
 from colorama import Fore, init, Style
@@ -413,11 +412,13 @@ def show_session(session: SessionInfo) -> None:
             print(f"\n{Fore.CYAN}YOU{Style.RESET_ALL}: {user_text}")
 
             if thinking:
-                wrapped = textwrap.fill(
-                    thinking, width=70, initial_indent="  ", subsequent_indent="  "
-                )
+                # Preserve paragraph structure while indenting
+                lines = thinking.split("\n")
+                indented_lines = ["  " + line for line in lines]
                 print(
-                    f"\n{Fore.MAGENTA}<thinking>{Style.RESET_ALL}\n{wrapped}\n{Fore.MAGENTA}</thinking>{Style.RESET_ALL}"
+                    f"\n{Fore.MAGENTA}<thinking>{Style.RESET_ALL}\n"
+                    + "\n".join(indented_lines)
+                    + f"\n{Fore.MAGENTA}</thinking>{Style.RESET_ALL}"
                 )
 
             if tools:
@@ -440,10 +441,10 @@ def show_session(session: SessionInfo) -> None:
             print(f"\nYOU: {user_text}")
 
             if thinking:
-                wrapped = textwrap.fill(
-                    thinking, width=70, initial_indent="  ", subsequent_indent="  "
-                )
-                print(f"\n<thinking>\n{wrapped}\n</thinking>")
+                # Preserve paragraph structure while indenting
+                lines = thinking.split("\n")
+                indented_lines = ["  " + line for line in lines]
+                print(f"\n<thinking>\n" + "\n".join(indented_lines) + "\n</thinking>")
 
             if tools:
                 for tool_cmd in tools:
