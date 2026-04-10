@@ -67,7 +67,7 @@ class TestParseAzureEndpoint:
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert version == "2025-01-01-preview"
-        assert endpoint.startswith("https://")
+        assert endpoint == "https://myhost.openai.azure.com/openai/deployments/gpt-4"
 
     def test_api_version_after_ampersand(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """api-version preceded by & (not the first query parameter)."""
@@ -83,6 +83,44 @@ class TestParseAzureEndpoint:
         monkeypatch.delenv("NONEXISTENT_ENDPOINT", raising=False)
         with pytest.raises(RuntimeError, match="not found"):
             utils.parse_azure_endpoint("NONEXISTENT_ENDPOINT")
+
+    def test_query_string_stripped_from_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Returned endpoint should not contain query string parameters."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com?api-version=2024-06-01",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert version == "2024-06-01"
+
+    def test_query_string_stripped_with_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Query string stripped even when endpoint includes a path."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4?api-version=2025-01-01-preview",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://myhost.openai.azure.com/openai/deployments/gpt-4"
+        assert "?" not in endpoint
+        assert version == "2025-01-01-preview"
+
+    def test_query_string_stripped_multiple_params(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """All query parameters stripped, not just api-version."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com?foo=bar&api-version=2024-06-01",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert "foo" not in endpoint
+        assert version == "2024-06-01"
 
     def test_no_api_version_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """RuntimeError when the endpoint has no api-version field."""
