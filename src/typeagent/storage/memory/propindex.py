@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Sequence
 import enum
 from typing import assert_never
 
@@ -156,7 +157,13 @@ def collect_action_properties(
     if action.object_entity_name != "none":
         props.append((PropertyNames.Object.value, action.object_entity_name, ordinal))
     if action.indirect_object_entity_name != "none":
-        props.append((PropertyNames.IndirectObject.value, action.indirect_object_entity_name, ordinal))
+        props.append(
+            (
+                PropertyNames.IndirectObject.value,
+                action.indirect_object_entity_name,
+                ordinal,
+            )
+        )
     return props
 
 
@@ -186,15 +193,23 @@ async def add_to_property_index(
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
             if isinstance(semantic_ref.knowledge, kplib.Action):
                 collected.extend(
-                    collect_action_properties(semantic_ref.knowledge, semantic_ref_ordinal)
+                    collect_action_properties(
+                        semantic_ref.knowledge, semantic_ref_ordinal
+                    )
                 )
             elif isinstance(semantic_ref.knowledge, kplib.ConcreteEntity):
                 collected.extend(
-                    collect_entity_properties(semantic_ref.knowledge, semantic_ref_ordinal)
+                    collect_entity_properties(
+                        semantic_ref.knowledge, semantic_ref_ordinal
+                    )
                 )
             elif isinstance(semantic_ref.knowledge, Tag):
                 collected.append(
-                    (PropertyNames.Tag.value, semantic_ref.knowledge.text, semantic_ref_ordinal)
+                    (
+                        PropertyNames.Tag.value,
+                        semantic_ref.knowledge.text,
+                        semantic_ref_ordinal,
+                    )
                 )
             elif isinstance(semantic_ref.knowledge, Topic):
                 pass
@@ -239,7 +254,9 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
 
     async def add_properties_batch(
         self,
-        properties: list[tuple[str, str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+        properties: Sequence[
+            tuple[str, str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]
+        ],
     ) -> None:
         for name, value, ordinal in properties:
             await self.add_property(name, value, ordinal)

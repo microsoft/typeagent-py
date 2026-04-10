@@ -3,6 +3,7 @@
 
 """SQLite-based property index implementation."""
 
+from collections.abc import Sequence
 import sqlite3
 
 from ...knowpro import interfaces
@@ -69,7 +70,13 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
 
     async def add_properties_batch(
         self,
-        properties: list[tuple[str, str, interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal]],
+        properties: Sequence[
+            tuple[
+                str,
+                str,
+                interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal,
+            ]
+        ],
     ) -> None:
         if not properties:
             return
@@ -77,6 +84,7 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             make_property_term_text,
             split_property_term_text,
         )
+
         rows = []
         for property_name, value, ordinal in properties:
             if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):

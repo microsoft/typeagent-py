@@ -61,7 +61,7 @@ class IPropertyToSemanticRefIndex(Protocol):
 
     async def add_properties_batch(
         self,
-        properties: list[tuple[str, str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+        properties: Sequence[tuple[str, str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
     ) -> None: ...
 
     async def lookup_property(

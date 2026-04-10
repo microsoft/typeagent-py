@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime as Datetime
 from typing import (
     Any,
@@ -170,7 +171,7 @@ class ITermToSemanticRefIndex(Protocol):
 
     async def add_terms_batch(
         self,
-        terms: list[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+        terms: Sequence[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
     ) -> None: ...
 
     async def remove_term(

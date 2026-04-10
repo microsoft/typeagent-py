@@ -3,11 +3,13 @@
 
 from __future__ import annotations  # TODO: Avoid
 
-from collections.abc import AsyncIterable, Callable
+from collections.abc import AsyncIterable, Callable, Sequence
 
 from typechat import Failure
 
-from ...knowpro import convknowledge, knowledge_schema as kplib, secindex
+from ...knowpro import convknowledge
+from ...knowpro import knowledge_schema as kplib
+from ...knowpro import secindex
 from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
 from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
@@ -711,7 +713,7 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
 
     async def add_terms_batch(
         self,
-        terms: list[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+        terms: Sequence[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
     ) -> None:
         for term, ordinal in terms:
             await self.add_term(term, ordinal)
