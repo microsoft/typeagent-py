@@ -31,6 +31,7 @@ import termios
 from typing import Any
 
 from colorama import Fore, init, Style
+import re
 
 VSCODE_USER_DIR = Path.home() / "Library" / "Application Support" / "Code" / "User"
 # Linux: Path.home() / ".config" / "Code" / "User"
@@ -38,6 +39,14 @@ VSCODE_USER_DIR = Path.home() / "Library" / "Application Support" / "Code" / "Us
 
 # Color settings
 use_color = True
+
+# Regex to match ANSI escape sequences
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def visible_len(text: str) -> int:
+    """Return the visible length of text, excluding ANSI escape sequences."""
+    return len(ANSI_ESCAPE.sub("", text))
 
 
 def should_use_color(args: argparse.Namespace | None = None) -> bool:
@@ -359,9 +368,11 @@ def list_sessions(
             )
         else:
             line = f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}"
-        # Clip to terminal width
-        if len(line) > width:
-            line = line[: width - 1]
+        # Clip to terminal width (use visible length to account for ANSI codes)
+        if visible_len(line) > width:
+            # Remove characters from the end until we're under the width limit
+            while visible_len(line) > width - 1:
+                line = line[:-1]
         print(line)
 
 
@@ -479,8 +490,10 @@ def search_sessions(
                 date_str = format_timestamp(s.get("creation_date"))
                 workspace = s.get("workspace", "?")
                 line1 = f"\n  [{date_str}] ({workspace}) {title}"
-                if len(line1) > width:
-                    line1 = line1[: width - 1]
+                if visible_len(line1) > width:
+                    # Remove characters from the end until we're under the width limit
+                    while visible_len(line1) > width - 1:
+                        line1 = line1[:-1]
                 print(line1)
                 print(f"  Session #{i + 1}")
                 # Show the matching message snippet
@@ -503,17 +516,10 @@ def search_sessions(
                             prefix = f"    {label}: "
 
                         line2 = prefix + snippet
-                        # If line is too long, clip but ensure "..." stays at the end
-                        if len(line2) > width:
-                            available = width - len(prefix)
-                            if available >= 3 and (
-                                has_start_ellipsis or has_end_ellipsis
-                            ):
-                                # Clip content but keep "..." at the end
-                                line2 = prefix + snippet[: available - 3] + "..."
-                            else:
-                                # No room for ellipsis or no ellipsis needed, just clip
-                                line2 = line2[: width - 1]
+                        # If line is too long, clip using visible length
+                        if visible_len(line2) > width:
+                            while visible_len(line2) > width - 1:
+                                line2 = line2[:-1]
                         print(line2)
                 hits += 1
     if hits == 0:
@@ -657,8 +663,9 @@ def main() -> None:
     use_pager = not args.no_pager
     ctx = smart_pager(pager_cmd) if use_pager else contextlib.nullcontext()
 
-    # Get terminal width for clipping list/search output
-    term_width = get_terminal_width() if use_pager else None
+    # Get terminal width for clipping list/search output only if stdout is a TTY
+    # (smart_pager will skip paging if output isn't going to terminal anyway)
+    term_width = get_terminal_width() if (use_pager and sys.stdout.isatty()) else None
 
     with ctx:
         if args.search:
