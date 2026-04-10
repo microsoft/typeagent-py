@@ -18,13 +18,16 @@ import argparse
 from collections.abc import Iterator
 import contextlib
 import datetime
+import fcntl
 import io
 import json
 import os
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import sys
+import termios
 import textwrap
 from typing import Any
 
@@ -292,13 +295,23 @@ def format_timestamp(ts: int | None) -> str:
     return dt.strftime("%Y-%m-%d %H:%M")
 
 
+def get_terminal_width() -> int:
+    """Get terminal character width using ioctl."""
+    try:
+        return struct.unpack("HHHH", fcntl.ioctl(0, termios.TIOCGWINSZ, b"\0" * 8))[1]
+    except (OSError, struct.error, IOError):
+        return 80  # default fallback
+
+
 def list_sessions(
     sessions: list[SessionInfo],
     limit: int | None = None,
     show_all: bool = False,
+    term_width: int | None = None,
 ) -> None:
     """Print a summary table of sessions."""
     to_show = sessions[:limit] if limit else sessions
+    width = term_width if term_width is not None else 999999
     for i, s in enumerate(to_show):
         reqs = s.get("requests", [])
         n_msgs = len(reqs)
@@ -313,7 +326,11 @@ def list_sessions(
         label = label.replace("\n", " ").replace("\r", "")
         date_str = format_timestamp(s.get("creation_date"))
         workspace = s.get("workspace", "?")
-        print(f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}")
+        line = f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}"
+        # Clip to terminal width
+        if len(line) > width:
+            line = line[:width - 1]
+        print(line)
 
 
 def show_session(session: SessionInfo) -> None:
@@ -372,10 +389,11 @@ def show_session(session: SessionInfo) -> None:
         print()
 
 
-def search_sessions(sessions: list[SessionInfo], query: str) -> None:
+def search_sessions(sessions: list[SessionInfo], query: str, term_width: int | None = None) -> None:
     """Search all sessions for messages containing query text."""
     query_lower = query.lower()
     hits = 0
+    width = term_width if term_width is not None else 999999
     for i, s in enumerate(sessions):
         for req in s.get("requests", []):
             user = req.get("user", "")
@@ -384,7 +402,10 @@ def search_sessions(sessions: list[SessionInfo], query: str) -> None:
                 title = s.get("title") or "(untitled)"
                 date_str = format_timestamp(s.get("creation_date"))
                 workspace = s.get("workspace", "?")
-                print(f"\n  [{date_str}] ({workspace}) {title}")
+                line1 = f"\n  [{date_str}] ({workspace}) {title}"
+                if len(line1) > width:
+                    line1 = line1[:width - 1]
+                print(line1)
                 print(f"  Session #{i + 1}")
                 # Show the matching message snippet
                 for text, label in [(user, "YOU"), (assistant, "COPILOT")]:
@@ -393,11 +414,24 @@ def search_sessions(sessions: list[SessionInfo], query: str) -> None:
                         start = max(0, idx - 40)
                         end = min(len(text), idx + len(query) + 40)
                         snippet = text[start:end].replace("\n", " ")
-                        if start > 0:
+                        has_start_ellipsis = start > 0
+                        has_end_ellipsis = end < len(text)
+                        if has_start_ellipsis:
                             snippet = "..." + snippet
-                        if end < len(text):
+                        if has_end_ellipsis:
                             snippet = snippet + "..."
-                        print(f"    {label}: {snippet}")
+                        prefix = f"    {label}: "
+                        line2 = prefix + snippet
+                        # If line is too long, clip but ensure "..." stays at the end
+                        if len(line2) > width:
+                            available = width - len(prefix)
+                            if available >= 3 and (has_start_ellipsis or has_end_ellipsis):
+                                # Clip content but keep "..." at the end
+                                line2 = prefix + snippet[: available - 3] + "..."
+                            else:
+                                # No room for ellipsis or no ellipsis needed, just clip
+                                line2 = line2[:width - 1]
+                        print(line2)
                 hits += 1
     if hits == 0:
         print(f"No messages found matching '{query}'.")
@@ -524,9 +558,12 @@ def main() -> None:
     use_pager = not args.no_pager
     ctx = smart_pager(pager_cmd) if use_pager else contextlib.nullcontext()
 
+    # Get terminal width for clipping list/search output
+    term_width = get_terminal_width() if use_pager else None
+
     with ctx:
         if args.search:
-            search_sessions(sessions, args.search)
+            search_sessions(sessions, args.search, term_width=term_width)
             return
 
         if args.session:
@@ -551,7 +588,7 @@ def main() -> None:
             print(f"Found {len(sessions)} chat session(s), {n_empty} empty:\n")
         else:
             print(f"Found {len(sessions)} chat session(s):\n")
-        list_sessions(sessions, args.n, show_all=args.all)
+        list_sessions(sessions, args.n, show_all=args.all, term_width=term_width)
         print(f"\nUse: python {sys.argv[0]} <number> to view a session")
 
 
