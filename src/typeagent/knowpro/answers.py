@@ -5,8 +5,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-import black
-
 import typechat
 
 from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMessage
@@ -127,10 +125,12 @@ def create_question_prompt(question: str) -> str:
 
 def create_context_prompt(context: AnswerContext) -> str:
     # TODO: Use a more compact representation of the context than JSON.
+    import pprint
+
     prompt = [
         "[ANSWER CONTEXT]",
         "===",
-        black.format_str(str(dictify(context)), mode=black.Mode(line_length=200)),
+        pprint.pformat(dictify(context), width=200),
         "===",
     ]
     return "\n".join(prompt)
