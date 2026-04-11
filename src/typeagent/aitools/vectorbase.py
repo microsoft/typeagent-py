@@ -13,6 +13,25 @@ from .embeddings import (
 )
 from .model_adapters import create_embedding_model
 
+DEFAULT_MIN_SCORE = 0.25
+
+# Empirical defaults for built-in OpenAI embedding models.
+# These values come from repeated runs of the Adrian Tchaikovsky Episode 53
+# search benchmark in `tools/benchmark_embeddings.py`, with raw outputs stored
+# under `benchmark_results/`.
+# They are intended as repository defaults for known models, not universal
+# truths; callers can always override `min_score` explicitly for their own use
+# cases or models.
+MODEL_DEFAULT_MIN_SCORES: dict[str, float] = {
+    "text-embedding-3-large": 0.25,
+    "text-embedding-3-small": 0.25,
+    "text-embedding-ada-002": 0.25,
+}
+
+
+def get_default_min_score(model_name: str) -> float:
+    return MODEL_DEFAULT_MIN_SCORES.get(model_name, DEFAULT_MIN_SCORE)
+
 
 @dataclass
 class ScoredInt:
@@ -34,10 +53,12 @@ class TextEmbeddingIndexSettings:
         max_matches: int | None = None,
         batch_size: int | None = None,
     ):
-        self.min_score = min_score if min_score is not None else 0.85
-        self.max_matches = max_matches if max_matches and max_matches >= 1 else None
-        self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
         self.embedding_model = embedding_model or create_embedding_model()
+        model_name = getattr(self.embedding_model, "model_name", "")
+        default_min_score = get_default_min_score(model_name)
+        self.min_score = min_score if min_score is not None else default_min_score
+        self.max_matches = max_matches  # None means no limit
+        self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
 
 
 class VectorBase:
@@ -235,7 +256,7 @@ class VectorBase:
             return
         if self._embedding_size == 0:
             if data.ndim < 2 or data.shape[0] == 0:
-                # Empty data — can't determine size; just clear.
+                # Empty data can't determine size; just clear.
                 self.clear()
                 return
             self._set_embedding_size(data.shape[1])
