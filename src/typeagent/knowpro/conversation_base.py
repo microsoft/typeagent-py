@@ -3,19 +3,17 @@
 
 """Base class for conversations with incremental indexing support."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Generic, Self, TypeVar
+from typing import TYPE_CHECKING, Generic, Self, TypeVar
 
 import typechat
 
 from . import (
-    answer_response_schema,
-    answers,
     convknowledge,
     knowledge_schema as kplib,
-    search_query_schema,
-    searchlang,
     secindex,
 )
 from ..aitools import model_adapters, utils
@@ -34,6 +32,9 @@ from .interfaces import (
     MessageOrdinal,
     Topic,
 )
+
+if TYPE_CHECKING:
+    from . import answer_response_schema, answers, search_query_schema, searchlang
 
 TMessage = TypeVar("TMessage", bound=IMessage)
 
@@ -350,6 +351,8 @@ class ConversationBase(
             >>> answer = await conv.query("What topics were discussed?")
             >>> print(answer)
         """
+        from . import answer_response_schema, answers, search_query_schema, searchlang
+
         # Create translators lazily (once per conversation instance)
         if self._query_translator is None:
             model = model_adapters.create_chat_model()
