@@ -251,6 +251,7 @@ def parse_jsonl_metadata(path: Path) -> SessionInfo | None:
         "session_id": path.stem,
         "title": None,
         "creation_date": None,
+        "size": size,
         "requests": [],
     }
 
@@ -315,6 +316,7 @@ def parse_jsonl(path: Path) -> SessionInfo | None:
         "session_id": path.stem,
         "title": None,
         "creation_date": None,
+        "size": path.stat().st_size,
         "requests": [],
     }
 
@@ -458,6 +460,7 @@ def parse_json_metadata(path: Path) -> SessionInfo | None:
         "title": title,
         "creation_date": creation_date,
         "model": "",
+        "size": size,
         "requests": [{"user": first_user}] if has_requests else [],
     }
     return info
@@ -475,6 +478,7 @@ def parse_json(path: Path) -> SessionInfo | None:
         "session_id": data.get("sessionId", path.stem),
         "title": data.get("customTitle"),
         "creation_date": data.get("creationDate"),
+        "size": path.stat().st_size,
         "model": (
             data.get("inputState", {})
             .get("selectedModel", {})
@@ -573,6 +577,7 @@ def load_all_sessions(metadata_only: bool = False) -> list[SessionInfo]:
                         "session_id": session_id,
                         "title": None,
                         "creation_date": None,
+                        "size": 0,
                         "model": "",
                         "requests": [],
                         "workspace": workspace,
@@ -657,16 +662,22 @@ def list_sessions(
         label = label.replace("\n", " ").replace("\r", "")
         date_str = format_timestamp(s.get("creation_date"))
         workspace = s.get("workspace", "?")
+        size_kb = s.get("size", 0) / 1024
+        if size_kb >= 1024:
+            size_str = f"{size_kb / 1024:.1f}M"
+        else:
+            size_str = f"{size_kb:.0f}K"
 
         if use_color:
             # Colorize the session listing
             line = (
                 f"  {Fore.CYAN}{i + 1:3d}{Style.RESET_ALL}. "
                 f"[{Fore.YELLOW}{date_str}{Style.RESET_ALL}] "
-                f"({Fore.MAGENTA}{workspace}{Style.RESET_ALL}) {label}"
+                f"({Fore.MAGENTA}{workspace}{Style.RESET_ALL}) "
+                f"{Fore.GREEN}{size_str:>5}{Style.RESET_ALL} {label}"
             )
         else:
-            line = f"  {i + 1:3d}. [{date_str}] ({workspace}) {label}"
+            line = f"  {i + 1:3d}. [{date_str}] ({workspace}) {size_str:>5} {label}"
         # Clip to terminal width (use visible length to account for ANSI codes)
         if visible_len(line) > width:
             line = clip_to_visible_length(line, width - 1)
