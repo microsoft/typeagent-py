@@ -1,359 +1,267 @@
-#!/usr/bin/env python3
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""
-Utility script to benchmark different TextEmbeddingIndexSettings parameters.
+"""Benchmark retrieval settings for known embedding models.
 
-Uses the Adrian Tchaikovsky podcast dataset (Episode 53) which contains:
-- Index data: ~96 messages from the podcast conversation
-- Search results: Queries with expected messageMatches (ground truth for retrieval)
-- Answer results: Curated Q&A pairs with expected answers (ground truth for Q&A quality)
+This script evaluates the Adrian Tchaikovsky Episode 53 search dataset in
+`tests/testdata/` and reports retrieval quality for combinations of
+`min_score` and `max_hits`.
 
-The benchmark evaluates embedding model retrieval quality using:
-1. Search-based evaluation: Compares fuzzy_lookup results against expected messageMatches
-2. Answer-based evaluation: Tests if queries from the Answer dataset retrieve messages
-   that contain the expected answer content (substring matching)
-
-Metrics:
-- Hit Rate: Percentage of queries where at least one expected result was retrieved
-- MRR (Mean Reciprocal Rank): Average of 1/rank of the first relevant result
+The benchmark is intentionally narrow:
+- It only measures retrieval against `messageMatches` ground truth.
+- It is meant to help choose repository defaults for known models.
+- In practice, `min_score` is the primary library default this informs.
+- It does not prove universal "best" settings for every dataset.
 
 Usage:
-    uv run python tools/benchmark_embeddings.py [--model provider:model]
+    uv run python tools/benchmark_embeddings.py
+    uv run python tools/benchmark_embeddings.py --model openai:text-embedding-3-small
 """
 
 import argparse
 import asyncio
+from dataclasses import dataclass
 import json
-import logging
 from pathlib import Path
 from statistics import mean
-import sys
-from typing import Any
 
+from dotenv import load_dotenv
+
+from typeagent.aitools.embeddings import IEmbeddingModel, NormalizedEmbeddings
 from typeagent.aitools.model_adapters import create_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
+DEFAULT_MIN_SCORES = [0.25, 0.30, 0.35, 0.40, 0.50, 0.60, 0.70, 0.75, 0.80, 0.85]
+DEFAULT_MAX_HITS = [5, 10, 15, 20]
+DATA_DIR = Path("tests") / "testdata"
+INDEX_DATA_PATH = DATA_DIR / "Episode_53_AdrianTchaikovsky_index_data.json"
+SEARCH_RESULTS_PATH = DATA_DIR / "Episode_53_Search_results.json"
 
-async def run_benchmark(model_spec: str | None) -> None:
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
 
-    # Paths
-    script_dir = Path(__file__).resolve().parent
-    repo_root = script_dir.parent
-    index_data_path = repo_root / "tests" / "testdata" / "Episode_53_AdrianTchaikovsky_index_data.json"
-    search_data_path = repo_root / "tests" / "testdata" / "Episode_53_Search_results.json"
-    answer_data_path = repo_root / "tests" / "testdata" / "Episode_53_Answer_results.json"
+@dataclass
+class SearchQueryCase:
+    query: str
+    expected_matches: list[int]
 
-    # ── Load index data (messages to embed) ──
-    logger.info(f"Loading index data from {index_data_path}")
-    try:
-        with open(index_data_path, "r", encoding="utf-8") as f:
-            index_json = json.load(f)
-    except Exception as e:
-        logger.error(f"Failed to load index data: {e}")
-        return
 
-    messages = index_json.get("messages", [])
-    message_texts = [" ".join(m.get("textChunks", [])) for m in messages]
+@dataclass
+class SearchMetrics:
+    hit_rate: float
+    mean_reciprocal_rank: float
 
-    # ── Load search queries (ground truth: messageMatches) ──
-    logger.info(f"Loading search queries from {search_data_path}")
-    try:
-        with open(search_data_path, "r", encoding="utf-8") as f:
-            search_json = json.load(f)
-    except Exception as e:
-        logger.error(f"Failed to load search queries: {e}")
-        return
 
-    # Filter out ones without results or expected matches
-    search_queries: list[tuple[str, list[int]]] = []
-    for item in search_json:
+@dataclass
+class BenchmarkRow:
+    min_score: float
+    max_hits: int
+    metrics: SearchMetrics
+
+
+def parse_float_list(raw: str | None) -> list[float]:
+    if raw is None:
+        return DEFAULT_MIN_SCORES
+    values = [float(item.strip()) for item in raw.split(",") if item.strip()]
+    if not values:
+        raise ValueError("--min-scores must contain at least one value")
+    return values
+
+
+def parse_int_list(raw: str | None) -> list[int]:
+    if raw is None:
+        return DEFAULT_MAX_HITS
+    values = [int(item.strip()) for item in raw.split(",") if item.strip()]
+    if not values:
+        raise ValueError("--max-hits must contain at least one value")
+    if any(value <= 0 for value in values):
+        raise ValueError("--max-hits values must be positive integers")
+    return values
+
+
+def load_message_texts(repo_root: Path) -> list[str]:
+    index_data = json.loads((repo_root / INDEX_DATA_PATH).read_text(encoding="utf-8"))
+    messages = index_data["messages"]
+    return [" ".join(message.get("textChunks", [])) for message in messages]
+
+
+def load_search_queries(repo_root: Path) -> list[SearchQueryCase]:
+    search_data = json.loads(
+        (repo_root / SEARCH_RESULTS_PATH).read_text(encoding="utf-8")
+    )
+    cases: list[SearchQueryCase] = []
+    for item in search_data:
         search_text = item.get("searchText")
         results = item.get("results", [])
-        if not results:
+        if not search_text or not results:
             continue
-        expected = results[0].get("messageMatches", [])
-        if not expected:
+        expected_matches = results[0].get("messageMatches", [])
+        if not expected_matches:
             continue
-        search_queries.append((search_text, expected))
+        cases.append(SearchQueryCase(search_text, expected_matches))
+    return cases
 
-    # ── Load answer results (Q&A ground truth from Adrian Tchaikovsky dataset) ──
-    answer_queries: list[tuple[str, str, bool]] = []  # (question, answer, hasNoAnswer)
-    logger.info(f"Loading answer results from {answer_data_path}")
-    try:
-        with open(answer_data_path, "r", encoding="utf-8") as f:
-            answer_json = json.load(f)
-        for item in answer_json:
-            question = item.get("question", "")
-            answer = item.get("answer", "")
-            has_no_answer = item.get("hasNoAnswer", False)
-            if question and answer:
-                answer_queries.append((question, answer, has_no_answer))
-        logger.info(f"Found {len(answer_queries)} answer Q&A pairs "
-                     f"({sum(1 for _, _, h in answer_queries if not h)} with answers, "
-                     f"{sum(1 for _, _, h in answer_queries if h)} with no-answer).")
-    except Exception as e:
-        logger.warning(f"Failed to load answer results (continuing without): {e}")
 
-    logger.info(f"Found {len(message_texts)} messages to embed.")
-    logger.info(f"Found {len(search_queries)} search queries with expected matches.")
+async def build_vector_base(
+    model_spec: str | None,
+    message_texts: list[str],
+    batch_size: int,
+) -> tuple[IEmbeddingModel, VectorBase]:
+    model = create_embedding_model(model_spec)
+    settings = TextEmbeddingIndexSettings(
+        embedding_model=model,
+        min_score=0.0,
+        max_matches=None,
+        batch_size=batch_size,
+    )
+    vector_base = VectorBase(settings)
 
-    # ── Create embedding model and index ──
-    try:
-        if model_spec == "test:fake":
-            from typeagent.aitools.model_adapters import create_test_embedding_model
-            model = create_test_embedding_model(embedding_size=384)
+    for start in range(0, len(message_texts), batch_size):
+        batch = message_texts[start : start + batch_size]
+        await vector_base.add_keys(batch)
+
+    return model, vector_base
+
+
+def evaluate_search_queries(
+    vector_base: VectorBase,
+    query_cases: list[SearchQueryCase],
+    query_embeddings: NormalizedEmbeddings,
+    min_score: float,
+    max_hits: int,
+) -> SearchMetrics:
+    hit_count = 0
+    reciprocal_ranks: list[float] = []
+
+    for case, query_embedding in zip(query_cases, query_embeddings):
+        scored_results = vector_base.fuzzy_lookup_embedding(
+            query_embedding,
+            max_hits=max_hits,
+            min_score=min_score,
+        )
+        rank = 0
+        for result_index, scored_result in enumerate(scored_results, start=1):
+            if scored_result.item in case.expected_matches:
+                rank = result_index
+                break
+        if rank > 0:
+            hit_count += 1
+            reciprocal_ranks.append(1.0 / rank)
         else:
-            model = create_embedding_model(model_spec)
-    except Exception as e:
-        logger.error(f"Failed to create embedding model: {e}")
-        logger.info("Are your environment variables (e.g. OPENAI_API_KEY) set?")
-        return
-    settings = TextEmbeddingIndexSettings(model)
-    vbase = VectorBase(settings)
+            reciprocal_ranks.append(0.0)
 
-    logger.info("Computing embeddings for messages (this may take some time...)")
-    # Batch the embeddings
-    batch_size = 50
-    for i in range(0, len(message_texts), batch_size):
-        batch = message_texts[i : i + batch_size]
-        await vbase.add_keys(batch)
-        print(f"  ... embedded {min(i + batch_size, len(message_texts))}/{len(message_texts)}")
+    return SearchMetrics(
+        hit_rate=(hit_count / len(query_cases)) * 100,
+        mean_reciprocal_rank=mean(reciprocal_ranks),
+    )
 
-    # ── Compute query embeddings ──
-    logger.info("Computing embeddings for search queries...")
-    search_query_texts = [q[0] for q in search_queries]
-    search_query_embeddings = await model.get_embeddings(search_query_texts)
 
-    answer_query_embeddings = None
-    if answer_queries:
-        logger.info("Computing embeddings for answer queries...")
-        answer_query_texts = [q[0] for q in answer_queries]
-        answer_query_embeddings = await model.get_embeddings(answer_query_texts)
+def select_best_row(rows: list[BenchmarkRow]) -> BenchmarkRow:
+    return max(
+        rows,
+        key=lambda row: (
+            row.metrics.mean_reciprocal_rank,
+            row.metrics.hit_rate,
+            -row.min_score,
+            -row.max_hits,
+        ),
+    )
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Section 1: Grid Search using Search Results (messageMatches)
-    # ──────────────────────────────────────────────────────────────────────
 
-    # Grid search config
-    min_scores_to_test = [0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
-    max_hits_to_test = [5, 10, 15, 20]
-
-    logger.info(f"Starting grid search over model: {model.model_name}")
-    print()
+def print_rows(rows: list[BenchmarkRow]) -> None:
     print("=" * 72)
-    print("  SEARCH RESULTS BENCHMARK (messageMatches ground truth)")
+    print("SEARCH BENCHMARK (Episode 53 messageMatches ground truth)")
     print("=" * 72)
     print(f"{'Min Score':<12} | {'Max Hits':<10} | {'Hit Rate (%)':<15} | {'MRR':<10}")
     print("-" * 65)
-
-    best_mrr = -1.0
-    best_config = None
-
-    for ms in min_scores_to_test:
-        for mh in max_hits_to_test:
-            hits = 0
-            reciprocal_ranks = []
-            
-            for (query_text, expected_indices), q_emb in zip(search_queries, search_query_embeddings):
-                scored_results = vbase.fuzzy_lookup_embedding(q_emb, max_hits=mh, min_score=ms)
-                retrieved_indices = [sr.item for sr in scored_results]
-
-                # Check if any of the expected items are in the retrieved answers
-                rank = -1
-                for r_idx, retrieved in enumerate(retrieved_indices):
-                    if retrieved in expected_indices:
-                        rank = r_idx + 1
-                        break
-
-                if rank > 0:
-                    hits += 1
-                    reciprocal_ranks.append(1.0 / rank)
-                else:
-                    reciprocal_ranks.append(0.0)
-
-            hit_rate = (hits / len(search_queries)) * 100
-            mrr = mean(reciprocal_ranks)
-            
-            print(f"{ms:<12.2f} | {mh:<10d} | {hit_rate:<15.2f} | {mrr:<10.4f}")
-
-            if mrr > best_mrr:
-                best_mrr = mrr
-                best_config = (ms, mh)
-
+    for row in rows:
+        print(
+            f"{row.min_score:<12.2f} | {row.max_hits:<10d} | "
+            f"{row.metrics.hit_rate:<15.2f} | "
+            f"{row.metrics.mean_reciprocal_rank:<10.4f}"
+        )
     print("-" * 65)
-    if best_config:
-        logger.info(f"Search benchmark optimal: min_score={best_config[0]}, "
-                     f"max_hits={best_config[1]} (MRR={best_mrr:.4f})")
-    else:
-        logger.info("Could not determine optimal parameters (no hits).")
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Section 2: Answer Results Benchmark (Adrian Tchaikovsky Q&A pairs)
-    # ──────────────────────────────────────────────────────────────────────
 
-    if answer_queries and answer_query_embeddings is not None:
-        print()
-        print("=" * 72)
-        print("  ANSWER RESULTS BENCHMARK (Adrian Tchaikovsky Q&A ground truth)")
-        print("=" * 72)
-        print()
+async def run_benchmark(
+    model_spec: str | None,
+    min_scores: list[float],
+    max_hits_values: list[int],
+    batch_size: int,
+) -> None:
+    load_dotenv()
 
-        # For each answer query, check if retrieved messages contain key terms
-        # from the expected answer. This is a content-based relevance check.
-        #
-        # We split answers with hasNoAnswer=True vs False to evaluate separately.
+    repo_root = Path(__file__).resolve().parent.parent
+    message_texts = load_message_texts(repo_root)
+    query_cases = load_search_queries(repo_root)
+    if not query_cases:
+        raise ValueError("No search queries with messageMatches found in the dataset")
+    model, vector_base = await build_vector_base(model_spec, message_texts, batch_size)
+    query_embeddings = await model.get_embeddings([case.query for case in query_cases])
 
-        answerable = [(q, a, emb) for (q, a, h), emb
-                       in zip(answer_queries, answer_query_embeddings) if not h]
-        unanswerable = [(q, a, emb) for (q, a, h), emb
-                         in zip(answer_queries, answer_query_embeddings) if h]
-
-        print(f"Answerable queries: {len(answerable)}")
-        print(f"Unanswerable queries (hasNoAnswer=True): {len(unanswerable)}")
-        print()
-
-        # Extract key terms from expected answers for content matching
-        def extract_answer_keywords(answer_text: str) -> list[str]:
-            """Extract distinctive keywords/phrases from an answer for matching."""
-            # Look for quoted items, proper nouns, and distinctive phrases
-            keywords = []
-            # Extract quoted phrases
-            import re
-            quoted = re.findall(r"'([^']+)'", answer_text)
-            keywords.extend(quoted)
-            quoted2 = re.findall(r'"([^"]+)"', answer_text)
-            keywords.extend(quoted2)
-
-            # Extract proper-noun-like terms (capitalized words that aren't sentence starters)
-            # and key named entities from the Adrian Tchaikovsky dataset
-            known_entities = [
-                "Adrian Tchaikovsky", "Tchaikovsky", "Kevin Scott", "Christina Warren",
-                "Children of Time", "Children of Ruin", "Children of Memory",
-                "Shadows of the Apt", "Empire in Black and Gold",
-                "Final Architecture", "Lords of Uncreation",
-                "Dragonlance Chronicles", "Skynet", "Portids", "Corvids",
-                "University of Reading", "Magnus Carlsen", "Warhammer",
-                "Asimov", "Peter Watts", "William Gibson", "Iain Banks",
-                "Peter Hamilton", "Arthur C. Clarke", "Profiles of the Future",
-                "Dune", "Brave New World", "Iron Sunrise", "Wall-E",
-                "George RR Martin", "Alastair Reynolds", "Ovid",
-                "zoology", "psychology", "spiders", "arachnids", "insects",
-            ]
-            for entity in known_entities:
-                if entity.lower() in answer_text.lower():
-                    keywords.append(entity)
-
-            return keywords
-
-        # Run answer benchmark with the best config from search benchmark
-        if best_config:
-            eval_min_score, eval_max_hits = best_config
-        else:
-            eval_min_score, eval_max_hits = 0.80, 10
-
-        print(f"Using parameters: min_score={eval_min_score}, max_hits={eval_max_hits}")
-        print("-" * 72)
-        print(f"{'#':<4} | {'Question':<45} | {'Keywords Found':<14} | {'Msgs':<5}")
-        print("-" * 72)
-
-        answer_hits = 0
-        answer_keyword_scores: list[float] = []
-
-        for idx, (question, answer, q_emb) in enumerate(answerable, 1):
-            scored_results = vbase.fuzzy_lookup_embedding(
-                q_emb, max_hits=eval_max_hits, min_score=eval_min_score
+    rows: list[BenchmarkRow] = []
+    for min_score in min_scores:
+        for max_hits in max_hits_values:
+            metrics = evaluate_search_queries(
+                vector_base,
+                query_cases,
+                query_embeddings,
+                min_score,
+                max_hits,
             )
-            retrieved_indices = [sr.item for sr in scored_results]
+            rows.append(BenchmarkRow(min_score, max_hits, metrics))
 
-            # Concatenate the text of all retrieved messages
-            retrieved_text = " ".join(
-                message_texts[i] for i in retrieved_indices if i < len(message_texts)
-            )
-
-            # Check how many answer keywords appear in retrieved text
-            keywords = extract_answer_keywords(answer)
-            if keywords:
-                found = sum(
-                    1 for kw in keywords
-                    if kw.lower() in retrieved_text.lower()
-                )
-                keyword_score = found / len(keywords)
-            else:
-                # No keywords extracted — just check if we retrieved anything
-                keyword_score = 1.0 if retrieved_indices else 0.0
-
-            if keyword_score > 0:
-                answer_hits += 1
-            answer_keyword_scores.append(keyword_score)
-
-            q_display = question[:42] + "..." if len(question) > 45 else question
-            kw_display = f"{int(keyword_score * 100):>3}%"
-            if keywords:
-                kw_display += f" ({sum(1 for kw in keywords if kw.lower() in retrieved_text.lower())}/{len(keywords)})"
-            print(f"{idx:<4} | {q_display:<45} | {kw_display:<14} | {len(retrieved_indices):<5}")
-
-        print("-" * 72)
-
-        if answerable:
-            answer_hit_rate = (answer_hits / len(answerable)) * 100
-            avg_keyword_score = mean(answer_keyword_scores) * 100
-            print(f"Answer Hit Rate:        {answer_hit_rate:.1f}% "
-                  f"({answer_hits}/{len(answerable)} queries found relevant content)")
-            print(f"Avg Keyword Coverage:   {avg_keyword_score:.1f}%")
-
-        # Evaluate unanswerable queries — ideally these should retrieve fewer/no results
-        if unanswerable:
-            print()
-            print("-" * 72)
-            print("Unanswerable queries (should ideally retrieve less relevant content):")
-            print("-" * 72)
-            false_positive_count = 0
-            for question, answer, q_emb in unanswerable:
-                scored_results = vbase.fuzzy_lookup_embedding(
-                    q_emb, max_hits=eval_max_hits, min_score=eval_min_score
-                )
-                n_results = len(scored_results)
-                avg_score = mean(sr.score for sr in scored_results) if scored_results else 0.0
-                q_display = question[:55] + "..." if len(question) > 58 else question
-                flag = "[!]" if n_results > 3 else "[ok]"
-                if n_results > 3:
-                    false_positive_count += 1
-                print(f"  {flag} {q_display:<58} | {n_results:>3} results (avg={avg_score:.3f})")
-            print(f"\nFalse positives (>3 results): {false_positive_count}/{len(unanswerable)}")
-
-    # ── Summary ──
+    print(f"Model: {model.model_name}")
+    print(f"Messages indexed: {len(message_texts)}")
+    print(f"Queries evaluated: {len(query_cases)}")
     print()
-    print("=" * 72)
-    print("  SUMMARY")
-    print("=" * 72)
-    print(f"Model:                  {model.model_name}")
-    print(f"Messages indexed:       {len(message_texts)}")
-    print(f"Search queries tested:  {len(search_queries)}")
-    if best_config:
-        print(f"Best search params:     min_score={best_config[0]}, max_hits={best_config[1]}")
-        print(f"Best search MRR:        {best_mrr:.4f}")
-    if answer_queries:
-        print(f"Answer queries tested:  {len(answerable)} answerable, {len(unanswerable)} unanswerable")
-        if answerable:
-            print(f"Answer hit rate:        {answer_hit_rate:.1f}%")
-            print(f"Keyword coverage:       {avg_keyword_score:.1f}%")
-    print("=" * 72)
+    print_rows(rows)
+
+    best_row = select_best_row(rows)
+    print()
+    print("Best-scoring benchmark row:")
+    print(f"  min_score={best_row.min_score:.2f}")
+    print(f"  max_hits={best_row.max_hits}")
+    print(f"  hit_rate={best_row.metrics.hit_rate:.2f}%")
+    print(f"  mrr={best_row.metrics.mean_reciprocal_rank:.4f}")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark embedding model parameters.")
+    parser = argparse.ArgumentParser(
+        description="Benchmark retrieval settings for an embedding model."
+    )
     parser.add_argument(
         "--model",
         type=str,
         default=None,
         help="Provider and model name, e.g. 'openai:text-embedding-3-small'",
     )
+    parser.add_argument(
+        "--min-scores",
+        type=str,
+        default=None,
+        help="Comma-separated min_score values to test.",
+    )
+    parser.add_argument(
+        "--max-hits",
+        type=str,
+        default=None,
+        help="Comma-separated max_hits values to test.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=16,
+        help="Batch size used when building the index.",
+    )
     args = parser.parse_args()
-    asyncio.run(run_benchmark(args.model))
+
+    asyncio.run(
+        run_benchmark(
+            model_spec=args.model,
+            min_scores=parse_float_list(args.min_scores),
+            max_hits_values=parse_int_list(args.max_hits),
+            batch_size=args.batch_size,
+        )
+    )
 
 
 if __name__ == "__main__":

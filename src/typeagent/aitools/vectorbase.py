@@ -13,15 +13,46 @@ from .embeddings import (
 )
 from .model_adapters import create_embedding_model
 
+DEFAULT_MIN_SCORE = 0.85
+
+# Empirical defaults for built-in OpenAI embedding models.
+# These values come from repeated runs of the Adrian Tchaikovsky Episode 53
+# search benchmark in `tools/repeat_embedding_benchmarks.py`, using an
+# exhaustive 0.01..1.00 min_score sweep on the Adrian Tchaikovsky Episode 53
+# dataset. We keep the highest min_score that preserves the best benchmark
+# metrics for each model, which yielded the current plateau boundaries of 0.16 for
+# `text-embedding-3-small`, 0.07 for `text-embedding-3-large`, and 0.72 for
+# `text-embedding-ada-002`. These are repository defaults for known models,
+# not universal truths. Unknown models keep the long-standing fallback score
+# of 0.85. Callers can always override `min_score` explicitly for their own
+# use cases or models. We intentionally leave `max_matches` out of this table:
+# the benchmark still reports a best `max_hits` row, but the library default
+# remains `None` unless a caller opts into a specific limit.
+MODEL_DEFAULT_MIN_SCORES: dict[str, float] = {
+    "text-embedding-3-large": 0.07,
+    "text-embedding-3-small": 0.16,
+    "text-embedding-ada-002": 0.72,
+}
+
+
+def get_default_min_score(model_name: str) -> float:
+    """Return the repository default score cutoff for a known model name."""
+
+    return MODEL_DEFAULT_MIN_SCORES.get(model_name, DEFAULT_MIN_SCORE)
+
 
 @dataclass
 class ScoredInt:
+    """Associate an integer ordinal with its similarity score."""
+
     item: int
     score: float
 
 
 @dataclass
 class TextEmbeddingIndexSettings:
+    """Runtime settings for embedding-backed fuzzy lookup."""
+
     embedding_model: IEmbeddingModel
     min_score: float  # Between 0.0 and 1.0
     max_matches: int | None  # >= 1; None means no limit
@@ -35,32 +66,10 @@ class TextEmbeddingIndexSettings:
         batch_size: int | None = None,
     ):
         self.embedding_model = embedding_model or create_embedding_model()
-
-        # Default fallback values
-        default_min_score = 0.85
-        default_max_matches = None
-
-        # Determine optimal parameters automatically for well-known models.
-        # Format: (min_score, max_matches)
-        # Note: text-embedding-3 models produce structurally lower cosine scores than older models
-        # and typically perform best in the 0.3 - 0.5 range for relevance filtering.
-        MODEL_DEFAULTS = {
-            "text-embedding-3-large": (0.30, 20),
-            "text-embedding-3-small": (0.35, 20),
-            "text-embedding-ada-002": (0.75, 20),
-        }
-
-        # Check if the model_name matches any known ones
-        model_name = getattr(self.embedding_model, 'model_name', "")
-        
-        if model_name:
-            for known_model, defaults in MODEL_DEFAULTS.items():
-                if known_model in model_name:
-                    default_min_score, default_max_matches = defaults
-                    break
-
+        model_name = getattr(self.embedding_model, "model_name", "")
+        default_min_score = get_default_min_score(model_name)
         self.min_score = min_score if min_score is not None else default_min_score
-        self.max_matches = max_matches if max_matches is not None else default_max_matches
+        self.max_matches = max_matches if max_matches and max_matches >= 1 else None
         self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
 
 
@@ -190,27 +199,10 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[ScoredInt]:
-        if max_hits is None:
-            max_hits = 10
-        if min_score is None:
-            min_score = 0.0
-        if not ordinals_of_subset or len(self._vectors) == 0:
-            return []
-        # Compute dot products only for the subset instead of all vectors.
-        subset = np.asarray(ordinals_of_subset)
-        scores = np.dot(self._vectors[subset], embedding)
-        indices = np.flatnonzero(scores >= min_score)
-        if len(indices) == 0:
-            return []
-        filtered_scores = scores[indices]
-        if len(indices) <= max_hits:
-            order = np.argsort(filtered_scores)[::-1]
-        else:
-            top_k = np.argpartition(filtered_scores, -max_hits)[-max_hits:]
-            order = top_k[np.argsort(filtered_scores[top_k])[::-1]]
-        return [
-            ScoredInt(int(subset[indices[i]]), float(filtered_scores[i])) for i in order
-        ]
+        ordinals_set = set(ordinals_of_subset)
+        return self.fuzzy_lookup_embedding(
+            embedding, max_hits, min_score, lambda i: i in ordinals_set
+        )
 
     async def fuzzy_lookup(
         self,
@@ -259,7 +251,7 @@ class VectorBase:
             return
         if self._embedding_size == 0:
             if data.ndim < 2 or data.shape[0] == 0:
-                # Empty data — can't determine size; just clear.
+                # Empty data can't determine size; just clear.
                 self.clear()
                 return
             self._set_embedding_size(data.shape[1])
