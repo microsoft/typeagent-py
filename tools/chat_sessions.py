@@ -34,8 +34,45 @@ from colorama import Fore, init, Style
 import re
 
 VSCODE_USER_DIR = Path.home() / "Library" / "Application Support" / "Code" / "User"
-# Linux: Path.home() / ".config" / "Code" / "User"
-# Windows: Path.home() / "AppData" / "Roaming" / "Code" / "User"
+# Updated in main() based on platform
+
+
+def _detect_vscode_user_dir() -> list[Path]:
+    """Detect VS Code user directories for current environment.
+
+    Returns a list of directories to search, in priority order:
+    1. VSCode Server (if .vscode-server exists)
+    2. Native VS Code installation for the platform
+    3. Windows VS Code via WSL mount (if on WSL)
+    """
+    dirs: list[Path] = []
+
+    # VSCode Server (for remote SSH, WSL, containers, etc.)
+    vscode_server = Path.home() / ".vscode-server" / "data" / "User"
+    if vscode_server.is_dir():
+        dirs.append(vscode_server)
+
+    # Platform-specific native VS Code
+    if sys.platform == "linux":
+        dirs.append(Path.home() / ".config" / "Code" / "User")
+    elif sys.platform == "win32":
+        dirs.append(Path.home() / "AppData" / "Roaming" / "Code" / "User")
+    elif sys.platform == "darwin":
+        dirs.append(Path.home() / "Library" / "Application Support" / "Code" / "User")
+
+    # Windows via WSL mount (if running on WSL)
+    if sys.platform == "linux" and Path("/mnt/c").exists():
+        win_user = Path("/mnt/c/Users")
+        if win_user.is_dir():
+            # Try to find the current user's home in Windows
+            for user_dir in win_user.iterdir():
+                if user_dir.is_dir():
+                    vscode_win = user_dir / "AppData" / "Roaming" / "Code" / "User"
+                    if vscode_win.is_dir():
+                        dirs.append(vscode_win)
+                        break
+
+    return dirs
 
 # Color settings
 use_color = True
@@ -112,24 +149,42 @@ def should_use_color(args: argparse.Namespace | None = None) -> bool:
 
 
 def find_session_dirs() -> list[Path]:
-    """Find all chatSessions directories across workspaces and global storage."""
+    """Find all chat session directories across workspaces and global storage.
+
+    Searches for both old format (chatSessions) and new format (GitHub.copilot-chat).
+    """
     dirs: list[Path] = []
-    # Per-workspace sessions
-    ws_root = VSCODE_USER_DIR / "workspaceStorage"
-    if ws_root.is_dir():
-        for entry in ws_root.iterdir():
-            chat_dir = entry / "chatSessions"
-            if chat_dir.is_dir():
-                dirs.append(chat_dir)
-    # Global (empty window) sessions
-    global_dir = VSCODE_USER_DIR / "globalStorage" / "emptyWindowChatSessions"
-    if global_dir.is_dir():
-        dirs.append(global_dir)
+    search_dirs = _detect_vscode_user_dir()
+
+    for base_dir in search_dirs:
+        if not base_dir.is_dir():
+            continue
+
+        # Per-workspace sessions (old format)
+        ws_root = base_dir / "workspaceStorage"
+        if ws_root.is_dir():
+            for entry in ws_root.iterdir():
+                if not entry.is_dir():
+                    continue
+                # Old format: chatSessions
+                chat_dir = entry / "chatSessions"
+                if chat_dir.is_dir():
+                    dirs.append(chat_dir)
+                # New format: GitHub.copilot-chat
+                copilot_dir = entry / "GitHub.copilot-chat"
+                if copilot_dir.is_dir():
+                    dirs.append(copilot_dir)
+
+        # Global (empty window) sessions (old format)
+        global_dir = base_dir / "globalStorage" / "emptyWindowChatSessions"
+        if global_dir.is_dir():
+            dirs.append(global_dir)
+
     return dirs
 
 
 def get_workspace_name(session_dir: Path) -> str:
-    """Try to resolve a workspace name from workspace.json next to chatSessions."""
+    """Try to resolve a workspace name from workspace.json next to session dir."""
     ws_json = session_dir.parent / "workspace.json"
     if ws_json.is_file():
         try:
@@ -340,19 +395,46 @@ def _parse_request(req: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def load_all_sessions() -> list[SessionInfo]:
-    """Load all sessions from disk."""
+    """Load all sessions from disk.
+
+    Handles both old format (JSON/JSONL files) and new format (GitHub.copilot-chat).
+    """
     sessions: list[SessionInfo] = []
     for session_dir in find_session_dirs():
         workspace = get_workspace_name(session_dir)
-        for f in session_dir.iterdir():
-            info = None
-            if f.suffix == ".jsonl":
-                info = parse_jsonl(f)
-            elif f.suffix == ".json":
-                info = parse_json(f)
-            if info:
-                info["workspace"] = workspace
-                sessions.append(info)
+
+        # Check if this is a GitHub.copilot-chat directory (new format)
+        if "GitHub.copilot-chat" in str(session_dir):
+            # New format: sessions are directories in chat-session-resources/
+            chat_resources = session_dir / "chat-session-resources"
+            if chat_resources.is_dir():
+                for session_uuid_dir in chat_resources.iterdir():
+                    if not session_uuid_dir.is_dir():
+                        continue
+                    session_id = session_uuid_dir.name
+                    info: SessionInfo = {
+                        "path": str(session_uuid_dir),
+                        "session_id": session_id,
+                        "title": None,
+                        "creation_date": None,
+                        "model": "",
+                        "requests": [],
+                        "workspace": workspace,
+                    }
+                    # Try to extract basic info from subdirectories
+                    # (new format doesn't have easy-to-parse chat history yet)
+                    sessions.append(info)
+        else:
+            # Old format: JSON/JSONL files
+            for f in session_dir.iterdir():
+                parsed_info: SessionInfo | None = None
+                if f.suffix == ".jsonl":
+                    parsed_info = parse_jsonl(f)
+                elif f.suffix == ".json":
+                    parsed_info = parse_json(f)
+                if parsed_info is not None:
+                    parsed_info["workspace"] = workspace
+                    sessions.append(parsed_info)
 
     # Sort by creation date (newest first)
     sessions.sort(
@@ -648,12 +730,6 @@ def smart_pager(pager_cmd: str) -> Iterator[None]:
 
 
 def main() -> None:
-    global VSCODE_USER_DIR
-    if sys.platform == "linux":
-        VSCODE_USER_DIR = Path.home() / ".config" / "Code" / "User"
-    elif sys.platform == "win32":
-        VSCODE_USER_DIR = Path.home() / "AppData" / "Roaming" / "Code" / "User"
-
     parser = argparse.ArgumentParser(description="Browse VS Code Copilot chat sessions")
     parser.add_argument(
         "session",
