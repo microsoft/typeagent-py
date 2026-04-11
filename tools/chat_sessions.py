@@ -23,6 +23,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import struct
 import subprocess
@@ -31,7 +32,6 @@ import termios
 from typing import Any
 
 from colorama import Fore, init, Style
-import re
 
 VSCODE_USER_DIR = Path.home() / "Library" / "Application Support" / "Code" / "User"
 # Updated in main() based on platform
@@ -73,6 +73,7 @@ def _detect_vscode_user_dir() -> list[Path]:
                         break
 
     return dirs
+
 
 # Color settings
 use_color = True
@@ -210,6 +211,90 @@ def _splice(target: list[Any], index: int, items: list[Any]) -> None:
     target[index : index + len(items)] = items
 
 
+_RE_CUSTOM_TITLE_JSONL = re.compile(
+    r'"customTitle"\s*]\s*,\s*"v"\s*:\s*"((?:[^"\\]|\\.)*)"'
+)
+
+
+def parse_jsonl_metadata(path: Path) -> SessionInfo | None:
+    """Fast metadata extraction from a .jsonl chat session file.
+
+    Reads the first line (kind-0 session metadata snapshot) and a few KB
+    after it (for customTitle patches and first user message) to avoid
+    reading multi-MB files fully.
+    Falls back to full parse if the first line isn't a valid kind-0 record.
+    """
+    size = path.stat().st_size
+    if size == 0:
+        return None
+
+    with open(path, "rb") as fh:
+        first_line_bytes = fh.readline()
+        line1_end = fh.tell()
+        # Read a few KB more for customTitle patches (kind-1, lines 2-3)
+        # and possibly the first user message.
+        extra = fh.read(min(size - line1_end, 4096)).decode("utf-8", errors="replace")
+
+    first_line = first_line_bytes.decode("utf-8", errors="replace")
+    if not first_line.strip():
+        return None
+    try:
+        record = json.loads(first_line)
+    except json.JSONDecodeError:
+        return None
+
+    if record.get("kind") != 0:
+        return parse_jsonl(path)  # fall back
+
+    info: SessionInfo = {
+        "path": str(path),
+        "session_id": path.stem,
+        "title": None,
+        "creation_date": None,
+        "requests": [],
+    }
+
+    v = record.get("v", {})
+    if isinstance(v, dict):
+        if ts := v.get("creationDate"):
+            info["creation_date"] = ts
+        model_info = (
+            v.get("inputState", {}).get("selectedModel", {}).get("metadata", {})
+        )
+        info["model"] = model_info.get("name", "")
+        if v.get("customTitle"):
+            info["title"] = v["customTitle"]
+        # First user message from initial snapshot
+        reqs = v.get("requests", [])
+        if reqs and isinstance(reqs[0], dict):
+            first_user = reqs[0].get("message", {}).get("text", "")
+            if first_user:
+                info["requests"].append({"user": first_user})
+
+    # Look for customTitle patches in the extra bytes after line 1.
+    # Kind-1 patches for customTitle are small lines near the start of the file.
+    if not info.get("title") and extra:
+        m = _RE_CUSTOM_TITLE_JSONL.search(extra)
+        if m:
+            info["title"] = m.group(1).replace("\\n", "\n").replace('\\"', '"')
+
+    # Look for first user message in extra bytes (unlikely to be there since
+    # "message" is deep in the request patch line, but try anyway).
+    if not info["requests"] and extra:
+        m = _RE_FIRST_MSG.search(extra)
+        if m:
+            first_user = m.group(1).replace("\\n", "\n").replace('\\"', '"')
+            info["requests"].append({"user": first_user})
+
+    # If we still have no requests but the extra bytes contain a kind-2
+    # request splice, the file has requests (we just can't extract the text
+    # from a small buffer).
+    if not info["requests"] and '"requests"' in extra:
+        info["requests"].append({"user": ""})
+
+    return info
+
+
 def parse_jsonl(path: Path) -> SessionInfo | None:
     """Parse a .jsonl chat session file.
 
@@ -311,8 +396,75 @@ def parse_jsonl(path: Path) -> SessionInfo | None:
     return info
 
 
+# Regexes for fast tail-of-file metadata extraction from JSON files.
+_RE_CREATION_DATE = re.compile(r'"creationDate"\s*:\s*(\d+)')
+_RE_CUSTOM_TITLE = re.compile(r'"customTitle"\s*:\s*"((?:[^"\\]|\\.)*)"')
+_RE_SESSION_ID = re.compile(r'"sessionId"\s*:\s*"([^"]+)"')
+# Match "message":{ ... "text": "..." } — the ... allows for "parts" or other
+# keys that may appear before "text" in old JSON format (version 3).
+# Capture is capped at 200 chars so a closing quote beyond the read buffer
+# doesn't prevent the match.
+_RE_FIRST_MSG = re.compile(
+    r'"message"\s*:\s*\{.*?"text"\s*:\s*"((?:[^"\\]|\\.){0,200})', re.DOTALL
+)
+
+
+def parse_json_metadata(path: Path) -> SessionInfo | None:
+    """Fast metadata extraction from a .json chat session file.
+
+    Reads the last 1KB to extract creationDate, customTitle, sessionId
+    (which live at the end of the file), and the first 2KB to get the
+    first user message.  Falls back to full parse if the tail doesn't
+    end with the expected closing brace.
+    """
+    size = path.stat().st_size
+    if size == 0:
+        return None
+
+    # Read last 1KB for metadata fields that live at the end.
+    with open(path, "rb") as fh:
+        fh.seek(max(0, size - 1024))
+        tail = fh.read().decode("utf-8", errors="replace")
+
+    # Sanity check: file should end with "}"
+    if not tail.rstrip().endswith("}"):
+        return parse_json(path)  # fall back to full parse
+
+    m = _RE_CREATION_DATE.search(tail)
+    creation_date = int(m.group(1)) if m else None
+
+    m = _RE_CUSTOM_TITLE.search(tail)
+    title = m.group(1) if m else None
+
+    m = _RE_SESSION_ID.search(tail)
+    session_id = m.group(1) if m else path.stem
+
+    # Read first 4KB for the first user message.
+    with open(path, "rb") as fh:
+        head = fh.read(4096).decode("utf-8", errors="replace")
+
+    m = _RE_FIRST_MSG.search(head)
+    first_user = m.group(1) if m else ""
+    # Unescape basic JSON escapes in the extracted string.
+    if first_user:
+        first_user = first_user.replace("\\n", "\n").replace('\\"', '"')
+
+    # Check whether the file has any requests ("requests": [...])
+    has_requests = '"requests"' in head and '"requests": []' not in head
+
+    info: SessionInfo = {
+        "path": str(path),
+        "session_id": session_id,
+        "title": title,
+        "creation_date": creation_date,
+        "model": "",
+        "requests": [{"user": first_user}] if has_requests else [],
+    }
+    return info
+
+
 def parse_json(path: Path) -> SessionInfo | None:
-    """Parse a .json chat session file."""
+    """Parse a .json chat session file (full parse)."""
     try:
         data = json.loads(path.read_text(errors="replace"))
     except json.JSONDecodeError:
@@ -321,7 +473,7 @@ def parse_json(path: Path) -> SessionInfo | None:
     info: SessionInfo = {
         "path": str(path),
         "session_id": data.get("sessionId", path.stem),
-        "title": None,
+        "title": data.get("customTitle"),
         "creation_date": data.get("creationDate"),
         "model": (
             data.get("inputState", {})
@@ -394,12 +546,16 @@ def _parse_request(req: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def load_all_sessions() -> list[SessionInfo]:
+def load_all_sessions(metadata_only: bool = False) -> list[SessionInfo]:
     """Load all sessions from disk.
 
     Handles both old format (JSON/JSONL files) and new format (GitHub.copilot-chat).
+
+    When metadata_only is True, use fast head+tail extraction instead of
+    full parsing.  Use load_session_by_path() for full parsing.
     """
     sessions: list[SessionInfo] = []
+
     for session_dir in find_session_dirs():
         workspace = get_workspace_name(session_dir)
 
@@ -421,17 +577,23 @@ def load_all_sessions() -> list[SessionInfo]:
                         "requests": [],
                         "workspace": workspace,
                     }
-                    # Try to extract basic info from subdirectories
-                    # (new format doesn't have easy-to-parse chat history yet)
                     sessions.append(info)
         else:
             # Old format: JSON/JSONL files
             for f in session_dir.iterdir():
-                parsed_info: SessionInfo | None = None
-                if f.suffix == ".jsonl":
-                    parsed_info = parse_jsonl(f)
-                elif f.suffix == ".json":
-                    parsed_info = parse_json(f)
+                if f.suffix not in (".jsonl", ".json"):
+                    continue
+
+                if metadata_only:
+                    parsed_info = (
+                        parse_jsonl_metadata(f)
+                        if f.suffix == ".jsonl"
+                        else parse_json_metadata(f)
+                    )
+                else:
+                    parsed_info = (
+                        parse_jsonl(f) if f.suffix == ".jsonl" else parse_json(f)
+                    )
                 if parsed_info is not None:
                     parsed_info["workspace"] = workspace
                     sessions.append(parsed_info)
@@ -442,6 +604,19 @@ def load_all_sessions() -> list[SessionInfo]:
         reverse=True,
     )
     return sessions
+
+
+def load_session_by_path(path_str: str) -> SessionInfo | None:
+    """Fully parse a single session file by its path."""
+    path = Path(path_str)
+    if path.is_dir():
+        # New format directory — no full parse available yet
+        return None
+    if path.suffix == ".jsonl":
+        return parse_jsonl(path)
+    elif path.suffix == ".json":
+        return parse_json(path)
+    return None
 
 
 def format_timestamp(ts: int | None) -> str:
@@ -471,8 +646,7 @@ def list_sessions(
     width = term_width if term_width is not None else 999999
     for i, s in enumerate(to_show):
         reqs = s.get("requests", [])
-        n_msgs = len(reqs)
-        if n_msgs == 0 and not show_all:
+        if not reqs and not show_all:
             continue
         title = s.get("title")
         first_msg = ""
@@ -489,11 +663,10 @@ def list_sessions(
             line = (
                 f"  {Fore.CYAN}{i + 1:3d}{Style.RESET_ALL}. "
                 f"[{Fore.YELLOW}{date_str}{Style.RESET_ALL}] "
-                f"({Fore.MAGENTA}{workspace}{Style.RESET_ALL}, "
-                f"{Fore.GREEN}{n_msgs}{Style.RESET_ALL} msgs) {label}"
+                f"({Fore.MAGENTA}{workspace}{Style.RESET_ALL}) {label}"
             )
         else:
-            line = f"  {i + 1:3d}. [{date_str}] ({workspace}, {n_msgs} msgs) {label}"
+            line = f"  {i + 1:3d}. [{date_str}] ({workspace}) {label}"
         # Clip to terminal width (use visible length to account for ANSI codes)
         if visible_len(line) > width:
             line = clip_to_visible_length(line, width - 1)
@@ -785,7 +958,9 @@ def main() -> None:
 
     pager_cmd = args.pager if args.pager is not None else get_default_pager()
 
-    sessions = load_all_sessions()
+    # For search, we need full parsing; for everything else, metadata suffices.
+    need_full = args.search is not None
+    sessions = load_all_sessions(metadata_only=not need_full)
     if not sessions:
         if use_color:
             print(f"{Fore.RED}No chat sessions found.{Style.RESET_ALL}")
@@ -810,14 +985,16 @@ def main() -> None:
             try:
                 idx = int(args.session) - 1
                 if 0 <= idx < len(sessions):
-                    show_session(sessions[idx])
+                    full = load_session_by_path(sessions[idx]["path"])
+                    show_session(full or sessions[idx])
                     return
             except ValueError:
                 pass
             # Try as a session ID
             for s in sessions:
                 if s.get("session_id") == args.session:
-                    show_session(s)
+                    full = load_session_by_path(s["path"])
+                    show_session(full or s)
                     return
             print(f"Session not found: {args.session}")
             return
