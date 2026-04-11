@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -132,17 +132,33 @@ class VectorBase:
             min_score = 0.0
         if len(self._vectors) == 0:
             return []
-        # This line does most of the work:
-        scores: Iterable[float] = np.dot(self._vectors, embedding)
-        scored_ordinals = [
-            ScoredInt(i, score)
-            for i, score in enumerate(scores)
-            if score >= min_score and (predicate is None or predicate(i))
-        ]
-        scored_ordinals.sort(key=lambda x: x.score, reverse=True)
-        return scored_ordinals[:max_hits]
+        scores = np.dot(self._vectors, embedding)
+        if predicate is None:
+            # Stay in numpy: filter by score, then top-k via argpartition.
+            indices = np.flatnonzero(scores >= min_score)
+            if len(indices) == 0:
+                return []
+            filtered_scores = scores[indices]
+            if len(indices) <= max_hits:
+                order = np.argsort(filtered_scores)[::-1]
+            else:
+                top_k = np.argpartition(filtered_scores, -max_hits)[-max_hits:]
+                order = top_k[np.argsort(filtered_scores[top_k])[::-1]]
+            return [
+                ScoredInt(int(indices[i]), float(filtered_scores[i])) for i in order
+            ]
+        else:
+            # Predicate path: pre-filter by score in numpy, apply predicate
+            # only to candidates above the threshold.
+            candidates = np.flatnonzero(scores >= min_score)
+            scored_ordinals = [
+                ScoredInt(int(i), float(scores[i]))
+                for i in candidates
+                if predicate(int(i))
+            ]
+            scored_ordinals.sort(key=lambda x: x.score, reverse=True)
+            return scored_ordinals[:max_hits]
 
-    # TODO: Make this and fuzzy_lookup_embedding() more similar.
     def fuzzy_lookup_embedding_in_subset(
         self,
         embedding: NormalizedEmbedding,
@@ -150,10 +166,27 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[ScoredInt]:
-        ordinals_set = set(ordinals_of_subset)
-        return self.fuzzy_lookup_embedding(
-            embedding, max_hits, min_score, lambda i: i in ordinals_set
-        )
+        if max_hits is None:
+            max_hits = 10
+        if min_score is None:
+            min_score = 0.0
+        if not ordinals_of_subset or len(self._vectors) == 0:
+            return []
+        # Compute dot products only for the subset instead of all vectors.
+        subset = np.asarray(ordinals_of_subset)
+        scores = np.dot(self._vectors[subset], embedding)
+        indices = np.flatnonzero(scores >= min_score)
+        if len(indices) == 0:
+            return []
+        filtered_scores = scores[indices]
+        if len(indices) <= max_hits:
+            order = np.argsort(filtered_scores)[::-1]
+        else:
+            top_k = np.argpartition(filtered_scores, -max_hits)[-max_hits:]
+            order = top_k[np.argsort(filtered_scores[top_k])[::-1]]
+        return [
+            ScoredInt(int(subset[indices[i]]), float(filtered_scores[i])) for i in order
+        ]
 
     async def fuzzy_lookup(
         self,
