@@ -550,15 +550,25 @@ def _parse_request(req: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def load_all_sessions(metadata_only: bool = False) -> list[SessionInfo]:
+def load_all_sessions(
+    metadata_only: bool = False, limit: int | None = None
+) -> list[SessionInfo]:
     """Load all sessions from disk.
 
     Handles both old format (JSON/JSONL files) and new format (GitHub.copilot-chat).
 
     When metadata_only is True, use fast head+tail extraction instead of
     full parsing.  Use load_session_by_path() for full parsing.
+
+    When limit is set and metadata_only is True, use file mtime to
+    pre-sort candidates and only parse the most recent ones.  This
+    avoids the I/O cost of reading all files over slow filesystems.
     """
     sessions: list[SessionInfo] = []
+
+    # Collect candidate files: (path, workspace, suffix).
+    # For new-format directories, create SessionInfo immediately (no parsing).
+    candidates: list[tuple[Path, str]] = []
 
     for session_dir in find_session_dirs():
         workspace = get_workspace_name(session_dir)
@@ -586,22 +596,36 @@ def load_all_sessions(metadata_only: bool = False) -> list[SessionInfo]:
         else:
             # Old format: JSON/JSONL files
             for f in session_dir.iterdir():
-                if f.suffix not in (".jsonl", ".json"):
-                    continue
+                if f.suffix in (".jsonl", ".json"):
+                    candidates.append((f, workspace))
 
-                if metadata_only:
-                    parsed_info = (
-                        parse_jsonl_metadata(f)
-                        if f.suffix == ".jsonl"
-                        else parse_json_metadata(f)
-                    )
-                else:
-                    parsed_info = (
-                        parse_jsonl(f) if f.suffix == ".jsonl" else parse_json(f)
-                    )
-                if parsed_info is not None:
-                    parsed_info["workspace"] = workspace
-                    sessions.append(parsed_info)
+    # When we have a limit and only need metadata, use mtime to pre-sort
+    # so we only parse the most recent files.
+    if metadata_only and limit and len(candidates) > limit:
+        # stat each file for mtime (cheap compared to open+read+parse)
+        mtime_candidates: list[tuple[float, Path, str]] = []
+        for f, workspace in candidates:
+            try:
+                mtime_candidates.append((f.stat().st_mtime, f, workspace))
+            except OSError:
+                continue
+        mtime_candidates.sort(reverse=True)
+        # Parse 2x the limit to allow for empty sessions being filtered out.
+        candidates = [(f, ws) for _, f, ws in mtime_candidates[: limit * 2]]
+
+    # Parse the candidate files.
+    for f, workspace in candidates:
+        if metadata_only:
+            parsed_info = (
+                parse_jsonl_metadata(f)
+                if f.suffix == ".jsonl"
+                else parse_json_metadata(f)
+            )
+        else:
+            parsed_info = parse_jsonl(f) if f.suffix == ".jsonl" else parse_json(f)
+        if parsed_info is not None:
+            parsed_info["workspace"] = workspace
+            sessions.append(parsed_info)
 
     # Sort by creation date (newest first)
     sessions.sort(
@@ -971,7 +995,9 @@ def main() -> None:
 
     # For search, we need full parsing; for everything else, metadata suffices.
     need_full = args.search is not None
-    sessions = load_all_sessions(metadata_only=not need_full)
+    # Pass limit so load_all_sessions can skip parsing old files when -n is set.
+    listing_limit = args.n if not need_full and not args.session else None
+    sessions = load_all_sessions(metadata_only=not need_full, limit=listing_limit)
     if not sessions:
         if use_color:
             print(f"{Fore.RED}No chat sessions found.{Style.RESET_ALL}")
@@ -1011,7 +1037,10 @@ def main() -> None:
             return
 
         n_empty = sum(1 for s in sessions if not s.get("requests"))
-        if use_color:
+        if listing_limit:
+            # With -n, we only parsed a subset, so don't report total counts.
+            print()
+        elif use_color:
             if n_empty:
                 print(
                     f"Found {Fore.CYAN}{len(sessions)}{Style.RESET_ALL} chat session(s), "
