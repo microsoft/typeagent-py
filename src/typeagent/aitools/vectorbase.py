@@ -13,6 +13,25 @@ from .embeddings import (
 )
 from .model_adapters import create_embedding_model
 
+DEFAULT_MIN_SCORE = 0.25
+
+# Empirical defaults for built-in OpenAI embedding models.
+# These values come from repeated runs of the Adrian Tchaikovsky Episode 53
+# search benchmark in `tools/benchmark_embeddings.py`, with raw outputs stored
+# under `benchmark_results/`.
+# They are intended as repository defaults for known models, not universal
+# truths; callers can always override `min_score` explicitly for their own use
+# cases or models.
+MODEL_DEFAULT_MIN_SCORES: dict[str, float] = {
+    "text-embedding-3-large": 0.25,
+    "text-embedding-3-small": 0.25,
+    "text-embedding-ada-002": 0.25,
+}
+
+
+def get_default_min_score(model_name: str) -> float:
+    return MODEL_DEFAULT_MIN_SCORES.get(model_name, DEFAULT_MIN_SCORE)
+
 
 @dataclass
 class ScoredInt:
@@ -35,32 +54,10 @@ class TextEmbeddingIndexSettings:
         batch_size: int | None = None,
     ):
         self.embedding_model = embedding_model or create_embedding_model()
-
-        # Default fallback values
-        default_min_score = 0.85
-        default_max_matches = None
-
-        # Determine optimal parameters automatically for well-known models.
-        # Format: (min_score, max_matches)
-        # Note: text-embedding-3 models produce structurally lower cosine scores than older models
-        # and typically perform best in the 0.3 - 0.5 range for relevance filtering.
-        MODEL_DEFAULTS = {
-            "text-embedding-3-large": (0.30, 20),
-            "text-embedding-3-small": (0.35, 20),
-            "text-embedding-ada-002": (0.75, 20),
-        }
-
-        # Check if the model_name matches any known ones
-        model_name = getattr(self.embedding_model, 'model_name', "")
-        
-        if model_name:
-            for known_model, defaults in MODEL_DEFAULTS.items():
-                if known_model in model_name:
-                    default_min_score, default_max_matches = defaults
-                    break
-
+        model_name = getattr(self.embedding_model, "model_name", "")
+        default_min_score = get_default_min_score(model_name)
         self.min_score = min_score if min_score is not None else default_min_score
-        self.max_matches = max_matches if max_matches is not None else default_max_matches
+        self.max_matches = max_matches  # None means no limit
         self.batch_size = batch_size if batch_size and batch_size >= 1 else 8
 
 
@@ -166,7 +163,6 @@ class VectorBase:
         scored_ordinals.sort(key=lambda x: x.score, reverse=True)
         return scored_ordinals[:max_hits]
 
-    # TODO: Make this and fuzzy_lookup_embedding() more similar.
     def fuzzy_lookup_embedding_in_subset(
         self,
         embedding: NormalizedEmbedding,
@@ -174,10 +170,25 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[ScoredInt]:
-        ordinals_set = set(ordinals_of_subset)
-        return self.fuzzy_lookup_embedding(
-            embedding, max_hits, min_score, lambda i: i in ordinals_set
-        )
+        if max_hits is None:
+            max_hits = 10
+        if min_score is None:
+            min_score = 0.0
+        if len(self._vectors) == 0 or not ordinals_of_subset:
+            return []
+
+        subset_ordinals = np.fromiter(set(ordinals_of_subset), dtype=np.intp)
+        if len(subset_ordinals) == 0:
+            return []
+
+        scores: Iterable[float] = np.dot(self._vectors[subset_ordinals], embedding)
+        scored_ordinals = [
+            ScoredInt(int(ordinal), score)
+            for ordinal, score in zip(subset_ordinals, scores)
+            if score >= min_score
+        ]
+        scored_ordinals.sort(key=lambda x: x.score, reverse=True)
+        return scored_ordinals[:max_hits]
 
     async def fuzzy_lookup(
         self,
@@ -226,7 +237,7 @@ class VectorBase:
             return
         if self._embedding_size == 0:
             if data.ndim < 2 or data.shape[0] == 0:
-                # Empty data — can't determine size; just clear.
+                # Empty data can't determine size; just clear.
                 self.clear()
                 return
             self._set_embedding_size(data.shape[1])

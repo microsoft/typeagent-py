@@ -1,0 +1,26 @@
+{
+  "created_at_utc": "20260411T170901Z",
+  "runs_per_model": 30,
+  "models": [
+    "openai:text-embedding-3-small"
+  ],
+  "min_scores": [
+    0.25,
+    0.3,
+    0.35,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.75,
+    0.8,
+    0.85
+  ],
+  "max_hits_values": [
+    5,
+    10,
+    15,
+    20
+  ],
+  "batch_size": 16
+}

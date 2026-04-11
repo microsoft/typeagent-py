@@ -1,0 +1,255 @@
+{
+  "run_index": 10,
+  "model_spec": "openai:text-embedding-3-large",
+  "resolved_model_name": "text-embedding-3-large",
+  "message_count": 106,
+  "query_count": 67,
+  "rows": [
+    {
+      "min_score": 0.25,
+      "max_hits": 5,
+      "hit_rate": 74.6268656716418,
+      "mean_reciprocal_rank": 0.6266169154228856
+    },
+    {
+      "min_score": 0.25,
+      "max_hits": 10,
+      "hit_rate": 74.6268656716418,
+      "mean_reciprocal_rank": 0.6266169154228856
+    },
+    {
+      "min_score": 0.25,
+      "max_hits": 15,
+      "hit_rate": 77.61194029850746,
+      "mean_reciprocal_rank": 0.6292175486205337
+    },
+    {
+      "min_score": 0.25,
+      "max_hits": 20,
+      "hit_rate": 77.61194029850746,
+      "mean_reciprocal_rank": 0.6292175486205337
+    },
+    {
+      "min_score": 0.3,
+      "max_hits": 5,
+      "hit_rate": 67.16417910447761,
+      "mean_reciprocal_rank": 0.559452736318408
+    },
+    {
+      "min_score": 0.3,
+      "max_hits": 10,
+      "hit_rate": 67.16417910447761,
+      "mean_reciprocal_rank": 0.559452736318408
+    },
+    {
+      "min_score": 0.3,
+      "max_hits": 15,
+      "hit_rate": 70.1492537313433,
+      "mean_reciprocal_rank": 0.5620533695160561
+    },
+    {
+      "min_score": 0.3,
+      "max_hits": 20,
+      "hit_rate": 70.1492537313433,
+      "mean_reciprocal_rank": 0.5620533695160561
+    },
+    {
+      "min_score": 0.35,
+      "max_hits": 5,
+      "hit_rate": 59.70149253731343,
+      "mean_reciprocal_rank": 0.5186567164179104
+    },
+    {
+      "min_score": 0.35,
+      "max_hits": 10,
+      "hit_rate": 59.70149253731343,
+      "mean_reciprocal_rank": 0.5186567164179104
+    },
+    {
+      "min_score": 0.35,
+      "max_hits": 15,
+      "hit_rate": 61.19402985074627,
+      "mean_reciprocal_rank": 0.5199004975124378
+    },
+    {
+      "min_score": 0.35,
+      "max_hits": 20,
+      "hit_rate": 61.19402985074627,
+      "mean_reciprocal_rank": 0.5199004975124378
+    },
+    {
+      "min_score": 0.4,
+      "max_hits": 5,
+      "hit_rate": 52.23880597014925,
+      "mean_reciprocal_rank": 0.4626865671641791
+    },
+    {
+      "min_score": 0.4,
+      "max_hits": 10,
+      "hit_rate": 52.23880597014925,
+      "mean_reciprocal_rank": 0.4626865671641791
+    },
+    {
+      "min_score": 0.4,
+      "max_hits": 15,
+      "hit_rate": 53.73134328358209,
+      "mean_reciprocal_rank": 0.4639303482587065
+    },
+    {
+      "min_score": 0.4,
+      "max_hits": 20,
+      "hit_rate": 53.73134328358209,
+      "mean_reciprocal_rank": 0.4639303482587065
+    },
+    {
+      "min_score": 0.5,
+      "max_hits": 5,
+      "hit_rate": 22.388059701492537,
+      "mean_reciprocal_rank": 0.19776119402985073
+    },
+    {
+      "min_score": 0.5,
+      "max_hits": 10,
+      "hit_rate": 22.388059701492537,
+      "mean_reciprocal_rank": 0.19776119402985073
+    },
+    {
+      "min_score": 0.5,
+      "max_hits": 15,
+      "hit_rate": 22.388059701492537,
+      "mean_reciprocal_rank": 0.19776119402985073
+    },
+    {
+      "min_score": 0.5,
+      "max_hits": 20,
+      "hit_rate": 22.388059701492537,
+      "mean_reciprocal_rank": 0.19776119402985073
+    },
+    {
+      "min_score": 0.6,
+      "max_hits": 5,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.6,
+      "max_hits": 10,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.6,
+      "max_hits": 15,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.6,
+      "max_hits": 20,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.7,
+      "max_hits": 5,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.7,
+      "max_hits": 10,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.7,
+      "max_hits": 15,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.7,
+      "max_hits": 20,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.75,
+      "max_hits": 5,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.75,
+      "max_hits": 10,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.75,
+      "max_hits": 15,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.75,
+      "max_hits": 20,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.8,
+      "max_hits": 5,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.8,
+      "max_hits": 10,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.8,
+      "max_hits": 15,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.8,
+      "max_hits": 20,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.85,
+      "max_hits": 5,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.85,
+      "max_hits": 10,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.85,
+      "max_hits": 15,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    },
+    {
+      "min_score": 0.85,
+      "max_hits": 20,
+      "hit_rate": 0.0,
+      "mean_reciprocal_rank": 0.0
+    }
+  ],
+  "best_row": {
+    "min_score": 0.25,
+    "max_hits": 15,
+    "hit_rate": 77.61194029850746,
+    "mean_reciprocal_rank": 0.6292175486205337
+  }
+}
