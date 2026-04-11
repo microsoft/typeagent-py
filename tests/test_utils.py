@@ -24,14 +24,36 @@ def test_timelog():
 
 
 def test_pretty_print():
-    # Use a simple object and check output is formatted by black
     obj = {"a": 1}
     buf = StringIO()
     with redirect_stdout(buf):
         utils.pretty_print(obj)
     out = buf.getvalue()
-    # Should be valid Python and contain the dict
-    assert out == '{"a": 1}\n', out
+    assert out == "{'a': 1}\n", out
+
+
+def test_pretty_print_nested():
+    obj = {"b": [1, 2], "a": {"nested": True}}
+    buf = StringIO()
+    with redirect_stdout(buf):
+        utils.pretty_print(obj)
+    out = buf.getvalue()
+    # pprint sorts keys and formats nested structures
+    assert "'a'" in out
+    assert "'nested'" in out
+
+
+def test_format_code_simple():
+    text = repr({"a": 1})
+    result = utils.format_code(text)
+    assert result == "{'a': 1}"
+
+
+def test_format_code_nested():
+    obj = {"b": [1, 2, 3], "a": {"nested": True}}
+    result = utils.format_code(repr(obj))
+    parsed = eval(result)
+    assert parsed == obj
 
 
 def test_load_dotenv(really_needs_auth):
