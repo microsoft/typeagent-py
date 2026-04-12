@@ -34,6 +34,12 @@ demo: venv
 compare: venv
 	.venv/bin/python -m tools.query --batch $(FLAGS)
 
+.PHONY: eval
+eval: venv
+	rm -f eval.db
+	.venv/bin/python tools/load_json.py --database eval.db tests/testdata/Episode_53_AdrianTchaikovsky_index
+	.venv/bin/python tools/query.py --batch --database eval.db --answer-results tests/testdata/Episode_53_Answer_results.json --search-results tests/testdata/Episode_53_Search_results.json $(FLAGS)
+
 .PHONY: mcp
 mcp: venv
 	.venv/bin/mcp dev src/typeagent/mcp/server.py
