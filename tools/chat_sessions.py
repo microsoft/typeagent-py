@@ -814,13 +814,21 @@ def search_sessions(
             assistant = req.get("assistant", "")
             if query_lower in user.lower() or query_lower in assistant.lower():
                 title = s.get("title") or "(untitled)"
+                title = title.replace("\n", " ").replace("\r", "")
                 date_str = format_timestamp(s.get("creation_date"))
                 workspace = s.get("workspace", "?")
-                line1 = f"\n  [{date_str}] ({workspace}) {title}"
+                if use_color:
+                    line1 = (
+                        f"\n{Fore.CYAN}{i + 1:3d}{Style.RESET_ALL}. "
+                        f"[{Fore.YELLOW}{date_str}{Style.RESET_ALL}] "
+                        f"({Fore.MAGENTA}{workspace}{Style.RESET_ALL}) "
+                        f"{Fore.GREEN}{title}{Style.RESET_ALL}"
+                    )
+                else:
+                    line1 = f"\n{i + 1}. [{date_str}] ({workspace}) {title}"
                 if visible_len(line1) > width:
                     line1 = clip_to_visible_length(line1, width - 1)
                 print(line1)
-                print(f"  Session #{i + 1}")
                 # Show the matching message snippet
                 for text, label in [(user, "YOU"), (assistant, "COPILOT")]:
                     idx = text.lower().find(query_lower)
