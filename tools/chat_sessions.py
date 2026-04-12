@@ -23,15 +23,13 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 from typing import Any
 
 from colorama import Fore, init, Style
-
-VSCODE_USER_DIR = Path.home() / "Library" / "Application Support" / "Code" / "User"
-# Updated in main() based on platform
 
 
 def _detect_vscode_user_dir() -> list[Path]:
@@ -191,7 +189,7 @@ def get_workspace_name(session_dir: Path) -> str:
             if folder:
                 # "file:///Users/guido/typeagent-py" -> "typeagent-py"
                 return folder.rstrip("/").rsplit("/", 1)[-1]
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
     if "emptyWindowChatSessions" in str(session_dir):
         return "(no workspace)"
@@ -803,7 +801,10 @@ def show_session(session: SessionInfo) -> None:
 def search_sessions(
     sessions: list[SessionInfo], query: str, term_width: int | None = None
 ) -> None:
-    """Search all sessions for messages containing query text."""
+    """Search all sessions for messages containing query text.
+
+    Note: Search includes only user and assistant messages, not thinking or tool calls.
+    """
     query_lower = query.lower()
     hits = 0
     width = term_width if term_width is not None else 999999
@@ -831,15 +832,16 @@ def search_sessions(
                             40, width - prefix_len - 10
                         )  # -10 for ANSI codes
                         half_avail = available // 2
+                        # Compute initial start/end with match centered
                         start = max(0, idx - half_avail)
                         end = min(len(text), idx + len(query) + half_avail)
-                        # Redistribute unused budget when one side hits a boundary
-                        if start == 0 and end < len(text):
-                            end = min(len(text), end + (half_avail - idx))
-                        elif end == len(text) and start > 0:
-                            start = max(
-                                0, start - (half_avail - (len(text) - idx - len(query)))
-                            )
+                        # If we hit a boundary, use the extra space on the other side
+                        left_unused = idx - start
+                        right_unused = end - (idx + len(query))
+                        if start == 0:
+                            end = min(len(text), end + left_unused)
+                        elif end == len(text):
+                            start = max(0, start - right_unused)
                         snippet = text[start:end].replace("\n", " ")
                         has_start_ellipsis = start > 0
                         has_end_ellipsis = end < len(text)
@@ -992,8 +994,8 @@ def smart_pager(pager_cmd: str) -> Iterator[None]:
     env.setdefault("LESS", "FRX")
     try:
         proc = subprocess.Popen(
-            pager_cmd,
-            shell=True,
+            shlex.split(pager_cmd),
+            shell=False,
             stdin=subprocess.PIPE,
             encoding="utf-8",
             errors="replace",
