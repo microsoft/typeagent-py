@@ -63,19 +63,22 @@ def test_format_code_non_literal():
     was called on repr() of objects containing non-literal elements (e.g., AST nodes,
     custom class instances).
     """
-    import ast
 
-    # Create an AST node (a non-literal object whose repr() can't be evaluated)
-    ast_node = ast.Call()
-    non_literal_repr = repr(ast_node)
-    # This repr looks like: <ast.Call object at 0x...>
+    # Create a custom class instance (a non-literal object whose repr() can't be
+    # evaluated with ast.literal_eval)
+    class CustomClass:
+        pass
+
+    obj = CustomClass()
+    non_literal_repr = repr(obj)
+    # This repr looks like: <__main__.CustomClass object at 0x...>
 
     # format_code() should handle this gracefully without raising ValueError
     result = utils.format_code(non_literal_repr)
     assert isinstance(result, str)
     assert len(result) > 0
     # The result should contain the non-literal repr (possibly wrapped in quotes)
-    assert "ast.Call object" in result or "ast" in result
+    assert "CustomClass object" in result or "CustomClass" in result
 
 
 def test_load_dotenv(really_needs_auth):
