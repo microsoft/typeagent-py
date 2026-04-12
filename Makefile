@@ -9,7 +9,7 @@ all: venv format check test build
 .PHONY: format
 format: venv
 	.venv/bin/isort src tests tools examples $(FLAGS)
-	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools examples $(FLAGS)
+	.venv/bin/black -tpy312 src tests tools examples $(FLAGS)
 
 .PHONY: check
 check: venv

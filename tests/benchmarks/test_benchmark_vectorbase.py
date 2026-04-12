@@ -14,8 +14,11 @@ import numpy as np
 import pytest
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
-from typeagent.aitools.vectorbase import ScoredInt, TextEmbeddingIndexSettings, VectorBase
-
+from typeagent.aitools.vectorbase import (
+    ScoredInt,
+    TextEmbeddingIndexSettings,
+    VectorBase,
+)
 
 # -- Helpers ------------------------------------------------------------------
 
@@ -61,7 +64,9 @@ class TestFuzzyLookupEmbedding:
         assert len(result) == 10
         assert all(isinstance(r, ScoredInt) for r in result)
 
-    def test_10k_vectors(self, benchmark, vb_10k: tuple[VectorBase, np.ndarray]) -> None:
+    def test_10k_vectors(
+        self, benchmark, vb_10k: tuple[VectorBase, np.ndarray]
+    ) -> None:
         vb, query = vb_10k
         result = benchmark(vb.fuzzy_lookup_embedding, query, max_hits=10, min_score=0.0)
         assert len(result) == 10
