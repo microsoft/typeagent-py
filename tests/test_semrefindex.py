@@ -20,7 +20,12 @@ from typeagent.knowpro.interfaces import (
     ITermToSemanticRefIndex,
     Topic,
 )
-from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet, KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage.memory.semrefindex import (

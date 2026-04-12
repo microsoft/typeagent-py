@@ -5,7 +5,8 @@ import pytest
 
 from typechat import Failure, Result, Success
 
-from typeagent.knowpro import convknowledge, knowledge_schema as kplib
+from typeagent.knowpro import convknowledge
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.knowledge import (
     create_knowledge_extractor,
     extract_knowledge_from_text,
