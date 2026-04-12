@@ -18,17 +18,14 @@ import argparse
 from collections.abc import Iterator
 import contextlib
 import datetime
-import fcntl
 import io
 import json
 import os
 from pathlib import Path
 import re
 import shutil
-import struct
 import subprocess
 import sys
-import termios
 from typing import Any
 
 from colorama import Fore, init, Style
@@ -657,11 +654,8 @@ def format_timestamp(ts: int | None) -> str:
 
 
 def get_terminal_width() -> int:
-    """Get terminal character width using ioctl."""
-    try:
-        return struct.unpack("HHHH", fcntl.ioctl(0, termios.TIOCGWINSZ, b"\0" * 8))[1]
-    except (OSError, struct.error, IOError):
-        return 80  # default fallback
+    """Get terminal character width."""
+    return shutil.get_terminal_size(fallback=(80, 24)).columns
 
 
 def list_sessions(
@@ -875,7 +869,7 @@ def search_sessions(
         print(f"\n{hits} match(es) found.")
 
 
-def get_default_pager() -> str:
+def get_default_pager() -> str | None:
     """Determine the pager, using the same fallback chain as git."""
     # 1. git config core.pager
     try:
@@ -894,47 +888,134 @@ def get_default_pager() -> str:
     # 3. PAGER env
     if pager := os.environ.get("PAGER"):
         return pager
-    # 4. less
-    return "less"
+    # 4. Platform default: less on Unix, built-in on Windows.
+    if sys.platform != "win32":
+        return "less"
+    return None
+
+
+def _read_one_key() -> str:
+    """Read a single keypress without echo. Returns the character, or '' for
+    unrecognised special keys (e.g. arrow keys on Windows)."""
+    # Platform-specific imports are inside the function because msvcrt is
+    # Windows-only and termios/tty/select are Unix-only.
+    if sys.platform == "win32":
+        import msvcrt
+
+        ch = msvcrt.getwch()
+        if ch in ("\x00", "\xe0"):  # start of a two-byte special key
+            msvcrt.getwch()  # discard second byte
+            return ""
+        return ch
+    else:
+        import select
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        old = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            ch = sys.stdin.read(1)
+            # Drain the rest of any escape sequence (e.g. arrow keys).
+            if ch == "\x1b":
+                while select.select([sys.stdin], [], [], 0.05)[0]:
+                    sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        return ch
 
 
 @contextlib.contextmanager
-def smart_pager(pager_cmd: str) -> Iterator[None]:
-    """Capture output, then pipe through pager only if it exceeds terminal height."""
+def builtin_pager() -> Iterator[None]:
+    """Built-in forward-only pager: Space=next page, Enter=next line, q=quit."""
     if not sys.stdout.isatty():
         yield
         return
 
     buf = io.StringIO()
     old_stdout = sys.stdout
-    sys.stdout = buf
+    sys.stdout = buf  # type: ignore[assignment]
     try:
         yield
     finally:
         sys.stdout = old_stdout
 
     output = buf.getvalue()
-    term_lines = shutil.get_terminal_size().lines
-    n_lines = output.count("\n")
+    lines = output.splitlines(keepends=True)
+    page_size = max(1, shutil.get_terminal_size().lines - 1)
 
-    if n_lines < term_lines:
+    if len(lines) <= page_size:
         old_stdout.write(output)
-    else:
-        env = os.environ.copy()
-        # less: quit-if-one-screen, raw-control-chars, no-init
-        env.setdefault("LESS", "FRX")
-        try:
-            proc = subprocess.Popen(
-                pager_cmd,
-                shell=True,
-                stdin=subprocess.PIPE,
-                encoding="utf-8",
-                errors="replace",
-                env=env,
-            )
-            proc.communicate(input=output)
-        except (OSError, BrokenPipeError):
-            old_stdout.write(output)
+        old_stdout.flush()
+        return
+
+    # Show first page.
+    pos = min(page_size, len(lines))
+    old_stdout.write("".join(lines[:pos]))
+    old_stdout.flush()
+
+    prompt = "--More-- (Space=page, Enter=line, q=quit) "
+    while pos < len(lines):
+        old_stdout.write(prompt)
+        old_stdout.flush()
+        key = _read_one_key()
+        # Erase the prompt line.
+        old_stdout.write("\r" + " " * len(prompt) + "\r")
+        old_stdout.flush()
+        if key in ("q", "Q", "\x1b", "\x03"):  # q, Q, ESC, Ctrl-C
+            break
+        elif key in ("\r", "\n"):  # Enter — one more line
+            old_stdout.write(lines[pos])
+            old_stdout.flush()
+            pos += 1
+        else:  # Space or anything else — next full page
+            end = min(pos + page_size, len(lines))
+            old_stdout.write("".join(lines[pos:end]))
+            old_stdout.flush()
+            pos = end
+
+
+@contextlib.contextmanager
+def smart_pager(pager_cmd: str) -> Iterator[None]:
+    """Pipe stdout directly through an external pager process.
+
+    For ``less``, LESS=FRX causes it to exit automatically when all output
+    fits on one screen.
+    """
+    if not sys.stdout.isatty():
+        yield
+        return
+
+    env = os.environ.copy()
+    # less: quit-if-one-screen, raw-control-chars, no-init
+    env.setdefault("LESS", "FRX")
+    try:
+        proc = subprocess.Popen(
+            pager_cmd,
+            shell=True,
+            stdin=subprocess.PIPE,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+        )
+    except OSError:
+        yield
+        return
+
+    old_stdout = sys.stdout
+    sys.stdout = proc.stdin  # type: ignore[assignment]
+    try:
+        yield
+    except BrokenPipeError:
+        pass
+    finally:
+        sys.stdout = old_stdout
+    try:
+        proc.stdin.close()  # type: ignore[union-attr]
+    except OSError:
+        pass
+    proc.wait()
 
 
 def main() -> None:
@@ -968,7 +1049,7 @@ def main() -> None:
         "--pager",
         type=str,
         default=None,
-        help="Pager command (default: from git config, then $GIT_PAGER, $PAGER, less)",
+        help="Pager command (default: from git config, then $GIT_PAGER, $PAGER, built-in)",
     )
     parser.add_argument(
         "--no-pager",
@@ -991,7 +1072,10 @@ def main() -> None:
     global use_color
     use_color = should_use_color(args)
 
-    pager_cmd = args.pager if args.pager is not None else get_default_pager()
+    explicit_pager = args.pager
+    configured_pager = (
+        explicit_pager if explicit_pager is not None else get_default_pager()
+    )
 
     # For search, we need full parsing; for everything else, metadata suffices.
     need_full = args.search is not None
@@ -1006,7 +1090,12 @@ def main() -> None:
         return
 
     use_pager = not args.no_pager
-    ctx = smart_pager(pager_cmd) if use_pager else contextlib.nullcontext()
+    if not use_pager:
+        ctx: contextlib.AbstractContextManager[None] = contextlib.nullcontext()
+    elif configured_pager is not None:
+        ctx = smart_pager(configured_pager)
+    else:
+        ctx = builtin_pager()
 
     # Always get terminal width for reasonable snippet extraction and display
     # Only used for clipping if stdout is a TTY or using pager

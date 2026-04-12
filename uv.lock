@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2386,7 +2386,6 @@ version = "0.4.0.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-identity" },
-    { name = "black" },
     { name = "colorama" },
     { name = "mcp", extra = ["cli"] },
     { name = "numpy" },
@@ -2410,6 +2409,7 @@ logfire = [
 dev = [
     { name = "azure-mgmt-authorization" },
     { name = "azure-mgmt-keyvault" },
+    { name = "black" },
     { name = "coverage" },
     { name = "google-api-python-client" },
     { name = "google-auth-httplib2" },
@@ -2428,7 +2428,6 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "azure-identity", specifier = ">=1.22.0" },
-    { name = "black", specifier = ">=25.12.0" },
     { name = "colorama", specifier = ">=0.4.6" },
     { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.1.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.1" },
@@ -2449,6 +2448,7 @@ provides-extras = ["logfire"]
 dev = [
     { name = "azure-mgmt-authorization", specifier = ">=4.0.0" },
     { name = "azure-mgmt-keyvault", specifier = ">=12.1.1" },
+    { name = "black", specifier = ">=25.12.0" },
     { name = "coverage", extras = ["toml"], specifier = ">=7.9.1" },
     { name = "google-api-python-client", specifier = ">=2.184.0" },
     { name = "google-auth-httplib2", specifier = ">=0.2.0" },
