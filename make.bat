@@ -27,26 +27,26 @@ goto help
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
-.venv\Scripts\isort src tests tools examples
-.venv\Scripts\black src tests tools examples
+uv run isort src tests tools examples
+uv run black -tpy312 src tests tools examples
 goto end
 
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python src tests tools examples
+uv run pyright src tests tools examples
 goto end
 
 :test
 if not exist ".venv\" call make.bat venv
 echo Running unit tests...
-.venv\Scripts\python -m pytest
+uv run pytest
 goto end
 
 :demo
 if not exist ".venv\" call make.bat venv
 echo Running query tool...
-.venv\Scripts\python -m tools.query
+uv run python -m tools.query
 goto end
 
 :build
@@ -58,10 +58,10 @@ goto end
 :venv
 echo Creating virtual environment...
 uv sync -q
-.venv\Scripts\python --version
-.venv\Scripts\black --version
-.venv\Scripts\pyright --version
-.venv\Scripts\python -m pytest --version
+uv run python --version
+uv run black --version
+uv run pyright --version
+uv run pytest --version
 goto end
 
 :sync
