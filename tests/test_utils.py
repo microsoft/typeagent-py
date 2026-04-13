@@ -89,7 +89,7 @@ class TestParseAzureEndpoint:
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert version == "2025-01-01-preview"
-        assert endpoint == "https://myhost.openai.azure.com/openai/deployments/gpt-4"
+        assert endpoint == "https://myhost.openai.azure.com"
 
     def test_api_version_after_ampersand(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """api-version preceded by & (not the first query parameter)."""
@@ -121,13 +121,13 @@ class TestParseAzureEndpoint:
     def test_query_string_stripped_with_path(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Query string stripped even when endpoint includes a path."""
+        """Query string and deployment path stripped from endpoint."""
         monkeypatch.setenv(
             "TEST_ENDPOINT",
             "https://myhost.openai.azure.com/openai/deployments/gpt-4?api-version=2025-01-01-preview",
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
-        assert endpoint == "https://myhost.openai.azure.com/openai/deployments/gpt-4"
+        assert endpoint == "https://myhost.openai.azure.com"
         assert "?" not in endpoint
         assert version == "2025-01-01-preview"
 
