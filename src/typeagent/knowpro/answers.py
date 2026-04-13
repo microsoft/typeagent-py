@@ -125,12 +125,12 @@ def create_question_prompt(question: str) -> str:
 
 def create_context_prompt(context: AnswerContext) -> str:
     # TODO: Use a more compact representation of the context than JSON.
-    import black
+    import pprint
 
     prompt = [
         "[ANSWER CONTEXT]",
         "===",
-        black.format_str(str(dictify(context)), mode=black.Mode(line_length=200)),
+        pprint.pformat(dictify(context), width=200),
         "===",
     ]
     return "\n".join(prompt)

@@ -44,27 +44,24 @@ def timelog(label: str, verbose: bool = True):
 
 
 def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
-    """Pretty-print an object using black.
+    """Pretty-print an object using pprint."""
+    import pprint
 
-    NOTE: Only works if its repr() is a valid Python expression.
-    """
-    print(prefix + format_code(repr(obj)) + suffix)
+    line_width = min(200, shutil.get_terminal_size().columns)
+    print(pprint.pformat(obj, width=line_width))
 
 
 def format_code(text: str, line_width=None) -> str:
-    """Format a block of code using black, then reindent to 2 spaces.
+    """Format a Python literal expression using pprint.
 
-    NOTE: The text must be a valid Python expression or code block.
+    NOTE: The text must be a valid Python literal expression (as produced by repr()).
     """
-    import black
+    import ast
+    import pprint
 
     if line_width is None:
-        # Use the terminal width, but cap it to 200 characters.
         line_width = min(200, shutil.get_terminal_size().columns)
-    formatted_text = black.format_str(
-        text, mode=black.Mode(line_length=line_width)
-    ).rstrip()
-    return reindent(formatted_text)
+    return pprint.pformat(ast.literal_eval(text), width=line_width)
 
 
 def reindent(text: str) -> str:
