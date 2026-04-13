@@ -36,13 +36,15 @@ from typeagent.aitools import embeddings, model_adapters, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
-    knowledge_schema as kplib,
+)
+from typeagent.knowpro import (
     query,
     search,
     search_query_schema,
     searchlang,
     serialization,
 )
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,

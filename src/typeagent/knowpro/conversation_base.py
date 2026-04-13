@@ -13,11 +13,13 @@ from . import (
     answer_response_schema,
     answers,
     convknowledge,
-    knowledge_schema as kplib,
+)
+from . import (
     search_query_schema,
     searchlang,
     secindex,
 )
+from . import knowledge_schema as kplib
 from ..aitools import model_adapters, utils
 from ..storage.memory import semrefindex
 from .convsettings import ConversationSettings
