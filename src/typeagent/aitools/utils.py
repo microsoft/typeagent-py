@@ -200,12 +200,10 @@ def parse_azure_endpoint(
             f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
         )
 
-    # Strip query string and deployment path — AsyncAzureOpenAI expects a
+    # Strip query string and /openai... path — AsyncAzureOpenAI expects a
     # clean base URL and builds the deployment path internally.
     clean_endpoint = azure_endpoint.split("?", 1)[0]
-    deployment_idx = clean_endpoint.find("/openai/deployments/")
-    if deployment_idx >= 0:
-        clean_endpoint = clean_endpoint[:deployment_idx]
+    clean_endpoint = re.sub(r"/openai(/deployments/.*)?$", "", clean_endpoint)
 
     return clean_endpoint, m.group(1)
 

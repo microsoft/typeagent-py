@@ -169,6 +169,26 @@ class TestParseAzureEndpoint:
         assert "foo" not in endpoint
         assert version == "2024-06-01"
 
+    def test_bare_openai_path_stripped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Trailing /openai without /deployments/ is stripped."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai?api-version=2024-06-01",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert version == "2024-06-01"
+
+    def test_apim_prefix_preserved(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """APIM prefix before /openai/deployments/ is kept."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://apim.net/openai/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://apim.net/openai"
+        assert version == "2025-01-01-preview"
+
     def test_no_api_version_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """RuntimeError when the endpoint has no api-version field."""
         monkeypatch.setenv(
