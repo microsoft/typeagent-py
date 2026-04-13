@@ -48,20 +48,25 @@ def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
     import pprint
 
     line_width = min(200, shutil.get_terminal_size().columns)
-    print(pprint.pformat(obj, width=line_width))
+    print(prefix + pprint.pformat(obj, width=line_width) + suffix)
 
 
 def format_code(text: str, line_width=None) -> str:
     """Format a Python literal expression using pprint.
 
     NOTE: The text must be a valid Python literal expression (as produced by repr()).
+    Falls back to plain text formatting if the text is not a valid literal.
     """
     import ast
     import pprint
 
     if line_width is None:
         line_width = min(200, shutil.get_terminal_size().columns)
-    return pprint.pformat(ast.literal_eval(text), width=line_width)
+    try:
+        return pprint.pformat(ast.literal_eval(text), width=line_width)
+    except (ValueError, SyntaxError):
+        # Fall back to simple pprint of the string itself if it's not a valid literal
+        return pprint.pformat(text, width=line_width)
 
 
 def reindent(text: str) -> str:

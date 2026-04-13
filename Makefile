@@ -8,43 +8,49 @@ all: venv format check test build
 
 .PHONY: format
 format: venv
-	.venv/bin/isort src tests tools examples $(FLAGS)
-	.venv/bin/black -tpy312 -tpy313 -tpy314 src tests tools examples $(FLAGS)
+	uv run isort src tests tools examples $(FLAGS)
+	uv run black -tpy312 src tests tools examples $(FLAGS)
 
 .PHONY: check
 check: venv
-	.venv/bin/pyright --pythonpath .venv/bin/python src tests tools examples
+	uv run pyright src tests tools examples
 
 .PHONY: test
 test: venv
-	.venv/bin/pytest $(FLAGS)
+	uv run pytest $(FLAGS)
 
 .PHONY: coverage
 coverage: venv
 	coverage erase
-	COVERAGE_PROCESS_START=.coveragerc .venv/bin/coverage run -m pytest $(FLAGS)
+	COVERAGE_PROCESS_START=.coveragerc uv run coverage run -m pytest $(FLAGS)
 	coverage combine
 	coverage report
 
 .PHONY: demo
 demo: venv
-	.venv/bin/python -m tools.query $(FLAGS)
+	uv run python -m tools.query $(FLAGS)
 
 .PHONY: compare
 compare: venv
-	.venv/bin/python -m tools.query --batch $(FLAGS)
+	uv run python -m tools.query --batch $(FLAGS)
+
+.PHONY: eval
+eval: venv
+	rm -f eval.db
+	uv run python tools/load_json.py --database eval.db tests/testdata/Episode_53_AdrianTchaikovsky_index
+	uv run python tools/query.py --batch --database eval.db --answer-results tests/testdata/Episode_53_Answer_results.json --search-results tests/testdata/Episode_53_Search_results.json $(FLAGS)
 
 .PHONY: mcp
 mcp: venv
-	.venv/bin/mcp dev src/typeagent/mcp/server.py
+	uv run mcp dev src/typeagent/mcp/server.py
 
 .PHONY: profile
 profile: venv
-	</dev/null .venv/bin/python -m cProfile -s ncalls -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index | head -60
+	</dev/null uv run python -m cProfile -s ncalls -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index | head -60
 
 .PHONY: scaling
 scaling: venv
-	</dev/null .venv/bin/python -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index
+	</dev/null uv run python -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index
 
 .PHONY: build
 build: venv
@@ -52,7 +58,7 @@ build: venv
 
 .PHONY: release
 release: venv
-	.venv/bin/python tools/release.py $(VERSION)
+	uv run python tools/release.py $(VERSION)
 
 .PHONY: venv
 venv: .venv
@@ -60,10 +66,10 @@ venv: .venv
 .venv:
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
 	uv sync -q $(FLAGS)
-	.venv/bin/black --version
+	uv run black --version
 	@echo "(If 'pyright' fails with 'error while loading shared libraries: libatomic.so.1:', try 'make install-libatomic')"
-	.venv/bin/pyright --version
-	.venv/bin/pytest --version
+	uv run pyright --version
+	uv run pytest --version
 
 .PHONY: sync
 sync:
