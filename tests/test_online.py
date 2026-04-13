@@ -3,8 +3,7 @@
 
 import pytest
 
-from pydantic_ai.messages import ModelRequest, TextPart, UserPromptPart
-from pydantic_ai.models import ModelRequestParameters
+import typechat
 
 from typeagent.aitools.model_adapters import create_chat_model
 
@@ -18,14 +17,9 @@ async def test_why_is_sky_blue(really_needs_auth: None):
     """
     model = create_chat_model()
 
-    response = await model._model.request(
-        [ModelRequest(parts=[UserPromptPart(content="why is the sky blue?")])],
-        None,
-        ModelRequestParameters(),
-    )
-
-    text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
-    msg = "".join(text_parts)
+    result = await model.complete("why is the sky blue?")
+    assert isinstance(result, typechat.Success), f"Chat completion failed: {result}"
+    msg = result.value
     assert msg, "Chat agent didn't respond"
 
     print(f"Chat agent response: {msg}")
