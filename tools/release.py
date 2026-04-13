@@ -450,9 +450,15 @@ Examples:
 
     if exit_code != 0:
         if args.force:
-            print("Warning: Failed to create PR -- you can create it yourself", file=sys.stderr)
+            print(
+                "Warning: Failed to create PR -- you can create it yourself",
+                file=sys.stderr,
+            )
         else:
-            print("Error: Failed to create PR -- but you can create it yourself", file=sys.stderr)
+            print(
+                "Error: Failed to create PR -- but you can create it yourself",
+                file=sys.stderr,
+            )
             return 1
 
     if args.dry_run:
