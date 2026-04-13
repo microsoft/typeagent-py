@@ -188,6 +188,7 @@ def _make_azure_provider(
             azure_endpoint=azure_endpoint,
             api_version=api_version,
             api_key=raw_key,
+            default_headers={"Ocp-Apim-Subscription-Key": raw_key},
         )
     return AzureProvider(openai_client=client)
 

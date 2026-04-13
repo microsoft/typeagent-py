@@ -256,6 +256,7 @@ def create_async_openai_client(
             api_version=api_version,
             azure_endpoint=azure_endpoint,
             api_key=azure_api_key,
+            default_headers={"Ocp-Apim-Subscription-Key": azure_api_key},
         )
 
     else:
@@ -267,6 +268,7 @@ def create_async_openai_client(
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
 def make_agent[T](cls: type[T]):
     """Create Pydantic AI agent using hardcoded preferences."""
+    from openai import AsyncAzureOpenAI
     from pydantic_ai import Agent, NativeOutput, ToolOutput
     from pydantic_ai.models.openai import OpenAIChatModel
     from pydantic_ai.providers.azure import AzureProvider
@@ -288,9 +290,12 @@ def make_agent[T](cls: type[T]):
         model = OpenAIChatModel(
             "gpt-4o",
             provider=AzureProvider(
-                azure_endpoint=azure_endpoint,
-                api_version=api_version,
-                api_key=azure_api_key,
+                openai_client=AsyncAzureOpenAI(
+                    azure_endpoint=azure_endpoint,
+                    api_version=api_version,
+                    api_key=azure_api_key,
+                    default_headers={"Ocp-Apim-Subscription-Key": azure_api_key},
+                ),
             ),
         )
 
