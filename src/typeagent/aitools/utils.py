@@ -48,7 +48,7 @@ def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
     import pprint
 
     line_width = min(200, shutil.get_terminal_size().columns)
-    print(pprint.pformat(obj, width=line_width))
+    print(prefix + pprint.pformat(obj, width=line_width) + suffix)
 
 
 def format_code(text: str, line_width=None) -> str:
