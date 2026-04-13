@@ -7,7 +7,9 @@ from collections.abc import AsyncIterable, Callable
 
 from typechat import Failure
 
-from ...knowpro import convknowledge, knowledge_schema as kplib, secindex
+from ...knowpro import convknowledge
+from ...knowpro import knowledge_schema as kplib
+from ...knowpro import secindex
 from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
 from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
