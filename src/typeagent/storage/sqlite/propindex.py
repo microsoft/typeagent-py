@@ -8,6 +8,10 @@ import sqlite3
 
 from ...knowpro import interfaces
 from ...knowpro.interfaces import ScoredSemanticRefOrdinal
+from ...storage.memory.propindex import (
+    make_property_term_text,
+    split_property_term_text,
+)
 
 
 class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
@@ -47,11 +51,6 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             score = 1.0
 
         # Normalize property name and value (to match in-memory implementation)
-        from ...storage.memory.propindex import (
-            make_property_term_text,
-            split_property_term_text,
-        )
-
         term_text = make_property_term_text(property_name, value)
         term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
         property_name, value = split_property_term_text(term_text)
@@ -80,11 +79,6 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
     ) -> None:
         if not properties:
             return
-        from ...storage.memory.propindex import (
-            make_property_term_text,
-            split_property_term_text,
-        )
-
         rows = []
         for property_name, value, ordinal in properties:
             if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):
@@ -115,11 +109,6 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
         value: str,
     ) -> list[interfaces.ScoredSemanticRefOrdinal] | None:
         # Normalize property name and value (to match in-memory implementation)
-        from ...storage.memory.propindex import (
-            make_property_term_text,
-            split_property_term_text,
-        )
-
         term_text = make_property_term_text(property_name, value)
         term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
         property_name, value = split_property_term_text(term_text)
