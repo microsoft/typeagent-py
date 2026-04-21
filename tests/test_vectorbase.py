@@ -7,11 +7,42 @@ import pytest
 from typeagent.aitools.embeddings import (
     CachingEmbeddingModel,
     NormalizedEmbedding,
+    NormalizedEmbeddings,
 )
 from typeagent.aitools.model_adapters import (
     create_test_embedding_model,
 )
-from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
+from typeagent.aitools.vectorbase import (
+    DEFAULT_MIN_SCORE,
+    TextEmbeddingIndexSettings,
+    VectorBase,
+)
+
+
+class FakeEmbeddingModel:
+    """Minimal embedding model stub for settings tests."""
+
+    def __init__(self, model_name: str) -> None:
+        self.model_name = model_name
+
+    def add_embedding(self, key: str, embedding: NormalizedEmbedding) -> None:
+        del key, embedding
+
+    async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
+        del input
+        return np.array([1.0], dtype=np.float32)
+
+    async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
+        del input
+        return np.array([[1.0]], dtype=np.float32)
+
+    async def get_embedding(self, key: str) -> NormalizedEmbedding:
+        del key
+        return np.array([1.0], dtype=np.float32)
+
+    async def get_embeddings(self, keys: list[str]) -> NormalizedEmbeddings:
+        del keys
+        return np.array([[1.0]], dtype=np.float32)
 
 
 @pytest.fixture(scope="function")
@@ -38,7 +69,7 @@ def sample_embeddings() -> Samples:
     }
 
 
-def test_add_embedding(vector_base: VectorBase, sample_embeddings: Samples):
+def test_add_embedding(vector_base: VectorBase, sample_embeddings: Samples) -> None:
     """Test adding embeddings to the VectorBase."""
     for key, embedding in sample_embeddings.items():
         vector_base.add_embedding(key, embedding)
@@ -48,7 +79,7 @@ def test_add_embedding(vector_base: VectorBase, sample_embeddings: Samples):
         np.testing.assert_array_equal(vector_base.serialize_embedding_at(i), embedding)
 
 
-def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples):
+def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples) -> None:
     """Adding multiple embeddings at once matches repeated single adds."""
     keys = list(sample_embeddings.keys())
     for key, embedding in sample_embeddings.items():
@@ -71,7 +102,7 @@ def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples):
 
 
 @pytest.mark.asyncio
-async def test_add_key(vector_base: VectorBase, sample_embeddings: Samples):
+async def test_add_key(vector_base: VectorBase, sample_embeddings: Samples) -> None:
     """Test adding keys to the VectorBase."""
     for key in sample_embeddings:
         await vector_base.add_key(key)
@@ -80,7 +111,9 @@ async def test_add_key(vector_base: VectorBase, sample_embeddings: Samples):
 
 
 @pytest.mark.asyncio
-async def test_add_key_no_cache(vector_base: VectorBase, sample_embeddings: Samples):
+async def test_add_key_no_cache(
+    vector_base: VectorBase, sample_embeddings: Samples
+) -> None:
     """Test adding keys to the VectorBase with cache disabled."""
     for key in sample_embeddings:
         await vector_base.add_key(key, cache=False)
@@ -91,7 +124,7 @@ async def test_add_key_no_cache(vector_base: VectorBase, sample_embeddings: Samp
 
 
 @pytest.mark.asyncio
-async def test_add_keys(vector_base: VectorBase, sample_embeddings: Samples):
+async def test_add_keys(vector_base: VectorBase, sample_embeddings: Samples) -> None:
     """Test adding multiple keys to the VectorBase."""
     keys = list(sample_embeddings.keys())
     await vector_base.add_keys(keys)
@@ -100,7 +133,9 @@ async def test_add_keys(vector_base: VectorBase, sample_embeddings: Samples):
 
 
 @pytest.mark.asyncio
-async def test_add_keys_no_cache(vector_base: VectorBase, sample_embeddings: Samples):
+async def test_add_keys_no_cache(
+    vector_base: VectorBase, sample_embeddings: Samples
+) -> None:
     """Test adding multiple keys to the VectorBase with cache disabled."""
     keys = list(sample_embeddings.keys())
     await vector_base.add_keys(keys, cache=False)
@@ -111,7 +146,9 @@ async def test_add_keys_no_cache(vector_base: VectorBase, sample_embeddings: Sam
 
 
 @pytest.mark.asyncio
-async def test_fuzzy_lookup(vector_base: VectorBase, sample_embeddings: Samples):
+async def test_fuzzy_lookup(
+    vector_base: VectorBase, sample_embeddings: Samples
+) -> None:
     """Test fuzzy lookup functionality."""
     for key in sample_embeddings:
         await vector_base.add_key(key)
@@ -122,7 +159,7 @@ async def test_fuzzy_lookup(vector_base: VectorBase, sample_embeddings: Samples)
     assert results[0].score > 0.9  # High similarity score for the same word
 
 
-def test_clear(vector_base: VectorBase, sample_embeddings: Samples):
+def test_clear(vector_base: VectorBase, sample_embeddings: Samples) -> None:
     """Test clearing the VectorBase."""
     for key, embedding in sample_embeddings.items():
         vector_base.add_embedding(key, embedding)
@@ -132,7 +169,9 @@ def test_clear(vector_base: VectorBase, sample_embeddings: Samples):
     assert len(vector_base) == 0
 
 
-def test_serialize_deserialize(vector_base: VectorBase, sample_embeddings: Samples):
+def test_serialize_deserialize(
+    vector_base: VectorBase, sample_embeddings: Samples
+) -> None:
     """Test serialization and deserialization of the VectorBase."""
     for key, embedding in sample_embeddings.items():
         vector_base.add_embedding(key, embedding)
@@ -149,12 +188,12 @@ def test_serialize_deserialize(vector_base: VectorBase, sample_embeddings: Sampl
         )
 
 
-def test_vectorbase_bool(vector_base: VectorBase):
+def test_vectorbase_bool(vector_base: VectorBase) -> None:
     """__bool__ should always return True."""
     assert bool(vector_base) is True
 
 
-def test_get_embedding_at(vector_base: VectorBase, sample_embeddings: Samples):
+def test_get_embedding_at(vector_base: VectorBase, sample_embeddings: Samples) -> None:
     """Test get_embedding_at returns correct embedding and raises IndexError."""
     for key, embedding in sample_embeddings.items():
         vector_base.add_embedding(key, embedding)
@@ -169,7 +208,7 @@ def test_get_embedding_at(vector_base: VectorBase, sample_embeddings: Samples):
 
 def test_fuzzy_lookup_embedding_in_subset(
     vector_base: VectorBase, sample_embeddings: Samples
-):
+) -> None:
     """Test fuzzy_lookup_embedding_in_subset returns best match in subset or None."""
     keys = list(sample_embeddings.keys())
     for key, embedding in sample_embeddings.items():
@@ -220,3 +259,51 @@ def test_add_embeddings_wrong_ndim(vector_base: VectorBase) -> None:
     emb1d = np.array([0.1, 0.2, 0.3], dtype=np.float32)
     with pytest.raises(ValueError, match="Expected 2D"):
         vector_base.add_embeddings(None, emb1d)
+
+
+@pytest.mark.parametrize(
+    ("model_name", "expected_min_score"),
+    [
+        ("text-embedding-3-large", 0.07),
+        ("text-embedding-3-small", 0.16),
+        ("text-embedding-ada-002", 0.72),
+    ],
+)
+def test_text_embedding_index_settings_uses_known_model_default(
+    model_name: str, expected_min_score: float
+) -> None:
+    settings = TextEmbeddingIndexSettings(
+        embedding_model=FakeEmbeddingModel(model_name)
+    )
+
+    assert settings.min_score == expected_min_score
+    assert settings.max_matches is None
+
+
+def test_text_embedding_index_settings_keeps_unknown_model_fallback() -> None:
+    settings = TextEmbeddingIndexSettings(
+        embedding_model=FakeEmbeddingModel("custom-embedding-model")
+    )
+
+    assert settings.min_score == DEFAULT_MIN_SCORE
+    assert settings.max_matches is None
+
+
+def test_text_embedding_index_settings_explicit_overrides_win() -> None:
+    settings = TextEmbeddingIndexSettings(
+        embedding_model=FakeEmbeddingModel("text-embedding-3-large"),
+        min_score=0.55,
+        max_matches=7,
+    )
+
+    assert settings.min_score == 0.55
+    assert settings.max_matches == 7
+
+
+def test_text_embedding_index_settings_invalid_max_matches_becomes_none() -> None:
+    settings = TextEmbeddingIndexSettings(
+        embedding_model=FakeEmbeddingModel("text-embedding-3-large"),
+        max_matches=0,
+    )
+
+    assert settings.max_matches is None
