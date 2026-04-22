@@ -48,20 +48,25 @@ def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
     import pprint
 
     line_width = min(200, shutil.get_terminal_size().columns)
-    print(pprint.pformat(obj, width=line_width))
+    print(prefix + pprint.pformat(obj, width=line_width) + suffix)
 
 
 def format_code(text: str, line_width=None) -> str:
     """Format a Python literal expression using pprint.
 
     NOTE: The text must be a valid Python literal expression (as produced by repr()).
+    Falls back to plain text formatting if the text is not a valid literal.
     """
     import ast
     import pprint
 
     if line_width is None:
         line_width = min(200, shutil.get_terminal_size().columns)
-    return pprint.pformat(ast.literal_eval(text), width=line_width)
+    try:
+        return pprint.pformat(ast.literal_eval(text), width=line_width)
+    except (ValueError, SyntaxError):
+        # Fall back to simple pprint of the string itself if it's not a valid literal
+        return pprint.pformat(text, width=line_width)
 
 
 def reindent(text: str) -> str:
@@ -195,9 +200,10 @@ def parse_azure_endpoint(
             f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
         )
 
-    # Strip query string — AsyncAzureOpenAI expects a clean base URL and
-    # receives api_version as a separate parameter.
+    # Strip query string and /openai... path — AsyncAzureOpenAI expects a
+    # clean base URL and builds the deployment path internally.
     clean_endpoint = azure_endpoint.split("?", 1)[0]
+    clean_endpoint = re.sub(r"/openai(/deployments/.*)?$", "", clean_endpoint)
 
     return clean_endpoint, m.group(1)
 
@@ -249,10 +255,15 @@ def create_async_openai_client(
         azure_api_key = get_azure_api_key(azure_api_key)
         azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
 
+        apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
+
         return AsyncAzureOpenAI(
             api_version=api_version,
             azure_endpoint=azure_endpoint,
             api_key=azure_api_key,
+            default_headers=(
+                {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
+            ),
         )
 
     else:
@@ -266,7 +277,6 @@ def make_agent[T](cls: type[T]):
     """Create Pydantic AI agent using hardcoded preferences."""
     from pydantic_ai import Agent, NativeOutput, ToolOutput
     from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.providers.azure import AzureProvider
 
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):
@@ -274,22 +284,14 @@ def make_agent[T](cls: type[T]):
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
         model = OpenAIChatModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
 
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
+    elif os.getenv("AZURE_OPENAI_API_KEY"):
+        from typeagent.aitools.model_adapters import _make_azure_provider
 
-        print(f"## {azure_endpoint} ##")
+        azure_provider = _make_azure_provider()
         Wrapper = ToolOutput
 
-        print(f"## Using Azure {api_version} with {Wrapper.__name__} ##")
-        model = OpenAIChatModel(
-            "gpt-4o",
-            provider=AzureProvider(
-                azure_endpoint=azure_endpoint,
-                api_version=api_version,
-                api_key=azure_api_key,
-            ),
-        )
+        print(f"## Using Azure with {Wrapper.__name__} ##")
+        model = OpenAIChatModel("gpt-4o", provider=azure_provider)
 
     else:
         raise RuntimeError(

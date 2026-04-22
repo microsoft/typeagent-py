@@ -20,14 +20,19 @@ from typeagent.knowpro.interfaces import (
     ITermToSemanticRefIndex,
     Topic,
 )
-from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet, KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage.memory.semrefindex import (
-    add_action_to_index,
-    add_entity_to_index,
+    add_action,
+    add_entity,
     add_knowledge_to_index,
-    add_topic_to_index,
+    add_topic,
     TermToSemanticRefIndex,
 )
 
@@ -211,7 +216,7 @@ async def test_semantic_ref_index_serialize_and_deserialize(
 
 
 @pytest.mark.asyncio
-async def test_add_entity_to_index(
+async def test_add_entity(
     semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
     needs_auth: None,
 ) -> None:
@@ -224,7 +229,7 @@ async def test_add_entity_to_index(
         type=["object", "example"],
         facets=[Facet(name="color", value="blue")],
     )
-    await add_entity_to_index(entity, semantic_refs, semantic_ref_index, 0)
+    await add_entity(entity, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
     assert (await semantic_refs.get_item(0)).knowledge.knowledge_type == "entity"
@@ -247,7 +252,7 @@ async def test_add_entity_to_index(
 
 
 @pytest.mark.asyncio
-async def test_add_topic_to_index(
+async def test_add_topic(
     semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
     needs_auth: None,
 ) -> None:
@@ -256,7 +261,7 @@ async def test_add_topic_to_index(
     semantic_refs: ISemanticRefCollection = semantic_ref_setup["collection"]  # type: ignore
 
     topic = "ExampleTopic"
-    await add_topic_to_index(topic, semantic_refs, semantic_ref_index, 0)
+    await add_topic(Topic(text=topic), semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
     assert (await semantic_refs.get_item(0)).knowledge.knowledge_type == "topic"
@@ -270,7 +275,7 @@ async def test_add_topic_to_index(
 
 
 @pytest.mark.asyncio
-async def test_add_action_to_index(
+async def test_add_action(
     semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
     needs_auth: None,
 ) -> None:
@@ -287,7 +292,7 @@ async def test_add_action_to_index(
         params=None,
         subject_entity_facet=None,
     )
-    await add_action_to_index(action, semantic_refs, semantic_ref_index, 0)
+    await add_action(action, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
     assert (await semantic_refs.get_item(0)).knowledge.knowledge_type == "action"

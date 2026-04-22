@@ -56,6 +56,31 @@ def test_format_code_nested():
     assert parsed == obj
 
 
+def test_format_code_non_literal():
+    """Test that format_code gracefully handles non-literal expressions.
+
+    Regression test for commit 59be9a5 which broke debug output when format_code()
+    was called on repr() of objects containing non-literal elements (e.g., AST nodes,
+    custom class instances).
+    """
+
+    # Create a custom class instance (a non-literal object whose repr() can't be
+    # evaluated with ast.literal_eval)
+    class CustomClass:
+        pass
+
+    obj = CustomClass()
+    non_literal_repr = repr(obj)
+    # This repr looks like: <__main__.CustomClass object at 0x...>
+
+    # format_code() should handle this gracefully without raising ValueError
+    result = utils.format_code(non_literal_repr)
+    assert isinstance(result, str)
+    assert len(result) > 0
+    # The result should contain the non-literal repr (possibly wrapped in quotes)
+    assert "CustomClass object" in result or "CustomClass" in result
+
+
 def test_load_dotenv(really_needs_auth):
     # Call load_dotenv and check for at least one expected key
     load_dotenv()
@@ -89,7 +114,7 @@ class TestParseAzureEndpoint:
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert version == "2025-01-01-preview"
-        assert endpoint == "https://myhost.openai.azure.com/openai/deployments/gpt-4"
+        assert endpoint == "https://myhost.openai.azure.com"
 
     def test_api_version_after_ampersand(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """api-version preceded by & (not the first query parameter)."""
@@ -121,13 +146,13 @@ class TestParseAzureEndpoint:
     def test_query_string_stripped_with_path(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Query string stripped even when endpoint includes a path."""
+        """Query string and deployment path stripped from endpoint."""
         monkeypatch.setenv(
             "TEST_ENDPOINT",
             "https://myhost.openai.azure.com/openai/deployments/gpt-4?api-version=2025-01-01-preview",
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
-        assert endpoint == "https://myhost.openai.azure.com/openai/deployments/gpt-4"
+        assert endpoint == "https://myhost.openai.azure.com"
         assert "?" not in endpoint
         assert version == "2025-01-01-preview"
 
@@ -143,6 +168,26 @@ class TestParseAzureEndpoint:
         assert endpoint == "https://myhost.openai.azure.com"
         assert "foo" not in endpoint
         assert version == "2024-06-01"
+
+    def test_bare_openai_path_stripped(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Trailing /openai without /deployments/ is stripped."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai?api-version=2024-06-01",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert version == "2024-06-01"
+
+    def test_apim_prefix_preserved(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """APIM prefix before /openai/deployments/ is kept."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://apim.net/openai/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
+        )
+        endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
+        assert endpoint == "https://apim.net/openai"
+        assert version == "2025-01-01-preview"
 
     def test_no_api_version_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """RuntimeError when the endpoint has no api-version field."""

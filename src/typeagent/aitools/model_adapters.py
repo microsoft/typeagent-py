@@ -184,10 +184,14 @@ def _make_azure_provider(
             azure_ad_token_provider=token_provider.get_token,
         )
     else:
+        apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
         client = AsyncAzureOpenAI(
             azure_endpoint=azure_endpoint,
             api_version=api_version,
             api_key=raw_key,
+            default_headers=(
+                {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
+            ),
         )
     return AzureProvider(openai_client=client)
 
