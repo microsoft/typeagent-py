@@ -24,7 +24,7 @@ from mcp.types import (
 from openai.types.chat import ChatCompletionMessageParam
 import typechat
 
-from typeagent.aitools.utils import create_async_openai_client
+from typeagent.aitools.utils import create_async_openai_client, resolve_azure_model_name
 from typeagent.mcp.server import MCPTypeChatModel, QuestionResponse
 
 from conftest import EPISODE_53_INDEX
@@ -76,8 +76,12 @@ async def sampling_callback(
         messages.insert(0, {"role": "system", "content": params.systemPrompt})
 
     # Call OpenAI
+    model_name = "gpt-4o"
+    if os.getenv("AZURE_OPENAI_API_KEY") and not os.getenv("OPENAI_API_KEY"):
+        model_name = resolve_azure_model_name(model_name)
+
     response = await client.chat.completions.create(
-        model="gpt-4o",
+        model=model_name,
         messages=messages,
         max_tokens=params.maxTokens,
         temperature=params.temperature if params.temperature is not None else 1.0,

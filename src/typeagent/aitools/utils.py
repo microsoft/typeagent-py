@@ -190,6 +190,21 @@ def parse_azure_endpoint(
     Raises:
         RuntimeError: If endpoint is not found or doesn't contain api-version.
     """
+    endpoint, version, _ = parse_azure_endpoint_parts(endpoint_envvar)
+    return endpoint, version
+
+
+def parse_azure_endpoint_parts(
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+) -> tuple[str, str, str | None]:
+    """Parse Azure OpenAI endpoint, version, and optional deployment name.
+
+    Returns:
+        Tuple of (endpoint_url, api_version, deployment_name).
+
+    The deployment name is extracted from endpoints of the form
+    ``.../openai/deployments/<deployment>/...`` and is ``None`` otherwise.
+    """
     azure_endpoint = os.getenv(endpoint_envvar)
     if not azure_endpoint:
         raise RuntimeError(f"Environment variable {endpoint_envvar} not found")
@@ -200,12 +215,22 @@ def parse_azure_endpoint(
             f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
         )
 
+    clean_endpoint = azure_endpoint.split("?", 1)[0]
+    deployment_match = re.search(
+        r"/openai/deployments/([^/?]+)(?:/.*)?$",
+        clean_endpoint,
+    )
+    deployment_name = deployment_match.group(1) if deployment_match else None
+
     # Strip query string and /openai... path — AsyncAzureOpenAI expects a
     # clean base URL and builds the deployment path internally.
-    clean_endpoint = azure_endpoint.split("?", 1)[0]
-    clean_endpoint = re.sub(r"/openai(/deployments/.*)?$", "", clean_endpoint)
+    clean_endpoint = re.sub(
+        r"/openai(?:/deployments/[^/?]+(?:/.*)?)?$",
+        "",
+        clean_endpoint,
+    )
 
-    return clean_endpoint, m.group(1)
+    return clean_endpoint, m.group(1), deployment_name
 
 
 def get_azure_api_key(azure_api_key: str) -> str:
@@ -272,6 +297,15 @@ def create_async_openai_client(
         )
 
 
+def resolve_azure_model_name(
+    model_name: str,
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+) -> str:
+    """Resolve an Azure deployment name from an endpoint, if present."""
+    _, _, deployment_name = parse_azure_endpoint_parts(endpoint_envvar)
+    return deployment_name or model_name
+
+
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
 def make_agent[T](cls: type[T]):
     """Create Pydantic AI agent using hardcoded preferences."""
@@ -291,7 +325,10 @@ def make_agent[T](cls: type[T]):
         Wrapper = ToolOutput
 
         print(f"## Using Azure with {Wrapper.__name__} ##")
-        model = OpenAIChatModel("gpt-4o", provider=azure_provider)
+        model = OpenAIChatModel(
+            resolve_azure_model_name("gpt-4o"),
+            provider=azure_provider,
+        )
 
     else:
         raise RuntimeError(
