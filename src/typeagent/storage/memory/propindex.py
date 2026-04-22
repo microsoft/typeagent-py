@@ -330,12 +330,13 @@ async def lookup_property_in_property_index(
         property_value,
     )
     if ranges_in_scope is not None and scored_refs:
-        filtered_refs = []
-        for sr in scored_refs:
-            semantic_ref = await semantic_refs.get_item(sr.semantic_ref_ordinal)
-            if ranges_in_scope.is_range_in_scope(semantic_ref.range):
-                filtered_refs.append(sr)
-        scored_refs = filtered_refs
+        ordinals = [sr.semantic_ref_ordinal for sr in scored_refs]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
+        scored_refs = [
+            sr
+            for sr, m in zip(scored_refs, metadata)
+            if ranges_in_scope.is_range_in_scope(m.range)
+        ]
 
     return scored_refs or None  # Return None if no results
 
