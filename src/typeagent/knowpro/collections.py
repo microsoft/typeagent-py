@@ -531,9 +531,7 @@ class TextRangeCollection(Iterable[TextRange]):
         # Bisect on start only to find all ranges with start <= inner.start,
         # then scan backwards — the most likely containing range has the
         # largest start still <= inner's.
-        hi = bisect.bisect_right(
-            self._ranges, inner_range.start, key=lambda r: r.start
-        )
+        hi = bisect.bisect_right(self._ranges, inner_range.start, key=lambda r: r.start)
         for i in range(hi - 1, -1, -1):
             if inner_range in self._ranges[i]:
                 return True

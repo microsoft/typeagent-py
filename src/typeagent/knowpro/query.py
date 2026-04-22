@@ -200,9 +200,7 @@ async def lookup_term(
             semantic_ref_index,
             term,
             semantic_refs,
-            lambda m, _: (
-                not knowledge_type or m.knowledge_type == knowledge_type
-            )
+            lambda m, _: (not knowledge_type or m.knowledge_type == knowledge_type)
             and ranges_in_scope.is_range_in_scope(m.range),
         )
     return await semantic_ref_index.lookup_term(term.text)
