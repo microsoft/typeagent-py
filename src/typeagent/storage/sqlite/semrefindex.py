@@ -3,6 +3,7 @@
 
 """SQLite-based semantic reference index implementation."""
 
+from collections.abc import Sequence
 import re
 import sqlite3
 import unicodedata
@@ -55,6 +56,33 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
         )
 
         return term
+
+    async def add_terms_batch(
+        self,
+        terms: Sequence[
+            tuple[
+                str, interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal
+            ]
+        ],
+    ) -> None:
+        if not terms:
+            return
+        rows = []
+        for term, ordinal in terms:
+            if not term:
+                continue
+            term = self._prepare_term(term)
+            if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):
+                semref_id = ordinal.semantic_ref_ordinal
+            else:
+                semref_id = ordinal
+            rows.append((term, semref_id))
+        if rows:
+            cursor = self.db.cursor()
+            cursor.executemany(
+                "INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id) VALUES (?, ?)",
+                rows,
+            )
 
     async def remove_term(
         self, term: str, semantic_ref_ordinal: interfaces.SemanticRefOrdinal

@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import Sequence
 import enum
 from typing import assert_never
 
@@ -109,6 +110,63 @@ async def build_property_index(conversation: IConversation) -> None:
     await add_to_property_index(conversation, 0)
 
 
+def collect_facet_properties(
+    facet: kplib.Facet | None,
+    ordinal: SemanticRefOrdinal,
+) -> list[tuple[str, str, SemanticRefOrdinal]]:
+    """Collect property tuples from a facet without touching any index."""
+    if facet is None:
+        return []
+    props: list[tuple[str, str, SemanticRefOrdinal]] = [
+        (PropertyNames.FacetName.value, facet.name, ordinal)
+    ]
+    value = facet.value
+    if value is not None:
+        if isinstance(value, float) and value:
+            value = f"{value:g}"
+        props.append((PropertyNames.FacetValue.value, str(value), ordinal))
+    return props
+
+
+def collect_entity_properties(
+    entity: kplib.ConcreteEntity,
+    ordinal: SemanticRefOrdinal,
+) -> list[tuple[str, str, SemanticRefOrdinal]]:
+    """Collect all property tuples for an entity."""
+    props: list[tuple[str, str, SemanticRefOrdinal]] = [
+        (PropertyNames.EntityName.value, entity.name, ordinal)
+    ]
+    for t in entity.type:
+        props.append((PropertyNames.EntityType.value, t, ordinal))
+    if entity.facets:
+        for facet in entity.facets:
+            props.extend(collect_facet_properties(facet, ordinal))
+    return props
+
+
+def collect_action_properties(
+    action: kplib.Action,
+    ordinal: SemanticRefOrdinal,
+) -> list[tuple[str, str, SemanticRefOrdinal]]:
+    """Collect all property tuples for an action."""
+    props: list[tuple[str, str, SemanticRefOrdinal]] = [
+        (PropertyNames.Verb.value, " ".join(action.verbs), ordinal)
+    ]
+    if action.subject_entity_name != "none":
+        props.append((PropertyNames.Subject.value, action.subject_entity_name, ordinal))
+    if action.object_entity_name != "none":
+        props.append((PropertyNames.Object.value, action.object_entity_name, ordinal))
+    if action.indirect_object_entity_name != "none":
+        props.append(
+            (
+                PropertyNames.IndirectObject.value,
+                action.indirect_object_entity_name,
+                ordinal,
+            )
+        )
+    return props
+
+
 async def add_to_property_index(
     conversation: IConversation,
     start_at_ordinal: SemanticRefOrdinal,
@@ -127,28 +185,39 @@ async def add_to_property_index(
         semantic_refs = conversation.semantic_refs
         size = await semantic_refs.size()
 
+        collected: list[tuple[str, str, SemanticRefOrdinal]] = []
         for semantic_ref_ordinal, semantic_ref in enumerate(
             await semantic_refs.get_slice(start_at_ordinal, size),
             start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
             if isinstance(semantic_ref.knowledge, kplib.Action):
-                await add_action_properties_to_index(
-                    semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                collected.extend(
+                    collect_action_properties(
+                        semantic_ref.knowledge, semantic_ref_ordinal
+                    )
                 )
             elif isinstance(semantic_ref.knowledge, kplib.ConcreteEntity):
-                await add_entity_properties_to_index(
-                    semantic_ref.knowledge, property_index, semantic_ref_ordinal
+                collected.extend(
+                    collect_entity_properties(
+                        semantic_ref.knowledge, semantic_ref_ordinal
+                    )
                 )
             elif isinstance(semantic_ref.knowledge, Tag):
-                tag = semantic_ref.knowledge
-                await property_index.add_property(
-                    PropertyNames.Tag.value, tag.text, semantic_ref_ordinal
+                collected.append(
+                    (
+                        PropertyNames.Tag.value,
+                        semantic_ref.knowledge.text,
+                        semantic_ref_ordinal,
+                    )
                 )
             elif isinstance(semantic_ref.knowledge, Topic):
                 pass
             else:
                 assert_never(semantic_ref.knowledge)
+
+        if collected:
+            await property_index.add_properties_batch(collected)
 
 
 class PropertyIndex(IPropertyToSemanticRefIndex):
@@ -182,6 +251,15 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
             self._map[term_text].append(semantic_ref_ordinal)
         else:
             self._map[term_text] = [semantic_ref_ordinal]
+
+    async def add_properties_batch(
+        self,
+        properties: Sequence[
+            tuple[str, str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]
+        ],
+    ) -> None:
+        for name, value, ordinal in properties:
+            await self.add_property(name, value, ordinal)
 
     async def clear(self) -> None:
         self._map = {}
