@@ -233,12 +233,18 @@ def create_chat_model(
     if _needs_azure_fallback(provider):
         from pydantic_ai.models.openai import OpenAIChatModel
 
+        from .utils import parse_azure_endpoint_parts
+
         if os.getenv("OPENAI_MODEL"):
             print(
                 f"OPENAI_MODEL={os.getenv('OPENAI_MODEL')!r} ignored; "
                 f"Azure deployment is determined by AZURE_OPENAI_ENDPOINT"
             )
-        model = OpenAIChatModel(model_name, provider=_make_azure_provider())
+        _, _, deployment_name = parse_azure_endpoint_parts()
+        model = OpenAIChatModel(
+            deployment_name or model_name,
+            provider=_make_azure_provider(),
+        )
     else:
         model = infer_model(model_spec)
     return PydanticAIChatModel(model)
@@ -283,6 +289,7 @@ def create_embedding_model(
         from pydantic_ai.embeddings.openai import OpenAIEmbeddingModel
 
         from .embeddings import model_to_envvar
+        from .utils import parse_azure_endpoint_parts
 
         # Look up model-specific Azure endpoint, falling back to the generic one.
         suggested_envvar = model_to_envvar.get(model_name)
@@ -296,7 +303,11 @@ def create_embedding_model(
             api_key_envvar = "AZURE_OPENAI_API_KEY"
 
         azure_provider = _make_azure_provider(endpoint_envvar, api_key_envvar)
-        embedding_model = OpenAIEmbeddingModel(model_name, provider=azure_provider)
+        _, _, deployment_name = parse_azure_endpoint_parts(endpoint_envvar)
+        embedding_model = OpenAIEmbeddingModel(
+            deployment_name or model_name,
+            provider=azure_provider,
+        )
         embedder = _PydanticAIEmbedder(embedding_model)
     else:
         embedder = _PydanticAIEmbedder(model_spec)

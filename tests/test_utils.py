@@ -156,6 +156,19 @@ class TestParseAzureEndpoint:
         assert "?" not in endpoint
         assert version == "2025-01-01-preview"
 
+    def test_deployment_name_extracted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Deployment name is extracted from deployment-style endpoints."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/ada-002/embeddings?api-version=2025-01-01-preview",
+        )
+        endpoint, version, deployment = utils.parse_azure_endpoint_parts(
+            "TEST_ENDPOINT"
+        )
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert version == "2025-01-01-preview"
+        assert deployment == "ada-002"
+
     def test_query_string_stripped_multiple_params(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
