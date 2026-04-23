@@ -8,7 +8,7 @@ import os
 import sys
 from types import SimpleNamespace
 from typing import Any, cast
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -26,7 +26,16 @@ from openai.types.chat import ChatCompletionMessageParam
 import typechat
 
 from typeagent.aitools.utils import create_async_openai_client, resolve_azure_model_name
-from typeagent.mcp.server import MCPTypeChatModel, QuestionResponse
+from typeagent.knowpro import answers, searchlang
+from typeagent.knowpro.answer_response_schema import AnswerResponse
+from typeagent.knowpro.convsettings import ConversationSettings
+import typeagent.mcp.server as typeagent_mcp_server
+from typeagent.mcp.server import (
+    load_podcast_database_or_index,
+    MCPTypeChatModel,
+    ProcessingContext,
+    QuestionResponse,
+)
 
 from conftest import EPISODE_53_INDEX
 
@@ -204,9 +213,7 @@ async def test_mcp_server_empty_question(server_params: StdioServerParameters):
 
 def test_server_module_imports() -> None:
     """Importing the server module should not raise even without coverage."""
-    import typeagent.mcp.server as mod
-
-    assert hasattr(mod, "mcp")  # The FastMCP instance exists
+    assert hasattr(typeagent_mcp_server, "mcp")  # The FastMCP instance exists
 
 
 # ---------------------------------------------------------------------------
@@ -342,8 +349,6 @@ class TestQuestionResponseMatchDefault:
 
     def test_answer_type_coverage(self) -> None:
         """AnswerResponse.type should only be 'Answered' or 'NoAnswer'."""
-        from typeagent.knowpro.answer_response_schema import AnswerResponse
-
         answered = AnswerResponse(type="Answered", answer="yes")
         assert answered.type == "Answered"
         no_answer = AnswerResponse(type="NoAnswer", why_no_answer="dunno")
@@ -408,3 +413,70 @@ async def test_sampling_callback_uses_azure_deployment_name(
         temperature=1.0,
     )
     assert result.model == "gpt-4o-2"
+
+
+# ---------------------------------------------------------------------------
+# MCPTypeChatModel — additional response format coverage
+# ---------------------------------------------------------------------------
+
+
+class TestMCPTypeChatModelResponseFormats:
+    @staticmethod
+    def _make_model_with_result(content: Any) -> MCPTypeChatModel:
+        session = AsyncMock()
+        session.create_message.return_value = AsyncMock(content=content)
+        return MCPTypeChatModel(session)
+
+    @pytest.mark.asyncio
+    async def test_list_content_no_text_items_returns_failure(self) -> None:
+        """A list response with no TextContent items should return Failure."""
+        # Use a non-TextContent item type (ImageContent would work but we mock with a dict)
+        model = self._make_model_with_result([])
+        result = await model.complete("test")
+        assert isinstance(result, typechat.Failure)
+        assert "No text content" in result.message
+
+    @pytest.mark.asyncio
+    async def test_unknown_content_type_returns_failure(self) -> None:
+        """A response with an unrecognized content type should return Failure."""
+        # Simulate some unknown object that is neither TextContent nor list
+        model = self._make_model_with_result(42)
+        result = await model.complete("test")
+        assert isinstance(result, typechat.Failure)
+        assert "No text content" in result.message
+
+
+# ---------------------------------------------------------------------------
+# ProcessingContext.__repr__
+# ---------------------------------------------------------------------------
+
+
+class TestProcessingContextRepr:
+    def test_repr_contains_options(self) -> None:
+        lang_opts = searchlang.LanguageSearchOptions(max_message_matches=10)
+        ctx_opts = answers.AnswerContextOptions(entities_top_k=5)
+
+        proc = ProcessingContext(
+            lang_search_options=lang_opts,
+            answer_context_options=ctx_opts,
+            query_context=MagicMock(),
+            embedding_model=MagicMock(),
+            query_translator=MagicMock(),
+            answer_translator=MagicMock(),
+        )
+        r = repr(proc)
+        assert r.startswith("Context(")
+        assert "LanguageSearchOptions" in r
+
+
+# ---------------------------------------------------------------------------
+# load_podcast_database_or_index — ValueError path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_load_podcast_no_args_raises() -> None:
+    """Passing neither dbname nor podcast_index must raise ValueError."""
+    settings = ConversationSettings()
+    with pytest.raises(ValueError, match="Either --database or --podcast-index"):
+        await load_podcast_database_or_index(settings, dbname=None, podcast_index=None)
