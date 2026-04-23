@@ -10,16 +10,22 @@ import pytest
 from typeagent.knowpro.interfaces import (
     ConversationDataWithIndexes,
     MessageTextIndexData,
+    Tag,
     TermsToRelatedTermsIndexData,
     TextToTextLocationIndexData,
+    Topic,
 )
 from typeagent.knowpro.knowledge_schema import ConcreteEntity, Quantity
 from typeagent.knowpro.serialization import (
+    ConversationBinaryData,
+    ConversationFileData,
+    ConversationJsonData,
     create_file_header,
     DeserializationError,
     deserialize_knowledge,
     deserialize_object,
     from_conversation_file_data,
+    is_primitive,
     serialize_embeddings,
     serialize_object,
     to_conversation_file_data,
@@ -143,12 +149,6 @@ def test_deserialization_error():
 
 def test_from_conversation_file_data_missing_header_raises():
     """from_conversation_file_data raises when fileHeader is absent."""
-    from typeagent.knowpro.serialization import (
-        ConversationBinaryData,
-        ConversationFileData,
-        ConversationJsonData,
-    )
-
     json_data: ConversationJsonData[Any] = ConversationJsonData(
         nameTag="x", messages=[], tags=[], semanticRefs=None
     )
@@ -162,12 +162,6 @@ def test_from_conversation_file_data_missing_header_raises():
 
 def test_from_conversation_file_data_bad_version_raises():
     """from_conversation_file_data raises on unsupported version."""
-    from typeagent.knowpro.serialization import (
-        ConversationBinaryData,
-        ConversationFileData,
-        ConversationJsonData,
-    )
-
     json_data: ConversationJsonData[Any] = ConversationJsonData(
         nameTag="x",
         messages=[],
@@ -186,12 +180,6 @@ def test_from_conversation_file_data_bad_version_raises():
 
 def test_from_conversation_file_data_missing_embedding_header_raises():
     """from_conversation_file_data raises when embeddingFileHeader is absent."""
-    from typeagent.knowpro.serialization import (
-        ConversationBinaryData,
-        ConversationFileData,
-        ConversationJsonData,
-    )
-
     json_data: ConversationJsonData[Any] = ConversationJsonData(
         nameTag="x",
         messages=[],
@@ -209,12 +197,6 @@ def test_from_conversation_file_data_missing_embedding_header_raises():
 
 def test_from_conversation_file_data_missing_embeddings_list_raises():
     """from_conversation_file_data raises when embeddingsList is None."""
-    from typeagent.knowpro.serialization import (
-        ConversationBinaryData,
-        ConversationFileData,
-        ConversationJsonData,
-    )
-
     json_data: ConversationJsonData[Any] = ConversationJsonData(
         nameTag="x",
         messages=[],
@@ -233,12 +215,6 @@ def test_from_conversation_file_data_missing_embeddings_list_raises():
 
 def test_from_conversation_file_data_success_empty():
     """from_conversation_file_data succeeds with minimal valid data."""
-    from typeagent.knowpro.serialization import (
-        ConversationBinaryData,
-        ConversationFileData,
-        ConversationJsonData,
-    )
-
     emb = np.zeros((0, 4), dtype=np.float32)
     json_data: ConversationJsonData[Any] = ConversationJsonData(
         nameTag="test",
@@ -258,8 +234,6 @@ def test_from_conversation_file_data_success_empty():
 
 def test_is_primitive():
     """Test is_primitive classification."""
-    from typeagent.knowpro.serialization import is_primitive
-
     for t in (int, float, bool, str, type(None)):
         assert is_primitive(t), f"Expected {t} to be primitive"
     assert not is_primitive(list)
@@ -280,8 +254,6 @@ def test_deserialize_object_list_of_int():
 
 def test_deserialize_knowledge_entity():
     """deserialize_knowledge reconstructs a ConcreteEntity."""
-    from typeagent.knowpro.knowledge_schema import ConcreteEntity
-
     obj = {"name": "Bob", "type": ["person"]}
     result = deserialize_knowledge("entity", obj)
     assert isinstance(result, ConcreteEntity)
@@ -290,8 +262,6 @@ def test_deserialize_knowledge_entity():
 
 def test_deserialize_knowledge_topic():
     """deserialize_knowledge reconstructs a Topic."""
-    from typeagent.knowpro.interfaces import Topic
-
     obj = {"text": "AI ethics"}
     result = deserialize_knowledge("topic", obj)
     assert isinstance(result, Topic)
@@ -300,8 +270,6 @@ def test_deserialize_knowledge_topic():
 
 def test_deserialize_knowledge_tag():
     """deserialize_knowledge reconstructs a Tag."""
-    from typeagent.knowpro.interfaces import Tag
-
     obj = {"text": "important"}
     result = deserialize_knowledge("tag", obj)
     assert isinstance(result, Tag)

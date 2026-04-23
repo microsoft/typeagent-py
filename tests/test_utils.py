@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import pytest
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
+from openai import AsyncAzureOpenAI, AsyncOpenAI
 import pydantic.dataclasses
 import typechat
 
@@ -322,7 +323,6 @@ class TestCreateAsyncOpenAIClient:
     def test_openai_key_returns_async_openai(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
         client = utils.create_async_openai_client()
