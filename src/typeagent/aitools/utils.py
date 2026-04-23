@@ -274,7 +274,7 @@ def create_async_openai_client(
     from openai import AsyncAzureOpenAI, AsyncOpenAI
 
     if openai_api_key := os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
+        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url, max_retries=5)
 
     elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
         azure_api_key = get_azure_api_key(azure_api_key)
@@ -289,6 +289,7 @@ def create_async_openai_client(
             default_headers=(
                 {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
             ),
+            max_retries=5,
         )
 
     else:
