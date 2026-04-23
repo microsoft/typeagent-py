@@ -3,7 +3,7 @@
 [run]
 branch = true
 parallel = true
-source = test
+source = typeagent
 
 [report]
 sort = cover
