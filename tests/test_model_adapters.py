@@ -206,6 +206,7 @@ def test_create_embedding_model_uses_azure_deployment_name(
             captured["provider"] = provider
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_EMBEDDING_MODEL", raising=False)
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
     monkeypatch.setenv(
         "AZURE_OPENAI_ENDPOINT_EMBEDDING",
@@ -217,13 +218,10 @@ def test_create_embedding_model_uses_azure_deployment_name(
         lambda endpoint_envvar, api_key_envvar: provider,
     )
     monkeypatch.setattr(
-        "pydantic_ai.embeddings.openai.OpenAIEmbeddingModel",
-        FakeOpenAIEmbeddingModel,
+        "pydantic_ai.embeddings.openai.OpenAIEmbeddingModel", FakeOpenAIEmbeddingModel
     )
     monkeypatch.setattr(
-        model_adapters,
-        "_PydanticAIEmbedder",
-        lambda embedding_model: embedding_model,
+        model_adapters, "_PydanticAIEmbedder", lambda embedding_model: embedding_model
     )
 
     embedder = create_embedding_model()
@@ -262,8 +260,7 @@ def test_create_chat_model_uses_azure_deployment_name(
         lambda endpoint_envvar="AZURE_OPENAI_ENDPOINT", api_key_envvar="AZURE_OPENAI_API_KEY": provider,
     )
     monkeypatch.setattr(
-        "pydantic_ai.models.openai.OpenAIChatModel",
-        FakeOpenAIChatModel,
+        "pydantic_ai.models.openai.OpenAIChatModel", FakeOpenAIChatModel
     )
 
     chat_model = create_chat_model()
