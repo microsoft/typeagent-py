@@ -204,7 +204,8 @@ class TestCompileSearchQuery:
         assert len(expr.select_expressions) == 1
         terms_in_group = expr.select_expressions[0].search_term_group.terms
         assert any(
-            isinstance(t, SearchTerm) and t.term.text == "robots" for t in terms_in_group
+            isinstance(t, SearchTerm) and t.term.text == "robots"
+            for t in terms_in_group
         )
 
     def test_entity_filter_produces_expr(self) -> None:
