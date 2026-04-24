@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 import pytest
 
 from openai import AsyncAzureOpenAI, AsyncOpenAI
-from openai import AsyncAzureOpenAI, AsyncOpenAI
 import pydantic.dataclasses
 import typechat
 
