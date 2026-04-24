@@ -375,8 +375,9 @@ class TestEntityTermsWithFacets:
         entity = make_entity("Bob", facets=[facet])
         f = make_filter(entities=[entity])
         group = compiler.compile_term_group(f)
-        # Both wildcards => no facet term added; entity name term still present
-        assert len(group.terms) >= 0  # Just no crash
+        # Both wildcards => no facet term added, but entity name term (or_max)
+        # and topic term for "Bob" are still generated — 2 terms total.
+        assert len(group.terms) == 2
 
     def test_pronoun_entity_skipped(self) -> None:
         compiler = make_compiler()

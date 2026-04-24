@@ -8,6 +8,7 @@ import pytest
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.interfaces import TextLocation, TextRange, Thread
+from typeagent.knowpro.interfaces_serialization import ConversationThreadData
 from typeagent.storage.memory.convthreads import ConversationThreads
 
 
@@ -87,8 +88,6 @@ async def test_serialize_roundtrip(threads: ConversationThreads) -> None:
 
 @pytest.mark.asyncio
 async def test_deserialize_empty_data(threads: ConversationThreads) -> None:
-    from typeagent.knowpro.interfaces import ConversationThreadData
-
     data: ConversationThreadData = {}  # type: ignore[typeddict-item]
     threads.deserialize(data)
     assert len(threads.threads) == 0
@@ -113,8 +112,8 @@ async def test_lookup_thread_returns_matches(threads: ConversationThreads) -> No
     await threads.add_thread(make_thread("machine learning and AI"))
     await threads.add_thread(make_thread("cooking recipes"))
     results = await threads.lookup_thread("artificial intelligence")
-    # Should return at least one result (exact scoring depends on embedding model).
-    assert isinstance(results, list)
+    assert len(results) > 0
+    assert results[0].thread_ordinal == 0  # ordinal of the matching thread
 
 
 @pytest.mark.asyncio

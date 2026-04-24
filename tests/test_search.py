@@ -10,6 +10,7 @@ from typeagent.knowpro.interfaces import (
     SearchTermGroup,
     Term,
 )
+from typeagent.knowpro.interfaces_core import ScoredMessageOrdinal
 from typeagent.knowpro.query import is_conversation_searchable
 from typeagent.knowpro.search import (
     ConversationSearchResult,
@@ -53,8 +54,6 @@ def test_search_options_repr_with_fields() -> None:
 
 
 def test_conversation_search_result_basic() -> None:
-    from typeagent.knowpro.interfaces import ScoredMessageOrdinal
-
     result = ConversationSearchResult(
         message_matches=[ScoredMessageOrdinal(0, 0.9)],
         knowledge_matches={},

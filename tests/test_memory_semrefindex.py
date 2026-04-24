@@ -100,7 +100,14 @@ async def test_add_entity_registers_name_and_types() -> None:
     index = make_index()
     entity = kplib.ConcreteEntity(name="Alice", type=["person", "employee"])
     terms_added: set[str] = set()
-    await add_entity(entity, semrefs, index, message_ordinal=0, terms_added=terms_added)
+    await add_entity(
+        entity,
+        semrefs,
+        index,
+        message_ordinal=0,
+        chunk_ordinal=0,
+        terms_added=terms_added,
+    )
     assert "Alice" in terms_added
     assert "person" in terms_added
     assert "employee" in terms_added
@@ -116,7 +123,7 @@ async def test_add_entity_with_facets() -> None:
         type=["item"],
         facets=[kplib.Facet(name="genre", value="fiction")],
     )
-    await add_entity(entity, semrefs, index, message_ordinal=1)
+    await add_entity(entity, semrefs, index, message_ordinal=1, chunk_ordinal=0)
     terms = await index.get_terms()
     assert "genre" in terms
     assert "fiction" in terms
@@ -133,7 +140,14 @@ async def test_add_topic_registers_text() -> None:
     index = make_index()
     topic = Topic(text="machine learning")
     terms_added: set[str] = set()
-    await add_topic(topic, semrefs, index, message_ordinal=2, terms_added=terms_added)
+    await add_topic(
+        topic,
+        semrefs,
+        index,
+        message_ordinal=2,
+        chunk_ordinal=0,
+        terms_added=terms_added,
+    )
     assert "machine learning" in terms_added
     assert await semrefs.size() == 1
 
@@ -155,7 +169,14 @@ async def test_add_action_registers_verbs() -> None:
         indirect_object_entity_name="none",
     )
     terms_added: set[str] = set()
-    await add_action(action, semrefs, index, message_ordinal=0, terms_added=terms_added)
+    await add_action(
+        action,
+        semrefs,
+        index,
+        message_ordinal=0,
+        chunk_ordinal=0,
+        terms_added=terms_added,
+    )
     terms = set(await index.get_terms())
     assert "run execute" in terms
     assert "Alice" in terms
@@ -174,7 +195,7 @@ async def test_add_action_none_entities_skipped() -> None:
         object_entity_name="none",
         indirect_object_entity_name="none",
     )
-    await add_action(action, semrefs, index, message_ordinal=0)
+    await add_action(action, semrefs, index, message_ordinal=0, chunk_ordinal=0)
     terms = await index.get_terms()
     assert "none" not in terms
     assert "go" in terms
