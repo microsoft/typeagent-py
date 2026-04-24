@@ -9,8 +9,13 @@ that make changes to the repository. Not even `git add`**
 
 When moving, copying or deleting files, use the git commands: `git mv`, `git cp`, `git rm`
 
+When I ask to update AGENTS.md (even if maybe) extract a general rule from what I said
+before and update AGENTS.md (unless it's already in there -- maybe reformulate since
+it apparently didn't work). Also, when it looks like I state a general rule, add it to
+AGENTS.md. In all cases show what you added to AGENTS.md.
+
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
-- Activate `.venv`: `make venv; source .venv/bin/activate` (run this only once)
+- When running 'make' commands, do not use the venv (the Makefile uses 'uv run')
 - To get API keys in ad-hoc code, call `load_dotenv()`
 - Use `pytest test` to run tests in test/
 - Use `pyright` to check type annotations in src/, tools/,  tests/, examples/
@@ -20,6 +25,7 @@ When moving, copying or deleting files, use the git commands: `git mv`, `git cp`
 - Use `make test` to run all tests
 - Use `make check test` to run `make check` and if it passes also run `make test`
 - Use `make format` to format all files using `black`. Do this before reporting success.
+- Keep ad-hoc and performance benchmarks under `tools/`, not `tests/`, so `make test` does not run them.
 
 ## Package Management with uv
 

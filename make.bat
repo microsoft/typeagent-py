@@ -13,6 +13,7 @@ if "%~1"=="" goto help
 if /I "%~1"=="format" goto format
 if /I "%~1"=="check" goto check
 if /I "%~1"=="test" goto test
+if /I "%~1"=="coverage" goto coverage
 if /I "%~1"=="demo" goto demo
 if /I "%~1"=="build" goto build
 if /I "%~1"=="venv" goto venv
@@ -42,6 +43,16 @@ if not exist ".venv\" call make.bat venv
 echo Running unit tests...
 uv run pytest
 goto end
+
+:coverage
+if not exist ".venv\" call make.bat venv
+echo Running test coverage...
+uv run coverage erase
+uv run coverage run -m pytest
+uv run coverage combine
+uv run coverage report
+goto end
+
 
 :demo
 if not exist ".venv\" call make.bat venv
@@ -88,7 +99,7 @@ if exist .pytest_cache rmdir /s /q .pytest_cache
 goto end
 
 :help
-echo Usage: .\make [format^|check^|test^|build^|venv^|sync^|install-uv^|clean^|help]
+echo Usage: .\make [format^|check^|test^|coverage^|demo^|build^|venv^|sync^|install-uv^|clean^|help]
 goto end
 
 :end

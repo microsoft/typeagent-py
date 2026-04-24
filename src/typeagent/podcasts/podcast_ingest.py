@@ -123,6 +123,7 @@ async def ingest_podcast(
 
     # Add messages with indexing to build embeddings, using batch_size
     batch_size = batch_size or len(msgs)
+    settings.semantic_ref_index_settings.batch_size = batch_size
     for i in range(start_message, len(msgs), batch_size):
         batch = msgs[i : i + batch_size]
         t0 = time.time()

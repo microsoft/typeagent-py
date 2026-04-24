@@ -11,14 +11,13 @@ import pytest
 import pydantic.dataclasses
 import typechat
 
-import typeagent.aitools.utils as utils
+from typeagent.aitools import utils
 
 
 def test_timelog():
     buf = StringIO()
-    with redirect_stderr(buf):
-        with utils.timelog("test block"):
-            pass
+    with redirect_stderr(buf), utils.timelog("test block"):
+        pass
     out = buf.getvalue()
     assert "test block..." in out
 
@@ -136,8 +135,7 @@ class TestParseAzureEndpoint:
     ) -> None:
         """Returned endpoint should not contain query string parameters."""
         monkeypatch.setenv(
-            "TEST_ENDPOINT",
-            "https://myhost.openai.azure.com?api-version=2024-06-01",
+            "TEST_ENDPOINT", "https://myhost.openai.azure.com?api-version=2024-06-01"
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert endpoint == "https://myhost.openai.azure.com"
@@ -155,6 +153,19 @@ class TestParseAzureEndpoint:
         assert endpoint == "https://myhost.openai.azure.com"
         assert "?" not in endpoint
         assert version == "2025-01-01-preview"
+
+    def test_deployment_name_extracted(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Deployment name is extracted from deployment-style endpoints."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/ada-002/embeddings?api-version=2025-01-01-preview",
+        )
+        endpoint, version, deployment = utils.parse_azure_endpoint_parts(
+            "TEST_ENDPOINT"
+        )
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert version == "2025-01-01-preview"
+        assert deployment == "ada-002"
 
     def test_query_string_stripped_multiple_params(
         self, monkeypatch: pytest.MonkeyPatch
@@ -192,8 +203,41 @@ class TestParseAzureEndpoint:
     def test_no_api_version_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """RuntimeError when the endpoint has no api-version field."""
         monkeypatch.setenv(
-            "TEST_ENDPOINT",
-            "https://myhost.openai.azure.com/openai/deployments/gpt-4",
+            "TEST_ENDPOINT", "https://myhost.openai.azure.com/openai/deployments/gpt-4"
         )
         with pytest.raises(RuntimeError, match="doesn't contain valid api-version"):
             utils.parse_azure_endpoint("TEST_ENDPOINT")
+
+
+class TestResolveAzureModelName:
+    """Tests for resolve_azure_model_name."""
+
+    def test_returns_deployment_name_from_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Deployment name in the endpoint takes precedence over the fallback."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4o-custom?api-version=2025-01-01-preview",
+        )
+        result = utils.resolve_azure_model_name("gpt-4o", "TEST_ENDPOINT")
+        assert result == "gpt-4o-custom"
+
+    def test_falls_back_to_model_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Falls back to the provided model_name when no deployment in the endpoint."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT", "https://myhost.openai.azure.com?api-version=2024-06-01"
+        )
+        result = utils.resolve_azure_model_name("gpt-4o", "TEST_ENDPOINT")
+        assert result == "gpt-4o"
+
+    def test_uses_default_endpoint_envvar(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Uses AZURE_OPENAI_ENDPOINT by default."""
+        monkeypatch.setenv(
+            "AZURE_OPENAI_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/my-deploy?api-version=2024-06-01",
+        )
+        result = utils.resolve_azure_model_name("gpt-4o")
+        assert result == "my-deploy"

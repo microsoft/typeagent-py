@@ -6,7 +6,8 @@
 import json
 import os
 import sys
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -24,7 +25,7 @@ from mcp.types import (
 from openai.types.chat import ChatCompletionMessageParam
 import typechat
 
-from typeagent.aitools.utils import create_async_openai_client
+from typeagent.aitools.utils import create_async_openai_client, resolve_azure_model_name
 from typeagent.mcp.server import MCPTypeChatModel, QuestionResponse
 
 from conftest import EPISODE_53_INDEX
@@ -76,8 +77,12 @@ async def sampling_callback(
         messages.insert(0, {"role": "system", "content": params.systemPrompt})
 
     # Call OpenAI
+    model_name = "gpt-4o"
+    if os.getenv("AZURE_OPENAI_API_KEY") and not os.getenv("OPENAI_API_KEY"):
+        model_name = resolve_azure_model_name(model_name)
+
     response = await client.chat.completions.create(
-        model="gpt-4o",
+        model=model_name,
         messages=messages,
         max_tokens=params.maxTokens,
         temperature=params.temperature if params.temperature is not None else 1.0,
@@ -343,3 +348,63 @@ class TestQuestionResponseMatchDefault:
         assert answered.type == "Answered"
         no_answer = AnswerResponse(type="NoAnswer", why_no_answer="dunno")
         assert no_answer.type == "NoAnswer"
+
+
+@pytest.mark.asyncio
+async def test_sampling_callback_uses_azure_deployment_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Azure-only sampling should send the resolved deployment name."""
+    create = AsyncMock(
+        return_value=SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content="response"),
+                )
+            ],
+            model="gpt-4o-2",
+        )
+    )
+    fake_client = SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(
+                create=create,
+            )
+        )
+    )
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "create_async_openai_client",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "resolve_azure_model_name",
+        lambda model_name: f"{model_name}-2",
+    )
+
+    params = CreateMessageRequestParams(
+        messages=[
+            SamplingMessage(
+                role="user",
+                content=TextContent(type="text", text="hello"),
+            )
+        ],
+        maxTokens=32,
+    )
+
+    result = await sampling_callback(
+        cast(RequestContext[ClientSessionType, Any, Any], None),
+        params,
+    )
+
+    create.assert_awaited_once_with(
+        model="gpt-4o-2",
+        messages=[{"role": "user", "content": "hello"}],
+        max_tokens=32,
+        temperature=1.0,
+    )
+    assert result.model == "gpt-4o-2"

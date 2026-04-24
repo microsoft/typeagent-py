@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from collections.abc import AsyncGenerator, Callable, Iterator
+from collections.abc import AsyncGenerator, Callable, Iterator, Sequence
 import os
 from pathlib import Path
 import tempfile
@@ -235,6 +235,13 @@ class FakeTermIndex(ITermToSemanticRefIndex):
             scored_ref = semantic_ref_ordinal
         self.term_to_refs[term].append(scored_ref)
         return term
+
+    async def add_terms_batch(
+        self,
+        terms: Sequence[tuple[str, int | ScoredSemanticRefOrdinal]],
+    ) -> None:
+        for term, ordinal in terms:
+            await self.add_term(term, ordinal)
 
     async def remove_term(self, term: str, semantic_ref_ordinal: int) -> None:
         if term in self.term_to_refs:

@@ -10,6 +10,7 @@ from ...knowpro.interfaces import (
     IMessage,
     MessageOrdinal,
     SemanticRef,
+    SemanticRefMetadata,
     SemanticRefOrdinal,
 )
 
@@ -62,6 +63,18 @@ class MemoryCollection[T, TOrdinal: int](ICollection[T, TOrdinal]):
 
 class MemorySemanticRefCollection(MemoryCollection[SemanticRef, SemanticRefOrdinal]):
     """A collection of semantic references."""
+
+    async def get_metadata_multiple(
+        self, ordinals: list[SemanticRefOrdinal]
+    ) -> list[SemanticRefMetadata]:
+        return [
+            SemanticRefMetadata(
+                ordinal=o,
+                range=self.items[o].range,
+                knowledge_type=self.items[o].knowledge.knowledge_type,
+            )
+            for o in ordinals
+        ]
 
 
 class MemoryMessageCollection[TMessage: IMessage](

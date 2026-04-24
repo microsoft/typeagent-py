@@ -17,10 +17,12 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import Model
 import typechat
 
+from typeagent.aitools import model_adapters
 from typeagent.aitools.embeddings import CachingEmbeddingModel, NormalizedEmbedding
 from typeagent.aitools.model_adapters import (
     configure_models,
     create_chat_model,
+    create_embedding_model,
     PydanticAIChatModel,
     PydanticAIEmbedder,
 )
@@ -189,3 +191,80 @@ def test_configure_models_returns_correct_types(
     chat, embedder = configure_models("openai:gpt-4o", "openai:text-embedding-3-small")
     assert isinstance(chat, PydanticAIChatModel)
     assert isinstance(embedder, CachingEmbeddingModel)
+
+
+def test_create_embedding_model_uses_azure_deployment_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Azure embedding endpoints contribute the deployment name."""
+    captured: dict[str, object] = {}
+    provider = object()
+
+    class FakeOpenAIEmbeddingModel:
+        def __init__(self, model_name: str, provider: object) -> None:
+            captured["azure_model_name"] = model_name
+            captured["provider"] = provider
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_EMBEDDING_MODEL", raising=False)
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT_EMBEDDING",
+        "https://myhost.openai.azure.com/openai/deployments/ada-002/embeddings?api-version=2025-01-01-preview",
+    )
+    monkeypatch.setattr(
+        model_adapters,
+        "_make_azure_provider",
+        lambda endpoint_envvar, api_key_envvar: provider,
+    )
+    monkeypatch.setattr(
+        "pydantic_ai.embeddings.openai.OpenAIEmbeddingModel", FakeOpenAIEmbeddingModel
+    )
+    monkeypatch.setattr(
+        model_adapters, "_PydanticAIEmbedder", lambda embedding_model: embedding_model
+    )
+
+    embedder = create_embedding_model()
+
+    assert isinstance(embedder, CachingEmbeddingModel)
+    assert captured["azure_model_name"] == "ada-002"
+    assert captured["provider"] is provider
+    assert embedder.model_name == "text-embedding-ada-002"
+
+
+def test_create_chat_model_uses_azure_deployment_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Azure chat endpoints contribute the deployment name."""
+    captured: dict[str, object] = {}
+    provider = object()
+
+    class FakeOpenAIChatModel:
+        def __init__(self, model_name: str, provider: object) -> None:
+            captured["azure_model_name"] = model_name
+            captured["provider"] = provider
+
+        async def request(self, *args: object, **kwargs: object) -> ModelResponse:
+            raise AssertionError("request() should not be called in this test")
+
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv(
+        "AZURE_OPENAI_ENDPOINT",
+        "https://myhost.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2025-01-01-preview",
+    )
+    monkeypatch.setattr(
+        model_adapters,
+        "_make_azure_provider",
+        lambda endpoint_envvar="AZURE_OPENAI_ENDPOINT", api_key_envvar="AZURE_OPENAI_API_KEY": provider,
+    )
+    monkeypatch.setattr(
+        "pydantic_ai.models.openai.OpenAIChatModel", FakeOpenAIChatModel
+    )
+
+    chat_model = create_chat_model()
+
+    assert isinstance(chat_model, PydanticAIChatModel)
+    assert captured["azure_model_name"] == "gpt-4o-2"
+    assert captured["provider"] is provider
