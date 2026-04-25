@@ -30,7 +30,6 @@ from ...knowpro.interfaces import (  # Interfaces.; Other imports.
 )
 from ...knowpro.knowledge import extract_knowledge_from_text_batch
 from ...knowpro.messageutils import (
-    get_message_chunk_batch,
     text_range_from_message_chunk,
 )
 
@@ -728,22 +727,31 @@ async def add_to_semantic_ref_index[
     """Add semantic references to the conversation's semantic reference index."""
 
     # Only create knowledge extractor if auto extraction is enabled
-    knowledge_extractor = None
     if settings.auto_extract_knowledge:
         knowledge_extractor = (
             settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
         )
 
-        # Get all text locations as a single list
-        batches = await get_message_chunk_batch(
-            conversation.messages,
-            message_ordinal_start_at,
-            999_999_999,
-        )
-        for text_location_batch in batches:
+        # Build a flat list of all text locations
+        text_locations: list[TextLocation] = []
+        message_ordinal = message_ordinal_start_at
+        async for message in conversation.messages:
+            if message_ordinal < message_ordinal_start_at:
+                message_ordinal += 1
+                continue
+            for chunk_ordinal in range(len(message.text_chunks)):
+                text_locations.append(
+                    TextLocation(
+                        message_ordinal=message_ordinal,
+                        chunk_ordinal=chunk_ordinal,
+                    )
+                )
+            message_ordinal += 1
+
+        if text_locations:
             await add_batch_to_semantic_ref_index(
                 conversation,
-                text_location_batch,
+                text_locations,
                 knowledge_extractor,
                 terms_added,
                 concurrency=settings.concurrency,
