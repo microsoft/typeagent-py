@@ -70,6 +70,33 @@ async def get_message_chunk_batch[TMessage: IMessage](
     return batches
 
 
+def get_all_message_chunk_locations[TMessage: IMessage](
+    messages: list[TMessage],
+    message_ordinal_start_at: MessageOrdinal,
+) -> list[TextLocation]:
+    """
+    Get a flat list of all message chunk locations from a list of messages.
+
+    Args:
+        messages: List of messages to process
+        message_ordinal_start_at: Starting message ordinal (ordinal of first message in list)
+
+    Returns:
+        Flat list of TextLocation objects, one per message chunk
+    """
+    locations: list[TextLocation] = []
+    for idx, message in enumerate(messages):
+        message_ordinal = message_ordinal_start_at + idx
+        for chunk_ordinal in range(len(message.text_chunks)):
+            locations.append(
+                TextLocation(
+                    message_ordinal=message_ordinal,
+                    chunk_ordinal=chunk_ordinal,
+                )
+            )
+    return locations
+
+
 def get_message_chunk_batch_from_list[TMessage: IMessage](
     messages: list[TMessage],
     message_ordinal_start_at: MessageOrdinal,

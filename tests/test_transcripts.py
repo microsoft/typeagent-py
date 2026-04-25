@@ -305,7 +305,7 @@ async def test_transcript_knowledge_extraction_slow(
 
     # Enable knowledge extraction
     settings.semantic_ref_index_settings.auto_extract_knowledge = True
-    settings.semantic_ref_index_settings.batch_size = 10
+    settings.semantic_ref_index_settings.concurrency = 10
 
     # Add messages with indexing (this should extract knowledge)
     result = await transcript.add_messages_with_indexing(messages_list)

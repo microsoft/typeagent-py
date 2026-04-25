@@ -216,21 +216,20 @@ class ConversationBase(
             settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
         )
 
-        # Get batches of text locations from the message list
-        from .messageutils import get_message_chunk_batch_from_list
+        # Build a flat list of all text locations from the message list
+        from .messageutils import get_all_message_chunk_locations
 
-        batches = get_message_chunk_batch_from_list(
+        text_locations = get_all_message_chunk_locations(
             messages,
             start_from_message_ordinal,
-            settings.batch_size,
         )
-        for text_location_batch in batches:
-            await semrefindex.add_batch_to_semantic_ref_index_from_list(
-                self,
-                messages,
-                text_location_batch,
-                knowledge_extractor,
-            )
+        await semrefindex.add_batch_to_semantic_ref_index_from_list(
+            self,
+            messages,
+            text_locations,
+            knowledge_extractor,
+            concurrency=settings.concurrency,
+        )
 
     async def _update_secondary_indexes_incremental(
         self,

@@ -29,7 +29,7 @@ class RelatedTermIndexSettings:
 
 @dataclass
 class SemanticRefIndexSettings:
-    batch_size: int
+    concurrency: int
     auto_extract_knowledge: bool
     knowledge_extractor: IKnowledgeExtractor | None = None
 
@@ -54,7 +54,7 @@ class ConversationSettings:
             TextEmbeddingIndexSettings(model, min_score=0.7)
         )
         self.semantic_ref_index_settings = SemanticRefIndexSettings(
-            batch_size=4,  # Effectively max concurrency
+            concurrency=4,
             auto_extract_knowledge=True,  # The high-level API wants this
         )
 

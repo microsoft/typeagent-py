@@ -50,6 +50,7 @@ async def add_batch_to_semantic_ref_index[
     batch: list[TextLocation],
     knowledge_extractor: IKnowledgeExtractor,
     terms_added: set[str] | None = None,
+    concurrency: int = 2,
 ) -> None:
     messages = conversation.messages
 
@@ -63,7 +64,7 @@ async def add_batch_to_semantic_ref_index[
     knowledge_results = await extract_knowledge_from_text_batch(
         knowledge_extractor,
         text_batch,
-        len(text_batch),
+        concurrency,
     )
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
@@ -89,6 +90,7 @@ async def add_batch_to_semantic_ref_index_from_list[
     batch: list[TextLocation],
     knowledge_extractor: IKnowledgeExtractor,
     terms_added: set[str] | None = None,
+    concurrency: int = 2,
 ) -> None:
     """
     Add a batch of knowledge to semantic ref index, extracting from provided message list.
@@ -121,7 +123,7 @@ async def add_batch_to_semantic_ref_index_from_list[
     knowledge_results = await extract_knowledge_from_text_batch(
         knowledge_extractor,
         text_batch,
-        len(text_batch),
+        concurrency,
     )
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
@@ -732,11 +734,11 @@ async def add_to_semantic_ref_index[
             settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
         )
 
-        # Process messages in batches for LLM knowledge extraction
+        # Get all text locations as a single list
         batches = await get_message_chunk_batch(
             conversation.messages,
             message_ordinal_start_at,
-            settings.batch_size,
+            999_999_999,
         )
         for text_location_batch in batches:
             await add_batch_to_semantic_ref_index(
@@ -744,6 +746,7 @@ async def add_to_semantic_ref_index[
                 text_location_batch,
                 knowledge_extractor,
                 terms_added,
+                concurrency=settings.concurrency,
             )
 
 

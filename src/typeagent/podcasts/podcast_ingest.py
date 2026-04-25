@@ -22,6 +22,7 @@ async def ingest_podcast(
     dbname: str | None = None,
     batch_size: int = 0,
     start_message: int = 0,
+    concurrency: int = 0,
     verbose: bool = False,
 ) -> Podcast:
     """
@@ -37,8 +38,10 @@ async def ingest_podcast(
                     date is unknown (Unix "timestamp left at zero" convention).
         length_minutes: Total length of podcast in minutes (for proportional timestamp allocation)
         dbname: Database name or None (to use in-memory non-persistent storage)
-        batch_size: Number of messages to index per batch (default all messages)
+        batch_size: Number of messages per call to add_messages_with_indexing
+            (default: all messages at once). Used for recoverability on crash.
         start_message: Number of initial messages to skip (for resuming interrupted ingests)
+        concurrency: Max concurrent knowledge extractions (0 = use settings default)
         verbose: Whether to print progress information (default False)
 
     Returns:
@@ -121,9 +124,10 @@ async def ingest_podcast(
         tags=[podcast_name],
     )
 
-    # Add messages with indexing to build embeddings, using batch_size
+    # Add messages with indexing to build embeddings
     batch_size = batch_size or len(msgs)
-    settings.semantic_ref_index_settings.batch_size = batch_size
+    if concurrency:
+        settings.semantic_ref_index_settings.concurrency = concurrency
     for i in range(start_message, len(msgs), batch_size):
         batch = msgs[i : i + batch_size]
         t0 = time.time()
