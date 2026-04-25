@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 import pytest
 
+from openai import AsyncAzureOpenAI, AsyncOpenAI
 import pydantic.dataclasses
 import typechat
 
@@ -208,36 +209,162 @@ class TestParseAzureEndpoint:
         with pytest.raises(RuntimeError, match="doesn't contain valid api-version"):
             utils.parse_azure_endpoint("TEST_ENDPOINT")
 
-
-class TestResolveAzureModelName:
-    """Tests for resolve_azure_model_name."""
-
-    def test_returns_deployment_name_from_endpoint(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Deployment name in the endpoint takes precedence over the fallback."""
+    def test_no_deployment_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Endpoint without /deployments/ yields deployment_name=None."""
         monkeypatch.setenv(
             "TEST_ENDPOINT",
-            "https://myhost.openai.azure.com/openai/deployments/gpt-4o-custom?api-version=2025-01-01-preview",
+            "https://myhost.openai.azure.com/openai?api-version=2024-06-01",
         )
-        result = utils.resolve_azure_model_name("gpt-4o", "TEST_ENDPOINT")
-        assert result == "gpt-4o-custom"
-
-    def test_falls_back_to_model_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Falls back to the provided model_name when no deployment in the endpoint."""
-        monkeypatch.setenv(
-            "TEST_ENDPOINT", "https://myhost.openai.azure.com?api-version=2024-06-01"
+        endpoint, version, deployment = utils.parse_azure_endpoint_parts(
+            "TEST_ENDPOINT"
         )
-        result = utils.resolve_azure_model_name("gpt-4o", "TEST_ENDPOINT")
-        assert result == "gpt-4o"
+        assert endpoint == "https://myhost.openai.azure.com"
+        assert version == "2024-06-01"
+        assert deployment is None
 
-    def test_uses_default_endpoint_envvar(
+    def test_apim_style_deployment_extracted(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Uses AZURE_OPENAI_ENDPOINT by default."""
+        """APIM-style URL: prefix before /openai kept, deployment name extracted."""
+        monkeypatch.setenv(
+            "TEST_ENDPOINT",
+            "https://apim.net/openai/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
+        )
+        endpoint, version, deployment = utils.parse_azure_endpoint_parts(
+            "TEST_ENDPOINT"
+        )
+        assert endpoint == "https://apim.net/openai"
+        assert version == "2025-01-01-preview"
+        assert deployment == "gpt-4o"
+
+
+class TestReindent:
+    def test_four_spaces_to_two(self) -> None:
+        text = "def foo():\n    pass\n    return 1"
+        result = utils.reindent(text)
+        assert result == "def foo():\n  pass\n  return 1"
+
+    def test_empty_string(self) -> None:
+        assert utils.reindent("") == ""
+
+    def test_no_indent(self) -> None:
+        assert utils.reindent("hello") == "hello"
+
+    def test_nested_indent(self) -> None:
+        text = "a\n    b\n        c"
+        result = utils.reindent(text)
+        assert result == "a\n  b\n    c"
+
+
+class TestTimelog:
+    def test_verbose_false_no_output(self) -> None:
+        buf = StringIO()
+        with redirect_stderr(buf):
+            with utils.timelog("silent", verbose=False):
+                pass
+        assert buf.getvalue() == ""
+
+    def test_verbose_true_shows_label(self) -> None:
+        buf = StringIO()
+        with redirect_stderr(buf):
+            with utils.timelog("myblock", verbose=True):
+                pass
+        assert "myblock" in buf.getvalue()
+
+
+class TestListDiff:
+    def test_identical_lists(self) -> None:
+        buf = StringIO()
+        with redirect_stdout(buf):
+            utils.list_diff("a", [1, 2, 3], "b", [1, 2, 3], max_items=10)
+        out = buf.getvalue()
+        assert "1" in out
+        assert "2" in out
+
+    def test_different_lists(self) -> None:
+        buf = StringIO()
+        with redirect_stdout(buf):
+            utils.list_diff("left", [1, 2], "right", [1, 3], max_items=10)
+        assert buf.getvalue() != ""
+
+    def test_no_max_items(self) -> None:
+        buf = StringIO()
+        with redirect_stdout(buf):
+            utils.list_diff("a", [1], "b", [2], max_items=0)
+        assert "1" in buf.getvalue() or "2" in buf.getvalue()
+
+    def test_empty_lists(self) -> None:
+        buf = StringIO()
+        with redirect_stdout(buf):
+            utils.list_diff("a", [], "b", [], max_items=10)
+        # No output expected (nothing to diff)
+        assert buf.getvalue() == ""
+
+
+class TestGetAzureApiKey:
+    def test_plain_key_returned_as_is(self) -> None:
+        assert utils.get_azure_api_key("my-secret-key") == "my-secret-key"
+
+    def test_uppercase_identity_not_plain(self) -> None:
+        # "IDENTITY" as a plain key is not routed to token provider; only "identity"
+        # (lowercased) triggers that path. Since we can't call the identity provider
+        # in tests, just verify non-identity keys pass through unchanged.
+        assert utils.get_azure_api_key("APIKEY123") == "APIKEY123"
+
+
+class TestCreateAsyncOpenAIClient:
+    def test_no_keys_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="Neither OPENAI_API_KEY"):
+            utils.create_async_openai_client()
+
+    def test_openai_key_returns_async_openai(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        client = utils.create_async_openai_client()
+        assert isinstance(client, AsyncOpenAI)
+
+    def test_azure_key_returns_async_azure_openai(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "azure-key")
         monkeypatch.setenv(
             "AZURE_OPENAI_ENDPOINT",
-            "https://myhost.openai.azure.com/openai/deployments/my-deploy?api-version=2024-06-01",
+            "https://myhost.openai.azure.com/openai/deployments/gpt-4o?api-version=2025-01-01-preview",
+        )
+        client = utils.create_async_openai_client()
+        assert isinstance(client, AsyncAzureOpenAI)
+
+
+class TestMakeAgent:
+    def test_no_keys_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
+        with pytest.raises(RuntimeError, match="Neither OPENAI_API_KEY"):
+            utils.make_agent(str)
+
+
+class TestResolveAzureModelName:
+    def test_returns_model_name_when_no_deployment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(
+            "AZURE_OPENAI_ENDPOINT",
+            "https://myhost.openai.azure.com/openai?api-version=2024-06-01",
+        )
+        result = utils.resolve_azure_model_name("gpt-4o")
+        assert result == "gpt-4o"
+
+    def test_returns_deployment_when_present(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(
+            "AZURE_OPENAI_ENDPOINT",
+            "https://myhost.openai.azure.com/openai/deployments/my-deploy/chat?api-version=2024-06-01",
         )
         result = utils.resolve_azure_model_name("gpt-4o")
         assert result == "my-deploy"
