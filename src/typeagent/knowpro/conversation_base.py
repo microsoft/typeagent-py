@@ -132,9 +132,12 @@ class ConversationBase(
 
         Args:
             messages: Messages to add
-            source_ids: Optional list of source IDs to mark as ingested. These are
-                marked within the same transaction, so if the indexing fails, the
-                source IDs won't be marked as ingested (for SQLite storage).
+            source_ids: Optional explicit list of source IDs to mark as ingested,
+                one per message. When ``None`` (the default), each message's
+                ``source_id`` attribute is used instead — messages whose
+                ``source_id`` is ``None`` are silently skipped.  These are marked
+                within the same transaction, so if the indexing fails, the source
+                IDs won't be marked as ingested (for SQLite storage).
 
         Returns:
             Result with counts of messages/semrefs added
@@ -143,7 +146,7 @@ class ConversationBase(
             Exception: Any error
         """
         storage = await self.settings.get_storage_provider()
-        if source_ids:
+        if source_ids is not None:
             if len(source_ids) != len(messages):
                 raise ValueError(
                     f"Length of source_ids {len(source_ids)} "
@@ -152,9 +155,13 @@ class ConversationBase(
 
         async with storage:
             # Mark source IDs as ingested (will be rolled back on error)
-            if source_ids:
-                for source_id in source_ids:
-                    await storage.mark_source_ingested(source_id)
+            if source_ids is not None:
+                for sid in source_ids:
+                    await storage.mark_source_ingested(sid)
+            else:
+                for msg in messages:
+                    if msg.source_id is not None:
+                        await storage.mark_source_ingested(msg.source_id)
 
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),

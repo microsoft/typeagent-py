@@ -36,7 +36,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - uv maintains consistency between `pyproject.toml`, `uv.lock`, and installed packages
 - Trust uv's automatic version resolution and file management
 
-**IMPORTANT! YOU ARE NOT DONE UNTIL `make check test format` PASSES**
+**IMPORTANT! YOU ARE NOT DONE UNTIL `make format check test` PASSES**
 
 # Code generation
 
