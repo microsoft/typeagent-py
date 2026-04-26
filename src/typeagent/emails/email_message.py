@@ -161,6 +161,7 @@ class EmailMessage(IMessage):
     )
     timestamp: str | None = None  # Use metadata.sent_on for the actual sent time
     src_url: str | None = None  # Source file or uri for this email
+    source_id: str | None = None  # External source id (see IMessage.source_id)
 
     def get_knowledge(self) -> kplib.KnowledgeResponse:
         return self.metadata.get_knowledge()

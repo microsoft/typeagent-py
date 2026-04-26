@@ -129,6 +129,12 @@ class IMessage[TMetadata: IMessageMetadata](IKnowledgeSource, Protocol):
     # Metadata associated with the message such as its source.
     metadata: TMetadata | None = None
 
+    # Optional external identifier of the source this message was ingested from
+    # (e.g., an email ID, a file path, a URL). Used by ingestion pipelines to
+    # detect already-ingested sources for restartability. None means the message
+    # is not associated with an external source (e.g., synthesized in tests).
+    source_id: str | None = None
+
 
 # Semantic references are also ordinal.
 type SemanticRefOrdinal = int
