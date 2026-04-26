@@ -67,6 +67,21 @@ class SemanticRefMetadata(NamedTuple):
     knowledge_type: KnowledgeType
 
 
+@dataclass
+class ChunkFailure:
+    """Record of a single failed knowledge-extraction attempt for one chunk.
+
+    Stored in the storage provider so that ingestion pipelines can retry just
+    the failed chunks without re-processing whole messages.
+    """
+
+    message_ordinal: int
+    chunk_ordinal: int
+    error_class: str
+    error_message: str
+    failed_at: Datetime
+
+
 class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
     async def size(self) -> int: ...
 
@@ -168,6 +183,33 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Mark a source as ingested (no commit; call within transaction context)."""
         ...
 
+    # Chunk-level extraction failure tracking
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record an extraction failure for a single chunk.
+
+        Idempotent: re-recording overwrites any prior entry for the same
+        (message_ordinal, chunk_ordinal). No commit; call within transaction
+        context.
+        """
+        ...
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove the failure record for one chunk (e.g., after a retry succeeds)."""
+        ...
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by message and chunk."""
+        ...
+
     # Transaction management
     async def __aenter__(self) -> Self:
         """Enter transaction context. Calls begin_transaction()."""
@@ -198,6 +240,7 @@ class IConversation[
 
 
 __all__ = [
+    "ChunkFailure",
     "ConversationMetadata",
     "ICollection",
     "IConversation",

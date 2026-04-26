@@ -3,6 +3,7 @@
 
 """Base class for conversations with incremental indexing support."""
 
+from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Generic, Self, TypeVar
@@ -36,6 +37,8 @@ from .interfaces import (
     MessageOrdinal,
     Topic,
 )
+from .knowledge import extract_knowledge_from_text_batch
+from .messageutils import get_all_message_chunk_locations
 
 TMessage = TypeVar("TMessage", bound=IMessage)
 
@@ -132,9 +135,12 @@ class ConversationBase(
 
         Args:
             messages: Messages to add
-            source_ids: Optional list of source IDs to mark as ingested. These are
-                marked within the same transaction, so if the indexing fails, the
-                source IDs won't be marked as ingested (for SQLite storage).
+            source_ids: Optional explicit list of source IDs to mark as ingested,
+                one per message. When ``None`` (the default), each message's
+                ``source_id`` attribute is used instead — messages whose
+                ``source_id`` is ``None`` are silently skipped.  These are marked
+                within the same transaction, so if the indexing fails, the source
+                IDs won't be marked as ingested (for SQLite storage).
 
         Returns:
             Result with counts of messages/semrefs added
@@ -143,7 +149,7 @@ class ConversationBase(
             Exception: Any error
         """
         storage = await self.settings.get_storage_provider()
-        if source_ids:
+        if source_ids is not None:
             if len(source_ids) != len(messages):
                 raise ValueError(
                     f"Length of source_ids {len(source_ids)} "
@@ -152,9 +158,13 @@ class ConversationBase(
 
         async with storage:
             # Mark source IDs as ingested (will be rolled back on error)
-            if source_ids:
-                for source_id in source_ids:
-                    await storage.mark_source_ingested(source_id)
+            if source_ids is not None:
+                for sid in source_ids:
+                    await storage.mark_source_ingested(sid)
+            else:
+                for msg in messages:
+                    if msg.source_id is not None:
+                        await storage.mark_source_ingested(msg.source_id)
 
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
@@ -173,8 +183,11 @@ class ConversationBase(
 
             await self._update_secondary_indexes_incremental(start_points)
 
+            messages_added = await self.messages.size() - start_points.message_count
+            chunks_added = sum(len(m.text_chunks) for m in messages[:messages_added])
             result = AddMessagesResult(
-                messages_added=await self.messages.size() - start_points.message_count,
+                messages_added=messages_added,
+                chunks_added=chunks_added,
                 semrefs_added=await self.semantic_refs.size()
                 - start_points.semref_count,
             )
@@ -185,6 +198,184 @@ class ConversationBase(
             )
 
             return result
+
+    async def add_messages_streaming(
+        self,
+        messages: AsyncIterable[TMessage],
+        *,
+        batch_size: int = 100,
+        on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
+    ) -> AddMessagesResult:
+        """Add messages from an async iterable, committing in batches.
+
+        Unlike ``add_messages_with_indexing`` which processes all messages in a
+        single transaction, this method buffers messages into batches of
+        ``batch_size``, processes each batch in its own transaction, and commits
+        after every batch.  This makes it suitable for ingesting large streams
+        (millions of messages) where a single all-or-nothing transaction would
+        be impractical.
+
+        **Source-ID tracking**: each message's ``source_id`` (if not ``None``)
+        is checked before ingestion.  Already-ingested sources are silently
+        skipped.  Newly ingested sources are marked within the same transaction.
+
+        **Extraction failures**: when knowledge extraction returns a
+        ``Failure`` for a chunk, the failure is recorded via
+        ``storage.record_chunk_failure`` and processing continues with the
+        remaining chunks.  Raised exceptions (HTTP errors, timeouts, etc.)
+        are treated as systemic and stop the run immediately — the current
+        batch is rolled back and the exception propagates.
+
+        Args:
+            messages: An async iterable of messages to ingest.
+            batch_size: Number of messages per commit batch.
+            on_batch_committed: Optional callback invoked after each batch is
+                committed, receiving the batch's ``AddMessagesResult``.
+
+        Returns:
+            Cumulative ``AddMessagesResult`` across all committed batches.
+        """
+        storage = await self.settings.get_storage_provider()
+        total_messages_added = 0
+        total_semrefs_added = 0
+        total_chunks_added = 0
+
+        batch: list[TMessage] = []
+        async for msg in messages:
+            batch.append(msg)
+            if len(batch) >= batch_size:
+                result = await self._ingest_batch_streaming(storage, batch)
+                total_messages_added += result.messages_added
+                total_semrefs_added += result.semrefs_added
+                total_chunks_added += result.chunks_added
+                if on_batch_committed:
+                    on_batch_committed(result)
+                batch = []
+
+        # Flush remaining messages
+        if batch:
+            result = await self._ingest_batch_streaming(storage, batch)
+            total_messages_added += result.messages_added
+            total_semrefs_added += result.semrefs_added
+            total_chunks_added += result.chunks_added
+            if on_batch_committed:
+                on_batch_committed(result)
+
+        return AddMessagesResult(
+            messages_added=total_messages_added,
+            chunks_added=total_chunks_added,
+            semrefs_added=total_semrefs_added,
+        )
+
+    async def _ingest_batch_streaming(
+        self,
+        storage: IStorageProvider[TMessage],
+        batch: list[TMessage],
+    ) -> AddMessagesResult:
+        """Process and commit a single batch within a transaction.
+
+        Messages whose ``source_id`` is already ingested are filtered out.
+        Extraction ``Failure``\\s are recorded as chunk failures.
+        """
+        # Filter out already-ingested sources
+        filtered: list[TMessage] = []
+        for msg in batch:
+            if msg.source_id is not None and await storage.is_source_ingested(
+                msg.source_id
+            ):
+                continue
+            filtered.append(msg)
+
+        if not filtered:
+            return AddMessagesResult()
+
+        async with storage:
+            start_points = IndexingStartPoints(
+                message_count=await self.messages.size(),
+                semref_count=await self.semantic_refs.size(),
+            )
+
+            await self.messages.extend(filtered)
+
+            # Mark source IDs as ingested (rolled back on error)
+            for msg in filtered:
+                if msg.source_id is not None:
+                    await storage.mark_source_ingested(msg.source_id)
+
+            await self._add_metadata_knowledge_incremental(start_points.message_count)
+
+            if self.settings.semantic_ref_index_settings.auto_extract_knowledge:
+                await self._add_llm_knowledge_streaming(
+                    storage, filtered, start_points.message_count
+                )
+
+            await self._update_secondary_indexes_incremental(start_points)
+
+            await storage.update_conversation_timestamps(
+                updated_at=datetime.now(timezone.utc)
+            )
+
+            messages_added = await self.messages.size() - start_points.message_count
+            chunks_added = sum(len(m.text_chunks) for m in filtered[:messages_added])
+            return AddMessagesResult(
+                messages_added=messages_added,
+                chunks_added=chunks_added,
+                semrefs_added=await self.semantic_refs.size()
+                - start_points.semref_count,
+            )
+
+    async def _add_llm_knowledge_streaming(
+        self,
+        storage: IStorageProvider[TMessage],
+        messages: list[TMessage],
+        start_from_message_ordinal: int,
+    ) -> None:
+        """Extract LLM knowledge, recording failures instead of raising.
+
+        On ``Failure``: records a chunk failure via the storage provider and
+        continues.  On a raised exception: lets it propagate (the caller's
+        ``async with storage`` will roll back the transaction).
+        """
+        settings = self.settings.semantic_ref_index_settings
+        knowledge_extractor = (
+            settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+        )
+
+        text_locations = get_all_message_chunk_locations(
+            messages, start_from_message_ordinal
+        )
+        if not text_locations:
+            return
+
+        start_ordinal = text_locations[0].message_ordinal
+        text_batch: list[str] = []
+        for tl in text_locations:
+            list_index = tl.message_ordinal - start_ordinal
+            text_batch.append(
+                messages[list_index].text_chunks[tl.chunk_ordinal].strip()
+            )
+
+        knowledge_results = await extract_knowledge_from_text_batch(
+            knowledge_extractor,
+            text_batch,
+            settings.concurrency,
+        )
+        for i, knowledge_result in enumerate(knowledge_results):
+            tl = text_locations[i]
+            if isinstance(knowledge_result, typechat.Failure):
+                await storage.record_chunk_failure(
+                    tl.message_ordinal,
+                    tl.chunk_ordinal,
+                    type(knowledge_result).__name__,
+                    knowledge_result.message[:500],
+                )
+                continue
+            await semrefindex.add_knowledge_to_semantic_ref_index(
+                self,
+                tl.message_ordinal,
+                tl.chunk_ordinal,
+                knowledge_result.value,
+            )
 
     async def _add_metadata_knowledge_incremental(
         self,
@@ -216,21 +407,17 @@ class ConversationBase(
             settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
         )
 
-        # Get batches of text locations from the message list
-        from .messageutils import get_message_chunk_batch_from_list
-
-        batches = get_message_chunk_batch_from_list(
+        text_locations = get_all_message_chunk_locations(
             messages,
             start_from_message_ordinal,
-            settings.batch_size,
         )
-        for text_location_batch in batches:
-            await semrefindex.add_batch_to_semantic_ref_index_from_list(
-                self,
-                messages,
-                text_location_batch,
-                knowledge_extractor,
-            )
+        await semrefindex.add_batch_to_semantic_ref_index_from_list(
+            self,
+            messages,
+            text_locations,
+            knowledge_extractor,
+            concurrency=settings.concurrency,
+        )
 
     async def _update_secondary_indexes_incremental(
         self,

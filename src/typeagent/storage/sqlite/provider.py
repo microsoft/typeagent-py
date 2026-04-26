@@ -11,6 +11,7 @@ from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
+from ...knowpro.interfaces_storage import ChunkFailure
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
@@ -627,3 +628,56 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
             (source_id, status),
         )
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record a knowledge-extraction failure for a single chunk.
+
+        Idempotent: re-recording overwrites any prior entry for the same
+        (message_ordinal, chunk_ordinal). No commit; call within a transaction
+        context.
+        """
+        failed_at = datetime.now(timezone.utc).isoformat()
+        cursor = self.db.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO ChunkFailures
+                (msg_id, chunk_ordinal, error_class, error_message, failed_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (message_ordinal, chunk_ordinal, error_class, error_message, failed_at),
+        )
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove a previously recorded chunk failure (no-op if absent)."""
+        cursor = self.db.cursor()
+        cursor.execute(
+            "DELETE FROM ChunkFailures WHERE msg_id = ? AND chunk_ordinal = ?",
+            (message_ordinal, chunk_ordinal),
+        )
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by (msg_id, chunk_ordinal)."""
+        cursor = self.db.cursor()
+        cursor.execute("""
+            SELECT msg_id, chunk_ordinal, error_class, error_message, failed_at
+            FROM ChunkFailures
+            ORDER BY msg_id, chunk_ordinal
+            """)
+        return [
+            ChunkFailure(
+                message_ordinal=row[0],
+                chunk_ordinal=row[1],
+                error_class=row[2],
+                error_message=row[3],
+                failed_at=datetime.fromisoformat(row[4]),
+            )
+            for row in cursor.fetchall()
+        ]

@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from collections.abc import AsyncIterator
 from datetime import timedelta
 import os
 import re
@@ -8,6 +9,7 @@ import time
 
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import Datetime
+from ..knowpro.interfaces_core import AddMessagesResult
 from ..knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from ..storage.utils import create_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
@@ -22,6 +24,7 @@ async def ingest_podcast(
     dbname: str | None = None,
     batch_size: int = 0,
     start_message: int = 0,
+    concurrency: int = 0,
     verbose: bool = False,
 ) -> Podcast:
     """
@@ -37,8 +40,10 @@ async def ingest_podcast(
                     date is unknown (Unix "timestamp left at zero" convention).
         length_minutes: Total length of podcast in minutes (for proportional timestamp allocation)
         dbname: Database name or None (to use in-memory non-persistent storage)
-        batch_size: Number of messages to index per batch (default all messages)
+        batch_size: Number of messages per call to add_messages_with_indexing
+            (default: all messages at once). Used for recoverability on crash.
         start_message: Number of initial messages to skip (for resuming interrupted ingests)
+        concurrency: Max concurrent knowledge extractions (0 = use settings default)
         verbose: Whether to print progress information (default False)
 
     Returns:
@@ -121,19 +126,45 @@ async def ingest_podcast(
         tags=[podcast_name],
     )
 
-    # Add messages with indexing to build embeddings, using batch_size
-    batch_size = batch_size or len(msgs)
-    settings.semantic_ref_index_settings.batch_size = batch_size
-    for i in range(start_message, len(msgs), batch_size):
-        batch = msgs[i : i + batch_size]
-        t0 = time.time()
-        await pod.add_messages_with_indexing(batch)
-        t1 = time.time()
+    # Set source_id on each message for restartability
+    for i, msg in enumerate(msgs):
+        msg.source_id = f"{transcript_file_path}#{i}"
+
+    # Add messages using the streaming API (commit-per-batch)
+    if concurrency:
+        settings.semantic_ref_index_settings.concurrency = concurrency
+
+    async def _message_stream() -> AsyncIterator[PodcastMessage]:
+        for msg in msgs[start_message:]:
+            yield msg
+
+    cumulative_messages = 0
+    t0 = time.time()
+
+    def _on_batch_committed(result: AddMessagesResult) -> None:
+        nonlocal cumulative_messages
+        batch_start = cumulative_messages
+        cumulative_messages += result.messages_added
         if verbose:
             print(
-                f"Indexed messages {i} to {i + len(batch) - 1} "
-                f"in {t1 - t0:.1f} seconds."
+                f"Indexed messages {batch_start}-{cumulative_messages - 1} "
+                f"({result.chunks_added} chunks, {result.semrefs_added} semrefs) "
+                f"at t={time.time() - t0:.1f} seconds."
             )
+
+    batch_size = batch_size or len(msgs)
+    result = await pod.add_messages_streaming(
+        _message_stream(),
+        batch_size=batch_size,
+        on_batch_committed=_on_batch_committed,
+    )
+    t1 = time.time()
+    if verbose:
+        print(
+            f"Indexed {result.messages_added} messages "
+            f"({result.chunks_added} chunks, {result.semrefs_added} semrefs) "
+            f"in {t1 - t0:.1f} seconds."
+        )
 
     return pod
 

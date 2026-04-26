@@ -25,6 +25,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - Use `make test` to run all tests
 - Use `make check test` to run `make check` and if it passes also run `make test`
 - Use `make format` to format all files using `black`. Do this before reporting success.
+- When validating changes, first run `pytest` only on new/modified test files, then run `make format check test` once at the end.
 - Keep ad-hoc and performance benchmarks under `tools/`, not `tests/`, so `make test` does not run them.
 
 ## Package Management with uv
@@ -36,7 +37,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - uv maintains consistency between `pyproject.toml`, `uv.lock`, and installed packages
 - Trust uv's automatic version resolution and file management
 
-**IMPORTANT! YOU ARE NOT DONE UNTIL `make check test format` PASSES**
+**IMPORTANT! YOU ARE NOT DONE UNTIL `make format check test` PASSES**
 
 # Code generation
 

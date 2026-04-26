@@ -118,7 +118,7 @@ async def test_ingest_podcast(
 
 
 @pytest.mark.asyncio
-async def test_ingest_podcast_parallelism_uses_batch_size(
+async def test_ingest_podcast_parallelism_uses_concurrency(
     temp_dir: str, embedding_model: IEmbeddingModel
 ) -> None:
     transcript_path = os.path.join(temp_dir, "parallel_podcast.txt")
@@ -130,15 +130,15 @@ async def test_ingest_podcast_parallelism_uses_batch_size(
     extractor = TrackingKnowledgeExtractor()
     settings.semantic_ref_index_settings.knowledge_extractor = extractor
 
-    batch_size = 20
+    concurrency = 5
     podcast = await podcast_ingest.ingest_podcast(
         transcript_path,
         settings,
         start_date=Datetime.now(timezone.utc),
         length_minutes=5.0,
-        batch_size=batch_size,
+        concurrency=concurrency,
     )
 
     assert await podcast.messages.size() == 25
-    assert extractor.max_concurrency == batch_size
+    assert extractor.max_concurrency == concurrency
     assert len(extractor.started_texts) == 25
