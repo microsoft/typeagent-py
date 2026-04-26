@@ -3,7 +3,7 @@
 
 """Base class for conversations with incremental indexing support."""
 
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Generic, Self, TypeVar
@@ -183,8 +183,11 @@ class ConversationBase(
 
             await self._update_secondary_indexes_incremental(start_points)
 
+            messages_added = await self.messages.size() - start_points.message_count
+            chunks_added = sum(len(m.text_chunks) for m in messages[:messages_added])
             result = AddMessagesResult(
-                messages_added=await self.messages.size() - start_points.message_count,
+                messages_added=messages_added,
+                chunks_added=chunks_added,
                 semrefs_added=await self.semantic_refs.size()
                 - start_points.semref_count,
             )
@@ -201,6 +204,7 @@ class ConversationBase(
         messages: AsyncIterable[TMessage],
         *,
         batch_size: int = 100,
+        on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
     ) -> AddMessagesResult:
         """Add messages from an async iterable, committing in batches.
 
@@ -225,6 +229,8 @@ class ConversationBase(
         Args:
             messages: An async iterable of messages to ingest.
             batch_size: Number of messages per commit batch.
+            on_batch_committed: Optional callback invoked after each batch is
+                committed, receiving the batch's ``AddMessagesResult``.
 
         Returns:
             Cumulative ``AddMessagesResult`` across all committed batches.
@@ -232,6 +238,7 @@ class ConversationBase(
         storage = await self.settings.get_storage_provider()
         total_messages_added = 0
         total_semrefs_added = 0
+        total_chunks_added = 0
 
         batch: list[TMessage] = []
         async for msg in messages:
@@ -240,6 +247,9 @@ class ConversationBase(
                 result = await self._ingest_batch_streaming(storage, batch)
                 total_messages_added += result.messages_added
                 total_semrefs_added += result.semrefs_added
+                total_chunks_added += result.chunks_added
+                if on_batch_committed:
+                    on_batch_committed(result)
                 batch = []
 
         # Flush remaining messages
@@ -247,9 +257,13 @@ class ConversationBase(
             result = await self._ingest_batch_streaming(storage, batch)
             total_messages_added += result.messages_added
             total_semrefs_added += result.semrefs_added
+            total_chunks_added += result.chunks_added
+            if on_batch_committed:
+                on_batch_committed(result)
 
         return AddMessagesResult(
             messages_added=total_messages_added,
+            chunks_added=total_chunks_added,
             semrefs_added=total_semrefs_added,
         )
 
@@ -273,7 +287,7 @@ class ConversationBase(
             filtered.append(msg)
 
         if not filtered:
-            return AddMessagesResult(messages_added=0, semrefs_added=0)
+            return AddMessagesResult()
 
         async with storage:
             start_points = IndexingStartPoints(
@@ -301,8 +315,11 @@ class ConversationBase(
                 updated_at=datetime.now(timezone.utc)
             )
 
+            messages_added = await self.messages.size() - start_points.message_count
+            chunks_added = sum(len(m.text_chunks) for m in filtered[:messages_added])
             return AddMessagesResult(
-                messages_added=await self.messages.size() - start_points.message_count,
+                messages_added=messages_added,
+                chunks_added=chunks_added,
                 semrefs_added=await self.semantic_refs.size()
                 - start_points.semref_count,
             )

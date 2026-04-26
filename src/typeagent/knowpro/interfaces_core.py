@@ -90,8 +90,9 @@ class IndexingStartPoints:
 class AddMessagesResult:
     """Result of add_messages_with_indexing operation."""
 
-    messages_added: int
-    semrefs_added: int
+    messages_added: int = 0
+    chunks_added: int = 0
+    semrefs_added: int = 0
 
 
 # Messages are referenced by their sequential ordinal numbers.
