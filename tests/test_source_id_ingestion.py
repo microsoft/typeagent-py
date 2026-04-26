@@ -46,6 +46,13 @@ async def _create_transcript(
     return transcript, storage
 
 
+def _ingested_count(storage: SqliteStorageProvider) -> int:
+    """Count rows in IngestedSources table."""
+    cursor = storage.db.cursor()
+    cursor.execute("SELECT COUNT(*) FROM IngestedSources")
+    return cursor.fetchone()[0]
+
+
 @pytest.mark.asyncio
 async def test_explicit_source_ids_marks_ingested() -> None:
     """Passing source_ids= explicitly marks those IDs as ingested."""
@@ -98,7 +105,7 @@ async def test_message_source_id_none_skipped() -> None:
         assert await storage.is_source_ingested("only-one")
         # The second message had no source_id, so nothing extra was marked
         assert await storage.get_source_status("only-one") == "ingested"
-        assert result_count(storage) == 1
+        assert _ingested_count(storage) == 1
 
         await storage.close()
 
@@ -147,18 +154,6 @@ async def test_no_source_ids_no_message_source_id() -> None:
 
         assert result.messages_added == 2
         # No source tracking happened
-        assert result_count(storage) == 0
+        assert _ingested_count(storage) == 0
 
         await storage.close()
-
-
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
-
-def result_count(storage: SqliteStorageProvider) -> int:
-    """Count rows in IngestedSources table."""
-    cursor = storage.db.cursor()
-    cursor.execute("SELECT COUNT(*) FROM IngestedSources")
-    return cursor.fetchone()[0]

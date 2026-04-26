@@ -47,7 +47,7 @@ async def batch_worker(
 async def extract_knowledge_from_text_batch(
     knowledge_extractor: IKnowledgeExtractor,
     text_batch: list[str],
-    concurrency: int = 2,
+    concurrency: int = 4,
 ) -> list[Result[kplib.KnowledgeResponse]]:
     """Extract knowledge from a batch of text inputs concurrently."""
     if not text_batch:

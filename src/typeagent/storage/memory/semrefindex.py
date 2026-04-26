@@ -49,7 +49,7 @@ async def add_batch_to_semantic_ref_index[
     batch: list[TextLocation],
     knowledge_extractor: IKnowledgeExtractor,
     terms_added: set[str] | None = None,
-    concurrency: int = 2,
+    concurrency: int = 4,
 ) -> None:
     messages = conversation.messages
 
@@ -89,7 +89,7 @@ async def add_batch_to_semantic_ref_index_from_list[
     batch: list[TextLocation],
     knowledge_extractor: IKnowledgeExtractor,
     terms_added: set[str] | None = None,
-    concurrency: int = 2,
+    concurrency: int = 4,
 ) -> None:
     """
     Add a batch of knowledge to semantic ref index, extracting from provided message list.

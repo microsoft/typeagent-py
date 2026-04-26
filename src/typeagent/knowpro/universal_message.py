@@ -190,11 +190,6 @@ class ConversationMessage(IMessage):
         "Tags associated with the message", default_factory=list
     )
     timestamp: str | None = None
-    source_id: str | None = None
-    """
-    Optional external identifier of the source this message was ingested from
-    (e.g., a transcript file path or podcast episode id). See ``IMessage.source_id``.
-    """
     """
     ISO 8601 datetime when message occurred/was sent (UTC timezone).
 
@@ -208,6 +203,11 @@ class ConversationMessage(IMessage):
 
     Format: "2024-01-01T12:34:56Z" or "1970-01-01T00:01:23Z" (epoch-based)
     MUST include "Z" suffix to explicitly indicate UTC timezone.
+    """
+    source_id: str | None = None
+    """
+    Optional external identifier of the source this message was ingested from
+    (e.g., a transcript file path or podcast episode id). See ``IMessage.source_id``.
     """
 
     def get_knowledge(self) -> kplib.KnowledgeResponse:

@@ -344,7 +344,7 @@ async def ingest_emails(
                 sys.exit(f"Authentication error: {e!r}")
 
             # Print progress periodically
-            if (success_count + failed_count) % concurrency == 0:
+            if concurrency and (success_count + failed_count) % concurrency == 0:
                 elapsed = time.time() - start_time
                 semref_count = await semref_coll.size()
                 print(
