@@ -31,7 +31,9 @@ import os
 
 import numpy as np
 from numpy.typing import NDArray
+import stamina
 
+import openai
 from pydantic_ai import Embedder as _PydanticAIEmbedder
 from pydantic_ai.embeddings.base import EmbeddingModel as _PydanticAIEmbeddingModelBase
 from pydantic_ai.embeddings.result import EmbeddingResult, EmbedInputType
@@ -68,6 +70,7 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     def __init__(self, model: Model) -> None:
         self._model = model
 
+    @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
     ) -> typechat.Result[str]:
@@ -115,6 +118,7 @@ class PydanticAIEmbedder:
         self._embedder = embedder
         self.model_name = model_name
 
+    @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
         result = await self._embedder.embed_documents([input])
         embedding: NDArray[np.float32] = np.array(
@@ -125,6 +129,7 @@ class PydanticAIEmbedder:
             embedding = (embedding / norm).astype(np.float32)
         return embedding
 
+    @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
         if not input:
             raise ValueError("Cannot embed an empty list")
@@ -182,7 +187,7 @@ def _make_azure_provider(
             azure_endpoint=azure_endpoint,
             api_version=api_version,
             azure_ad_token_provider=token_provider.get_token,
-            max_retries=5,
+            max_retries=0,
         )
     else:
         apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
@@ -193,7 +198,7 @@ def _make_azure_provider(
             default_headers=(
                 {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
             ),
-            max_retries=5,
+            max_retries=0,
         )
     return AzureProvider(openai_client=client)
 

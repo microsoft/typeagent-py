@@ -10,6 +10,10 @@ from typing import Any
 from dotenv import load_dotenv
 import pytest
 import pytest_asyncio
+import stamina
+
+stamina.set_testing(True)
+
 
 from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.model_adapters import create_test_embedding_model
