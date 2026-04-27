@@ -118,16 +118,9 @@ class PydanticAIEmbedder:
         self._embedder = embedder
         self.model_name = model_name
 
-    @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
-        result = await self._embedder.embed_documents([input])
-        embedding: NDArray[np.float32] = np.array(
-            result.embeddings[0], dtype=np.float32
-        )
-        norm = float(np.linalg.norm(embedding))
-        if norm > 0:
-            embedding = (embedding / norm).astype(np.float32)
-        return embedding
+        embeddings = await self.get_embeddings_nocache([input])
+        return embeddings[0]
 
     @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
