@@ -25,7 +25,11 @@ from mcp.types import (
 from openai.types.chat import ChatCompletionMessageParam
 import typechat
 
-from typeagent.aitools.utils import create_async_openai_client, resolve_azure_model_name
+from typeagent.aitools.utils import (
+    get_azure_api_key,
+    parse_azure_endpoint,
+    resolve_azure_model_name,
+)
 from typeagent.knowpro import answers, searchlang
 from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.convsettings import ConversationSettings
@@ -38,6 +42,38 @@ from typeagent.mcp.server import (
 )
 
 from conftest import EPISODE_53_INDEX
+
+
+def create_async_openai_client(
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+    base_url: str | None = None,
+):
+    """Create AsyncOpenAI or AsyncAzureOpenAI client based on environment variables."""
+    from openai import AsyncAzureOpenAI, AsyncOpenAI
+
+    if openai_api_key := os.getenv("OPENAI_API_KEY"):
+        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url, max_retries=5)
+
+    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
+        azure_api_key = get_azure_api_key(azure_api_key)
+        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
+
+        apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
+
+        return AsyncAzureOpenAI(
+            api_version=api_version,
+            azure_endpoint=azure_endpoint,
+            api_key=azure_api_key,
+            default_headers=(
+                {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
+            ),
+            max_retries=5,
+        )
+
+    else:
+        raise RuntimeError(
+            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
+        )
 
 
 @pytest.fixture
