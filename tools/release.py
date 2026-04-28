@@ -308,9 +308,7 @@ Examples:
     # Check git status (unless --force)
     if not check_git_status():
         if args.force:
-            print(
-                "Warning: Git working directory is not clean (forced)",
-            )
+            print("Warning: Git working directory is not clean (forced)")
         else:
             print(
                 "Error: Git working directory is not clean. Please commit or stash changes first.",

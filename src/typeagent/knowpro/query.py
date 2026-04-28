@@ -842,7 +842,7 @@ def text_ranges_from_message_ordinals(
 
 # TODO: Move to messagelib.py
 def text_range_from_message(message_ordinal: MessageOrdinal) -> TextRange:
-    return TextRange(start=TextLocation(message_ordinal))
+    return TextRange(TextLocation(message_ordinal))
 
 
 # TODO: ThreadSelector
