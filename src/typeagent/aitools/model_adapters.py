@@ -32,6 +32,7 @@ import os
 import numpy as np
 from numpy.typing import NDArray
 import stamina
+from stamina import BoundAsyncRetryingCaller
 
 import openai
 from pydantic_ai import Embedder as _PydanticAIEmbedder
@@ -54,6 +55,13 @@ from .embeddings import (
     NormalizedEmbeddings,
 )
 
+DEFAULT_CHAT_RETRIER = stamina.AsyncRetryingCaller(attempts=6, timeout=120).on(
+    openai.APIError
+)
+DEFAULT_EMBED_RETRIER = stamina.AsyncRetryingCaller(attempts=4, timeout=30).on(
+    openai.APIError
+)
+
 # ---------------------------------------------------------------------------
 # Chat model adapter
 # ---------------------------------------------------------------------------
@@ -67,10 +75,14 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
     """
 
-    def __init__(self, model: Model) -> None:
+    def __init__(
+        self,
+        model: Model,
+        retrier: BoundAsyncRetryingCaller | None = None,
+    ) -> None:
         self._model = model
+        self._retrier = retrier or DEFAULT_CHAT_RETRIER
 
-    @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
     ) -> typechat.Result[str]:
@@ -87,7 +99,7 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        response = await self._model.request(messages, None, params)
+        response = await self._retrier(self._model.request, messages, None, params)
         text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
         if text_parts:
             return typechat.Success("".join(text_parts))
@@ -114,19 +126,20 @@ class PydanticAIEmbedder:
         self,
         embedder: _PydanticAIEmbedder,
         model_name: str,
+        retrier: BoundAsyncRetryingCaller | None = None,
     ) -> None:
         self._embedder = embedder
         self.model_name = model_name
+        self._retrier = retrier or DEFAULT_EMBED_RETRIER
 
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
         embeddings = await self.get_embeddings_nocache([input])
         return embeddings[0]
 
-    @stamina.retry(on=openai.APIError, attempts=6, timeout=120)
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
         if not input:
             raise ValueError("Cannot embed an empty list")
-        result = await self._embedder.embed_documents(input)
+        result = await self._retrier(self._embedder.embed_documents, input)
         embeddings: NDArray[np.float32] = np.array(result.embeddings, dtype=np.float32)
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True).astype(np.float32)
         norms = np.where(norms > 0, norms, np.float32(1.0))
@@ -206,6 +219,8 @@ DEFAULT_CHAT_SPEC = "openai:gpt-4o"
 
 def create_chat_model(
     model_spec: str | None = None,
+    *,
+    retrier: BoundAsyncRetryingCaller | None = None,
 ) -> PydanticAIChatModel:
     """Create a chat model from a ``provider:model`` spec.
 
@@ -247,7 +262,7 @@ def create_chat_model(
         )
     else:
         model = infer_model(model_spec)
-    return PydanticAIChatModel(model)
+    return PydanticAIChatModel(model, retrier)
 
 
 DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"
@@ -255,6 +270,7 @@ DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"
 
 def create_embedding_model(
     model_spec: str | None = None,
+    retrier: BoundAsyncRetryingCaller | None = None,
 ) -> CachingEmbeddingModel:
     """Create an embedding model from a ``provider:model`` spec.
 
@@ -311,7 +327,7 @@ def create_embedding_model(
         embedder = _PydanticAIEmbedder(embedding_model)
     else:
         embedder = _PydanticAIEmbedder(model_spec)
-    return CachingEmbeddingModel(PydanticAIEmbedder(embedder, model_name))
+    return CachingEmbeddingModel(PydanticAIEmbedder(embedder, model_name, retrier))
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +414,8 @@ def create_test_embedding_model(
 def configure_models(
     chat_model_spec: str,
     embedding_model_spec: str,
+    chat_retrier: BoundAsyncRetryingCaller | None = None,
+    embed_retrier: BoundAsyncRetryingCaller | None = None,
 ) -> tuple[PydanticAIChatModel, CachingEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
 
@@ -414,6 +432,6 @@ def configure_models(
         extractor = KnowledgeExtractor(model=chat)
     """
     return (
-        create_chat_model(chat_model_spec),
-        create_embedding_model(embedding_model_spec),
+        create_chat_model(chat_model_spec, retrier=chat_retrier),
+        create_embedding_model(embedding_model_spec, retrier=embed_retrier),
     )
