@@ -3,16 +3,27 @@
 **NEVER use TEST_MODEL_NAME or "test" embedding model outside of test files**
 
 Never run git commands that make any changes. (`git status` and `git diff` are fine)
+Exceptions: `git push`, `git worktree`, `git branch` (for tracking setup), as instructed below.
 
-**NEVER COMMIT CODE. Do not run `git commit` or any other git commands
-that make changes to the repository. Not even `git add`**
+**NEVER COMMIT CODE.** Do not run `git commit` or any other git commands
+that make changes to the repository. Exception: Worktrees/Branches below.
+`git add` is fine.
 
 When moving, copying or deleting files, use the git commands: `git mv`, `git cp`, `git rm`
 
-When I ask to update AGENTS.md (even if maybe) extract a general rule from what I said
-before and update AGENTS.md (unless it's already in there -- maybe reformulate since
-it apparently didn't work). Also, when it looks like I state a general rule, add it to
-AGENTS.md. In all cases show what you added to AGENTS.md.
+## Worktrees and Branches
+
+- Each session uses its own worktree with a feature branch
+- Create worktrees with: `git worktree add ../<repo>-<branch-name> -b <branch-name>`
+- Push the branch to the `me` remote: `git push me <branch-name>`
+- Set upstream to `me/<branch-name>`: `git branch --set-upstream-to me/<branch-name>`
+- **Never** upstream to `me/main` — that must stay identical to `origin/main`
+- The worktree directory name should be `<repo>-<branch-name>` (sibling of the main checkout)
+
+**Whenever the user tells you how to do something, states a preference, or corrects you,
+extract a general rule and add it to AGENTS.md** (unless it's already covered -- maybe
+reformulate since it apparently didn't work). This applies even without being asked.
+In all cases show what you added to AGENTS.md.
 
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
 - When running 'make' commands, do not use the venv (the Makefile uses 'uv run')
