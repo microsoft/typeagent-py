@@ -8,7 +8,7 @@ import tempfile
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts.podcast import Podcast, PodcastMessage, PodcastMessageMeta
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
@@ -20,7 +20,7 @@ async def test_podcast_add_messages_with_indexing():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
 
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 
@@ -57,7 +57,7 @@ async def test_podcast_add_messages_batched():
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
 
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 

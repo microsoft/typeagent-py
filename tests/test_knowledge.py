@@ -5,7 +5,8 @@ import pytest
 
 from typechat import Failure, Result, Success
 
-from typeagent.knowpro import convknowledge, kplib
+from typeagent.knowpro import convknowledge
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.knowledge import (
     create_knowledge_extractor,
     extract_knowledge_from_text,
@@ -13,7 +14,7 @@ from typeagent.knowpro.knowledge import (
     merge_concrete_entities,
     merge_topics,
 )
-from typeagent.knowpro.kplib import ConcreteEntity, Facet
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, Facet
 
 
 class MockKnowledgeExtractor:
@@ -44,12 +45,12 @@ async def test_extract_knowledge_from_text(
     mock_knowledge_extractor: convknowledge.KnowledgeExtractor,
 ):
     """Test extracting knowledge from a single text input."""
-    result = await extract_knowledge_from_text(mock_knowledge_extractor, "test text", 3)
+    result = await extract_knowledge_from_text(mock_knowledge_extractor, "test text")
     assert isinstance(result, Success)
     assert result.value.topics[0] == "test text"
 
     failure_result = await extract_knowledge_from_text(
-        mock_knowledge_extractor, "error", 3
+        mock_knowledge_extractor, "error"
     )
     assert isinstance(failure_result, Failure)
     assert failure_result.message == "Extraction failed"
@@ -62,7 +63,7 @@ async def test_extract_knowledge_from_text_batch(
     """Test extracting knowledge from a batch of text inputs."""
     text_batch = ["text 1", "text 2", "error"]
     results = await extract_knowledge_from_text_batch(
-        mock_knowledge_extractor, text_batch, 2, 3
+        mock_knowledge_extractor, text_batch, 2
     )
 
     assert len(results) == 3

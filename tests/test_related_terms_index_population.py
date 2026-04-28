@@ -7,12 +7,12 @@
 import os
 import tempfile
 
+from dotenv import load_dotenv
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-from typeagent.aitools.utils import load_dotenv
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import kplib
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
@@ -32,7 +32,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
 
     try:
         # Use the test model that's already configured in the system
-        embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_model = create_test_embedding_model()
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)

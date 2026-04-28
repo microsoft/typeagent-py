@@ -11,9 +11,7 @@ import shutil
 import sys
 import time
 
-import black
 import colorama
-import dotenv
 
 import typechat
 
@@ -46,25 +44,29 @@ def timelog(label: str, verbose: bool = True):
 
 
 def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
-    """Pretty-print an object using black.
+    """Pretty-print an object using pprint."""
+    import pprint
 
-    NOTE: Only works if its repr() is a valid Python expression.
-    """
-    print(prefix + format_code(repr(obj)) + suffix)
+    line_width = min(200, shutil.get_terminal_size().columns)
+    print(prefix + pprint.pformat(obj, width=line_width) + suffix)
 
 
 def format_code(text: str, line_width=None) -> str:
-    """Format a block of code using black, then reindent to 2 spaces.
+    """Format a Python literal expression using pprint.
 
-    NOTE: The text must be a valid Python expression or code block.
+    NOTE: The text must be a valid Python literal expression (as produced by repr()).
+    Falls back to plain text formatting if the text is not a valid literal.
     """
+    import ast
+    import pprint
+
     if line_width is None:
-        # Use the terminal width, but cap it to 200 characters.
         line_width = min(200, shutil.get_terminal_size().columns)
-    formatted_text = black.format_str(
-        text, mode=black.Mode(line_length=line_width)
-    ).rstrip()
-    return reindent(formatted_text)
+    try:
+        return pprint.pformat(ast.literal_eval(text), width=line_width)
+    except (ValueError, SyntaxError):
+        # Fall back to simple pprint of the string itself if it's not a valid literal
+        return pprint.pformat(text, width=line_width)
 
 
 def reindent(text: str) -> str:
@@ -76,21 +78,6 @@ def reindent(text: str) -> str:
         twice_indent_level = (len(line) - len(stripped_line) + 1) // 2  # Round up
         reindented_lines.append(" " * twice_indent_level + stripped_line)
     return "\n".join(reindented_lines)
-
-
-def load_dotenv() -> None:
-    """Load environment variables from '<repo_root>/.env'."""
-    # Look for ".env" in current directory and up until root.
-    cur_dir = os.path.abspath(os.getcwd())
-    while True:
-        path = os.path.join(cur_dir, ".env")
-        if os.path.exists(path):
-            dotenv.load_dotenv(path)
-            return
-        parent_dir = os.path.dirname(cur_dir)
-        if parent_dir == cur_dir:
-            break  # Reached filesystem root ('/').
-        cur_dir = parent_dir
 
 
 def create_translator[T](
@@ -203,17 +190,47 @@ def parse_azure_endpoint(
     Raises:
         RuntimeError: If endpoint is not found or doesn't contain api-version.
     """
+    endpoint, version, _ = parse_azure_endpoint_parts(endpoint_envvar)
+    return endpoint, version
+
+
+def parse_azure_endpoint_parts(
+    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
+) -> tuple[str, str, str | None]:
+    """Parse Azure OpenAI endpoint, version, and optional deployment name.
+
+    Returns:
+        Tuple of (endpoint_url, api_version, deployment_name).
+
+    The deployment name is extracted from endpoints of the form
+    ``.../openai/deployments/<deployment>/...`` and is ``None`` otherwise.
+    """
     azure_endpoint = os.getenv(endpoint_envvar)
     if not azure_endpoint:
         raise RuntimeError(f"Environment variable {endpoint_envvar} not found")
 
-    m = re.search(r"[?,]api-version=([\d-]+(?:preview)?)", azure_endpoint)
+    m = re.search(r"[?&]api-version=([\d-]+(?:preview)?)", azure_endpoint)
     if not m:
         raise RuntimeError(
             f"{endpoint_envvar}={azure_endpoint} doesn't contain valid api-version field"
         )
 
-    return azure_endpoint, m.group(1)
+    clean_endpoint = azure_endpoint.split("?", 1)[0]
+    deployment_match = re.search(
+        r"/openai/deployments/([^/?]+)(?:/.*)?$",
+        clean_endpoint,
+    )
+    deployment_name = deployment_match.group(1) if deployment_match else None
+
+    # Strip query string and /openai... path — AsyncAzureOpenAI expects a
+    # clean base URL and builds the deployment path internally.
+    clean_endpoint = re.sub(
+        r"/openai(?:/deployments/[^/?]+(?:/.*)?)?$",
+        "",
+        clean_endpoint,
+    )
+
+    return clean_endpoint, m.group(1), deployment_name
 
 
 def get_azure_api_key(azure_api_key: str) -> str:
@@ -235,44 +252,13 @@ def get_azure_api_key(azure_api_key: str) -> str:
     return azure_api_key
 
 
-def create_async_openai_client(
+def resolve_azure_model_name(
+    model_name: str,
     endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
-    base_url: str | None = None,
-):
-    """Create AsyncOpenAI or AsyncAzureOpenAI client based on environment variables.
-
-    Returns the appropriate async OpenAI client based on what credentials are available.
-    Prefers OPENAI_API_KEY over AZURE_OPENAI_API_KEY.
-
-    Args:
-        endpoint_envvar: Environment variable name for Azure endpoint (default: AZURE_OPENAI_ENDPOINT).
-        base_url: Optional base URL override for OpenAI client.
-
-    Returns:
-        AsyncOpenAI or AsyncAzureOpenAI client instance.
-
-    Raises:
-        RuntimeError: If neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set.
-    """
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
-
-    if openai_api_key := os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url)
-
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
-
-        return AsyncAzureOpenAI(
-            api_version=api_version,
-            azure_endpoint=azure_endpoint,
-            api_key=azure_api_key,
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
+) -> str:
+    """Resolve an Azure deployment name from an endpoint, if present."""
+    _, _, deployment_name = parse_azure_endpoint_parts(endpoint_envvar)
+    return deployment_name or model_name
 
 
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
@@ -280,7 +266,6 @@ def make_agent[T](cls: type[T]):
     """Create Pydantic AI agent using hardcoded preferences."""
     from pydantic_ai import Agent, NativeOutput, ToolOutput
     from pydantic_ai.models.openai import OpenAIChatModel
-    from pydantic_ai.providers.azure import AzureProvider
 
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):
@@ -288,21 +273,16 @@ def make_agent[T](cls: type[T]):
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
         model = OpenAIChatModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
 
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint("AZURE_OPENAI_ENDPOINT")
+    elif os.getenv("AZURE_OPENAI_API_KEY"):
+        from typeagent.aitools.model_adapters import _make_azure_provider
 
-        print(f"## {azure_endpoint} ##")
+        azure_provider = _make_azure_provider()
         Wrapper = ToolOutput
 
-        print(f"## Using Azure {api_version} with {Wrapper.__name__} ##")
+        print(f"## Using Azure with {Wrapper.__name__} ##")
         model = OpenAIChatModel(
-            "gpt-4o",
-            provider=AzureProvider(
-                azure_endpoint=azure_endpoint,
-                api_version=api_version,
-                api_key=azure_api_key,
-            ),
+            resolve_azure_model_name("gpt-4o"),
+            provider=azure_provider,
         )
 
     else:

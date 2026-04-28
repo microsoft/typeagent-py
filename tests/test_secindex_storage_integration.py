@@ -4,7 +4,7 @@
 # Test that ConversationSecondaryIndexes now uses storage provider properly
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.knowpro.secindex import ConversationSecondaryIndexes
@@ -19,7 +19,7 @@ async def test_secondary_indexes_use_storage_provider(
     storage_provider = memory_storage
 
     # Create test settings
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 

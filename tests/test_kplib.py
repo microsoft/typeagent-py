@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typeagent.knowpro.kplib import (
+from typeagent.knowpro.knowledge_schema import (
     Action,
     ActionParam,
     ConcreteEntity,

@@ -91,10 +91,14 @@ class MatchAccumulator[T]:
                     )
                 )
             else:
+                # New related-only match: hit_count stays 0 because
+                # only exact matches count as direct hits.  This matters
+                # for select_with_hit_count / _matches_with_min_hit_count
+                # which filter on hit_count to weed out noise.
                 self.set_match(
                     Match(
                         value,
-                        hit_count=1,
+                        hit_count=0,
                         score=0.0,
                         related_hit_count=1,
                         related_score=score,
@@ -250,9 +254,11 @@ type KnowledgePredicate[T: Knowledge] = Callable[[T], bool]
 
 
 class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
-    def __init__(self, search_term_matches: set[str] = set()):
+    def __init__(self, search_term_matches: set[str] | None = None):
         super().__init__()
-        self.search_term_matches = search_term_matches
+        self.search_term_matches = (
+            search_term_matches if search_term_matches is not None else set()
+        )
 
     def add_term_matches(
         self,
@@ -325,14 +331,17 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         self,
         semantic_refs: ISemanticRefCollection,
     ) -> dict[KnowledgeType, "SemanticRefAccumulator"]:
+        matches = list(self)
+        if not matches:
+            return {}
+        ordinals = [match.value for match in matches]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
         groups: dict[KnowledgeType, SemanticRefAccumulator] = {}
-        for match in self:
-            semantic_ref = await semantic_refs.get_item(match.value)
-            group = groups.get(semantic_ref.knowledge.knowledge_type)
+        for match, m in zip(matches, metadata):
+            group = groups.get(m.knowledge_type)
             if group is None:
-                group = SemanticRefAccumulator()
-                group.search_term_matches = self.search_term_matches
-                groups[semantic_ref.knowledge.knowledge_type] = group
+                group = SemanticRefAccumulator(self.search_term_matches)
+                groups[m.knowledge_type] = group
             group.set_match(match)
         return groups
 
@@ -341,11 +350,14 @@ class SemanticRefAccumulator(MatchAccumulator[SemanticRefOrdinal]):
         semantic_refs: ISemanticRefCollection,
         ranges_in_scope: "TextRangesInScope",
     ) -> "SemanticRefAccumulator":
+        matches = list(self)
+        if not matches:
+            return SemanticRefAccumulator(self.search_term_matches)
+        ordinals = [match.value for match in matches]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
         accumulator = SemanticRefAccumulator(self.search_term_matches)
-        for match in self:
-            if ranges_in_scope.is_range_in_scope(
-                (await semantic_refs.get_item(match.value)).range
-            ):
+        for match, m in zip(matches, metadata):
+            if ranges_in_scope.is_range_in_scope(m.range):
                 accumulator.set_match(match)
         return accumulator
 
@@ -513,14 +525,15 @@ class TextRangeCollection(Iterable[TextRange]):
             for text_range in text_ranges._ranges:
                 self.add_range(text_range)
 
-    def is_in_range(self, inner_range: TextRange) -> bool:
-        if len(self._ranges) == 0:
+    def contains_range(self, inner_range: TextRange) -> bool:
+        if not self._ranges:
             return False
-        i = bisect.bisect_left(self._ranges, inner_range)
-        for outer_range in self._ranges[i:]:
-            if outer_range.start > inner_range.start:
-                break
-            if inner_range in outer_range:
+        # Bisect on start only to find all ranges with start <= inner.start,
+        # then scan backwards — the most likely containing range has the
+        # largest start still <= inner's.
+        hi = bisect.bisect_right(self._ranges, inner_range.start, key=lambda r: r.start)
+        for i in range(hi - 1, -1, -1):
+            if inner_range in self._ranges[i]:
                 return True
         return False
 
@@ -544,7 +557,7 @@ class TextRangesInScope:
             # We have a very simple impl: we don't intersect/union ranges yet.
             # Instead, we ensure that the inner range is not rejected by any outer ranges.
             for outer_ranges in self.text_ranges:
-                if not outer_ranges.is_in_range(inner_range):
+                if not outer_ranges.contains_range(inner_range):
                     return False
         return True
 

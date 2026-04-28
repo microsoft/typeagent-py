@@ -10,7 +10,7 @@ from typing import Generator
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro import interfaces
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
@@ -35,7 +35,7 @@ from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIn
 
 @pytest.fixture
 def embedding_settings(
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
 ) -> TextEmbeddingIndexSettings:
     """Create TextEmbeddingIndexSettings for testing."""
     return TextEmbeddingIndexSettings(embedding_model)
@@ -157,18 +157,14 @@ class TestSqliteTimestampToTextRangeIndex:
 
         # First, we need to create some messages in the database for the timestamps to reference
         cursor = sqlite_db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             INSERT INTO Messages (msg_id, chunks, start_timestamp)
             VALUES (1, '["test message 1"]', NULL)
-        """
-        )
-        cursor.execute(
-            """
+        """)
+        cursor.execute("""
             INSERT INTO Messages (msg_id, chunks, start_timestamp)
             VALUES (2, '["test message 2"]', NULL)
-        """
-        )
+        """)
         sqlite_db.commit()
 
         # Add timestamps to existing messages

@@ -1,5 +1,9 @@
+from dotenv import load_dotenv
+
 from typeagent import create_conversation
 from typeagent.transcripts.transcript import TranscriptMessage, TranscriptMessageMeta
+
+load_dotenv()
 
 
 def read_messages(filename) -> list[TranscriptMessage]:

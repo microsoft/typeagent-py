@@ -24,7 +24,7 @@ from .interfaces import (
     Term,
     WhenFilter,
 )
-from .kplib import ConcreteEntity
+from .knowledge_schema import ConcreteEntity
 from .query import (
     BooleanOp,
     CompiledSearchTerm,
@@ -90,11 +90,9 @@ class SearchOptions:
 
     def __repr__(self):
         parts = []
-        for key in dir(self):
-            if not key.startswith("_"):
-                value = getattr(self, key)
-                if value is not None:
-                    parts.append(f"{key}={value!r}")
+        for key, value in vars(self).items():
+            if not key.startswith("_") and value is not None:
+                parts.append(f"{key}={value!r}")
         return f"{self.__class__.__name__}({', '.join(parts)})"
 
 

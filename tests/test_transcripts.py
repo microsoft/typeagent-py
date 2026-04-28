@@ -5,11 +5,19 @@ from datetime import timedelta
 import os
 
 import pytest
+import webvtt
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
+from typeagent.storage.memory.collections import (
+    MemoryMessageCollection,
+    MemorySemanticRefCollection,
+)
+from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
 from typeagent.transcripts.transcript import (
+    split_speaker_name,
     Transcript,
     TranscriptMessage,
     TranscriptMessageMeta,
@@ -18,6 +26,7 @@ from typeagent.transcripts.transcript_ingest import (
     extract_speaker_from_text,
     get_transcript_duration,
     get_transcript_speakers,
+    parse_voice_tags,
     webvtt_timestamp_to_seconds,
 )
 
@@ -88,7 +97,7 @@ def test_get_transcript_info():
 
 @pytest.fixture
 def conversation_settings(
-    needs_auth: None, embedding_model: AsyncEmbeddingModel
+    needs_auth: None, embedding_model: IEmbeddingModel
 ) -> ConversationSettings:
     """Create conversation settings for testing."""
     return ConversationSettings(embedding_model)
@@ -101,15 +110,6 @@ def conversation_settings(
 @pytest.mark.asyncio
 async def test_ingest_vtt_transcript(conversation_settings: ConversationSettings):
     """Test importing a VTT file into a Transcript object."""
-    import webvtt
-
-    from typeagent.storage.memory.collections import (
-        MemoryMessageCollection,
-        MemorySemanticRefCollection,
-    )
-    from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-    from typeagent.transcripts.transcript_ingest import parse_voice_tags
-
     vtt_file = CONFUSE_A_CAT_VTT
 
     # Use in-memory storage to avoid database cleanup issues
@@ -224,10 +224,8 @@ def test_transcript_message_creation():
 @pytest.mark.asyncio
 async def test_transcript_creation():
     """Test creating an empty transcript."""
-    from typeagent.aitools.embeddings import TEST_MODEL_NAME
-
     # Create a minimal transcript for testing structure
-    embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    embedding_model = create_test_embedding_model()
     settings = ConversationSettings(embedding_model)
 
     transcript = await Transcript.create(
@@ -242,7 +240,7 @@ async def test_transcript_creation():
 
 @pytest.mark.asyncio
 async def test_transcript_knowledge_extraction_slow(
-    really_needs_auth: None, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, embedding_model: IEmbeddingModel
 ):
     """
     Test that knowledge extraction works during transcript ingestion.
@@ -254,14 +252,6 @@ async def test_transcript_knowledge_extraction_slow(
     4. Verifies both mechanical extraction (entities/actions from metadata)
        and LLM extraction (topics from content) work correctly
     """
-    import webvtt
-
-    from typeagent.storage.memory.collections import (
-        MemoryMessageCollection,
-        MemorySemanticRefCollection,
-    )
-    from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
-
     # Use in-memory storage for speed
     settings = ConversationSettings(embedding_model)
 
@@ -315,7 +305,7 @@ async def test_transcript_knowledge_extraction_slow(
 
     # Enable knowledge extraction
     settings.semantic_ref_index_settings.auto_extract_knowledge = True
-    settings.semantic_ref_index_settings.batch_size = 10
+    settings.semantic_ref_index_settings.concurrency = 10
 
     # Add messages with indexing (this should extract knowledge)
     result = await transcript.add_messages_with_indexing(messages_list)
@@ -349,3 +339,207 @@ async def test_transcript_knowledge_extraction_slow(
     )
     print(f"Knowledge types: {knowledge_types}")
     print(f"Indexed terms: {len(terms)}")
+
+
+# ---------------------------------------------------------------------------
+# split_speaker_name
+# ---------------------------------------------------------------------------
+
+
+class TestSplitSpeakerName:
+    def test_single_word(self) -> None:
+        result = split_speaker_name("alice")
+        assert result is not None
+        assert result.first_name == "alice"
+        assert result.last_name is None
+        assert result.middle_name is None
+
+    def test_two_words(self) -> None:
+        result = split_speaker_name("john smith")
+        assert result is not None
+        assert result.first_name == "john"
+        assert result.last_name == "smith"
+        assert result.middle_name is None
+
+    def test_three_words(self) -> None:
+        result = split_speaker_name("john michael smith")
+        assert result is not None
+        assert result.first_name == "john"
+        assert result.middle_name == "michael"
+        assert result.last_name == "smith"
+
+    def test_van_prefix_merged_into_last_name(self) -> None:
+        result = split_speaker_name("jan van eyck")
+        assert result is not None
+        assert result.first_name == "jan"
+        assert result.last_name == "van eyck"
+        assert result.middle_name is None
+
+    def test_empty_string_returns_none(self) -> None:
+        result = split_speaker_name("")
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Serialize / deserialize roundtrip (in-memory, no LLM)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_transcript_serialize_deserialize_roundtrip() -> None:
+    """Serialize a transcript and deserialize into a fresh one — data is preserved."""
+    embedding_model = create_test_embedding_model()
+    settings = ConversationSettings(embedding_model)
+    settings.semantic_ref_index_settings.auto_extract_knowledge = False
+
+    # Build original transcript — use add_messages_with_indexing so the
+    # message text index (and its embeddings) are populated before serializing.
+    original = await Transcript.create(settings, name="roundtrip-test", tags=["foo"])
+    msg1 = TranscriptMessage(
+        text_chunks=["Hello world"],
+        metadata=TranscriptMessageMeta(speaker="Alice", recipients=["Bob"]),
+        tags=["t1"],
+        timestamp="2024-01-01T00:00:00Z",
+    )
+    msg2 = TranscriptMessage(
+        text_chunks=["Goodbye"],
+        metadata=TranscriptMessageMeta(speaker="Bob", recipients=[]),
+        tags=[],
+        timestamp="2024-01-01T00:01:00Z",
+    )
+    await original.add_messages_with_indexing([msg1, msg2])
+    data = await original.serialize()
+
+    # Deserialize into a fresh transcript.
+    fresh_settings = ConversationSettings(embedding_model)
+    fresh_settings.semantic_ref_index_settings.auto_extract_knowledge = False
+    fresh = await Transcript.create(fresh_settings, name="", tags=[])
+    await fresh.deserialize(data)
+
+    assert fresh.name_tag == "roundtrip-test"
+    assert "foo" in fresh.tags
+    assert await fresh.messages.size() == 2
+
+    first = await fresh.messages.get_item(0)
+    assert first.text_chunks == ["Hello world"]
+    assert first.metadata.speaker == "Alice"
+    assert first.metadata.recipients == ["Bob"]
+    assert first.timestamp == "2024-01-01T00:00:00Z"
+
+
+@pytest.mark.asyncio
+async def test_transcript_deserialize_non_empty_raises() -> None:
+    """Deserializing into a non-empty Transcript raises RuntimeError."""
+    embedding_model = create_test_embedding_model()
+    settings = ConversationSettings(embedding_model)
+
+    transcript = await Transcript.create(settings, name="test", tags=[])
+    await transcript.messages.append(
+        TranscriptMessage(
+            text_chunks=["existing"],
+            metadata=TranscriptMessageMeta(speaker=None, recipients=[]),
+        )
+    )
+    data = await transcript.serialize()
+
+    # Trying to deserialize into it again must raise.
+    with pytest.raises(RuntimeError):
+        await transcript.deserialize(data)
+
+
+# ---------------------------------------------------------------------------
+# write_to_file / read_from_file roundtrip
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_write_and_read_from_file(tmp_path: os.PathLike[str]) -> None:
+    """write_to_file + read_from_file preserves names, tags, and messages."""
+    embedding_model = create_test_embedding_model()
+    settings = ConversationSettings(embedding_model)
+    settings.semantic_ref_index_settings.auto_extract_knowledge = False
+
+    original = await Transcript.create(settings, name="file-test", tags=["persisted"])
+    msg = TranscriptMessage(
+        text_chunks=["Persisted message"],
+        metadata=TranscriptMessageMeta(speaker="Eve", recipients=[]),
+        timestamp="2024-06-01T12:00:00Z",
+    )
+    # Use add_messages_with_indexing so embeddings are built before writing.
+    await original.add_messages_with_indexing([msg])
+    prefix = os.path.join(str(tmp_path), "test_transcript")
+    await original.write_to_file(prefix)
+
+    # Verify the _data.json file was written.
+    assert os.path.exists(prefix + "_data.json")
+
+    # Read it back.
+    fresh_settings = ConversationSettings(embedding_model)
+    fresh_settings.semantic_ref_index_settings.auto_extract_knowledge = False
+    loaded = await Transcript.read_from_file(prefix, fresh_settings)
+
+    assert loaded.name_tag == "file-test"
+    assert "persisted" in loaded.tags
+    assert await loaded.messages.size() == 1
+    first = await loaded.messages.get_item(0)
+    assert first.text_chunks == ["Persisted message"]
+    assert first.metadata.speaker == "Eve"
+
+
+# ---------------------------------------------------------------------------
+# Speaker alias building
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_build_speaker_aliases_full_name() -> None:
+    """Full-name speakers create first-name ↔ full-name aliases."""
+    embedding_model = create_test_embedding_model()
+    settings = ConversationSettings(embedding_model)
+
+    transcript = await Transcript.create(settings, name="alias-test", tags=[])
+    msg = TranscriptMessage(
+        text_chunks=["Hi"],
+        metadata=TranscriptMessageMeta(speaker="John Smith", recipients=[]),
+    )
+    await transcript.messages.append(msg)
+
+    # Rebuild aliases explicitly.
+    await transcript._build_speaker_aliases()
+
+    secondary = transcript._get_secondary_indexes()
+    assert secondary.term_to_related_terms_index is not None
+    aliases = secondary.term_to_related_terms_index.aliases
+
+    # "john" should be aliased to "john smith" and vice-versa.
+    john_aliases = await aliases.lookup_term("john")
+    assert john_aliases is not None
+    alias_texts = [t.text for t in john_aliases]
+    assert "john smith" in alias_texts
+
+    full_aliases = await aliases.lookup_term("john smith")
+    assert full_aliases is not None
+    assert "john" in [t.text for t in full_aliases]
+
+
+@pytest.mark.asyncio
+async def test_build_speaker_aliases_single_name_no_alias() -> None:
+    """Single-word speaker names produce no aliases."""
+    embedding_model = create_test_embedding_model()
+    settings = ConversationSettings(embedding_model)
+
+    transcript = await Transcript.create(settings, name="alias-test2", tags=[])
+    msg = TranscriptMessage(
+        text_chunks=["Hello"],
+        metadata=TranscriptMessageMeta(speaker="Alice", recipients=[]),
+    )
+    await transcript.messages.append(msg)
+    await transcript._build_speaker_aliases()
+
+    secondary = transcript._get_secondary_indexes()
+    assert secondary.term_to_related_terms_index is not None
+    aliases = secondary.term_to_related_terms_index.aliases
+
+    # Single-name speaker — no alias entry expected.
+    result = await aliases.lookup_term("alice")
+    assert not result

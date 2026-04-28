@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime as Datetime
 from typing import (
     Any,
@@ -19,7 +20,7 @@ from typing import (
 from pydantic.dataclasses import dataclass
 import typechat
 
-from . import kplib
+from . import knowledge_schema as kplib
 from .field_helpers import CamelCaseField
 
 __all__ = [
@@ -89,8 +90,9 @@ class IndexingStartPoints:
 class AddMessagesResult:
     """Result of add_messages_with_indexing operation."""
 
-    messages_added: int
-    semrefs_added: int
+    messages_added: int = 0
+    chunks_added: int = 0
+    semrefs_added: int = 0
 
 
 # Messages are referenced by their sequential ordinal numbers.
@@ -127,6 +129,12 @@ class IMessage[TMetadata: IMessageMetadata](IKnowledgeSource, Protocol):
 
     # Metadata associated with the message such as its source.
     metadata: TMetadata | None = None
+
+    # Optional external identifier of the source this message was ingested from
+    # (e.g., an email ID, a file path, a URL). Used by ingestion pipelines to
+    # detect already-ingested sources for restartability. None means the message
+    # is not associated with an external source (e.g., synthesized in tests).
+    source_id: str | None = None
 
 
 # Semantic references are also ordinal.
@@ -167,6 +175,11 @@ class ITermToSemanticRefIndex(Protocol):
         term: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> str: ...
+
+    async def add_terms_batch(
+        self,
+        terms: Sequence[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
+    ) -> None: ...
 
     async def remove_term(
         self, term: str, semantic_ref_ordinal: SemanticRefOrdinal
@@ -249,32 +262,24 @@ class TextRange:
         else:
             return f"{self.__class__.__name__}({self.start}, {self.end})"
 
+    @staticmethod
+    def _effective_end(tr: "TextRange") -> tuple[int, int]:
+        """Return (message_ordinal, chunk_ordinal) for the effective end."""
+        if tr.end is not None:
+            return (tr.end.message_ordinal, tr.end.chunk_ordinal)
+        return (tr.start.message_ordinal, tr.start.chunk_ordinal + 1)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, TextRange):
             return NotImplemented
-
         if self.start != other.start:
             return False
-
-        # Get the effective end for both ranges
-        self_end = self.end or TextLocation(
-            self.start.message_ordinal, self.start.chunk_ordinal + 1
-        )
-        other_end = other.end or TextLocation(
-            other.start.message_ordinal, other.start.chunk_ordinal + 1
-        )
-        return self_end == other_end
+        return TextRange._effective_end(self) == TextRange._effective_end(other)
 
     def __lt__(self, other: Self) -> bool:
         if self.start != other.start:
             return self.start < other.start
-        self_end = self.end or TextLocation(
-            self.start.message_ordinal, self.start.chunk_ordinal + 1
-        )
-        other_end = other.end or TextLocation(
-            other.start.message_ordinal, other.start.chunk_ordinal + 1
-        )
-        return self_end < other_end
+        return TextRange._effective_end(self) < TextRange._effective_end(other)
 
     def __gt__(self, other: Self) -> bool:
         return other.__lt__(self)
@@ -286,13 +291,9 @@ class TextRange:
         return not other.__lt__(self)
 
     def __contains__(self, other: Self) -> bool:
-        other_end = other.end or TextLocation(
-            other.start.message_ordinal, other.start.chunk_ordinal + 1
-        )
-        self_end = self.end or TextLocation(
-            self.start.message_ordinal, self.start.chunk_ordinal + 1
-        )
-        return self.start <= other.start and other_end <= self_end
+        if not (self.start <= other.start):
+            return False
+        return TextRange._effective_end(other) <= TextRange._effective_end(self)
 
     def serialize(self) -> TextRangeData:
         return self.__pydantic_serializer__.to_python(  # type: ignore

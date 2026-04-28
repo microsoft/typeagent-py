@@ -3,7 +3,7 @@
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
@@ -29,9 +29,9 @@ def simple_conversation() -> FakeConversation:
 
 @pytest.fixture
 def conversation_settings(needs_auth: None) -> ConversationSettings:
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+    from typeagent.aitools.model_adapters import create_test_embedding_model
 
-    model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    model = create_test_embedding_model()
     return ConversationSettings(model)
 
 
@@ -41,7 +41,7 @@ def test_conversation_secondary_indexes_initialization(
     """Test initialization of ConversationSecondaryIndexes."""
     storage_provider = memory_storage
     # Create proper settings for testing
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = RelatedTermIndexSettings(embedding_settings)
     indexes = ConversationSecondaryIndexes(storage_provider, settings)

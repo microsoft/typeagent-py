@@ -9,9 +9,14 @@ that make changes to the repository. Not even `git add`**
 
 When moving, copying or deleting files, use the git commands: `git mv`, `git cp`, `git rm`
 
+When I ask to update AGENTS.md (even if maybe) extract a general rule from what I said
+before and update AGENTS.md (unless it's already in there -- maybe reformulate since
+it apparently didn't work). Also, when it looks like I state a general rule, add it to
+AGENTS.md. In all cases show what you added to AGENTS.md.
+
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
-- Activate `.venv`: `make venv; source .venv/bin/activate` (run this only once)
-- To get API keys in ad-hoc code, call `typeagent.aitools.utils.load_dotenv()`
+- When running 'make' commands, do not use the venv (the Makefile uses 'uv run')
+- To get API keys in ad-hoc code, call `load_dotenv()`
 - Use `pytest test` to run tests in test/
 - Use `pyright` to check type annotations in src/, tools/,  tests/, examples/
 - Ignore build/, dist/
@@ -20,6 +25,8 @@ When moving, copying or deleting files, use the git commands: `git mv`, `git cp`
 - Use `make test` to run all tests
 - Use `make check test` to run `make check` and if it passes also run `make test`
 - Use `make format` to format all files using `black`. Do this before reporting success.
+- When validating changes, first run `pytest` only on new/modified test files, then run `make format check test` once at the end.
+- Keep ad-hoc and performance benchmarks under `tools/`, not `tests/`, so `make test` does not run them.
 
 ## Package Management with uv
 
@@ -30,7 +37,7 @@ When moving, copying or deleting files, use the git commands: `git mv`, `git cp`
 - uv maintains consistency between `pyproject.toml`, `uv.lock`, and installed packages
 - Trust uv's automatic version resolution and file management
 
-**IMPORTANT! YOU ARE NOT DONE UNTIL `make check test format` PASSES**
+**IMPORTANT! YOU ARE NOT DONE UNTIL `make format check test` PASSES**
 
 # Code generation
 
@@ -93,3 +100,6 @@ please follow these guidelines:
 
 * **Code Validation**: Don't use `py_compile` for syntax checking.
   Use `pyright` or `make check` instead for proper type checking and validation.
+
+* **Deprecations**: Don't deprecate things -- just delete them and fix the usage sites.
+  Don't create backward compatibility APIs or exports or whatever. Fix the usage sites.

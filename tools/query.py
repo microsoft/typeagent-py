@@ -20,6 +20,7 @@ import typing
 
 from colorama import Fore
 from colorama import init as colorama_init
+from dotenv import load_dotenv
 import numpy as np
 
 readline = None
@@ -31,18 +32,19 @@ except ImportError:
 
 import typechat
 
-from typeagent.aitools import embeddings, utils
+from typeagent.aitools import embeddings, model_adapters, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
-    convknowledge,
-    kplib,
+)
+from typeagent.knowpro import (
     query,
     search,
     search_query_schema,
     searchlang,
     serialization,
 )
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -149,7 +151,7 @@ class ProcessingContext:
     debug2: typing.Literal["none", "diff", "full", "skip"]
     debug3: typing.Literal["none", "diff", "full", "nice"]
     debug4: typing.Literal["none", "diff", "full", "nice"]
-    embedding_model: embeddings.AsyncEmbeddingModel
+    embedding_model: embeddings.IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[
         answer_response_schema.AnswerResponse
@@ -529,7 +531,7 @@ async def handle_at_command(context: ProcessingContext, line: str) -> None:
 
 
 async def main():
-    utils.load_dotenv()
+    load_dotenv()
     colorama_init(autoreset=True)
 
     parser = make_arg_parser("TypeAgent Query Tool")
@@ -576,7 +578,7 @@ async def main():
                 "Error: non-empty --search-results required for batch mode."
             )
 
-    model = convknowledge.create_typechat_model()
+    model = model_adapters.create_chat_model()
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
     if args.alt_schema:
         if args.verbose:

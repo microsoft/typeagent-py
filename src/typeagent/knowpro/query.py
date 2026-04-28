@@ -37,6 +37,7 @@ from .interfaces import (
     ScoredSemanticRefOrdinal,
     SearchTerm,
     SemanticRef,
+    SemanticRefMetadata,
     SemanticRefOrdinal,
     SemanticRefSearchResult,
     Term,
@@ -44,7 +45,8 @@ from .interfaces import (
     TextRange,
     Thread,
 )
-from .kplib import ConcreteEntity
+from .knowledge_schema import ConcreteEntity
+from .utils import aenumerate
 
 # TODO: Move to compilelib.py
 type BooleanOp = Literal["and", "or", "or_max"]
@@ -101,11 +103,14 @@ async def get_text_range_for_date_range(
     messages = conversation.messages
     range_start_ordinal: MessageOrdinal = -1
     range_end_ordinal = range_start_ordinal
-    async for message in messages:
-        if Datetime.fromisoformat(message.timestamp) in date_range:
+    async for ordinal, message in aenumerate(messages):
+        if (
+            message.timestamp
+            and Datetime.fromisoformat(message.timestamp) in date_range
+        ):
             if range_start_ordinal < 0:
-                range_start_ordinal = message.ordinal
-            range_end_ordinal = message.ordinal
+                range_start_ordinal = ordinal
+            range_end_ordinal = ordinal
         else:
             if range_start_ordinal >= 0:
                 # We have a range, so break.
@@ -170,17 +175,14 @@ async def lookup_term_filtered(
     semantic_ref_index: ITermToSemanticRefIndex,
     term: Term,
     semantic_refs: ISemanticRefCollection,
-    filter: Callable[[SemanticRef, ScoredSemanticRefOrdinal], bool],
+    filter: Callable[[SemanticRefMetadata, ScoredSemanticRefOrdinal], bool],
 ) -> list[ScoredSemanticRefOrdinal] | None:
     """Look up a term in the semantic reference index and filter the results."""
     scored_refs = await semantic_ref_index.lookup_term(term.text)
     if scored_refs:
-        filtered = []
-        for sr in scored_refs:
-            semantic_ref = await semantic_refs.get_item(sr.semantic_ref_ordinal)
-            if filter(semantic_ref, sr):
-                filtered.append(sr)
-        return filtered
+        ordinals = [sr.semantic_ref_ordinal for sr in scored_refs]
+        metadata = await semantic_refs.get_metadata_multiple(ordinals)
+        return [sr for sr, m in zip(scored_refs, metadata) if filter(m, sr)]
     return None
 
 
@@ -198,10 +200,8 @@ async def lookup_term(
             semantic_ref_index,
             term,
             semantic_refs,
-            lambda sr, _: (
-                not knowledge_type or sr.knowledge.knowledge_type == knowledge_type
-            )
-            and ranges_in_scope.is_range_in_scope(sr.range),
+            lambda m, _: (not knowledge_type or m.knowledge_type == knowledge_type)
+            and ranges_in_scope.is_range_in_scope(m.range),
         )
     return await semantic_ref_index.lookup_term(term.text)
 
@@ -696,7 +696,7 @@ class WhereSemanticRefExpr(QueryOpExpr[SemanticRefAccumulator]):
 
     async def eval(self, context: QueryEvalContext) -> SemanticRefAccumulator:
         accumulator = await self.source_expr.eval(context)
-        filtered = SemanticRefAccumulator(accumulator.search_term_matches)
+        filtered = SemanticRefAccumulator(set(accumulator.search_term_matches))
 
         # Filter matches asynchronously
         filtered_matches = []
@@ -907,7 +907,7 @@ class RankMessagesBySimilarityExpr(QueryOpExpr[MessageAccumulator]):
             )
             if len(message_ordinals) == len(matches):
                 matches.clear_matches()
-                ranked_messages = message_index.lookup_in_subset_by_embedding(
+                ranked_messages = await message_index.lookup_in_subset_by_embedding(
                     self.embedding,
                     message_ordinals,
                     self.max_messages,

@@ -137,7 +137,7 @@ class EmbeddingIndex:
         assert embeddings.dtype == np.float32, embeddings.dtype
         assert embeddings.ndim == 2, embeddings.shape
         assert (
-            embeddings.shape[1] == self._vector_base._embedding_size
+            self._vector_base._embedding_size == 0
+            or embeddings.shape[1] == self._vector_base._embedding_size
         ), embeddings.shape
-        self.clear()
-        self.push(embeddings)
+        self._vector_base.deserialize(embeddings)

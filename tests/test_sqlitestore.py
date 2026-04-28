@@ -3,13 +3,14 @@
 
 from collections.abc import AsyncGenerator
 from dataclasses import field
+from datetime import datetime
 
 import pytest
 import pytest_asyncio
 
 from pydantic.dataclasses import dataclass
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
@@ -22,7 +23,7 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage import SqliteStorageProvider
 
 
@@ -39,7 +40,7 @@ class DummyMessage(IMessage):
 
 @pytest_asyncio.fixture
 async def dummy_sqlite_storage_provider(
-    temp_db_path: str, embedding_model: AsyncEmbeddingModel
+    temp_db_path: str, embedding_model: IEmbeddingModel
 ) -> AsyncGenerator[SqliteStorageProvider[DummyMessage], None]:
     """Create a SqliteStorageProvider for testing."""
     embedding_settings = TextEmbeddingIndexSettings(embedding_model)
@@ -128,8 +129,6 @@ async def test_sqlite_timestamp_index(
     dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
 ):
     """Test SqliteTimestampToTextRangeIndex functionality."""
-    from datetime import datetime
-
     from typeagent.knowpro.interfaces import DateRange
 
     # Set up database with some messages
@@ -189,3 +188,18 @@ async def test_sqlite_timestamp_index(
     empty_range = DateRange(start=empty_start, end=empty_end)
     empty_results = await timestamp_index.lookup_range(empty_range)
     assert len(empty_results) == 0
+
+
+@pytest.mark.asyncio
+async def test_sqlite_nested_transaction_error(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """Verify that nested transactions are handled gracefully with a clear error."""
+    provider = dummy_sqlite_storage_provider
+
+    # First transaction should work
+    async with provider:
+        # Try to start a nested transaction - should raise a clear RuntimeError
+        with pytest.raises(RuntimeError, match="Cannot start a new transaction"):
+            async with provider:
+                pass

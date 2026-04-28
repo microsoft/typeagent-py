@@ -3,7 +3,16 @@
 
 """Utility functions for the knowpro package."""
 
+from collections.abc import AsyncIterable
+
 from .interfaces import MessageOrdinal, TextLocation, TextRange
+
+
+async def aenumerate[T](aiterable: AsyncIterable[T], start: int = 0):
+    i = start
+    async for item in aiterable:
+        yield i, item
+        i += 1
 
 
 def text_range_from_message_chunk(

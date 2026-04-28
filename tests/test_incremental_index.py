@@ -8,7 +8,7 @@ import tempfile
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
@@ -30,7 +30,7 @@ async def test_incremental_index_building():
         db_path = os.path.join(tmpdir, "test.db")
 
         # Create settings with test model (no API keys needed)
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 
@@ -74,7 +74,7 @@ async def test_incremental_index_building():
 
         # Second ingestion - add more messages and rebuild index
         print("\n=== Second ingestion ===")
-        test_model2 = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model2 = create_test_embedding_model()
         settings2 = ConversationSettings(model=test_model2)
         settings2.semantic_ref_index_settings.auto_extract_knowledge = False
         storage2 = SqliteStorageProvider(
@@ -136,7 +136,7 @@ async def test_incremental_index_with_vtt_files():
         db_path = os.path.join(tmpdir, "test.db")
 
         # Create settings with test model (no API keys needed)
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = False
 
@@ -161,9 +161,7 @@ async def test_incremental_index_with_vtt_files():
 
         # Second VTT file ingestion into same database
         print("\n=== Import second VTT file ===")
-        settings2 = ConversationSettings(
-            model=AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
-        )
+        settings2 = ConversationSettings(model=create_test_embedding_model())
         settings2.semantic_ref_index_settings.auto_extract_knowledge = False
 
         # Ingest the second transcript

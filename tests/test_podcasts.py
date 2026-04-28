@@ -1,12 +1,16 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import asyncio
 from datetime import timezone
 import os
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typechat import Result, Success
+
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
@@ -16,9 +20,34 @@ from typeagent.podcasts.podcast import Podcast
 from conftest import FAKE_PODCAST_TXT
 
 
+class TrackingKnowledgeExtractor:
+    def __init__(self, delay: float = 0.01) -> None:
+        self.delay = delay
+        self.current_concurrency = 0
+        self.max_concurrency = 0
+        self.started_texts: list[str] = []
+
+    async def extract(self, message: str) -> Result[kplib.KnowledgeResponse]:
+        self.started_texts.append(message)
+        self.current_concurrency += 1
+        self.max_concurrency = max(self.max_concurrency, self.current_concurrency)
+        try:
+            await asyncio.sleep(self.delay)
+            return Success(
+                kplib.KnowledgeResponse(
+                    entities=[],
+                    actions=[],
+                    inverse_actions=[],
+                    topics=[message],
+                )
+            )
+        finally:
+            self.current_concurrency -= 1
+
+
 @pytest.mark.asyncio
 async def test_ingest_podcast(
-    really_needs_auth: None, temp_dir: str, embedding_model: AsyncEmbeddingModel
+    really_needs_auth: None, temp_dir: str, embedding_model: IEmbeddingModel
 ):
     # Import the podcast
     settings = ConversationSettings(embedding_model)
@@ -86,3 +115,30 @@ async def test_ingest_podcast(
         open(filename2 + EMBEDDING_FILE_SUFFIX, "rb") as f2,
     ):
         assert f1.read() == f2.read(), "Embedding (binary) files do not match"
+
+
+@pytest.mark.asyncio
+async def test_ingest_podcast_parallelism_uses_concurrency(
+    temp_dir: str, embedding_model: IEmbeddingModel
+) -> None:
+    transcript_path = os.path.join(temp_dir, "parallel_podcast.txt")
+    with open(transcript_path, "w") as f:
+        for i in range(25):
+            f.write(f"SPEAKER{i}: Message {i}\n")
+
+    settings = ConversationSettings(embedding_model)
+    extractor = TrackingKnowledgeExtractor()
+    settings.semantic_ref_index_settings.knowledge_extractor = extractor
+
+    concurrency = 5
+    podcast = await podcast_ingest.ingest_podcast(
+        transcript_path,
+        settings,
+        start_date=Datetime.now(timezone.utc),
+        length_minutes=5.0,
+        concurrency=concurrency,
+    )
+
+    assert await podcast.messages.size() == 25
+    assert extractor.max_concurrency == concurrency
+    assert len(extractor.started_texts) == 25

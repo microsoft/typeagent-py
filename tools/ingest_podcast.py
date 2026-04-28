@@ -2,7 +2,8 @@ import argparse
 import asyncio
 import os
 
-from typeagent.aitools.utils import load_dotenv
+from dotenv import load_dotenv
+
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.podcasts.podcast_ingest import ingest_podcast
 
@@ -30,7 +31,13 @@ async def main():
         "--batch-size",
         type=int,
         default=10,
-        help="Batch size for message indexing (default 10)",
+        help="Number of messages per indexing call (default 10)",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=0,
+        help="Max concurrent knowledge extractions (0 = use settings default)",
     )
     parser.add_argument(
         "--start-message",
@@ -74,6 +81,7 @@ async def main():
             dbname=args.database,
             batch_size=args.batch_size,
             start_message=args.start_message,
+            concurrency=args.concurrency,
             verbose=not args.quiet,
         )
     except (RuntimeError, ValueError) as err:

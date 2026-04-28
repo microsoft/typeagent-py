@@ -148,6 +148,28 @@ CREATE TABLE IF NOT EXISTS IngestedSources (
 );
 """
 
+# Table for tracking knowledge-extraction failures at the chunk level.
+# Each row records a (message_ordinal, chunk_ordinal) pair whose extraction
+# failed (typically because the LLM returned malformed JSON or an invalid
+# schema). The message text itself is still stored in the Messages table; only
+# the *enrichment* of that chunk is missing. A future "re-extract" tool can
+# read this table to retry just the failed chunks.
+CHUNK_FAILURES_SCHEMA = """
+CREATE TABLE IF NOT EXISTS ChunkFailures (
+    msg_id INTEGER NOT NULL,            -- Message ordinal (matches Messages.msg_id)
+    chunk_ordinal INTEGER NOT NULL,     -- 0-based index into the message's text_chunks
+    error_class TEXT NOT NULL,          -- Fully-qualified class name of the failure
+    error_message TEXT NOT NULL,        -- Human-readable failure description
+    failed_at TEXT NOT NULL,            -- ISO-8601 UTC timestamp of the failure
+
+    PRIMARY KEY (msg_id, chunk_ordinal)
+);
+"""
+
+CHUNK_FAILURES_MSG_INDEX = """
+CREATE INDEX IF NOT EXISTS idx_chunk_failures_msg ON ChunkFailures(msg_id);
+"""
+
 # Type aliases for database row tuples
 type ShreddedMessage = tuple[
     str | None, str | None, str | None, str | None, str | None, str | None
@@ -271,6 +293,7 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(RELATED_TERMS_FUZZY_SCHEMA)
     cursor.execute(TIMESTAMP_INDEX_SCHEMA)
     cursor.execute(INGESTED_SOURCES_SCHEMA)
+    cursor.execute(CHUNK_FAILURES_SCHEMA)
 
     # Create additional indexes
     cursor.execute(SEMANTIC_REF_INDEX_TERM_INDEX)
@@ -279,6 +302,7 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(RELATED_TERMS_ALIASES_TERM_INDEX)
     cursor.execute(RELATED_TERMS_ALIASES_ALIAS_INDEX)
     cursor.execute(RELATED_TERMS_FUZZY_TERM_INDEX)
+    cursor.execute(CHUNK_FAILURES_MSG_INDEX)
 
 
 def get_db_schema_version(db: sqlite3.Connection) -> int:
