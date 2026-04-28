@@ -19,6 +19,15 @@ When moving, copying or deleting files, use the git commands: `git mv`, `git cp`
 - Set upstream to `me/<branch-name>`: `git branch --set-upstream-to me/<branch-name>`
 - **Never** upstream to `me/main` — that must stay identical to `origin/main`
 - The worktree directory name should be `<repo>-<branch-name>` (sibling of the main checkout)
+- **Work in the worktree directory**, not the main checkout — edit files there, run tests there
+- VS Code may show buffers from the main checkout; ignore those when working in a worktree.
+  When in doubt, verify edits landed on disk with `cat` or `grep` in the terminal.
+
+## Debugging discipline
+
+- When a bug seems impossible, suspect stale files or wrong working directory — not exotic causes.
+- If you're tempted to blame installed package versions, `__pycache__`, or similar,
+  **stop and ask the user** before investigating further. You're probably on the wrong track.
 
 **Whenever the user tells you how to do something, states a preference, or corrects you,
 extract a general rule and add it to AGENTS.md** (unless it's already covered -- maybe

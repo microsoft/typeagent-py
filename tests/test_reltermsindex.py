@@ -50,7 +50,7 @@ async def related_terms_index(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await storage_provider.get_related_terms_index()
+        index = storage_provider.related_terms_index
         yield index
     else:
         provider = SqliteStorageProvider(
@@ -59,7 +59,7 @@ async def related_terms_index(
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
         )
-        index = await provider.get_related_terms_index()
+        index = provider.related_terms_index
         yield index
         await provider.close()
 

@@ -22,32 +22,12 @@ class ConversationSecondaryIndexes(IConversationSecondaryIndexes):
         settings: RelatedTermIndexSettings,
     ):
         self._storage_provider = storage_provider
-        # Initialize all indexes through storage provider immediately
-        self.property_to_semantic_ref_index = None
-        self.timestamp_index = None
-        self.term_to_related_terms_index = None
-        self.threads = None
-        self.message_index = None
-
-    @classmethod
-    async def create(
-        cls,
-        storage_provider: IStorageProvider,
-        settings: RelatedTermIndexSettings,
-    ) -> "ConversationSecondaryIndexes":
-        """Create and initialize a ConversationSecondaryIndexes with all indexes."""
-        self = cls(storage_provider, settings)
         # Initialize all indexes from storage provider
-        self.property_to_semantic_ref_index = (
-            await storage_provider.get_property_index()
-        )
-        self.timestamp_index = await storage_provider.get_timestamp_index()
-        self.term_to_related_terms_index = (
-            await storage_provider.get_related_terms_index()
-        )
-        self.threads = await storage_provider.get_conversation_threads()
-        self.message_index = await storage_provider.get_message_text_index()
-        return self
+        self.property_to_semantic_ref_index = storage_provider.property_index
+        self.timestamp_index = storage_provider.timestamp_index
+        self.term_to_related_terms_index = storage_provider.related_terms_index
+        self.threads = storage_provider.conversation_threads
+        self.message_index = storage_provider.message_text_index
 
 
 async def build_secondary_indexes[
@@ -59,7 +39,7 @@ async def build_secondary_indexes[
 ) -> None:
     if conversation.secondary_indexes is None:
         storage_provider = await conversation_settings.get_storage_provider()
-        conversation.secondary_indexes = await ConversationSecondaryIndexes.create(
+        conversation.secondary_indexes = ConversationSecondaryIndexes(
             storage_provider, conversation_settings.related_term_index_settings
         )
     else:
@@ -82,9 +62,9 @@ async def build_transient_secondary_indexes[
     settings: ConversationSettings,
 ) -> None:
     if conversation.secondary_indexes is None:
-        conversation.secondary_indexes = await ConversationSecondaryIndexes.create(
+        conversation.secondary_indexes = ConversationSecondaryIndexes(
             await settings.get_storage_provider(),
-            (settings.related_term_index_settings),
+            settings.related_term_index_settings,
         )
     await build_property_index(conversation)
     await build_timestamp_index(conversation)

@@ -187,8 +187,8 @@ class Podcast(ConversationBase[PodcastMessage]):
         data = Podcast._read_conversation_data_from_file(filename_prefix)
 
         provider = await settings.get_storage_provider()
-        msgs = await provider.get_message_collection()
-        semrefs = await provider.get_semantic_ref_collection()
+        msgs = provider.messages
+        semrefs = provider.semantic_refs
         if await msgs.size() or await semrefs.size():
             raise RuntimeError(
                 f"Database {dbname!r} already has messages or semantic refs."

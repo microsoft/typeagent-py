@@ -311,7 +311,7 @@ async def ingest_emails(
     skipped_count = 0
     start_time = time.time()
 
-    semref_coll = await settings.storage_provider.get_semantic_ref_collection()
+    semref_coll = settings.storage_provider.semantic_refs
     storage_provider = settings.storage_provider
 
     for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):

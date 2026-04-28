@@ -79,7 +79,7 @@ async def test_property_index_population_from_database(really_needs_auth):
             ),
         ]
 
-        sem_ref_collection = await storage1.get_semantic_ref_collection()
+        sem_ref_collection = storage1.semantic_refs
         for sem_ref in test_data:
             await sem_ref_collection.append(sem_ref)
 
@@ -111,7 +111,7 @@ async def test_property_index_population_from_database(really_needs_auth):
         # Build property index from the semantic refs
         await build_property_index(conversation)
 
-        prop_index = await storage2.get_property_index()
+        prop_index = storage2.property_index
         from typeagent.knowpro.interfaces import IPropertyToSemanticRefIndex
 
         assert isinstance(prop_index, IPropertyToSemanticRefIndex)

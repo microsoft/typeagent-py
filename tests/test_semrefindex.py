@@ -65,7 +65,7 @@ async def semantic_ref_index(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await provider.get_semantic_ref_index()
+        index = provider.semantic_ref_index
         yield index
     else:
         provider = SqliteStorageProvider(
@@ -83,7 +83,7 @@ async def semantic_ref_index(
             Topic,
         )
 
-        collection = await provider.get_semantic_ref_collection()
+        collection = provider.semantic_refs
 
         # Create semantic refs with ordinals 1, 2, 3 that the tests expect
         for i in range(1, 4):
@@ -94,7 +94,7 @@ async def semantic_ref_index(
             )
             await collection.append(ref)
 
-        index = await provider.get_semantic_ref_index()
+        index = provider.semantic_ref_index
         yield index
         await provider.close()
 
@@ -125,8 +125,8 @@ async def semantic_ref_setup(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await provider.get_semantic_ref_index()
-        collection = await provider.get_semantic_ref_collection()
+        index = provider.semantic_ref_index
+        collection = provider.semantic_refs
         yield {"index": index, "collection": collection}
     else:
         provider = SqliteStorageProvider(
@@ -135,8 +135,8 @@ async def semantic_ref_setup(
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
         )
-        index = await provider.get_semantic_ref_index()
-        collection = await provider.get_semantic_ref_collection()
+        index = provider.semantic_ref_index
+        collection = provider.semantic_refs
         yield {"index": index, "collection": collection}
         await provider.close()
 

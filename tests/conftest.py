@@ -328,7 +328,7 @@ class FakeConversation(IConversation[FakeMessage, FakeTermIndex]):
             storage_provider = await self.settings.get_storage_provider()
             self._storage_provider = storage_provider
             if self.semantic_ref_index is None:
-                self.semantic_ref_index = await storage_provider.get_semantic_ref_index()  # type: ignore
+                self.semantic_ref_index = storage_provider.semantic_ref_index  # type: ignore
 
             if self._has_secondary_indexes:
                 # Set up secondary indexes
