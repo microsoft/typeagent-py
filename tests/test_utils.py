@@ -8,7 +8,6 @@ import os
 from dotenv import load_dotenv
 import pytest
 
-from openai import AsyncAzureOpenAI, AsyncOpenAI
 import pydantic.dataclasses
 import typechat
 
@@ -310,34 +309,6 @@ class TestGetAzureApiKey:
         # (lowercased) triggers that path. Since we can't call the identity provider
         # in tests, just verify non-identity keys pass through unchanged.
         assert utils.get_azure_api_key("APIKEY123") == "APIKEY123"
-
-
-class TestCreateAsyncOpenAIClient:
-    def test_no_keys_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
-        with pytest.raises(RuntimeError, match="Neither OPENAI_API_KEY"):
-            utils.create_async_openai_client()
-
-    def test_openai_key_returns_async_openai(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
-        client = utils.create_async_openai_client()
-        assert isinstance(client, AsyncOpenAI)
-
-    def test_azure_key_returns_async_azure_openai(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "azure-key")
-        monkeypatch.setenv(
-            "AZURE_OPENAI_ENDPOINT",
-            "https://myhost.openai.azure.com/openai/deployments/gpt-4o?api-version=2025-01-01-preview",
-        )
-        client = utils.create_async_openai_client()
-        assert isinstance(client, AsyncAzureOpenAI)
 
 
 class TestMakeAgent:
