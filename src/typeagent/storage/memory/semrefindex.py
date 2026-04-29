@@ -48,9 +48,9 @@ async def add_batch_to_semantic_ref_index[
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     batch: list[TextLocation],
     knowledge_extractor: IKnowledgeExtractor,
-    terms_added: set[str] | None = None,
     concurrency: int = 4,
 ) -> None:
+    """Extract knowledge and bulk-add to the semantic ref index."""
     messages = conversation.messages
 
     text_batch = [
@@ -65,19 +65,19 @@ async def add_batch_to_semantic_ref_index[
         text_batch,
         concurrency,
     )
+    bulk_items: list[tuple[int, int, kplib.KnowledgeResponse]] = []
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
             raise RuntimeError(
                 f"Knowledge extraction failed: {knowledge_result.message}"
             )
-        text_location = batch[i]
-        knowledge = knowledge_result.value
-        await add_knowledge_to_semantic_ref_index(
-            conversation,
-            text_location.message_ordinal,
-            text_location.chunk_ordinal,
-            knowledge,
-            terms_added,
+        tl = batch[i]
+        bulk_items.append(
+            (tl.message_ordinal, tl.chunk_ordinal, knowledge_result.value)
+        )
+    if bulk_items:
+        await add_knowledge_batch_to_semantic_ref_index(
+            conversation, bulk_items
         )
 
 
@@ -88,55 +88,43 @@ async def add_batch_to_semantic_ref_index_from_list[
     messages: list[TMessage],
     batch: list[TextLocation],
     knowledge_extractor: IKnowledgeExtractor,
-    terms_added: set[str] | None = None,
     concurrency: int = 4,
 ) -> None:
-    """
-    Add a batch of knowledge to semantic ref index, extracting from provided message list.
-
-    Args:
-        conversation: The conversation containing semantic refs and index
-        messages: List of messages containing the text to extract from
-        batch: List of text locations (ordinals) to process
-        knowledge_extractor: Extractor for LLM-based knowledge extraction
-        terms_added: Optional set to track newly added terms
-    """
-    # Get the starting ordinal of the message list
+    """Extract knowledge from messages and bulk-add to the semantic ref index."""
     if not batch:
         return
     start_ordinal = batch[0].message_ordinal
 
-    # Extract text from the messages list
     text_batch = []
     for tl in batch:
-        # Calculate index in the list from the ordinal
         list_index = tl.message_ordinal - start_ordinal
         if list_index < 0 or list_index >= len(messages):
             raise IndexError(
-                f"Message ordinal {tl.message_ordinal} out of range for list starting at {start_ordinal}"
+                f"Message ordinal {tl.message_ordinal} out of range "
+                f"for list starting at {start_ordinal}"
             )
-        message = messages[list_index]
-        text = message.text_chunks[tl.chunk_ordinal].strip()
-        text_batch.append(text)
+        text_batch.append(
+            messages[list_index].text_chunks[tl.chunk_ordinal].strip()
+        )
 
     knowledge_results = await extract_knowledge_from_text_batch(
         knowledge_extractor,
         text_batch,
         concurrency,
     )
+    bulk_items: list[tuple[int, int, kplib.KnowledgeResponse]] = []
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
             raise RuntimeError(
                 f"Knowledge extraction failed: {knowledge_result.message:.150}"
             )
-        text_location = batch[i]
-        knowledge = knowledge_result.value
-        await add_knowledge_to_semantic_ref_index(
-            conversation,
-            text_location.message_ordinal,
-            text_location.chunk_ordinal,
-            knowledge,
-            terms_added,
+        tl = batch[i]
+        bulk_items.append(
+            (tl.message_ordinal, tl.chunk_ordinal, knowledge_result.value)
+        )
+    if bulk_items:
+        await add_knowledge_batch_to_semantic_ref_index(
+            conversation, bulk_items
         )
 
 
@@ -432,7 +420,6 @@ async def add_knowledge_to_semantic_ref_index(
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int,
     knowledge: kplib.KnowledgeResponse,
-    terms_added: set[str] | None = None,
 ) -> None:
     """Add knowledge to the semantic reference index of a conversation."""
     verify_has_semantic_ref_index(conversation)
@@ -451,8 +438,6 @@ async def add_knowledge_to_semantic_ref_index(
         await semantic_refs.extend(refs)
     if terms:
         await semantic_ref_index.add_terms_batch(terms)
-        if terms_added is not None:
-            terms_added.update(t for t, _ in terms)
 
 
 async def add_knowledge_batch_to_semantic_ref_index(
@@ -785,40 +770,37 @@ async def add_to_semantic_ref_index[
     conversation: IConversation[TMessage, TTermToSemanticRefIndex],
     settings: SemanticRefIndexSettings,
     message_ordinal_start_at: MessageOrdinal,
-    terms_added: set[str] | None = None,
 ) -> None:
     """Add semantic references to the conversation's semantic reference index."""
+    if not settings.auto_extract_knowledge:
+        return
 
-    # Only create knowledge extractor if auto extraction is enabled
-    if settings.auto_extract_knowledge:
-        knowledge_extractor = (
-            settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
-        )
+    knowledge_extractor = (
+        settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+    )
 
-        # Build a flat list of all text locations
-        text_locations: list[TextLocation] = []
-        message_ordinal = message_ordinal_start_at
-        async for message in conversation.messages:
-            if message_ordinal < message_ordinal_start_at:
-                message_ordinal += 1
-                continue
-            for chunk_ordinal in range(len(message.text_chunks)):
-                text_locations.append(
-                    TextLocation(
-                        message_ordinal=message_ordinal,
-                        chunk_ordinal=chunk_ordinal,
-                    )
-                )
+    text_locations: list[TextLocation] = []
+    message_ordinal = message_ordinal_start_at
+    async for message in conversation.messages:
+        if message_ordinal < message_ordinal_start_at:
             message_ordinal += 1
-
-        if text_locations:
-            await add_batch_to_semantic_ref_index(
-                conversation,
-                text_locations,
-                knowledge_extractor,
-                terms_added,
-                concurrency=settings.concurrency,
+            continue
+        for chunk_ordinal in range(len(message.text_chunks)):
+            text_locations.append(
+                TextLocation(
+                    message_ordinal=message_ordinal,
+                    chunk_ordinal=chunk_ordinal,
+                )
             )
+        message_ordinal += 1
+
+    if text_locations:
+        await add_batch_to_semantic_ref_index(
+            conversation,
+            text_locations,
+            knowledge_extractor,
+            concurrency=settings.concurrency,
+        )
 
 
 def verify_has_semantic_ref_index(conversation: IConversation) -> None:

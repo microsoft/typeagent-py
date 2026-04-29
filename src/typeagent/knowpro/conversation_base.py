@@ -170,13 +170,13 @@ class ConversationBase(
 
         async with storage:
             # Mark source IDs as ingested (will be rolled back on error)
-            if source_ids is not None:
-                for sid in source_ids:
-                    await storage.mark_source_ingested(sid)
-            else:
-                for msg in messages:
-                    if msg.source_id is not None:
-                        await storage.mark_source_ingested(msg.source_id)
+            sids = (
+                source_ids
+                if source_ids is not None
+                else [m.source_id for m in messages if m.source_id is not None]
+            )
+            if sids:
+                await storage.mark_sources_ingested_batch(sids)
 
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
