@@ -183,6 +183,12 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Mark a source as ingested (no commit; call within transaction context)."""
         ...
 
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        ...
+
     # Chunk-level extraction failure tracking
 
     async def record_chunk_failure(

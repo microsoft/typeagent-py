@@ -629,6 +629,18 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             (source_id, status),
         )
 
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        if not source_ids:
+            return
+        cursor = self.db.cursor()
+        cursor.executemany(
+            "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
+            [(sid, status) for sid in source_ids],
+        )
+
     async def record_chunk_failure(
         self,
         message_ordinal: int,

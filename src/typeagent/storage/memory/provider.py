@@ -176,6 +176,12 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         self._ingested_sources.add(source_id)
 
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        self._ingested_sources.update(source_ids)
+
     async def record_chunk_failure(
         self,
         message_ordinal: int,
