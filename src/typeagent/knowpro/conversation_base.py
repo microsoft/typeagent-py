@@ -96,10 +96,10 @@ class ConversationBase(
             tags if tags is not None else [],
         )
         instance.storage_provider = storage_provider
-        instance.messages = await storage_provider.get_message_collection()
-        instance.semantic_refs = await storage_provider.get_semantic_ref_collection()
-        instance.semantic_ref_index = await storage_provider.get_semantic_ref_index()
-        instance.secondary_indexes = await secindex.ConversationSecondaryIndexes.create(
+        instance.messages = storage_provider.messages
+        instance.semantic_refs = storage_provider.semantic_refs
+        instance.semantic_ref_index = storage_provider.semantic_ref_index
+        instance.secondary_indexes = secindex.ConversationSecondaryIndexes(
             storage_provider, settings.related_term_index_settings
         )
         return instance

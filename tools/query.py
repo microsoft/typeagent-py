@@ -550,7 +550,7 @@ async def main():
 
     # Load existing database
     provider = await settings.get_storage_provider()
-    msgs = await provider.get_message_collection()
+    msgs = provider.messages
     if await msgs.size() == 0:
         raise SystemExit(f"Error: Database '{args.database}' is empty.")
 

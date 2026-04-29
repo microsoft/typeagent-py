@@ -114,7 +114,7 @@ async def ingest_podcast(
         PodcastMessage,
     )
     settings.storage_provider = provider
-    msg_coll = await provider.get_message_collection()
+    msg_coll = provider.messages
     if (msg_size := await msg_coll.size()) > start_message:
         raise RuntimeError(
             f"{dbname!r} has {msg_size} messages; start_message ({start_message}) should be at least that."

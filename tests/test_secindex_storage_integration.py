@@ -23,9 +23,7 @@ async def test_secondary_indexes_use_storage_provider(
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)
 
-    indexes = await ConversationSecondaryIndexes.create(
-        storage_provider, related_terms_settings
-    )
+    indexes = ConversationSecondaryIndexes(storage_provider, related_terms_settings)
 
     assert indexes.property_to_semantic_ref_index is not None
     assert indexes.timestamp_index is not None
@@ -34,11 +32,11 @@ async def test_secondary_indexes_use_storage_provider(
     assert indexes.message_index is not None
 
     # Verify they are the same instances as those from storage provider
-    storage_prop_index = await storage_provider.get_property_index()
-    storage_timestamp_index = await storage_provider.get_timestamp_index()
-    storage_related_terms = await storage_provider.get_related_terms_index()
-    storage_threads = await storage_provider.get_conversation_threads()
-    storage_message_index = await storage_provider.get_message_text_index()
+    storage_prop_index = storage_provider.property_index
+    storage_timestamp_index = storage_provider.timestamp_index
+    storage_related_terms = storage_provider.related_terms_index
+    storage_threads = storage_provider.conversation_threads
+    storage_message_index = storage_provider.message_text_index
 
     assert indexes.property_to_semantic_ref_index is storage_prop_index
     assert indexes.timestamp_index is storage_timestamp_index

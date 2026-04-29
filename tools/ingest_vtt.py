@@ -242,8 +242,8 @@ async def ingest_vtt_files(
         print(f"\nParsing VTT files and creating messages...")
     try:
         # Get collections from our storage provider
-        msg_coll = await storage_provider.get_message_collection()
-        semref_coll = await storage_provider.get_semantic_ref_collection()
+        msg_coll = storage_provider.messages
+        semref_coll = storage_provider.semantic_refs
 
         # Database should be empty (we checked it doesn't exist earlier)
         # But verify collections are empty just in case

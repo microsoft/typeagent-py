@@ -77,30 +77,36 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """Exit transaction context. No-op for in-memory storage."""
         pass
 
-    async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex:
+    @property
+    def semantic_ref_index(self) -> ITermToSemanticRefIndex:
         return self._conversation_index
 
-    async def get_property_index(self) -> IPropertyToSemanticRefIndex:
+    @property
+    def property_index(self) -> IPropertyToSemanticRefIndex:
         return self._property_index
 
-    async def get_timestamp_index(self) -> ITimestampToTextRangeIndex:
+    @property
+    def timestamp_index(self) -> ITimestampToTextRangeIndex:
         return self._timestamp_index
 
-    async def get_message_text_index(self) -> IMessageTextIndex[TMessage]:
+    @property
+    def message_text_index(self) -> IMessageTextIndex[TMessage]:
         return self._message_text_index
 
-    async def get_related_terms_index(self) -> ITermToRelatedTermsIndex:
+    @property
+    def related_terms_index(self) -> ITermToRelatedTermsIndex:
         return self._related_terms_index
 
-    async def get_conversation_threads(self) -> IConversationThreads:
+    @property
+    def conversation_threads(self) -> IConversationThreads:
         return self._conversation_threads
 
-    async def get_message_collection(
-        self, message_type: type[TMessage] | None = None
-    ) -> MemoryMessageCollection[TMessage]:
+    @property
+    def messages(self) -> MemoryMessageCollection[TMessage]:
         return self._message_collection
 
-    async def get_semantic_ref_collection(self) -> MemorySemanticRefCollection:
+    @property
+    def semantic_refs(self) -> MemorySemanticRefCollection:
         return self._semantic_ref_collection
 
     async def close(self) -> None:
