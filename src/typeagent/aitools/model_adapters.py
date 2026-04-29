@@ -55,7 +55,12 @@ from .embeddings import (
     NormalizedEmbeddings,
 )
 
-_TRANSIENT_ERRORS = (openai.RateLimitError, openai.APIConnectionError, openai.APITimeoutError, openai.InternalServerError)
+_TRANSIENT_ERRORS = (
+    openai.RateLimitError,
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.InternalServerError,
+)
 
 DEFAULT_CHAT_RETRIER = stamina.AsyncRetryingCaller(attempts=6, timeout=120).on(
     _TRANSIENT_ERRORS
