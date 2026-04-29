@@ -357,6 +357,76 @@ async def add_action(
 # TODO:L KnowledgeValidator
 
 
+def _collect_knowledge_refs_and_terms(
+    base_ordinal: SemanticRefOrdinal,
+    message_ordinal: MessageOrdinal,
+    chunk_ordinal: int,
+    knowledge: kplib.KnowledgeResponse,
+) -> tuple[list[SemanticRef], list[tuple[str, SemanticRefOrdinal]]]:
+    """Collect SemanticRefs and index terms without writing to storage."""
+    refs: list[SemanticRef] = []
+    terms: list[tuple[str, SemanticRefOrdinal]] = []
+    ordinal = base_ordinal
+    text_range = text_range_from_message_chunk(message_ordinal, chunk_ordinal)
+
+    for entity in knowledge.entities:
+        if not validate_entity(entity):
+            continue
+        refs.append(SemanticRef(
+            semantic_ref_ordinal=ordinal,
+            range=text_range,
+            knowledge=entity,
+        ))
+        terms.append((entity.name, ordinal))
+        for type_name in entity.type:
+            terms.append((type_name, ordinal))
+        if entity.facets:
+            for facet in entity.facets:
+                if facet is not None:
+                    terms.append((facet.name, ordinal))
+                    if facet.value is not None:
+                        terms.append((str(facet.value), ordinal))
+        ordinal += 1
+
+    for action in list(knowledge.actions) + list(knowledge.inverse_actions):
+        refs.append(SemanticRef(
+            semantic_ref_ordinal=ordinal,
+            range=text_range,
+            knowledge=action,
+        ))
+        terms.append((" ".join(action.verbs), ordinal))
+        if action.subject_entity_name != "none":
+            terms.append((action.subject_entity_name, ordinal))
+        if action.object_entity_name != "none":
+            terms.append((action.object_entity_name, ordinal))
+        if action.indirect_object_entity_name != "none":
+            terms.append((action.indirect_object_entity_name, ordinal))
+        if action.params:
+            for param in action.params:
+                if isinstance(param, str):
+                    terms.append((param, ordinal))
+                else:
+                    terms.append((param.name, ordinal))
+                    if isinstance(param.value, str):
+                        terms.append((param.value, ordinal))
+        if action.subject_entity_facet is not None:
+            terms.append((action.subject_entity_facet.name, ordinal))
+            if action.subject_entity_facet.value is not None:
+                terms.append((str(action.subject_entity_facet.value), ordinal))
+        ordinal += 1
+
+    for topic_text in knowledge.topics:
+        refs.append(SemanticRef(
+            semantic_ref_ordinal=ordinal,
+            range=text_range,
+            knowledge=Topic(text=topic_text),
+        ))
+        terms.append((topic_text, ordinal))
+        ordinal += 1
+
+    return refs, terms
+
+
 async def add_knowledge_to_semantic_ref_index(
     conversation: IConversation,
     message_ordinal: MessageOrdinal,
@@ -364,15 +434,7 @@ async def add_knowledge_to_semantic_ref_index(
     knowledge: kplib.KnowledgeResponse,
     terms_added: set[str] | None = None,
 ) -> None:
-    """Add knowledge to the semantic reference index of a conversation.
-
-    Args:
-        conversation: The conversation to add knowledge to
-        message_ordinal: Ordinal of the message containing the knowledge
-        chunk_ordinal: Ordinal of the chunk within the message
-        knowledge: Knowledge response containing entities, actions and topics
-        terms_added: Optional set to track terms added to the index
-    """
+    """Add knowledge to the semantic reference index of a conversation."""
     verify_has_semantic_ref_index(conversation)
 
     semantic_refs = conversation.semantic_refs
@@ -380,47 +442,48 @@ async def add_knowledge_to_semantic_ref_index(
     semantic_ref_index = conversation.semantic_ref_index
     assert semantic_ref_index is not None
 
-    for entity in knowledge.entities:
-        if validate_entity(entity):
-            await add_entity(
-                entity,
-                semantic_refs,
-                semantic_ref_index,
-                message_ordinal,
-                chunk_ordinal,
-                terms_added,
-            )
+    base_ordinal = await semantic_refs.size()
+    refs, terms = _collect_knowledge_refs_and_terms(
+        base_ordinal, message_ordinal, chunk_ordinal, knowledge,
+    )
 
-    for action in knowledge.actions:
-        await add_action(
-            action,
-            semantic_refs,
-            semantic_ref_index,
-            message_ordinal,
-            chunk_ordinal,
-            terms_added,
-        )
+    if refs:
+        await semantic_refs.extend(refs)
+    if terms:
+        await semantic_ref_index.add_terms_batch(terms)
+        if terms_added is not None:
+            terms_added.update(t for t, _ in terms)
 
-    for inverse_action in knowledge.inverse_actions:
-        await add_action(
-            inverse_action,
-            semantic_refs,
-            semantic_ref_index,
-            message_ordinal,
-            chunk_ordinal,
-            terms_added,
-        )
 
-    for topic in knowledge.topics:
-        topic_obj = Topic(text=topic)
-        await add_topic(
-            topic_obj,
-            semantic_refs,
-            semantic_ref_index,
-            message_ordinal,
-            chunk_ordinal,
-            terms_added,
+async def add_knowledge_batch_to_semantic_ref_index(
+    conversation: IConversation,
+    items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]],
+) -> None:
+    """Bulk-add knowledge from multiple chunks in two DB round-trips."""
+    if not items:
+        return
+    verify_has_semantic_ref_index(conversation)
+
+    semantic_refs = conversation.semantic_refs
+    assert semantic_refs is not None
+    semantic_ref_index = conversation.semantic_ref_index
+    assert semantic_ref_index is not None
+
+    all_refs: list[SemanticRef] = []
+    all_terms: list[tuple[str, SemanticRefOrdinal]] = []
+    base_ordinal = await semantic_refs.size()
+
+    for msg_ord, chunk_ord, knowledge in items:
+        refs, terms = _collect_knowledge_refs_and_terms(
+            base_ordinal + len(all_refs), msg_ord, chunk_ord, knowledge,
         )
+        all_refs.extend(refs)
+        all_terms.extend(terms)
+
+    if all_refs:
+        await semantic_refs.extend(all_refs)
+    if all_terms:
+        await semantic_ref_index.add_terms_batch(all_terms)
 
 
 def validate_entity(entity: kplib.ConcreteEntity) -> bool:

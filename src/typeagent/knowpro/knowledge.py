@@ -28,8 +28,7 @@ async def extract_knowledge_from_text(
     knowledge_extractor: IKnowledgeExtractor,
     text: str,
 ) -> Result[kplib.KnowledgeResponse]:
-    """Extract knowledge from a single text input with retries."""
-    # TODO: Add a retry mechanism to handle transient errors.
+    """Extract knowledge from a single text input."""
     return await knowledge_extractor.extract(text)
 
 

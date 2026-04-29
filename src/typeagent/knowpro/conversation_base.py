@@ -360,6 +360,9 @@ class ConversationBase(
             text_batch,
             settings.concurrency,
         )
+        bulk_items: list[
+            tuple[int, int, kplib.KnowledgeResponse]
+        ] = []
         for i, knowledge_result in enumerate(knowledge_results):
             tl = text_locations[i]
             if isinstance(knowledge_result, typechat.Failure):
@@ -370,12 +373,12 @@ class ConversationBase(
                     knowledge_result.message[:500],
                 )
                 continue
-            await semrefindex.add_knowledge_to_semantic_ref_index(
-                self,
-                tl.message_ordinal,
-                tl.chunk_ordinal,
-                knowledge_result.value,
+            bulk_items.append(
+                (tl.message_ordinal, tl.chunk_ordinal, knowledge_result.value)
             )
+        await semrefindex.add_knowledge_batch_to_semantic_ref_index(
+            self, bulk_items
+        )
 
     async def _add_metadata_knowledge_incremental(
         self,
