@@ -5,23 +5,11 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from typechat import Result, TypeChatLanguageModel
+from typechat import Result
 
 from . import convknowledge
 from . import knowledge_schema as kplib
-from ..aitools import model_adapters
 from .interfaces import IKnowledgeExtractor
-
-
-def create_knowledge_extractor(
-    chat_model: TypeChatLanguageModel | None = None,
-) -> convknowledge.KnowledgeExtractor:
-    """Create a knowledge extractor using the given Chat Model."""
-    chat_model = chat_model or model_adapters.create_chat_model()
-    extractor = convknowledge.KnowledgeExtractor(
-        chat_model, max_chars_per_chunk=4096, merge_action_knowledge=False
-    )
-    return extractor
 
 
 async def extract_knowledge_from_text(

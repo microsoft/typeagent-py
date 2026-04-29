@@ -2305,6 +2305,18 @@ wheels = [
 ]
 
 [[package]]
+name = "stamina"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tenacity" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/80/bd/b2f71ae14368a066f103d182f25bbc6c3bf4aa695889f3ed3cba026d6f36/stamina-26.1.0.tar.gz", hash = "sha256:0214d05fdf5102c518194a4aac7520ce53cf660550ae3b940701aad88cf50c17", size = 568171, upload-time = "2026-04-13T17:44:31.012Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/f0/1ff90a1d1dd02de23feafdf9dffaecef3958348be5c192df56670ccb4f86/stamina-26.1.0-py3-none-any.whl", hash = "sha256:62e06829bec87c06d4cafde520b32a6097d1017c378a9eb63253c5bf5ebbbb88", size = 18508, upload-time = "2026-04-13T17:44:29.545Z" },
+]
+
+[[package]]
 name = "starlette"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2324,6 +2336,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/93/62/61866776cd32df3f984ff2f79b1428e10700e0a33ca7a7536e3fcba3cf2a/std_uritemplate-2.0.8.tar.gz", hash = "sha256:138ceff2c5bfef18a650372a5e8c82fe7f780c87235513de6c342fb5f7e18347", size = 6018, upload-time = "2025-10-16T15:51:29.774Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/64/97/b4f2f442fee92a1406f08b4fbc990bd7d02dc84b3b5e6315a59fa9b2a9f4/std_uritemplate-2.0.8-py3-none-any.whl", hash = "sha256:839807a7f9d07f0bad1a88977c3428bd97b9ff0d229412a0bf36123d8c724257", size = 6512, upload-time = "2025-10-16T15:51:28.713Z" },
+]
+
+[[package]]
+name = "tenacity"
+version = "9.1.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
 ]
 
 [[package]]
@@ -2400,6 +2421,7 @@ dependencies = [
     { name = "pyreadline3", marker = "sys_platform == 'win32'" },
     { name = "pyright" },
     { name = "python-dotenv" },
+    { name = "stamina" },
     { name = "tiktoken" },
     { name = "typechat" },
     { name = "webvtt-py" },
@@ -2444,6 +2466,7 @@ requires-dist = [
     { name = "pyreadline3", marker = "sys_platform == 'win32'", specifier = ">=3.5.4" },
     { name = "pyright", specifier = ">=1.1.409" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
+    { name = "stamina", specifier = ">=26.1.0" },
     { name = "tiktoken", specifier = ">=0.12.0" },
     { name = "typechat", specifier = ">=0.0.4" },
     { name = "webvtt-py", specifier = ">=0.5.1" },

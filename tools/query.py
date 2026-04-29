@@ -577,7 +577,7 @@ async def main():
                 "Error: non-empty --search-results required for batch mode."
             )
 
-    model = model_adapters.create_chat_model()
+    model = model_adapters.create_chat_model(retrier=settings.chat_retrier)
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
     if args.alt_schema:
         if args.verbose:

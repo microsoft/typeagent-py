@@ -31,7 +31,10 @@ import os
 
 import numpy as np
 from numpy.typing import NDArray
+import stamina
+from stamina import BoundAsyncRetryingCaller
 
+import openai
 from pydantic_ai import Embedder as _PydanticAIEmbedder
 from pydantic_ai.embeddings.base import EmbeddingModel as _PydanticAIEmbeddingModelBase
 from pydantic_ai.embeddings.result import EmbeddingResult, EmbedInputType
@@ -52,6 +55,20 @@ from .embeddings import (
     NormalizedEmbeddings,
 )
 
+_TRANSIENT_ERRORS = (
+    openai.RateLimitError,
+    openai.APIConnectionError,
+    openai.APITimeoutError,
+    openai.InternalServerError,
+)
+
+DEFAULT_CHAT_RETRIER = stamina.AsyncRetryingCaller(attempts=6, timeout=120).on(
+    _TRANSIENT_ERRORS
+)
+DEFAULT_EMBED_RETRIER = stamina.AsyncRetryingCaller(attempts=4, timeout=30).on(
+    _TRANSIENT_ERRORS
+)
+
 # ---------------------------------------------------------------------------
 # Chat model adapter
 # ---------------------------------------------------------------------------
@@ -65,8 +82,13 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
     """
 
-    def __init__(self, model: Model) -> None:
+    def __init__(
+        self,
+        model: Model,
+        retrier: BoundAsyncRetryingCaller | None = None,
+    ) -> None:
         self._model = model
+        self._retrier = retrier or DEFAULT_CHAT_RETRIER
 
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
@@ -84,7 +106,7 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        response = await self._model.request(messages, None, params)
+        response = await self._retrier(self._model.request, messages, None, params)
         text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
         if text_parts:
             return typechat.Success("".join(text_parts))
@@ -111,24 +133,20 @@ class PydanticAIEmbedder:
         self,
         embedder: _PydanticAIEmbedder,
         model_name: str,
+        retrier: BoundAsyncRetryingCaller | None = None,
     ) -> None:
         self._embedder = embedder
         self.model_name = model_name
+        self._retrier = retrier or DEFAULT_EMBED_RETRIER
 
     async def get_embedding_nocache(self, input: str) -> NormalizedEmbedding:
-        result = await self._embedder.embed_documents([input])
-        embedding: NDArray[np.float32] = np.array(
-            result.embeddings[0], dtype=np.float32
-        )
-        norm = float(np.linalg.norm(embedding))
-        if norm > 0:
-            embedding = (embedding / norm).astype(np.float32)
-        return embedding
+        embeddings = await self.get_embeddings_nocache([input])
+        return embeddings[0]
 
     async def get_embeddings_nocache(self, input: list[str]) -> NormalizedEmbeddings:
         if not input:
             raise ValueError("Cannot embed an empty list")
-        result = await self._embedder.embed_documents(input)
+        result = await self._retrier(self._embedder.embed_documents, input)
         embeddings: NDArray[np.float32] = np.array(result.embeddings, dtype=np.float32)
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True).astype(np.float32)
         norms = np.where(norms > 0, norms, np.float32(1.0))
@@ -182,7 +200,7 @@ def _make_azure_provider(
             azure_endpoint=azure_endpoint,
             api_version=api_version,
             azure_ad_token_provider=token_provider.get_token,
-            max_retries=5,
+            max_retries=0,
         )
     else:
         apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
@@ -193,7 +211,7 @@ def _make_azure_provider(
             default_headers=(
                 {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
             ),
-            max_retries=5,
+            max_retries=0,
         )
     return AzureProvider(openai_client=client)
 
@@ -208,6 +226,8 @@ DEFAULT_CHAT_SPEC = "openai:gpt-4o"
 
 def create_chat_model(
     model_spec: str | None = None,
+    *,
+    retrier: BoundAsyncRetryingCaller | None = None,
 ) -> PydanticAIChatModel:
     """Create a chat model from a ``provider:model`` spec.
 
@@ -249,7 +269,7 @@ def create_chat_model(
         )
     else:
         model = infer_model(model_spec)
-    return PydanticAIChatModel(model)
+    return PydanticAIChatModel(model, retrier)
 
 
 DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"
@@ -257,6 +277,7 @@ DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"
 
 def create_embedding_model(
     model_spec: str | None = None,
+    retrier: BoundAsyncRetryingCaller | None = None,
 ) -> CachingEmbeddingModel:
     """Create an embedding model from a ``provider:model`` spec.
 
@@ -313,7 +334,7 @@ def create_embedding_model(
         embedder = _PydanticAIEmbedder(embedding_model)
     else:
         embedder = _PydanticAIEmbedder(model_spec)
-    return CachingEmbeddingModel(PydanticAIEmbedder(embedder, model_name))
+    return CachingEmbeddingModel(PydanticAIEmbedder(embedder, model_name, retrier))
 
 
 # ---------------------------------------------------------------------------
@@ -400,6 +421,8 @@ def create_test_embedding_model(
 def configure_models(
     chat_model_spec: str,
     embedding_model_spec: str,
+    chat_retrier: BoundAsyncRetryingCaller | None = None,
+    embed_retrier: BoundAsyncRetryingCaller | None = None,
 ) -> tuple[PydanticAIChatModel, CachingEmbeddingModel]:
     """Configure both a chat model and an embedding model at once.
 
@@ -416,6 +439,6 @@ def configure_models(
         extractor = KnowledgeExtractor(model=chat)
     """
     return (
-        create_chat_model(chat_model_spec),
-        create_embedding_model(embedding_model_spec),
+        create_chat_model(chat_model_spec, retrier=chat_retrier),
+        create_embedding_model(embedding_model_spec, retrier=embed_retrier),
     )

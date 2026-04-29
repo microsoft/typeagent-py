@@ -39,6 +39,7 @@ dependencies = [
   "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
   "pyright>=1.1.409",
   "python-dotenv>=1.1.0",
+  "stamina>=26.1.0",
   "tiktoken>=0.12.0",
   "typechat>=0.0.4",
   "webvtt-py>=0.5.1",
