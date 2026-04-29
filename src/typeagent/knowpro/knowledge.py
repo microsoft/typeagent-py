@@ -193,25 +193,3 @@ def merge_topics(topics: list[str]) -> list[str]:
     # TODO: Preserve order of first occurrence?
     merged_topics = set(topics)
     return list(merged_topics)
-
-
-async def extract_knowledge_for_text_batch_q(
-    knowledge_extractor: convknowledge.KnowledgeExtractor,
-    text_batch: list[str],
-    concurrency: int = 2,
-) -> list[Result[kplib.KnowledgeResponse]]:
-    """Extract knowledge for a batch of text inputs using a task queue."""
-    raise NotImplementedError("TODO")
-    # TODO: BatchTask etc.
-    # task_batch = [BatchTask(task=text) for text in text_batch]
-
-    # await run_in_batches(
-    #     task_batch,
-    #     lambda text: extract_knowledge_from_text(knowledge_extractor, text),
-    #     concurrency,
-    # )
-
-    # results = []
-    # for task in task_batch:
-    #     results.append(task.result if task.result else Failure("No result"))
-    # return results
