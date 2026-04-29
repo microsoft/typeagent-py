@@ -252,52 +252,6 @@ def get_azure_api_key(azure_api_key: str) -> str:
     return azure_api_key
 
 
-def create_async_openai_client(
-    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
-    base_url: str | None = None,
-):
-    """Create AsyncOpenAI or AsyncAzureOpenAI client based on environment variables.
-
-    Returns the appropriate async OpenAI client based on what credentials are available.
-    Prefers OPENAI_API_KEY over AZURE_OPENAI_API_KEY.
-
-    Args:
-        endpoint_envvar: Environment variable name for Azure endpoint (default: AZURE_OPENAI_ENDPOINT).
-        base_url: Optional base URL override for OpenAI client.
-
-    Returns:
-        AsyncOpenAI or AsyncAzureOpenAI client instance.
-
-    Raises:
-        RuntimeError: If neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set.
-    """
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
-
-    if openai_api_key := os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url, max_retries=5)
-
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
-
-        apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
-
-        return AsyncAzureOpenAI(
-            api_version=api_version,
-            azure_endpoint=azure_endpoint,
-            api_key=azure_api_key,
-            default_headers=(
-                {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
-            ),
-            max_retries=5,
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
-
-
 def resolve_azure_model_name(
     model_name: str,
     endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
