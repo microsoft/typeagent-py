@@ -5,6 +5,7 @@
 
 from contextlib import contextmanager
 import difflib
+import io
 import os
 import re
 import shutil
@@ -43,12 +44,17 @@ def timelog(label: str, verbose: bool = True):
             )
 
 
-def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
+def pretty_print(
+    obj: object,
+    prefix: str = "",
+    suffix: str = "",
+    file: io.StringIO | None = None,
+) -> None:
     """Pretty-print an object using pprint."""
     import pprint
 
     line_width = min(200, shutil.get_terminal_size().columns)
-    print(prefix + pprint.pformat(obj, width=line_width) + suffix)
+    print(prefix + pprint.pformat(obj, width=line_width) + suffix, file=file)
 
 
 def format_code(text: str, line_width=None) -> str:
@@ -91,7 +97,7 @@ def create_translator[T](
 
 
 # Vibe-coded by o4-mini-high
-def list_diff(label_a, a, label_b, b, max_items):
+def list_diff(label_a, a, label_b, b, max_items, file=None):
     """Print colorized diff between two sorted list of numbers."""
     sm = difflib.SequenceMatcher(None, a, b)
     a_out, b_out = [], []
@@ -145,8 +151,8 @@ def list_diff(label_a, a, label_b, b, max_items):
     # print each segment
     for start, end in segments:
         seg_widths = widths[start:end]
-        print(la, fmt(a_cols[start:end], seg_widths))
-        print(lb, fmt(b_cols[start:end], seg_widths))
+        print(la, fmt(a_cols[start:end], seg_widths), file=file)
+        print(lb, fmt(b_cols[start:end], seg_widths), file=file)
 
 
 def setup_logfire():
