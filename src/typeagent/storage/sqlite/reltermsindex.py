@@ -214,8 +214,8 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         if not new_terms:
             return
 
-        await self._vector_base.add_keys(new_terms)
-        embeddings = await self._vector_base.get_embeddings(new_terms)
+        embeddings = await self._vector_base.add_keys(new_terms)
+        assert embeddings is not None
 
         cursor = self.db.cursor()
         cursor.executemany(

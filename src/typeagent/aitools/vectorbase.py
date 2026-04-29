@@ -113,11 +113,14 @@ class VectorBase:
         embedding = await self.get_embedding(key, cache=cache)
         self.add_embedding(key if cache else None, embedding)
 
-    async def add_keys(self, keys: list[str], cache: bool = True) -> None:
+    async def add_keys(
+        self, keys: list[str], cache: bool = True
+    ) -> NormalizedEmbeddings | None:
         if not keys:
-            return
+            return None
         embeddings = await self.get_embeddings(keys, cache=cache)
         self.add_embeddings(keys if cache else None, embeddings)
+        return embeddings
 
     def fuzzy_lookup_embedding(
         self,

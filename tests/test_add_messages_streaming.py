@@ -452,3 +452,31 @@ async def test_mark_sources_ingested_batch_idempotent() -> None:
         assert await storage.is_source_ingested("c")
 
         await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_extraction_with_empty_text_chunks() -> None:
+    """Messages with empty text_chunks skip extraction gracefully."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor()
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+
+        msgs = [
+            TranscriptMessage(
+                text_chunks=[],
+                metadata=TranscriptMessageMeta(speaker="Alice"),
+                tags=["test"],
+                source_id="empty-chunks",
+            ),
+            _make_message("has content", source_id="has-content"),
+        ]
+        result = await transcript.add_messages_streaming(_async_iter(msgs))
+
+        assert result.messages_added == 2
+        # Only the message with content triggers extraction
+        assert extractor.call_count == 1
+
+        await storage.close()

@@ -4,6 +4,7 @@
 """Base class for conversations with incremental indexing support."""
 
 import asyncio
+import contextlib
 from collections.abc import AsyncIterable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -45,7 +46,7 @@ from .messageutils import get_all_message_chunk_locations
 TMessage = TypeVar("TMessage", bound=IMessage)
 
 
-@dataclass
+@dataclass(frozen=True)
 class _ExtractionResult:
     """Pre-extracted knowledge for a batch, ready to commit."""
 
@@ -291,19 +292,27 @@ class ConversationBase(
                 self._commit_batch_streaming(storage, filtered, extraction)
             )
 
-        batch: list[TMessage] = []
-        async for msg in messages:
-            batch.append(msg)
-            if len(batch) >= batch_size:
+        try:
+            batch: list[TMessage] = []
+            async for msg in messages:
+                batch.append(msg)
+                if len(batch) >= batch_size:
+                    filtered = await self._filter_ingested(storage, batch)
+                    await _submit_batch(filtered)
+                    batch = []
+
+            if batch:
                 filtered = await self._filter_ingested(storage, batch)
                 await _submit_batch(filtered)
-                batch = []
 
-        if batch:
-            filtered = await self._filter_ingested(storage, batch)
-            await _submit_batch(filtered)
+            await _drain_commit()
+        except BaseException:
+            if pending_commit is not None and not pending_commit.done():
+                pending_commit.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await pending_commit
+            raise
 
-        await _drain_commit()
         return total
 
     async def _filter_ingested(
@@ -311,7 +320,14 @@ class ConversationBase(
         storage: IStorageProvider[TMessage],
         batch: list[TMessage],
     ) -> list[TMessage]:
-        """Filter out messages whose source_id has already been ingested."""
+        """Filter out messages whose source_id has already been ingested.
+
+        Safe to call while a pending_commit task exists: is_source_ingested
+        is a synchronous SELECT on SQLite's single connection, so it won't
+        interleave with the commit task's cursor operations in asyncio's
+        cooperative model.  If the storage provider becomes truly async
+        (e.g. aiosqlite), this assumption needs revisiting.
+        """
         filtered: list[TMessage] = []
         for msg in batch:
             if msg.source_id is not None and await storage.is_source_ingested(
