@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 from typechat import Result
 
-from . import convknowledge
 from . import knowledge_schema as kplib
 from .interfaces import IKnowledgeExtractor
 

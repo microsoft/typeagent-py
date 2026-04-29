@@ -43,14 +43,16 @@ from typeagent.transcripts.transcript import (
     TranscriptMessageMeta,
 )
 
-
 # ---------------------------------------------------------------------------
 # Inlined pre-optimization write path (one append + add_term per item)
 # ---------------------------------------------------------------------------
 
 
 async def _individual_add_knowledge(
-    conversation, message_ordinal, chunk_ordinal, knowledge,
+    conversation,
+    message_ordinal,
+    chunk_ordinal,
+    knowledge,
 ):
     """Reproduces the pre-optimization per-item write logic."""
     verify_has_semantic_ref_index(conversation)
@@ -95,7 +97,9 @@ async def _individual_add_knowledge(
         if action.object_entity_name != "none":
             await semantic_ref_index.add_term(action.object_entity_name, ordinal)
         if action.indirect_object_entity_name != "none":
-            await semantic_ref_index.add_term(action.indirect_object_entity_name, ordinal)
+            await semantic_ref_index.add_term(
+                action.indirect_object_entity_name, ordinal
+            )
         if action.params:
             for param in action.params:
                 if isinstance(param, str):
@@ -135,8 +139,7 @@ def synthetic_knowledge(chunk_index: int) -> kplib.KnowledgeResponse:
                 name=f"entity_{chunk_index}_{j}",
                 type=[f"type_{j}", f"category_{chunk_index % 5}"],
                 facets=[
-                    kplib.Facet(name=f"facet_{j}", value=f"value_{j}")
-                    for j in range(2)
+                    kplib.Facet(name=f"facet_{j}", value=f"value_{j}") for j in range(2)
                 ],
             )
             for j in range(3)
@@ -237,15 +240,21 @@ async def main() -> None:
         description="Benchmark semref index write strategies.",
     )
     parser.add_argument(
-        "--chunks", type=int, default=50,
+        "--chunks",
+        type=int,
+        default=50,
         help="Number of knowledge chunks to write per run (default: 50).",
     )
     parser.add_argument(
-        "--rounds", type=int, default=10,
+        "--rounds",
+        type=int,
+        default=10,
         help="Number of timed rounds (default: 10).",
     )
     parser.add_argument(
-        "--warmup", type=int, default=2,
+        "--warmup",
+        type=int,
+        default=2,
         help="Number of untimed warmup rounds (default: 2).",
     )
     args = parser.parse_args()
@@ -262,21 +271,31 @@ async def main() -> None:
     print(f"Total semrefs per run: ~{refs_per_chunk * args.chunks}")
 
     individual = await run_benchmark(
-        "Individual writes", bench_individual,
-        args.chunks, args.rounds, args.warmup,
+        "Individual writes",
+        bench_individual,
+        args.chunks,
+        args.rounds,
+        args.warmup,
     )
     print_report(
         "Individual writes (per-entity append + add_term)",
-        individual, args.rounds, args.warmup,
+        individual,
+        args.rounds,
+        args.warmup,
     )
 
     batched = await run_benchmark(
-        "Batched writes", bench_batched,
-        args.chunks, args.rounds, args.warmup,
+        "Batched writes",
+        bench_batched,
+        args.chunks,
+        args.rounds,
+        args.warmup,
     )
     print_report(
         "Batched writes (bulk extend + add_terms_batch)",
-        batched, args.rounds, args.warmup,
+        batched,
+        args.rounds,
+        args.warmup,
     )
 
     speedup = statistics.fmean(individual) / statistics.fmean(batched)

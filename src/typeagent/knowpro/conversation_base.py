@@ -4,8 +4,8 @@
 """Base class for conversations with incremental indexing support."""
 
 import asyncio
-import contextlib
 from collections.abc import AsyncIterable, Callable, Sequence
+import contextlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Generic, Self, TypeVar
@@ -282,9 +282,7 @@ class ConversationBase(
             await _drain_commit()
 
             # Await extraction result for this batch
-            extraction = (
-                await next_extraction if next_extraction is not None else None
-            )
+            extraction = await next_extraction if next_extraction is not None else None
 
             # Start commit (DB transaction) — runs concurrently with the
             # *next* batch's LLM extraction once we yield back to the loop.
