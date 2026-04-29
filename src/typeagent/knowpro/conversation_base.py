@@ -5,7 +5,7 @@
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterable, Callable
+from collections.abc import AsyncIterable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Generic, Self, TypeVar
@@ -50,7 +50,7 @@ TMessage = TypeVar("TMessage", bound=IMessage)
 class _ExtractionResult:
     """Pre-extracted knowledge for a batch, ready to commit."""
 
-    messages: list[IMessage]
+    messages: Sequence[IMessage]
     text_locations: list[TextLocation]
     knowledge_results: list[typechat.Result[kplib.KnowledgeResponse]]
 
