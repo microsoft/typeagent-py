@@ -1,0 +1,11 @@
+{
+  "github.copilot.chat.agent.hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "./scripts/block-git-mutations.sh",
+        "timeout": 5
+      }
+    ]
+  }
+}
