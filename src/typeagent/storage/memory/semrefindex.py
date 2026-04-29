@@ -76,9 +76,7 @@ async def add_batch_to_semantic_ref_index[
             (tl.message_ordinal, tl.chunk_ordinal, knowledge_result.value)
         )
     if bulk_items:
-        await add_knowledge_batch_to_semantic_ref_index(
-            conversation, bulk_items
-        )
+        await add_knowledge_batch_to_semantic_ref_index(conversation, bulk_items)
 
 
 async def add_batch_to_semantic_ref_index_from_list[
@@ -103,9 +101,7 @@ async def add_batch_to_semantic_ref_index_from_list[
                 f"Message ordinal {tl.message_ordinal} out of range "
                 f"for list starting at {start_ordinal}"
             )
-        text_batch.append(
-            messages[list_index].text_chunks[tl.chunk_ordinal].strip()
-        )
+        text_batch.append(messages[list_index].text_chunks[tl.chunk_ordinal].strip())
 
     knowledge_results = await extract_knowledge_from_text_batch(
         knowledge_extractor,
@@ -123,9 +119,7 @@ async def add_batch_to_semantic_ref_index_from_list[
             (tl.message_ordinal, tl.chunk_ordinal, knowledge_result.value)
         )
     if bulk_items:
-        await add_knowledge_batch_to_semantic_ref_index(
-            conversation, bulk_items
-        )
+        await add_knowledge_batch_to_semantic_ref_index(conversation, bulk_items)
 
 
 async def add_term_to_index(
@@ -360,11 +354,13 @@ def _collect_knowledge_refs_and_terms(
     for entity in knowledge.entities:
         if not validate_entity(entity):
             continue
-        refs.append(SemanticRef(
-            semantic_ref_ordinal=ordinal,
-            range=text_range,
-            knowledge=entity,
-        ))
+        refs.append(
+            SemanticRef(
+                semantic_ref_ordinal=ordinal,
+                range=text_range,
+                knowledge=entity,
+            )
+        )
         terms.append((entity.name, ordinal))
         for type_name in entity.type:
             terms.append((type_name, ordinal))
@@ -377,11 +373,13 @@ def _collect_knowledge_refs_and_terms(
         ordinal += 1
 
     for action in list(knowledge.actions) + list(knowledge.inverse_actions):
-        refs.append(SemanticRef(
-            semantic_ref_ordinal=ordinal,
-            range=text_range,
-            knowledge=action,
-        ))
+        refs.append(
+            SemanticRef(
+                semantic_ref_ordinal=ordinal,
+                range=text_range,
+                knowledge=action,
+            )
+        )
         terms.append((" ".join(action.verbs), ordinal))
         if action.subject_entity_name != "none":
             terms.append((action.subject_entity_name, ordinal))
@@ -404,11 +402,13 @@ def _collect_knowledge_refs_and_terms(
         ordinal += 1
 
     for topic_text in knowledge.topics:
-        refs.append(SemanticRef(
-            semantic_ref_ordinal=ordinal,
-            range=text_range,
-            knowledge=Topic(text=topic_text),
-        ))
+        refs.append(
+            SemanticRef(
+                semantic_ref_ordinal=ordinal,
+                range=text_range,
+                knowledge=Topic(text=topic_text),
+            )
+        )
         terms.append((topic_text, ordinal))
         ordinal += 1
 
@@ -431,7 +431,10 @@ async def add_knowledge_to_semantic_ref_index(
 
     base_ordinal = await semantic_refs.size()
     refs, terms = _collect_knowledge_refs_and_terms(
-        base_ordinal, message_ordinal, chunk_ordinal, knowledge,
+        base_ordinal,
+        message_ordinal,
+        chunk_ordinal,
+        knowledge,
     )
 
     if refs:
@@ -460,7 +463,10 @@ async def add_knowledge_batch_to_semantic_ref_index(
 
     for msg_ord, chunk_ord, knowledge in items:
         refs, terms = _collect_knowledge_refs_and_terms(
-            base_ordinal + len(all_refs), msg_ord, chunk_ord, knowledge,
+            base_ordinal + len(all_refs),
+            msg_ord,
+            chunk_ord,
+            knowledge,
         )
         all_refs.extend(refs)
         all_terms.extend(terms)

@@ -384,9 +384,7 @@ async def test_streaming_exception_in_later_batch_preserves_earlier() -> None:
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
         with pytest.raises(ExceptionGroup) as exc_info:
-            await transcript.add_messages_streaming(
-                _async_iter(msgs), batch_size=3
-            )
+            await transcript.add_messages_streaming(_async_iter(msgs), batch_size=3)
 
         assert any(
             isinstance(e, RuntimeError) and "Systemic failure" in str(e)
