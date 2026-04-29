@@ -291,3 +291,192 @@ async def test_streaming_all_skipped_batch() -> None:
         assert await transcript.messages.size() == 0
 
         await storage.close()
+
+
+# ---------------------------------------------------------------------------
+# Pipeline overlap and DB batching tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_streaming_on_batch_committed_fires_per_batch() -> None:
+    """on_batch_committed fires once per non-empty batch with the pipelined approach."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        transcript, storage = await _create_transcript(db_path)
+
+        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(7)]
+        batch_results: list[int] = []
+        result = await transcript.add_messages_streaming(
+            _async_iter(msgs),
+            batch_size=3,
+            on_batch_committed=lambda r: batch_results.append(r.messages_added),
+        )
+
+        assert result.messages_added == 7
+        # 3 batches: [0,1,2], [3,4,5], [6]
+        assert batch_results == [3, 3, 1]
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_extraction_with_multiple_batches() -> None:
+    """Extraction results are correctly applied across batches with ordinal remapping."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor()
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+
+        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
+        result = await transcript.add_messages_streaming(
+            _async_iter(msgs), batch_size=3
+        )
+
+        assert result.messages_added == 6
+        assert await transcript.messages.size() == 6
+        # All 6 chunks extracted (no failures)
+        assert extractor.call_count == 6
+        assert _failure_count(storage) == 0
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_extraction_failure_across_batches() -> None:
+    """Extraction failures are recorded with correct global ordinals across batches."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        # Fail on call index 1 (batch 0, msg 1) and 4 (batch 1, msg 1)
+        extractor = ControlledExtractor(fail_on={1, 4})
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+
+        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
+        result = await transcript.add_messages_streaming(
+            _async_iter(msgs), batch_size=3
+        )
+
+        assert result.messages_added == 6
+        assert _failure_count(storage) == 2
+
+        failures = await storage.get_chunk_failures()
+        failure_ordinals = sorted(f.message_ordinal for f in failures)
+        # msg 1 in batch 0 → global ordinal 1, msg 1 in batch 1 → global ordinal 4
+        assert failure_ordinals == [1, 4]
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_exception_in_later_batch_preserves_earlier() -> None:
+    """A raised exception in batch 1 stops processing; batch 0 is committed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        # Raise on call 4 (first call of batch 1, since batch 0 has 3 msgs)
+        extractor = ControlledExtractor(raise_on={3})
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+
+        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
+        with pytest.raises(ExceptionGroup) as exc_info:
+            await transcript.add_messages_streaming(
+                _async_iter(msgs), batch_size=3
+            )
+
+        assert any(
+            isinstance(e, RuntimeError) and "Systemic failure" in str(e)
+            for e in exc_info.value.exceptions
+        )
+
+        # Batch 0 committed (3 messages), batch 1 rolled back
+        assert await transcript.messages.size() == 3
+        assert _ingested_count(storage) == 3
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_mark_sources_ingested_batch_sqlite() -> None:
+    """mark_sources_ingested_batch marks multiple sources in one call."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        _, storage = await _create_transcript(db_path)
+
+        async with storage:
+            await storage.mark_sources_ingested_batch(["a", "b", "c"])
+
+        assert await storage.is_source_ingested("a")
+        assert await storage.is_source_ingested("b")
+        assert await storage.is_source_ingested("c")
+        assert not await storage.is_source_ingested("d")
+        assert _ingested_count(storage) == 3
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_mark_sources_ingested_batch_empty() -> None:
+    """mark_sources_ingested_batch with empty list is a no-op."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        _, storage = await _create_transcript(db_path)
+
+        async with storage:
+            await storage.mark_sources_ingested_batch([])
+
+        assert _ingested_count(storage) == 0
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_mark_sources_ingested_batch_idempotent() -> None:
+    """mark_sources_ingested_batch is idempotent via INSERT OR REPLACE."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        _, storage = await _create_transcript(db_path)
+
+        async with storage:
+            await storage.mark_sources_ingested_batch(["a", "b"])
+        async with storage:
+            await storage.mark_sources_ingested_batch(["b", "c"])
+
+        assert _ingested_count(storage) == 3
+        assert await storage.is_source_ingested("a")
+        assert await storage.is_source_ingested("b")
+        assert await storage.is_source_ingested("c")
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_extraction_with_empty_text_chunks() -> None:
+    """Messages with empty text_chunks skip extraction gracefully."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor()
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+
+        msgs = [
+            TranscriptMessage(
+                text_chunks=[],
+                metadata=TranscriptMessageMeta(speaker="Alice"),
+                tags=["test"],
+                source_id="empty-chunks",
+            ),
+            _make_message("has content", source_id="has-content"),
+        ]
+        result = await transcript.add_messages_streaming(_async_iter(msgs))
+
+        assert result.messages_added == 2
+        # Only the message with content triggers extraction
+        assert extractor.call_count == 1
+
+        await storage.close()

@@ -88,12 +88,13 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
         self, message_timestamps: list[tuple[interfaces.MessageOrdinal, str]]
     ) -> None:
         """Add multiple timestamps."""
+        if not message_timestamps:
+            return
         cursor = self.db.cursor()
-        for message_ordinal, timestamp in message_timestamps:
-            cursor.execute(
-                "UPDATE Messages SET start_timestamp = ? WHERE msg_id = ?",
-                (timestamp, message_ordinal),
-            )
+        cursor.executemany(
+            "UPDATE Messages SET start_timestamp = ? WHERE msg_id = ?",
+            [(ts, ordinal) for ordinal, ts in message_timestamps],
+        )
 
     async def lookup_range(
         self, date_range: interfaces.DateRange
