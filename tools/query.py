@@ -20,6 +20,7 @@ import typing
 
 from colorama import Fore
 from colorama import init as colorama_init
+from dotenv import load_dotenv
 import numpy as np
 
 readline = None
@@ -31,18 +32,19 @@ except ImportError:
 
 import typechat
 
-from typeagent.aitools import embeddings, utils
+from typeagent.aitools import embeddings, model_adapters, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
-    convknowledge,
-    kplib,
+)
+from typeagent.knowpro import (
     query,
     search,
     search_query_schema,
     searchlang,
     serialization,
 )
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -55,7 +57,6 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.podcasts import podcast
-from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 ### Classes ###
@@ -150,7 +151,7 @@ class ProcessingContext:
     debug2: typing.Literal["none", "diff", "full", "skip"]
     debug3: typing.Literal["none", "diff", "full", "nice"]
     debug4: typing.Literal["none", "diff", "full", "nice"]
-    embedding_model: embeddings.AsyncEmbeddingModel
+    embedding_model: embeddings.IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[search_query_schema.SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[
         answer_response_schema.AnswerResponse
@@ -408,7 +409,7 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
             expected4 = (record4["answer"], not record4["hasNoAnswer"])
             match combined_answer.type:
                 case "NoAnswer":
-                    actual4 = (combined_answer.whyNoAnswer or "", False)
+                    actual4 = (combined_answer.why_no_answer or "", False)
                 case "Answered":
                     actual4 = (combined_answer.answer or "", True)
             await compare_answers(context, expected4, actual4)
@@ -420,7 +421,7 @@ async def cmd_stage(context: ProcessingContext, args: list[str]) -> None:
     prsep()
 
     if combined_answer.type == "NoAnswer":
-        print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+        print(Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET)
     else:
         print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
     prsep()
@@ -529,29 +530,12 @@ async def handle_at_command(context: ProcessingContext, line: str) -> None:
 
 
 async def main():
-    utils.load_dotenv()
+    load_dotenv()
     colorama_init(autoreset=True)
 
     parser = make_arg_parser("TypeAgent Query Tool")
     args = parser.parse_args()
     fill_in_debug_defaults(parser, args)
-
-    # Validate required podcast argument
-    if args.podcast is None and args.database is None:
-        raise SystemExit(
-            "Error: Either --podcast or --database is required.\n"
-            "Usage: python query.py --podcast <path_to_index>\n"
-            "   or: python query.py --database <path_to_database>\n"
-            "Example: python query.py --podcast tests/testdata/Episode_53_index"
-        )
-    if args.podcast is not None:
-        index_file = args.podcast + "_index.json"
-        if not os.path.exists(index_file):
-            raise SystemExit(
-                f"Error: Podcast index file not found: {index_file}\n"
-                "Please verify the path exists and is accessible.\n"
-                "Note: The path should exclude the '_index.json' suffix."
-            )
 
     if args.logfire:
         utils.setup_logfire()
@@ -563,18 +547,37 @@ async def main():
         args.database,
         podcast.PodcastMessage,
     )
-    query_context = await load_podcast_index(
-        args.podcast, settings, args.database, args.verbose
-    )
+
+    # Load existing database
+    provider = await settings.get_storage_provider()
+    msgs = provider.messages
+    if await msgs.size() == 0:
+        raise SystemExit(f"Error: Database '{args.database}' is empty.")
+
+    with utils.timelog(f"Loading conversation from database {args.database!r}"):
+        conversation = await podcast.Podcast.create(settings)
+
+    await print_conversation_stats(conversation, args.verbose)
+    query_context = query.QueryEvalContext(conversation)
 
     ar_list, ar_index = load_index_file(
-        args.qafile, "question", QuestionAnswerData, args.verbose
+        args.answer_results, "question", QuestionAnswerData, args.verbose
     )
     sr_list, sr_index = load_index_file(
-        args.srfile, "searchText", SearchResultData, args.verbose
+        args.search_results, "searchText", SearchResultData, args.verbose
     )
+    if args.batch:
+        args.history_size = 0
+        if not ar_list:
+            raise SystemExit(
+                "Error: non-empty --answer-results required for batch mode."
+            )
+        if not sr_list:
+            raise SystemExit(
+                "Error: non-empty --search-results required for batch mode."
+            )
 
-    model = convknowledge.create_typechat_model()
+    model = model_adapters.create_chat_model()
     query_translator = utils.create_translator(model, search_query_schema.SearchQuery)
     if args.alt_schema:
         if args.verbose:
@@ -878,6 +881,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
             print("Stage 3 diff unavailable")
         prsep()
 
+    context.answer_context_options.debug = context.debug4 == "full"
     all_answers, combined_answer = await answers.generate_answers(
         context.answer_translator,
         search_results,
@@ -890,14 +894,14 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         if combined_answer.type == "Answered":
             context.history.add(query_text, combined_answer.answer or "", True)
         else:
-            context.history.add(query_text, combined_answer.whyNoAnswer or "", False)
+            context.history.add(query_text, combined_answer.why_no_answer or "", False)
 
     if context.debug4 == "full":
         utils.pretty_print(all_answers)
         prsep()
     if context.debug4 in ("full", "nice"):
         if combined_answer.type == "NoAnswer":
-            print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+            print(Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET)
         else:
             print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
         prsep()
@@ -908,7 +912,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
             print("Stage 4 diff:")
             match combined_answer.type:
                 case "NoAnswer":
-                    actual4 = (combined_answer.whyNoAnswer or "", False)
+                    actual4 = (combined_answer.why_no_answer or "", False)
                 case "Answered":
                     actual4 = (combined_answer.answer or "", True)
             score = await compare_answers(context, expected4, actual4)
@@ -920,7 +924,9 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         else:
             print("Stage 4 diff unavailable; nice answer:")
             if combined_answer.type == "NoAnswer":
-                print(Fore.RED + f"Failure: {combined_answer.whyNoAnswer}" + Fore.RESET)
+                print(
+                    Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET
+                )
             else:
                 print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
         prsep()
@@ -942,22 +948,16 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         ),
     )
 
-    parser.add_argument(
-        "--podcast",
-        type=str,
-        default=None,
-        help="Path to the podcast index files (excluding the '_index.json' suffix)",
-    )
     explain_qa = "a list of questions and answers to test the full pipeline"
     parser.add_argument(
-        "--qafile",
+        "--answer-results",
         type=str,
         default=None,
         help=f"Path to the Answer_results.json file ({explain_qa})",
     )
     explain_sr = "a list of intermediate results from stages 1, 2 and 3"
     parser.add_argument(
-        "--srfile",
+        "--search-results",
         type=str,
         default=None,
         help=f"Path to the Search_results.json file ({explain_sr})",
@@ -972,8 +972,8 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         "-d",
         "--database",
         type=str,
-        default=None,
-        help="Path to the SQLite database file (default: in-memory)",
+        required=True,
+        help="Path to the SQLite database file",
     )
     parser.add_argument(
         "--query",
@@ -1109,33 +1109,11 @@ def fill_in_debug_defaults(
 ### Data loading ###
 
 
-async def load_podcast_index(
-    podcast_file_prefix: str,
-    settings: ConversationSettings,
-    dbname: str | None,
-    verbose: bool = True,
-) -> query.QueryEvalContext:
-    provider = await settings.get_storage_provider()
-    msgs = await provider.get_message_collection()
-    if await msgs.size() > 0:  # Sqlite provider with existing non-empty database
-        with utils.timelog(f"Reusing database {dbname!r}"):
-            conversation = await podcast.Podcast.create(settings)
-    else:
-        with utils.timelog(f"Loading podcast from {podcast_file_prefix!r}"):
-            conversation = await podcast.Podcast.read_from_file(
-                podcast_file_prefix, settings, dbname
-            )
-            if isinstance(provider, SqliteStorageProvider):
-                provider.db.commit()
-
-    await print_conversation_stats(conversation, verbose)
-
-    return query.QueryEvalContext(conversation)
-
-
 def load_index_file[T: Mapping[str, typing.Any]](
-    file: str, selector: str, cls: type[T], verbose: bool = True
+    file: str | None, selector: str, cls: type[T], verbose: bool = True
 ) -> tuple[list[T], dict[str, T]]:
+    if file is None:
+        return [], {}
     # If this crashes, the file is malformed -- go figure it out.
     try:
         with open(file) as f:

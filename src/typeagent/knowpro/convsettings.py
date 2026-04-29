@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..aitools.embeddings import AsyncEmbeddingModel
+from ..aitools.embeddings import IEmbeddingModel
+from ..aitools.model_adapters import create_embedding_model
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .interfaces import IKnowledgeExtractor, IStorageProvider
 
@@ -28,7 +29,7 @@ class RelatedTermIndexSettings:
 
 @dataclass
 class SemanticRefIndexSettings:
-    batch_size: int
+    concurrency: int
     auto_extract_knowledge: bool
     knowledge_extractor: IKnowledgeExtractor | None = None
 
@@ -38,11 +39,11 @@ class ConversationSettings:
 
     def __init__(
         self,
-        model: AsyncEmbeddingModel | None = None,
+        model: IEmbeddingModel | None = None,
         storage_provider: IStorageProvider | None = None,
     ):
         # All settings share the same model, so they share the embedding cache.
-        model = model or AsyncEmbeddingModel()
+        model = model or create_embedding_model()
         self.embedding_model = model
         min_score = 0.85
         self.related_term_index_settings = RelatedTermIndexSettings(
@@ -53,7 +54,7 @@ class ConversationSettings:
             TextEmbeddingIndexSettings(model, min_score=0.7)
         )
         self.semantic_ref_index_settings = SemanticRefIndexSettings(
-            batch_size=4,  # Effectively max concurrency
+            concurrency=4,
             auto_extract_knowledge=True,  # The high-level API wants this
         )
 

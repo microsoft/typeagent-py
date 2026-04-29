@@ -28,7 +28,7 @@ class AnswerResponse:
             "the answer to display if [ANSWER CONTEXT] is highly relevant and can be used to answer the user's question"
         ),
     ] = None
-    whyNoAnswer: Annotated[
+    why_no_answer: Annotated[
         str | None,
         Doc(
             "If NoAnswer, explain why..\nparticularly explain why you didn't use any supplied entities"

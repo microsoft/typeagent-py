@@ -5,7 +5,9 @@
 
 import sqlite3
 
-from ...aitools.embeddings import NormalizedEmbeddings
+import numpy as np
+
+from ...aitools.embeddings import NormalizedEmbedding
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 from ...knowpro import interfaces
 from .schema import deserialize_embedding, serialize_embedding
@@ -145,13 +147,13 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
                 "SELECT term, term_embedding FROM RelatedTermsFuzzy ORDER BY term"
             )
             rows = cursor.fetchall()
+            embeddings: list[NormalizedEmbedding] = []
             for term, blob in rows:
                 assert blob is not None, term
-                embedding: NormalizedEmbeddings = deserialize_embedding(blob)
-                # Add to VectorBase at the correct ordinal
-                self._vector_base.add_embedding(term, embedding)
                 self._terms_list.append(term)
-                self._added_terms.add(term)
+                embeddings.append(deserialize_embedding(blob))
+            # Bulk add embeddings to VectorBase
+            self._vector_base.add_embeddings(None, np.array(embeddings))
 
     async def lookup_term(
         self,
@@ -207,30 +209,24 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         return [row[0] for row in cursor.fetchall()]
 
     async def add_terms(self, texts: list[str]) -> None:
-        """Add terms."""
+        """Add terms with batched embedding generation and DB writes."""
+        new_terms = [t for t in texts if t not in self._added_terms]
+        if not new_terms:
+            return
+
+        embeddings = await self._vector_base.add_keys(new_terms)
+        assert embeddings is not None
+
         cursor = self.db.cursor()
-        # TODO: Batch additions to database
-        for text in texts:
-            if text in self._added_terms:
-                continue
-
-            # Add to VectorBase for fuzzy lookup
-            await self._vector_base.add_key(text)
-            self._terms_list.append(text)
-            self._added_terms.add(text)
-
-            # Generate embedding for term and store in database
-            embedding = await self._vector_base.get_embedding(text)  # Cached
-            serialized_embedding = serialize_embedding(embedding)
-            # Insert term and embedding
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO RelatedTermsFuzzy
-                (term, term_embedding)
-                VALUES (?, ?)
-                """,
-                (text, serialized_embedding),
-            )
+        cursor.executemany(
+            "INSERT OR REPLACE INTO RelatedTermsFuzzy (term, term_embedding) VALUES (?, ?)",
+            [
+                (term, serialize_embedding(embeddings[i]))
+                for i, term in enumerate(new_terms)
+            ],
+        )
+        self._terms_list.extend(new_terms)
+        self._added_terms.update(new_terms)
 
     async def lookup_terms(
         self,

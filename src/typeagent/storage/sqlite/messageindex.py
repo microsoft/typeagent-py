@@ -34,8 +34,15 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         if self._size():
             cursor = self.db.cursor()
             cursor.execute("SELECT embedding FROM MessageTextIndex")
-            for row in cursor.fetchall():
-                self._vectorbase.add_embedding(None, deserialize_embedding(row[0]))
+            rows = cursor.fetchall()
+            if rows:
+                embeddings: list[NormalizedEmbedding] = [
+                    deserialize_embedding(row[0]) for row in rows
+                ]
+                embeddings_array = np.stack(embeddings, axis=0).astype(
+                    np.float32, copy=False
+                )
+                self._vectorbase.add_embeddings(None, embeddings_array)
 
     async def size(self) -> int:
         return self._size()
@@ -55,6 +62,9 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         for msg_ord, message in enumerate(messages, start_message_ordinal):
             for chunk_ord, chunk in enumerate(message.text_chunks):
                 chunks_to_embed.append((msg_ord, chunk_ord, chunk))
+
+        if not chunks_to_embed:
+            return
 
         embeddings = await self._vectorbase.get_embeddings(
             [chunk for _, _, chunk in chunks_to_embed], cache=False
@@ -251,7 +261,7 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         """Generate an embedding for the given text."""
         return await self._vectorbase.get_embedding(text)
 
-    def lookup_by_embedding(
+    async def lookup_by_embedding(
         self,
         text_embedding: NormalizedEmbedding,
         max_matches: int | None = None,
@@ -267,16 +277,16 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         )
         return self._scored_locations_to_message_ordinals(scored_locations, max_matches)
 
-    def lookup_in_subset_by_embedding(
+    async def lookup_in_subset_by_embedding(
         self,
         text_embedding: NormalizedEmbedding,
         ordinals_to_search: list[interfaces.MessageOrdinal],
         max_matches: int | None = None,
         threshold_score: float | None = None,
     ) -> list[interfaces.ScoredMessageOrdinal]:
-        """Look up messages in a subset by embedding (synchronous version)."""
+        """Look up messages in a subset by embedding."""
         ordinals_set = set(ordinals_to_search)
-        return self.lookup_by_embedding(
+        return await self.lookup_by_embedding(
             text_embedding,
             max_matches,
             threshold_score,
@@ -292,13 +302,11 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         """Serialize the message text index."""
         # Get all data from the MessageTextIndex table
         cursor = self.db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT msg_id, chunk_ordinal, embedding
             FROM MessageTextIndex
             ORDER BY msg_id, chunk_ordinal
-        """
-        )
+        """)
 
         # Build the text locations and embeddings
         text_locations = []
@@ -383,7 +391,7 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
             )
 
         # Update VectorBase
-        self._vectorbase.add_embeddings(embeddings)
+        self._vectorbase.add_embeddings(None, embeddings)
 
     async def clear(self) -> None:
         """Clear the message text index."""

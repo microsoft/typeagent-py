@@ -7,10 +7,10 @@
 import os
 import tempfile
 
+from dotenv import load_dotenv
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-from typeagent.aitools.utils import load_dotenv
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
@@ -30,7 +30,7 @@ async def test_message_text_index_population_from_database():
 
     try:
         # Use the test model that's already configured in the system
-        embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_model = create_test_embedding_model()
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -59,7 +59,7 @@ async def test_message_text_index_population_from_database():
             ),
         ]
 
-        msg_collection = await storage1.get_message_collection()
+        msg_collection = storage1.messages
         await msg_collection.extend(test_messages)
         assert await msg_collection.size() == len(test_messages)
 
@@ -74,7 +74,7 @@ async def test_message_text_index_population_from_database():
         )
 
         # Check message collection size
-        msg_collection2 = await storage2.get_message_collection()
+        msg_collection2 = storage2.messages
         msg_count = await msg_collection2.size()
         print(f"Message collection size: {msg_count}")
         assert msg_count == len(
@@ -82,7 +82,7 @@ async def test_message_text_index_population_from_database():
         ), f"Expected {len(test_messages)} messages, got {msg_count}"
 
         # Check message text index
-        msg_text_index = await storage2.get_message_text_index()
+        msg_text_index = storage2.message_text_index
         # Check that it implements the interface correctly
         from typeagent.knowpro.interfaces import IMessageTextIndex
 

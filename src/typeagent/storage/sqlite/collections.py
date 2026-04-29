@@ -46,12 +46,10 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
 
     async def _async_iterator(self) -> typing.AsyncGenerator[TMessage, None]:
         cursor = self.db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT chunks, chunk_uri, start_timestamp, tags, metadata, extra
             FROM Messages ORDER BY msg_id
-            """
-        )
+            """)
         for row in cursor:
             message = self._deserialize_message_from_row(row)
             yield message
@@ -288,12 +286,10 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
 
     async def __aiter__(self) -> typing.AsyncGenerator[interfaces.SemanticRef, None]:
         cursor = self.db.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT semref_id, range_json, knowledge_type, knowledge_json
             FROM SemanticRefs ORDER BY semref_id
-            """
-        )
+            """)
         for row in cursor:
             yield self._deserialize_semantic_ref_from_row(row)
 
@@ -335,16 +331,58 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         if len(arg) < 2:
             return [await self.get_item(ordinal) for ordinal in arg]
         cursor = self.db.cursor()
-        cursor.execute(
-            f"""
+        cursor.execute(f"""
             SELECT semref_id, range_json, knowledge_type, knowledge_json
             FROM SemanticRefs WHERE semref_id IN {tuple(arg)}
-            """
-        )
+            """)
         rows = cursor.fetchall()
         rowdict = {row[0]: row for row in rows}
         assert set(rowdict) == set(arg)
         return [self._deserialize_semantic_ref_from_row(rowdict[ordl]) for ordl in arg]
+
+    async def get_metadata_multiple(
+        self, ordinals: list[int]
+    ) -> list[interfaces.SemanticRefMetadata]:
+        if not ordinals:
+            return []
+        cursor = self.db.cursor()
+        placeholders = ",".join("?" * len(ordinals))
+        cursor.execute(
+            f"""
+            SELECT semref_id, range_json, knowledge_type
+            FROM SemanticRefs WHERE semref_id IN ({placeholders})
+            """,
+            ordinals,
+        )
+        rows = cursor.fetchall()
+        rowdict = {r[0]: r for r in rows}
+        result = []
+        for o in ordinals:
+            row = rowdict[o]
+            range_data = json.loads(row[1])
+            start = range_data["start"]
+            end_data = range_data.get("end")
+            result.append(
+                interfaces.SemanticRefMetadata(
+                    ordinal=row[0],
+                    range=interfaces.TextRange(
+                        start=interfaces.TextLocation(
+                            start["messageOrdinal"],
+                            start.get("chunkOrdinal", 0),
+                        ),
+                        end=(
+                            interfaces.TextLocation(
+                                end_data["messageOrdinal"],
+                                end_data.get("chunkOrdinal", 0),
+                            )
+                            if end_data
+                            else None
+                        ),
+                    ),
+                    knowledge_type=row[2],
+                )
+            )
+        return result
 
     async def append(self, item: interfaces.SemanticRef) -> None:
         cursor = self.db.cursor()

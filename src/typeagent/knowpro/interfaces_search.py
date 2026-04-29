@@ -18,13 +18,14 @@ from .interfaces_core import (
 )
 
 __all__ = [
-    "SearchTerm",
     "KnowledgePropertyName",
     "PropertySearchTerm",
+    "SearchSelectExpr",
+    "SearchTerm",
     "SearchTermGroup",
     "SearchTermGroupTypes",
+    "SemanticRefSearchResult",
     "WhenFilter",
-    "SearchSelectExpr",
 ]
 
 
@@ -142,15 +143,3 @@ class SemanticRefSearchResult:
 
     term_matches: set[str]
     semantic_ref_matches: list[ScoredSemanticRefOrdinal]
-
-
-__all__ = [
-    "KnowledgePropertyName",
-    "PropertySearchTerm",
-    "SearchSelectExpr",
-    "SearchTerm",
-    "SearchTermGroup",
-    "SearchTermGroupTypes",
-    "SemanticRefSearchResult",
-    "WhenFilter",
-]

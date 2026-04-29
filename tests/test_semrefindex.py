@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 
 # TypeAgent imports
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
@@ -20,14 +20,19 @@ from typeagent.knowpro.interfaces import (
     ITermToSemanticRefIndex,
     Topic,
 )
-from typeagent.knowpro.kplib import Action, ConcreteEntity, Facet, KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage.memory.semrefindex import (
-    add_action_to_index,
-    add_entity_to_index,
+    add_action,
+    add_entity,
     add_knowledge_to_index,
-    add_topic_to_index,
+    add_topic,
     TermToSemanticRefIndex,
 )
 
@@ -37,7 +42,7 @@ from typeagent.storage.memory.semrefindex import (
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def semantic_ref_index(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[ITermToSemanticRefIndex, None]:
     """Unified fixture to create a semantic ref index for both memory and SQLite providers."""
@@ -60,7 +65,7 @@ async def semantic_ref_index(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await provider.get_semantic_ref_index()
+        index = provider.semantic_ref_index
         yield index
     else:
         provider = SqliteStorageProvider(
@@ -78,7 +83,7 @@ async def semantic_ref_index(
             Topic,
         )
 
-        collection = await provider.get_semantic_ref_collection()
+        collection = provider.semantic_refs
 
         # Create semantic refs with ordinals 1, 2, 3 that the tests expect
         for i in range(1, 4):
@@ -89,7 +94,7 @@ async def semantic_ref_index(
             )
             await collection.append(ref)
 
-        index = await provider.get_semantic_ref_index()
+        index = provider.semantic_ref_index
         yield index
         await provider.close()
 
@@ -97,7 +102,7 @@ async def semantic_ref_index(
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def semantic_ref_setup(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection], None]:
     """Unified fixture that provides both semantic ref index and collection for testing helper functions."""
@@ -120,8 +125,8 @@ async def semantic_ref_setup(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await provider.get_semantic_ref_index()
-        collection = await provider.get_semantic_ref_collection()
+        index = provider.semantic_ref_index
+        collection = provider.semantic_refs
         yield {"index": index, "collection": collection}
     else:
         provider = SqliteStorageProvider(
@@ -130,8 +135,8 @@ async def semantic_ref_setup(
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
         )
-        index = await provider.get_semantic_ref_index()
-        collection = await provider.get_semantic_ref_collection()
+        index = provider.semantic_ref_index
+        collection = provider.semantic_refs
         yield {"index": index, "collection": collection}
         await provider.close()
 
@@ -211,7 +216,7 @@ async def test_semantic_ref_index_serialize_and_deserialize(
 
 
 @pytest.mark.asyncio
-async def test_add_entity_to_index(
+async def test_add_entity(
     semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
     needs_auth: None,
 ) -> None:
@@ -224,7 +229,7 @@ async def test_add_entity_to_index(
         type=["object", "example"],
         facets=[Facet(name="color", value="blue")],
     )
-    await add_entity_to_index(entity, semantic_refs, semantic_ref_index, 0)
+    await add_entity(entity, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
     assert (await semantic_refs.get_item(0)).knowledge.knowledge_type == "entity"
@@ -247,7 +252,7 @@ async def test_add_entity_to_index(
 
 
 @pytest.mark.asyncio
-async def test_add_topic_to_index(
+async def test_add_topic(
     semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
     needs_auth: None,
 ) -> None:
@@ -256,7 +261,7 @@ async def test_add_topic_to_index(
     semantic_refs: ISemanticRefCollection = semantic_ref_setup["collection"]  # type: ignore
 
     topic = "ExampleTopic"
-    await add_topic_to_index(topic, semantic_refs, semantic_ref_index, 0)
+    await add_topic(Topic(text=topic), semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
     assert (await semantic_refs.get_item(0)).knowledge.knowledge_type == "topic"
@@ -270,7 +275,7 @@ async def test_add_topic_to_index(
 
 
 @pytest.mark.asyncio
-async def test_add_action_to_index(
+async def test_add_action(
     semantic_ref_setup: Dict[str, ITermToSemanticRefIndex | ISemanticRefCollection],
     needs_auth: None,
 ) -> None:
@@ -287,7 +292,7 @@ async def test_add_action_to_index(
         params=None,
         subject_entity_facet=None,
     )
-    await add_action_to_index(action, semantic_refs, semantic_ref_index, 0)
+    await add_action(action, semantic_refs, semantic_ref_index, 0)
 
     assert await semantic_refs.size() == 1
     assert (await semantic_refs.get_item(0)).knowledge.knowledge_type == "action"

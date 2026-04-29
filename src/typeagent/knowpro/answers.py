@@ -5,8 +5,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
-import black
-
 import typechat
 
 from .answer_context_schema import AnswerContext, RelevantKnowledge, RelevantMessage
@@ -32,7 +30,7 @@ from .interfaces import (
     TextRange,
     Topic,
 )
-from .kplib import ConcreteEntity, Facet
+from .knowledge_schema import ConcreteEntity, Facet
 from .search import ConversationSearchResult
 
 
@@ -42,6 +40,7 @@ class AnswerContextOptions:
     topics_top_k: int | None = None
     messages_top_k: int | None = None
     chunking: bool | None = None
+    debug: bool = False
 
 
 async def generate_answers(
@@ -77,7 +76,7 @@ async def generate_answers(
         combined_answer = AnswerResponse(type="Answered", answer=good_answers[0])
     else:
         combined_answer = AnswerResponse(
-            type="NoAnswer", whyNoAnswer="No good answers found."
+            type="NoAnswer", why_no_answer="No good answers found."
         )
     return all_answers, combined_answer
 
@@ -91,15 +90,16 @@ async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     assert search_result.raw_query_text is not None, "Raw query text must not be None"
     context = await make_context(search_result, conversation, options)
     request = f"{create_question_prompt(search_result.raw_query_text)}\n\n{create_context_prompt(context)}"
-    # print("+" * 80)
-    # print(request)
-    # print("+" * 80)
+    if options and options.debug:
+        print("Stage 4 input:")
+        print(request)
+        print("-" * 50)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
         return AnswerResponse(
             type="NoAnswer",
             answer=None,
-            whyNoAnswer=f"TypeChat failure: {result.message}",
+            why_no_answer=f"TypeChat failure: {result.message}",
         )
     else:
         return result.value
@@ -125,10 +125,12 @@ def create_question_prompt(question: str) -> str:
 
 def create_context_prompt(context: AnswerContext) -> str:
     # TODO: Use a more compact representation of the context than JSON.
+    import pprint
+
     prompt = [
         "[ANSWER CONTEXT]",
         "===",
-        black.format_str(str(dictify(context)), mode=black.Mode(line_length=200)),
+        pprint.pformat(dictify(context), width=200),
         "===",
     ]
     return "\n".join(prompt)
@@ -230,7 +232,7 @@ async def get_relevant_messages_for_answer[
                 from_=metadata.source,
                 to=metadata.dest,
                 timestamp=msg.timestamp,
-                messageText=(
+                message_text=(
                     msg.text_chunks[0] if len(msg.text_chunks) == 1 else msg.text_chunks
                 ),
             )
@@ -402,11 +404,12 @@ async def get_enclosing_date_range_for_text_range(
     start_timestamp = (await messages.get_item(range.start.message_ordinal)).timestamp
     if not start_timestamp:
         return None
-    end_timestamp = (
-        (await messages.get_item(range.end.message_ordinal)).timestamp
-        if range.end
-        else None
-    )
+    end_timestamp: str | None = None
+    if range.end:
+        end_ordinal = range.end.message_ordinal
+        if end_ordinal < await messages.size():
+            end_timestamp = (await messages.get_item(end_ordinal)).timestamp
+        # else: range extends to the end of the conversation; leave as None.
     return DateRange(
         start=Datetime.fromisoformat(start_timestamp),
         end=Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
@@ -449,19 +452,22 @@ async def get_scored_semantic_refs_from_ordinals_iter(
     semantic_ref_matches: list[ScoredSemanticRefOrdinal],
     knowledge_type: KnowledgeType,
 ) -> list[Scored[SemanticRef]]:
-    result = []
-    for semantic_ref_match in semantic_ref_matches:
-        semantic_ref = await semantic_refs.get_item(
-            semantic_ref_match.semantic_ref_ordinal
-        )
-        if semantic_ref.knowledge.knowledge_type == knowledge_type:
-            result.append(
-                Scored(
-                    item=semantic_ref,
-                    score=semantic_ref_match.score,
-                )
-            )
-    return result
+    if not semantic_ref_matches:
+        return []
+    ordinals = [m.semantic_ref_ordinal for m in semantic_ref_matches]
+    metadata = await semantic_refs.get_metadata_multiple(ordinals)
+    matching = [
+        (sr_match, m.ordinal)
+        for sr_match, m in zip(semantic_ref_matches, metadata)
+        if m.knowledge_type == knowledge_type
+    ]
+    if not matching:
+        return []
+    full_refs = await semantic_refs.get_multiple([o for _, o in matching])
+    return [
+        Scored(item=ref, score=sr_match.score)
+        for (sr_match, _), ref in zip(matching, full_refs)
+    ]
 
 
 def merge_scored_concrete_entities(
@@ -533,7 +539,7 @@ def facets_to_merged_facets(facets: list[Facet]) -> MergedFacets:
     merged_facets: MergedFacets = {}
     for facet in facets:
         name = facet.name.lower()
-        value = str(facet).lower()
+        value = str(facet.value).lower()
         merged_facets.setdefault(name, []).append(value)
     return merged_facets
 
@@ -553,7 +559,7 @@ async def combine_answers(
 ) -> AnswerResponse:
     """Combine multiple answers into a single answer."""
     if not answers:
-        return AnswerResponse(type="NoAnswer", whyNoAnswer="No answers provided.")
+        return AnswerResponse(type="NoAnswer", why_no_answer="No answers provided.")
     if len(answers) == 1:
         return AnswerResponse(type="Answered", answer=answers[0])
     request_parts = [
@@ -572,6 +578,6 @@ async def combine_answers(
     request = "\n".join(request_parts)
     result = await translator.translate(request)
     if isinstance(result, typechat.Failure):
-        return AnswerResponse(type="NoAnswer", whyNoAnswer=result.message)
+        return AnswerResponse(type="NoAnswer", why_no_answer=result.message)
     else:
         return result.value

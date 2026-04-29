@@ -4,6 +4,7 @@
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock
 
+import numpy as np
 import pytest
 
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
@@ -42,10 +43,10 @@ def message_text_index(
     mock_text_location_index: MagicMock,
 ) -> IMessageTextEmbeddingIndex:
     """Fixture to create a MessageTextIndex instance with a mocked TextToTextLocationIndex."""
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+    from typeagent.aitools.model_adapters import create_test_embedding_model
     from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = MessageTextIndexSettings(embedding_settings)
     index = MessageTextIndex(settings)
@@ -55,10 +56,10 @@ def message_text_index(
 
 def test_message_text_index_init(needs_auth: None):
     """Test initialization of MessageTextIndex."""
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+    from typeagent.aitools.model_adapters import create_test_embedding_model
     from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = MessageTextIndexSettings(embedding_settings)
     index = MessageTextIndex(settings)
@@ -142,23 +143,28 @@ async def test_lookup_messages_in_subset(
     assert result[0].score == 0.9
 
 
-@pytest.mark.skip(
-    reason="TODO: Doesn't work; also does too much mocking (probably related)"
-)
 @pytest.mark.asyncio
-async def test_generate_embedding(message_text_index: IMessageTextEmbeddingIndex):
-    """Test generating an embedding for a message."""
-    mock_text_loc_index = cast(
-        MagicMock, cast(MessageTextIndex, message_text_index).text_location_index
-    )
-    mock_text_loc_index._vector_base.get_embedding = AsyncMock(
-        return_value=[0.1, 0.2, 0.3]
-    )
+async def test_generate_embedding(needs_auth: None):
+    """Test generating an embedding for a message without mocking."""
+    from typeagent.aitools.model_adapters import create_test_embedding_model
+    from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 
-    embedding = await message_text_index.generate_embedding("test message")
+    # Create real MessageTextIndex with test model
+    test_model = create_test_embedding_model()
+    embedding_settings = TextEmbeddingIndexSettings(test_model)
+    settings = MessageTextIndexSettings(embedding_settings)
+    index = MessageTextIndex(settings)
 
-    assert embedding == [0.1, 0.2, 0.3]
-    mock_text_loc_index._vector_base.get_embedding.assert_awaited_once()
+    embedding = await index.generate_embedding("test message")
+
+    assert embedding is not None
+    assert len(embedding) == 3  # test model uses embedding size 3
+
+    dot = float(np.dot(embedding, embedding))
+    assert abs(dot - 1.0) < 1e-6, f"Embedding not normalized: {dot}"
+
+    embedding2 = await index.generate_embedding("test message")
+    assert np.allclose(embedding, embedding2)
 
 
 @pytest.mark.asyncio
@@ -198,14 +204,14 @@ async def test_build_message_index(needs_auth: None):
     ]
 
     # Create storage provider asynchronously
-    from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+    from typeagent.aitools.model_adapters import create_test_embedding_model
     from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
     from typeagent.knowpro.convsettings import (
         MessageTextIndexSettings,
         RelatedTermIndexSettings,
     )
 
-    test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+    test_model = create_test_embedding_model()
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     message_text_settings = MessageTextIndexSettings(embedding_settings)
     related_terms_settings = RelatedTermIndexSettings(embedding_settings)

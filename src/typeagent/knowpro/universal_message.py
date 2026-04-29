@@ -6,9 +6,9 @@
 from datetime import datetime, timezone
 from typing import TypedDict
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
-from . import kplib
+from . import knowledge_schema as kplib
 from .dataclasses import dataclass as pydantic_dataclass
 from .field_helpers import CamelCaseField
 from .interfaces import IKnowledgeSource, IMessage, IMessageMetadata
@@ -68,7 +68,11 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
     - Forum: Post author
     """
 
-    recipients: list[str] = Field(default_factory=list)
+    recipients: list[str] = Field(
+        default_factory=list,
+        serialization_alias="listeners",
+        validation_alias=AliasChoices("recipients", "listeners"),
+    )
     """
     Intended recipients/listeners of the message.
 
@@ -162,7 +166,7 @@ class ConversationMessageMetaData(TypedDict):
     """Serialization format for ConversationMessageMeta."""
 
     speaker: str | None
-    recipients: list[str]
+    listeners: list[str]
 
 
 class ConversationMessageData(TypedDict):
@@ -199,6 +203,11 @@ class ConversationMessage(IMessage):
 
     Format: "2024-01-01T12:34:56Z" or "1970-01-01T00:01:23Z" (epoch-based)
     MUST include "Z" suffix to explicitly indicate UTC timezone.
+    """
+    source_id: str | None = None
+    """
+    Optional external identifier of the source this message was ingested from
+    (e.g., a transcript file path or podcast episode id). See ``IMessage.source_id``.
     """
 
     def get_knowledge(self) -> kplib.KnowledgeResponse:

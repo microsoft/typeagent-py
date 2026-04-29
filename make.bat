@@ -13,9 +13,11 @@ if "%~1"=="" goto help
 if /I "%~1"=="format" goto format
 if /I "%~1"=="check" goto check
 if /I "%~1"=="test" goto test
+if /I "%~1"=="coverage" goto coverage
 if /I "%~1"=="demo" goto demo
 if /I "%~1"=="build" goto build
 if /I "%~1"=="venv" goto venv
+if /I "%~1"=="sync" goto sync
 if /I "%~1"=="install-uv" goto install-uv
 if /I "%~1"=="clean" goto clean
 if /I "%~1"=="help" goto help
@@ -26,26 +28,39 @@ goto help
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
-.venv\Scripts\isort src tests tools examples
-.venv\Scripts\black src tests tools examples
+uv run isort src tests tools examples
+uv run black -tpy312 src tests tools examples
 goto end
 
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-.venv\Scripts\pyright --pythonpath .venv\Scripts\python src tests tools examples
+uv run pyright src tests tools examples
 goto end
 
 :test
 if not exist ".venv\" call make.bat venv
 echo Running unit tests...
-.venv\Scripts\python -m pytest
+uv run pytest
 goto end
+
+:coverage
+setlocal
+if not exist ".venv\" call make.bat venv
+echo Running test coverage...
+uv run coverage erase
+set "COVERAGE_PROCESS_START=.coveragerc"
+uv run coverage run -m pytest
+uv run coverage combine
+uv run coverage report
+endlocal
+goto end
+
 
 :demo
 if not exist ".venv\" call make.bat venv
 echo Running query tool...
-.venv\Scripts\python -m tools.query
+uv run python -m tools.query
 goto end
 
 :build
@@ -56,11 +71,15 @@ goto end
 
 :venv
 echo Creating virtual environment...
-uv sync -q --extra dev
-.venv\Scripts\python --version
-.venv\Scripts\black --version
-.venv\Scripts\pyright --version
-.venv\Scripts\python -m pytest --version
+uv sync -q
+uv run python --version
+uv run black --version
+uv run pyright --version
+uv run pytest --version
+goto end
+
+:sync
+uv sync
 goto end
 
 :install-uv
@@ -83,7 +102,7 @@ if exist .pytest_cache rmdir /s /q .pytest_cache
 goto end
 
 :help
-echo Usage: .\make [format^|check^|test^|build^|venv^|install-uv^|clean^|help]
+echo Usage: .\make [format^|check^|test^|coverage^|demo^|build^|venv^|sync^|install-uv^|clean^|help]
 goto end
 
 :end

@@ -5,9 +5,11 @@ import numpy as np
 import pytest
 
 from typeagent.aitools.embeddings import (
-    AsyncEmbeddingModel,
+    CachingEmbeddingModel,
     NormalizedEmbedding,
-    TEST_MODEL_NAME,
+)
+from typeagent.aitools.model_adapters import (
+    create_test_embedding_model,
 )
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
 
@@ -19,9 +21,7 @@ def vector_base() -> VectorBase:
 
 
 def make_vector_base() -> VectorBase:
-    settings = TextEmbeddingIndexSettings(
-        AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
-    )
+    settings = TextEmbeddingIndexSettings(create_test_embedding_model())
     return VectorBase(settings)
 
 
@@ -48,6 +48,28 @@ def test_add_embedding(vector_base: VectorBase, sample_embeddings: Samples):
         np.testing.assert_array_equal(vector_base.serialize_embedding_at(i), embedding)
 
 
+def test_add_embeddings(vector_base: VectorBase, sample_embeddings: Samples):
+    """Adding multiple embeddings at once matches repeated single adds."""
+    keys = list(sample_embeddings.keys())
+    for key, embedding in sample_embeddings.items():
+        vector_base.add_embedding(key, embedding)
+
+    bulk_vector_base = make_vector_base()
+    stacked_embeddings = np.stack([sample_embeddings[key] for key in keys], axis=0)
+    bulk_vector_base.add_embeddings(keys, stacked_embeddings)
+
+    assert len(bulk_vector_base) == len(vector_base)
+    np.testing.assert_array_equal(bulk_vector_base.serialize(), vector_base.serialize())
+
+    assert isinstance(vector_base._model, CachingEmbeddingModel)
+    assert isinstance(bulk_vector_base._model, CachingEmbeddingModel)
+    sequential_cache = vector_base._model._cache
+    bulk_cache = bulk_vector_base._model._cache
+    assert set(sequential_cache.keys()) == set(bulk_cache.keys())
+    for key in keys:
+        np.testing.assert_array_equal(bulk_cache[key], sequential_cache[key])
+
+
 @pytest.mark.asyncio
 async def test_add_key(vector_base: VectorBase, sample_embeddings: Samples):
     """Test adding keys to the VectorBase."""
@@ -64,9 +86,8 @@ async def test_add_key_no_cache(vector_base: VectorBase, sample_embeddings: Samp
         await vector_base.add_key(key, cache=False)
 
     assert len(vector_base) == len(sample_embeddings)
-    assert (
-        vector_base._model._embedding_cache == {}
-    ), "Cache should remain empty when cache=False"
+    assert isinstance(vector_base._model, CachingEmbeddingModel)
+    assert vector_base._model._cache == {}, "Cache should remain empty when cache=False"
 
 
 @pytest.mark.asyncio
@@ -85,9 +106,8 @@ async def test_add_keys_no_cache(vector_base: VectorBase, sample_embeddings: Sam
     await vector_base.add_keys(keys, cache=False)
 
     assert len(vector_base) == len(sample_embeddings)
-    assert (
-        vector_base._model._embedding_cache == {}
-    ), "Cache should remain empty when cache=False"
+    assert isinstance(vector_base._model, CachingEmbeddingModel)
+    assert vector_base._model._cache == {}, "Cache should remain empty when cache=False"
 
 
 @pytest.mark.asyncio
@@ -175,3 +195,28 @@ def test_fuzzy_lookup_embedding_in_subset(
     # Empty subset returns empty list
     result = vector_base.fuzzy_lookup_embedding_in_subset(query, [])
     assert result == []
+
+
+def test_add_embedding_size_mismatch(vector_base: VectorBase) -> None:
+    """Adding an embedding of wrong size raises ValueError."""
+    emb3 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    emb5 = np.array([0.1, 0.2, 0.3, 0.4, 0.5], dtype=np.float32)
+    vector_base.add_embedding(None, emb3)
+    with pytest.raises(ValueError, match="Embedding size mismatch"):
+        vector_base.add_embedding(None, emb5)
+
+
+def test_add_embeddings_size_mismatch(vector_base: VectorBase) -> None:
+    """Adding a batch of embeddings of wrong size raises ValueError."""
+    batch3 = np.array([[0.1, 0.2, 0.3]], dtype=np.float32)
+    batch5 = np.array([[0.1, 0.2, 0.3, 0.4, 0.5]], dtype=np.float32)
+    vector_base.add_embeddings(None, batch3)
+    with pytest.raises(ValueError, match="Embedding size mismatch"):
+        vector_base.add_embeddings(None, batch5)
+
+
+def test_add_embeddings_wrong_ndim(vector_base: VectorBase) -> None:
+    """Adding a 1D array via add_embeddings raises ValueError."""
+    emb1d = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    with pytest.raises(ValueError, match="Expected 2D"):
+        vector_base.add_embeddings(None, emb1d)

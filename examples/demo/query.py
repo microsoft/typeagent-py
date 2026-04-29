@@ -1,5 +1,9 @@
+from dotenv import load_dotenv
+
 from typeagent import create_conversation
 from typeagent.transcripts.transcript import TranscriptMessage
+
+load_dotenv()
 
 
 async def main():

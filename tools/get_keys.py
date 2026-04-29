@@ -649,8 +649,7 @@ async def pull_secrets():
 
 def print_help():
     """Print help message."""
-    print(
-        """
+    print("""
 Usage: get_keys.py [command] [options]
 
 Commands:
@@ -667,8 +666,7 @@ Examples:
   python get_keys.py pull                      # Pull secrets
   python get_keys.py push                      # Push secrets
   python get_keys.py pull --vault my-vault    # Pull from specific vault
-"""
-    )
+""")
 
 
 async def main():

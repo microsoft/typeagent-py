@@ -6,16 +6,18 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterable, Iterable
 from datetime import datetime as Datetime
-from typing import Any, Protocol, Self
+from typing import Any, NamedTuple, Protocol, Self
 
 from pydantic.dataclasses import dataclass
 
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,
+    KnowledgeType,
     MessageOrdinal,
     SemanticRef,
     SemanticRefOrdinal,
+    TextRange,
 )
 from .interfaces_indexes import (
     IConversationSecondaryIndexes,
@@ -26,14 +28,7 @@ from .interfaces_indexes import (
     ITimestampToTextRangeIndex,
 )
 
-__all__ = [
-    "ConversationMetadata",
-    "IReadonlyCollection",
-    "ICollection",
-    "IMessageCollection",
-    "ISemanticRefCollection",
-    "IStorageProvider",
-]
+STATUS_INGESTED = "ingested"
 
 
 @dataclass
@@ -59,10 +54,32 @@ class ConversationMetadata:
     schema_version: int | None = None
     created_at: Datetime | None = None
     updated_at: Datetime | None = None
-    embedding_size: int | None = None
     embedding_model: str | None = None
     tags: list[str] | None = None
     extra: dict[str, str] | None = None
+
+
+class SemanticRefMetadata(NamedTuple):
+    """Lightweight metadata for filtering without full knowledge deserialization."""
+
+    ordinal: SemanticRefOrdinal
+    range: TextRange
+    knowledge_type: KnowledgeType
+
+
+@dataclass
+class ChunkFailure:
+    """Record of a single failed knowledge-extraction attempt for one chunk.
+
+    Stored in the storage provider so that ingestion pipelines can retry just
+    the failed chunks without re-processing whole messages.
+    """
+
+    message_ordinal: int
+    chunk_ordinal: int
+    error_class: str
+    error_message: str
+    failed_at: Datetime
 
 
 class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
@@ -99,35 +116,49 @@ class IMessageCollection[TMessage: IMessage](
 class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Protocol):
     """A collection of SemanticRefs."""
 
+    async def get_metadata_multiple(
+        self, ordinals: list[SemanticRefOrdinal]
+    ) -> list[SemanticRefMetadata]:
+        """Batch-fetch lightweight metadata without deserializing knowledge."""
+        ...
+
 
 class IStorageProvider[TMessage: IMessage](Protocol):
     """API spec for storage providers -- maybe in-memory or persistent."""
 
-    async def get_message_collection(self) -> IMessageCollection[TMessage]: ...
+    @property
+    def messages(self) -> IMessageCollection[TMessage]: ...
 
-    async def get_semantic_ref_collection(self) -> ISemanticRefCollection: ...
+    @property
+    def semantic_refs(self) -> ISemanticRefCollection: ...
 
-    # Index getters - ALL 6 index types for this conversation
+    # Index properties - ALL 6 index types for this conversation
 
-    async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex: ...
+    @property
+    def semantic_ref_index(self) -> ITermToSemanticRefIndex: ...
 
-    async def get_property_index(self) -> IPropertyToSemanticRefIndex: ...
+    @property
+    def property_index(self) -> IPropertyToSemanticRefIndex: ...
 
-    async def get_timestamp_index(self) -> ITimestampToTextRangeIndex: ...
+    @property
+    def timestamp_index(self) -> ITimestampToTextRangeIndex: ...
 
-    async def get_message_text_index(self) -> IMessageTextIndex[TMessage]: ...
+    @property
+    def message_text_index(self) -> IMessageTextIndex[TMessage]: ...
 
-    async def get_related_terms_index(self) -> ITermToRelatedTermsIndex: ...
+    @property
+    def related_terms_index(self) -> ITermToRelatedTermsIndex: ...
 
-    async def get_conversation_threads(self) -> IConversationThreads: ...
+    @property
+    def conversation_threads(self) -> IConversationThreads: ...
 
     # Metadata management
 
-    def get_conversation_metadata(self) -> ConversationMetadata:
+    async def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata (missing fields set to None)."""
         ...
 
-    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+    async def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set or update conversation metadata key-value pairs.
         Args:
             **kwds: Metadata keys and values where:
@@ -137,7 +168,7 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """
         ...
 
-    def update_conversation_timestamps(
+    async def update_conversation_timestamps(
         self,
         created_at: Datetime | None = None,
         updated_at: Datetime | None = None,
@@ -146,12 +177,51 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         ...
 
     # Ingested source tracking
-    def is_source_ingested(self, source_id: str) -> bool:
+    async def is_source_ingested(self, source_id: str) -> bool:
         """Check if a source has already been ingested."""
         ...
 
-    def mark_source_ingested(self, source_id: str) -> None:
+    async def get_source_status(self, source_id: str) -> str | None:
+        """Get the ingestion status of a source."""
+        ...
+
+    async def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested (no commit; call within transaction context)."""
+        ...
+
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        ...
+
+    # Chunk-level extraction failure tracking
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record an extraction failure for a single chunk.
+
+        Idempotent: re-recording overwrites any prior entry for the same
+        (message_ordinal, chunk_ordinal). No commit; call within transaction
+        context.
+        """
+        ...
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove the failure record for one chunk (e.g., after a retry succeeds)."""
+        ...
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by message and chunk."""
         ...
 
     # Transaction management
@@ -184,6 +254,7 @@ class IConversation[
 
 
 __all__ = [
+    "ChunkFailure",
     "ConversationMetadata",
     "ICollection",
     "IConversation",
@@ -191,4 +262,6 @@ __all__ = [
     "IReadonlyCollection",
     "ISemanticRefCollection",
     "IStorageProvider",
+    "STATUS_INGESTED",
+    "SemanticRefMetadata",
 ]

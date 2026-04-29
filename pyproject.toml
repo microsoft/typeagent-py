@@ -1,10 +1,10 @@
 [build-system]
-requires = ["uv_build>=0.9.10,<0.10.0"]
+requires = ["uv_build>=0.9.10,<0.11.0"]
 build-backend = "uv_build"
 
 [project]
 name = "typeagent"
-version = "0.3.3"
+version = "0.4.0.dev"
 description = "Incremental message indexing and querying pipelines using Structured RAG"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
@@ -30,12 +30,14 @@ classifiers = [
 ]
 dependencies = [
   "azure-identity>=1.22.0",
-  "black>=25.12.0",
   "colorama>=0.4.6",
   "mcp[cli]>=1.12.1",
   "numpy>=2.2.6",
   "openai>=1.81.0",
   "pydantic>=2.11.4",
+  "pydantic-ai-slim[openai]>=1.39.0",
+  "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
+  "pyright>=1.1.409",
   "python-dotenv>=1.1.0",
   "tiktoken>=0.12.0",
   "typechat>=0.0.4",
@@ -43,21 +45,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-  "azure-mgmt-authorization>=4.0.0",
-  "azure-mgmt-keyvault>=12.1.1",  
-  "coverage[toml]>=7.9.1",
-  "google-api-python-client>=2.184.0",
-  "google-auth-httplib2>=0.2.0",
-  "google-auth-oauthlib>=1.2.2",
-  "isort>=7.0.0",
+# Needed to enable --logfire flag to tools/query.py
+logfire = [
   "logfire>=4.1.0",
   "opentelemetry-instrumentation-httpx>=0.57b0",
-  "pydantic-ai-slim[openai]>=0.5.0",
-  "pyright==1.1.406",  # 407 has a regression
-  "pytest>=8.3.5",
-  "pytest-asyncio>=0.26.0",
-  "pytest-mock>=3.14.0",
 ]
 
 [project.urls]
@@ -88,5 +79,19 @@ known_local_folder = ["conftest"]
 
 [dependency-groups]
 dev = [
-    "isort>=7.0.0",
+  "azure-mgmt-authorization>=4.0.0",
+  "azure-mgmt-keyvault>=12.1.1",
+  "black>=25.12.0",
+  "coverage[toml]>=7.9.1",
+  "google-api-python-client>=2.184.0",
+  "google-auth-httplib2>=0.2.0",
+  "google-auth-oauthlib>=1.2.2",
+  "isort>=7.0.0",
+  "logfire>=4.1.0",  # So 'make check' passes
+  "msgraph-sdk>=1.54.0",
+  "opentelemetry-instrumentation-httpx>=0.57b0",
+  "pyright>=1.1.408",  # 407 has a regression
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.26.0",
+  "pytest-mock>=3.14.0",
 ]

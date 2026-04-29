@@ -6,11 +6,13 @@
 from datetime import datetime, timezone
 import sqlite3
 
-from ...aitools.embeddings import AsyncEmbeddingModel
+from ...aitools.model_adapters import create_embedding_model
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
-from ...knowpro.interfaces import ConversationMetadata
+from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
+from ...knowpro.interfaces_storage import ChunkFailure
+from ..memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
@@ -31,7 +33,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     """SQLite-backed storage provider implementation.
 
     This provider performs consistency checks on database initialization to ensure
-    that existing embeddings match the configured embedding_size. If a mismatch is
+    that existing embeddings match the configured embedding model. If a mismatch is
     detected, a ValueError is raised with a descriptive error message.
     """
 
@@ -52,10 +54,12 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         provided_message_settings = message_text_index_settings
         provided_related_settings = related_term_index_settings
 
-        # Initialize database connection
-        self.db = sqlite3.connect(db_path)
+        # Initialize database connection with autocommit mode
+        # isolation_level=None enables manual transaction control via BEGIN/COMMIT
+        self.db = sqlite3.connect(db_path, isolation_level=None)
 
         # Configure SQLite for optimal bulk insertion performance
+        # TODO: Move into init_db_schema()
         self.db.execute("PRAGMA foreign_keys = ON")
         # Improve write performance for bulk operations
         self.db.execute("PRAGMA synchronous = NORMAL")  # Faster than FULL, still safe
@@ -97,6 +101,11 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             self.db, self.related_term_index_settings.embedding_index_settings
         )
 
+        # Initialize conversation threads
+        self._conversation_threads = ConversationThreads(
+            self.message_text_index_settings.embedding_index_settings
+        )
+
         # Connect message collection to message text index for automatic indexing
         self._message_collection.set_message_text_index(self._message_text_index)
 
@@ -117,19 +126,16 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         provided_related_settings: RelatedTermIndexSettings | None,
     ) -> tuple[MessageTextIndexSettings, RelatedTermIndexSettings]:
         metadata_exists = self._conversation_metadata_exists()
-        stored_size_str = self._get_single_metadata_value("embedding_size")
         stored_name = self._get_single_metadata_value("embedding_name")
-        stored_size = int(stored_size_str) if stored_size_str else None
 
         if provided_message_settings is None:
-            if stored_size is not None or stored_name is not None:
-                embedding_model = AsyncEmbeddingModel(
-                    embedding_size=stored_size,
-                    model_name=stored_name,
-                )
+            if stored_name is not None:
+                spec = stored_name
+                if spec and ":" not in spec:
+                    spec = f"openai:{spec}"
+                embedding_model = create_embedding_model(spec)
                 base_embedding_settings = TextEmbeddingIndexSettings(
                     embedding_model=embedding_model,
-                    embedding_size=stored_size,
                 )
             else:
                 base_embedding_settings = TextEmbeddingIndexSettings()
@@ -137,13 +143,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         else:
             message_settings = provided_message_settings
             base_embedding_settings = message_settings.embedding_index_settings
-            provided_size = base_embedding_settings.embedding_size
             provided_name = base_embedding_settings.embedding_model.model_name
-            if stored_size is not None and stored_size != provided_size:
-                raise ValueError(
-                    f"Conversation metadata embedding_size "
-                    f"({stored_size}) does not match provided embedding size ({provided_size})."
-                )
             if stored_name is not None and stored_name != provided_name:
                 raise ValueError(
                     f"Conversation metadata embedding_model "
@@ -155,12 +155,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         else:
             related_settings = provided_related_settings
             related_embedding_settings = related_settings.embedding_index_settings
-            related_size = related_embedding_settings.embedding_size
             related_name = related_embedding_settings.embedding_model.model_name
-            if related_size != base_embedding_settings.embedding_size:
-                raise ValueError(
-                    "Related term index embedding_size does not match message text index embedding_size"
-                )
             if related_name != base_embedding_settings.embedding_model.model_name:
                 raise ValueError(
                     "Related term index embedding_model does not match message text index embedding_model"
@@ -168,17 +163,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             if related_settings.embedding_index_settings is not base_embedding_settings:
                 related_settings.embedding_index_settings = base_embedding_settings
 
-        actual_size = base_embedding_settings.embedding_size
         actual_name = base_embedding_settings.embedding_model.model_name
 
         if self._metadata is not None:
-            if self._metadata.embedding_size is None:
-                self._metadata.embedding_size = actual_size
-            elif self._metadata.embedding_size != actual_size:
-                raise ValueError(
-                    "Conversation metadata embedding_size does not match provider settings"
-                )
-
             if self._metadata.embedding_model is None:
                 self._metadata.embedding_model = actual_name
             elif self._metadata.embedding_model != actual_name:
@@ -188,8 +175,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
 
         if metadata_exists:
             metadata_updates: dict[str, str] = {}
-            if stored_size is None:
-                metadata_updates["embedding_size"] = str(actual_size)
             if stored_name is None:
                 metadata_updates["embedding_name"] = actual_name
             if metadata_updates:
@@ -198,51 +183,47 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         return message_settings, related_settings
 
     def _check_embedding_consistency(self) -> None:
-        """Check that existing embeddings in the database match the expected embedding size.
+        """Check that existing embeddings in the database are consistent.
 
-        This method is called during initialization to ensure that embeddings stored in the
-        database match the embedding_size specified in ConversationSettings. This prevents
-        runtime errors when trying to use embeddings of incompatible sizes.
+        This method is called during initialization to ensure that embeddings
+        stored in the message text index and related terms index have the same
+        size. This prevents runtime errors when trying to use embeddings of
+        incompatible sizes.
 
         Raises:
-            ValueError: If embeddings in the database don't match the expected size.
+            ValueError: If embeddings in the database have inconsistent sizes.
         """
         from .schema import deserialize_embedding
 
         cursor = self.db.cursor()
-        expected_size = (
-            self.message_text_index_settings.embedding_index_settings.embedding_size
-        )
 
-        # Check message text index embeddings
+        # Get size from message text index embeddings
+        message_size: int | None = None
         cursor.execute("SELECT embedding FROM MessageTextIndex LIMIT 1")
         row = cursor.fetchone()
         if row and row[0]:
             embedding = deserialize_embedding(row[0])
-            actual_size = len(embedding)
-            if actual_size != expected_size:
-                raise ValueError(
-                    f"Message text index embedding size mismatch: "
-                    f"database contains embeddings of size {actual_size}, "
-                    f"but ConversationSettings specifies embedding_size={expected_size}. "
-                    f"The database was likely created with a different embedding model. "
-                    f"Please use the same embedding model or create a new database."
-                )
+            message_size = len(embedding)
 
-        # Check related terms fuzzy index embeddings
+        # Get size from related terms fuzzy index embeddings
+        related_size: int | None = None
         cursor.execute("SELECT term_embedding FROM RelatedTermsFuzzy LIMIT 1")
         row = cursor.fetchone()
         if row and row[0]:
             embedding = deserialize_embedding(row[0])
-            actual_size = len(embedding)
-            if actual_size != expected_size:
-                raise ValueError(
-                    f"Related terms index embedding size mismatch: "
-                    f"database contains embeddings of size {actual_size}, "
-                    f"but ConversationSettings specifies embedding_size={expected_size}. "
-                    f"The database was likely created with a different embedding model. "
-                    f"Please use the same embedding model or create a new database."
-                )
+            related_size = len(embedding)
+
+        if (
+            message_size is not None
+            and related_size is not None
+            and message_size != related_size
+        ):
+            raise ValueError(
+                f"Embedding size mismatch: "
+                f"message text index has size {message_size}, "
+                f"but related terms index has size {related_size}. "
+                f"The database may be corrupted."
+            )
 
     def _init_conversation_metadata_if_needed(self) -> None:
         """Initialize conversation metadata if the database is new (empty metadata table).
@@ -271,18 +252,10 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             tags = None
             extras = {}
 
-        actual_embedding_size = (
-            self.message_text_index_settings.embedding_index_settings.embedding_size
-        )
         actual_embedding_name = (
             self.message_text_index_settings.embedding_index_settings.embedding_model.model_name
         )
 
-        metadata_embedding_size = (
-            self._metadata.embedding_size
-            if self._metadata and self._metadata.embedding_size is not None
-            else actual_embedding_size
-        )
         metadata_embedding_name = (
             self._metadata.embedding_model
             if self._metadata and self._metadata.embedding_model is not None
@@ -304,13 +277,19 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             created_at=format_timestamp_utc(current_time),
             updated_at=format_timestamp_utc(current_time),
             tag=tags,  # None or list of tags
-            embedding_size=str(metadata_embedding_size),
             embedding_name=metadata_embedding_name,
             **extras,
         )
 
     async def __aenter__(self) -> "SqliteStorageProvider[TMessage]":
         """Enter transaction context."""
+        if self.db.in_transaction:
+            raise RuntimeError(
+                "Cannot start a new transaction: a transaction is already in progress. "
+                "This may happen if: (1) you're nesting 'async with storage:' blocks, "
+                "(2) a previous transaction was not properly committed/rolled back, or "
+                "(3) the database file was left in an inconsistent state from a crash."
+            )
         self.db.execute("BEGIN IMMEDIATE")
         # Initialize metadata on first write transaction
         self._init_conversation_metadata_if_needed()
@@ -352,7 +331,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         return self._semantic_ref_collection
 
     @property
-    def term_to_semantic_ref_index(self) -> SqliteTermToSemanticRefIndex:
+    def semantic_ref_index(self) -> SqliteTermToSemanticRefIndex:
         return self._term_to_semantic_ref_index
 
     @property
@@ -371,46 +350,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     def related_terms_index(self) -> SqliteRelatedTermsIndex:
         return self._related_terms_index
 
-    # Async getters required by base class
-    async def get_message_collection(
-        self, message_type: type[TMessage] | None = None
-    ) -> interfaces.IMessageCollection[TMessage]:
-        """Get the message collection."""
-        return self._message_collection
-
-    async def get_semantic_ref_collection(self) -> interfaces.ISemanticRefCollection:
-        """Get the semantic reference collection."""
-        return self._semantic_ref_collection
-
-    async def get_semantic_ref_index(self) -> interfaces.ITermToSemanticRefIndex:
-        """Get the semantic reference index."""
-        return self._term_to_semantic_ref_index
-
-    async def get_property_index(self) -> interfaces.IPropertyToSemanticRefIndex:
-        """Get the property index."""
-        return self._property_index
-
-    async def get_timestamp_index(self) -> interfaces.ITimestampToTextRangeIndex:
-        """Get the timestamp index."""
-        return self._timestamp_index
-
-    async def get_message_text_index(self) -> interfaces.IMessageTextIndex[TMessage]:
-        """Get the message text index."""
-        return self._message_text_index
-
-    async def get_related_terms_index(self) -> interfaces.ITermToRelatedTermsIndex:
-        """Get the related terms index."""
-        return self._related_terms_index
-
-    async def get_conversation_threads(self) -> interfaces.IConversationThreads:
-        """Get the conversation threads."""
-        # For now, return a simple implementation
-        # In a full implementation, this would be stored/retrieved from SQLite
-        from ...storage.memory.convthreads import ConversationThreads
-
-        return ConversationThreads(
-            self.message_text_index_settings.embedding_index_settings
-        )
+    @property
+    def conversation_threads(self) -> ConversationThreads:
+        return self._conversation_threads
 
     async def clear(self) -> None:
         """Clear all data from the storage provider."""
@@ -451,7 +393,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         if data.get("messageIndexData"):
             await self._message_text_index.deserialize(data["messageIndexData"])
 
-    def get_conversation_metadata(self) -> ConversationMetadata:
+    async def get_conversation_metadata(self) -> ConversationMetadata:
         """Get conversation metadata."""
         cursor = self.db.cursor()
 
@@ -504,9 +446,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         updated_at_str = get_single("updated_at")
         updated_at = parse_datetime(updated_at_str) if updated_at_str else None
 
-        embedding_size_str = get_single("embedding_size")
-        embedding_size = int(embedding_size_str) if embedding_size_str else None
-
         embedding_model = get_single("embedding_name")
 
         # Handle tags (multiple values allowed, None if key doesn't exist)
@@ -533,13 +472,12 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             schema_version=schema_version,
             created_at=created_at,
             updated_at=updated_at,
-            embedding_size=embedding_size,
             embedding_model=embedding_model,
             tags=tags,
             extra=extra if extra else None,
         )
 
-    def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
+    async def set_conversation_metadata(self, **kwds: str | list[str] | None) -> None:
         """Set or update conversation metadata key-value pairs.
 
         Args:
@@ -559,7 +497,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         _set_conversation_metadata(self.db, **kwds)
 
-    def update_conversation_timestamps(
+    async def update_conversation_timestamps(
         self,
         created_at: datetime | None = None,
         updated_at: datetime | None = None,
@@ -580,9 +518,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             # Insert default values if no metadata exists
             name_tag = self._metadata.name_tag if self._metadata else "conversation"
             schema_version = str(CONVERSATION_SCHEMA_VERSION)
-            actual_embedding_size = (
-                self.message_text_index_settings.embedding_index_settings.embedding_size
-            )
             actual_embedding_name = (
                 self.message_text_index_settings.embedding_index_settings.embedding_model.model_name
             )
@@ -590,7 +525,6 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             metadata_kwds: dict[str, str | None] = {
                 "name_tag": name_tag or "conversation",
                 "schema_version": schema_version,
-                "embedding_size": str(actual_embedding_size),
                 "embedding_name": actual_embedding_name,
             }
             if created_at is not None:
@@ -612,7 +546,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """Get the database schema version."""
         return get_db_schema_version(self.db)
 
-    def is_source_ingested(self, source_id: str) -> bool:
+    async def is_source_ingested(self, source_id: str) -> bool:
         """Check if a source has already been ingested.
 
         This is a read-only operation that can be called outside of a transaction.
@@ -625,11 +559,30 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         cursor = self.db.cursor()
         cursor.execute(
-            "SELECT 1 FROM IngestedSources WHERE source_id = ?", (source_id,)
+            "SELECT status FROM IngestedSources WHERE source_id = ?", (source_id,)
         )
-        return cursor.fetchone() is not None
+        row = cursor.fetchone()
+        return row is not None and row[0] == STATUS_INGESTED
 
-    def mark_source_ingested(self, source_id: str) -> None:
+    async def get_source_status(self, source_id: str) -> str | None:
+        """Get the ingestion status of a source.
+
+        Args:
+            source_id: External source identifier (email ID, file path, etc.)
+
+        Returns:
+            The status string if the source exists, or None if it hasn't been ingested.
+        """
+        cursor = self.db.cursor()
+        cursor.execute(
+            "SELECT status FROM IngestedSources WHERE source_id = ?", (source_id,)
+        )
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+    async def mark_source_ingested(
+        self, source_id: str, status: str = STATUS_INGESTED
+    ) -> None:
         """Mark a source as ingested.
 
         This performs an INSERT but does NOT commit. It should be called within
@@ -641,6 +594,71 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         """
         cursor = self.db.cursor()
         cursor.execute(
-            "INSERT OR IGNORE INTO IngestedSources (source_id) VALUES (?)",
-            (source_id,),
+            "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
+            (source_id, status),
         )
+
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        if not source_ids:
+            return
+        cursor = self.db.cursor()
+        cursor.executemany(
+            "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
+            [(sid, status) for sid in source_ids],
+        )
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record a knowledge-extraction failure for a single chunk.
+
+        Idempotent: re-recording overwrites any prior entry for the same
+        (message_ordinal, chunk_ordinal). No commit; call within a transaction
+        context.
+        """
+        failed_at = datetime.now(timezone.utc).isoformat()
+        cursor = self.db.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO ChunkFailures
+                (msg_id, chunk_ordinal, error_class, error_message, failed_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (message_ordinal, chunk_ordinal, error_class, error_message, failed_at),
+        )
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove a previously recorded chunk failure (no-op if absent)."""
+        cursor = self.db.cursor()
+        cursor.execute(
+            "DELETE FROM ChunkFailures WHERE msg_id = ? AND chunk_ordinal = ?",
+            (message_ordinal, chunk_ordinal),
+        )
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by (msg_id, chunk_ordinal)."""
+        cursor = self.db.cursor()
+        cursor.execute("""
+            SELECT msg_id, chunk_ordinal, error_class, error_message, failed_at
+            FROM ChunkFailures
+            ORDER BY msg_id, chunk_ordinal
+            """)
+        return [
+            ChunkFailure(
+                message_ordinal=row[0],
+                chunk_ordinal=row[1],
+                error_class=row[2],
+                error_message=row[3],
+                failed_at=datetime.fromisoformat(row[4]),
+            )
+            for row in cursor.fetchall()
+        ]

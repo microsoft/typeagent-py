@@ -7,13 +7,12 @@
 import os
 import tempfile
 
-import numpy as np
+from dotenv import load_dotenv
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
-from typeagent.aitools.utils import load_dotenv
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import kplib
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
@@ -21,16 +20,6 @@ from typeagent.knowpro.convsettings import (
 from typeagent.knowpro.interfaces import SemanticRef, Tag, TextLocation, TextRange
 from typeagent.podcasts.podcast import PodcastMessage
 from typeagent.storage import SqliteStorageProvider
-
-
-class MockEmbeddingModel(AsyncEmbeddingModel):
-    def __init__(self):
-        super().__init__(embedding_size=3, model_name="test")
-
-    async def get_embeddings(self, keys: list[str]) -> np.ndarray:
-        result = np.random.rand(len(keys), 3).astype(np.float32)
-        norms = np.linalg.norm(result, axis=1, keepdims=True)
-        return result / norms
 
 
 @pytest.mark.asyncio
@@ -42,7 +31,7 @@ async def test_property_index_population_from_database(really_needs_auth):
     temp_db_file.close()
 
     try:
-        embedding_model = MockEmbeddingModel()
+        embedding_model = create_test_embedding_model()
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -90,7 +79,7 @@ async def test_property_index_population_from_database(really_needs_auth):
             ),
         ]
 
-        sem_ref_collection = await storage1.get_semantic_ref_collection()
+        sem_ref_collection = storage1.semantic_refs
         for sem_ref in test_data:
             await sem_ref_collection.append(sem_ref)
 
@@ -98,7 +87,7 @@ async def test_property_index_population_from_database(really_needs_auth):
 
         # Reopen database and verify property index
         # Use the same embedding settings to avoid dimension mismatch
-        embedding_model2 = MockEmbeddingModel()
+        embedding_model2 = create_test_embedding_model()
         embedding_settings2 = TextEmbeddingIndexSettings(embedding_model2)
         message_text_settings2 = MessageTextIndexSettings(embedding_settings2)
         related_terms_settings2 = RelatedTermIndexSettings(embedding_settings2)
@@ -122,7 +111,7 @@ async def test_property_index_population_from_database(really_needs_auth):
         # Build property index from the semantic refs
         await build_property_index(conversation)
 
-        prop_index = await storage2.get_property_index()
+        prop_index = storage2.property_index
         from typeagent.knowpro.interfaces import IPropertyToSemanticRefIndex
 
         assert isinstance(prop_index, IPropertyToSemanticRefIndex)

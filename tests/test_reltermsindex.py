@@ -8,14 +8,14 @@ import pytest
 import pytest_asyncio
 
 # TypeAgent imports
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import IMessage, ITermToRelatedTermsIndex, Term
-from typeagent.knowpro.kplib import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
@@ -30,7 +30,7 @@ from typeagent.storage.memory.reltermsindex import (
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
 async def related_terms_index(
     request: pytest.FixtureRequest,
-    embedding_model: AsyncEmbeddingModel,
+    embedding_model: IEmbeddingModel,
     temp_db_path: str,
 ) -> AsyncGenerator[ITermToRelatedTermsIndex, None]:
     class DummyTestMessage(IMessage):
@@ -50,7 +50,7 @@ async def related_terms_index(
             message_text_settings=message_text_settings,
             related_terms_settings=related_terms_settings,
         )
-        index = await storage_provider.get_related_terms_index()
+        index = storage_provider.related_terms_index
         yield index
     else:
         provider = SqliteStorageProvider(
@@ -59,7 +59,7 @@ async def related_terms_index(
             message_text_index_settings=message_text_settings,
             related_term_index_settings=related_terms_settings,
         )
-        index = await provider.get_related_terms_index()
+        index = provider.related_terms_index
         yield index
         await provider.close()
 

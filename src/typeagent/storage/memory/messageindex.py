@@ -30,7 +30,7 @@ async def build_message_index[
     if csi is None:
         return
     if csi.message_index is None:
-        csi.message_index = await storage_provider.get_message_text_index()
+        csi.message_index = storage_provider.message_text_index
     messages = conversation.messages
     # Convert collection to list for add_messages
     messages_list = await messages.get_slice(0, await messages.size())
@@ -40,7 +40,7 @@ async def build_message_index[
 class IMessageTextEmbeddingIndex(IMessageTextIndex):
     async def generate_embedding(self, text: str) -> NormalizedEmbedding: ...
 
-    def lookup_by_embedding(
+    async def lookup_by_embedding(
         self,
         text_embedding: NormalizedEmbedding,
         max_matches: int | None = None,
@@ -48,7 +48,7 @@ class IMessageTextEmbeddingIndex(IMessageTextIndex):
         predicate: Callable[[MessageOrdinal], bool] | None = None,
     ) -> list[ScoredMessageOrdinal]: ...
 
-    def lookup_in_subset_by_embedding(
+    async def lookup_in_subset_by_embedding(
         self,
         text_embedding: NormalizedEmbedding,
         ordinals_to_search: list[MessageOrdinal],
@@ -128,7 +128,7 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
         # TODO: Find a prettier API to get an embedding rather than using _vector_base?
         return await self.text_location_index.generate_embedding(text)
 
-    def lookup_in_subset_by_embedding(
+    async def lookup_in_subset_by_embedding(
         self,
         text_embedding: NormalizedEmbedding,
         ordinals_to_search: list[MessageOrdinal],

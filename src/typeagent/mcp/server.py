@@ -3,14 +3,17 @@
 
 """Fledgling MCP server on top of typeagent."""
 
-
 import argparse
 from dataclasses import dataclass
 import os
 import time
 from typing import Any
 
-import coverage
+try:
+    import coverage
+except ImportError:
+    coverage = None  # type: ignore[assignment]
+from dotenv import load_dotenv
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -18,7 +21,8 @@ from mcp.types import SamplingMessage, TextContent
 import typechat
 
 # Enable coverage.py before local imports (a no-op unless COVERAGE_PROCESS_START is set).
-coverage.process_startup()
+if coverage is not None:
+    coverage.process_startup()
 
 from typeagent.aitools import embeddings, utils
 from typeagent.knowpro import answers, query, searchlang
@@ -102,7 +106,7 @@ class ProcessingContext:
     query_context: query.QueryEvalContext[
         podcast.PodcastMessage, TermToSemanticRefIndex
     ]
-    embedding_model: embeddings.AsyncEmbeddingModel
+    embedding_model: embeddings.IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse]
 
@@ -240,18 +244,24 @@ async def query_conversation(
     match combined_answer.type:
         case "NoAnswer":
             return QuestionResponse(
-                success=False, answer=combined_answer.whyNoAnswer or "", time_used=dt
+                success=False, answer=combined_answer.why_no_answer or "", time_used=dt
             )
         case "Answered":
             return QuestionResponse(
                 success=True, answer=combined_answer.answer or "", time_used=dt
+            )
+        case _:
+            return QuestionResponse(
+                success=False,
+                answer=f"Unexpected answer type: {combined_answer.type}",
+                time_used=dt,
             )
 
 
 # Run the MCP server
 if __name__ == "__main__":
     # Load env vars
-    utils.load_dotenv()
+    load_dotenv()
 
     # Set up command-line argument parsing and parse command line
     parser = argparse.ArgumentParser(description="MCP server for knowpro")

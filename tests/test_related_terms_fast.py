@@ -9,10 +9,10 @@ import tempfile
 
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
-from typeagent.knowpro.kplib import ConcreteEntity
+from typeagent.knowpro.knowledge_schema import ConcreteEntity
 from typeagent.podcasts.podcast import Podcast, PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 
@@ -26,7 +26,7 @@ async def test_related_terms_index_minimal():
 
     try:
         # Create minimal test data with test embedding model (no API keys needed)
-        test_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
 
         # Use a simple storage provider without AI embeddings

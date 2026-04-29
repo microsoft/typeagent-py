@@ -7,12 +7,12 @@
 import os
 import tempfile
 
+from dotenv import load_dotenv
 import pytest
 
-from typeagent.aitools.embeddings import AsyncEmbeddingModel, TEST_MODEL_NAME
-from typeagent.aitools.utils import load_dotenv
+from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import kplib
+from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
@@ -32,7 +32,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
 
     try:
         # Use the test model that's already configured in the system
-        embedding_model = AsyncEmbeddingModel(model_name=TEST_MODEL_NAME)
+        embedding_model = create_test_embedding_model()
         embedding_settings = TextEmbeddingIndexSettings(embedding_model)
         message_text_settings = MessageTextIndexSettings(embedding_settings)
         related_terms_settings = RelatedTermIndexSettings(embedding_settings)
@@ -61,12 +61,12 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
             ),
         ]
 
-        msg_collection = await storage1.get_message_collection()
+        msg_collection = storage1.messages
         for message in test_messages:
             await msg_collection.append(message)
 
         # Add some semantic refs to create terms for the related terms index
-        sem_ref_collection = await storage1.get_semantic_ref_collection()
+        sem_ref_collection = storage1.semantic_refs
 
         # Add some entities
         entity_refs = [
@@ -97,7 +97,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
             await sem_ref_collection.append(sem_ref)
 
         # Manually populate the semantic ref index since the user guarantees it's complete externally
-        semantic_ref_index = await storage1.get_semantic_ref_index()
+        semantic_ref_index = storage1.semantic_ref_index
 
         for sem_ref in entity_refs:
             knowledge = sem_ref.knowledge
@@ -119,7 +119,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
         )
 
         # Check message collection size
-        msg_collection2 = await storage2.get_message_collection()
+        msg_collection2 = storage2.messages
         msg_count = await msg_collection2.size()
         print(f"Message collection size: {msg_count}")
         assert msg_count == len(
@@ -127,7 +127,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
         ), f"Expected {len(test_messages)} messages, got {msg_count}"
 
         # Check semantic ref collection size
-        sem_ref_collection2 = await storage2.get_semantic_ref_collection()
+        sem_ref_collection2 = storage2.semantic_refs
         sem_ref_count = await sem_ref_collection2.size()
         print(f"Semantic ref collection size: {sem_ref_count}")
         assert sem_ref_count == len(
@@ -148,7 +148,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
         await build_related_terms_index(conversation, related_terms_settings)
 
         # Check related terms index
-        related_terms_index = await storage2.get_related_terms_index()
+        related_terms_index = storage2.related_terms_index
         assert isinstance(related_terms_index, SqliteRelatedTermsIndex)
 
         # Check if fuzzy index has entries

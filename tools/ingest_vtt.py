@@ -21,10 +21,10 @@ from pathlib import Path
 import sys
 import time
 
+from dotenv import load_dotenv
 import webvtt
 
-from typeagent.aitools import utils
-from typeagent.aitools.embeddings import AsyncEmbeddingModel
+from typeagent.aitools.model_adapters import create_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ConversationMetadata
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
@@ -75,10 +75,10 @@ def create_arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--batchsize",
+        "--concurrency",
         type=int,
         default=None,
-        help="Batch size for knowledge extraction (default: from settings)",
+        help="Max concurrent knowledge extractions (default: from settings)",
     )
 
     parser.add_argument(
@@ -132,7 +132,7 @@ async def ingest_vtt_files(
     name: str | None = None,
     merge_consecutive: bool = False,
     verbose: bool = False,
-    batchsize: int | None = None,
+    concurrency: int | None = None,
     embedding_name: str | None = None,
 ) -> None:
     """Ingest one or more VTT files into a database."""
@@ -190,7 +190,7 @@ async def ingest_vtt_files(
     # Load environment for API access
     if verbose:
         print("Loading environment...")
-    utils.load_dotenv()
+    load_dotenv()
 
     # Determine transcript name before creating storage provider
     if not name:
@@ -203,7 +203,10 @@ async def ingest_vtt_files(
     if verbose:
         print("Setting up conversation settings...")
     try:
-        embedding_model = AsyncEmbeddingModel(model_name=embedding_name)
+        spec = embedding_name
+        if spec and ":" not in spec:
+            spec = f"openai:{spec}"
+        embedding_model = create_embedding_model(spec)
         settings = ConversationSettings(embedding_model)
 
         # Create metadata with the conversation name
@@ -224,9 +227,9 @@ async def ingest_vtt_files(
         # Update settings to use our storage provider
         settings.storage_provider = storage_provider
 
-        # Override batch size if specified
-        if batchsize is not None:
-            settings.semantic_ref_index_settings.batch_size = batchsize
+        # Override concurrency if specified
+        if concurrency is not None:
+            settings.semantic_ref_index_settings.concurrency = concurrency
 
         if verbose:
             print("Settings and storage provider configured")
@@ -239,8 +242,8 @@ async def ingest_vtt_files(
         print(f"\nParsing VTT files and creating messages...")
     try:
         # Get collections from our storage provider
-        msg_coll = await storage_provider.get_message_collection()
-        semref_coll = await storage_provider.get_semantic_ref_collection()
+        msg_coll = storage_provider.messages
+        semref_coll = storage_provider.semantic_refs
 
         # Database should be empty (we checked it doesn't exist earlier)
         # But verify collections are empty just in case
@@ -365,7 +368,7 @@ async def ingest_vtt_files(
                     f"    auto_extract_knowledge = {settings.semantic_ref_index_settings.auto_extract_knowledge}"
                 )
                 print(
-                    f"    batch_size = {settings.semantic_ref_index_settings.batch_size}"
+                    f"    concurrency = {settings.semantic_ref_index_settings.concurrency}"
                 )
 
             # Create a Transcript object
@@ -375,13 +378,14 @@ async def ingest_vtt_files(
                 tags=[name, "vtt-transcript"],
             )
 
-            # Process messages in batches
-            batch_size = settings.semantic_ref_index_settings.batch_size
+            # Process messages in batches for recoverability
+            batch_size = 50
             successful_count = 0
             start_time = time.time()
 
             print(
-                f"  Processing {len(all_messages)} messages in batches of {batch_size}..."
+                f"  Processing {len(all_messages)} messages"
+                f" (concurrency={settings.semantic_ref_index_settings.concurrency})..."
             )
 
             for i in range(0, len(all_messages), batch_size):
@@ -446,7 +450,7 @@ def main():
             database=args.database,
             name=args.name,
             merge_consecutive=args.merge,
-            batchsize=args.batchsize,
+            concurrency=args.concurrency,
             embedding_name=args.embedding_name,
             verbose=args.verbose,
         )
