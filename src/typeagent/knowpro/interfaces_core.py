@@ -93,6 +93,7 @@ class AddMessagesResult:
     messages_added: int = 0
     chunks_added: int = 0
     semrefs_added: int = 0
+    messages_skipped: int = 0
 
 
 # Messages are referenced by their sequential ordinal numbers.

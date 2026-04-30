@@ -159,6 +159,10 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         return source_id in self._ingested_sources
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        return self._ingested_sources & set(source_ids)
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 

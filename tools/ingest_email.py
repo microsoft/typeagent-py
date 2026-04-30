@@ -385,19 +385,27 @@ async def ingest_emails(
         "skipped": 0,
         "failed": 0,
         "ingested": 0,
+        "deduped": 0,
         "batches": 0,
     }
 
     def on_batch_committed(result: AddMessagesResult) -> None:
         counters["ingested"] += result.messages_added
+        counters["deduped"] += result.messages_skipped
         counters["batches"] += 1
         elapsed = time.time() - start_time
+        skipped_part = (
+            f", {result.messages_skipped} already ingested"
+            if result.messages_skipped
+            else ""
+        )
         print(
             f"  Batch {counters['batches']}: "
             f"+{result.messages_added} messages, "
-            f"+{result.semrefs_added} semrefs | "
-            f"{counters['ingested']} total imported | "
-            f"{elapsed:.1f}s elapsed"
+            f"+{result.semrefs_added} semrefs{skipped_part} | "
+            f"{counters['ingested']} total ingested | "
+            f"{elapsed:.1f}s elapsed",
+            flush=True,
         )
 
     message_stream = _email_generator(
@@ -416,26 +424,24 @@ async def ingest_emails(
 
     print()
     if verbose:
-        print(f"Successfully imported {result.messages_added} email(s)")
+        print(f"Successfully ingested {result.messages_added} email(s)")
         if counters["skipped"]:
             print(f"Skipped {counters['skipped']} email(s) outside date range")
-        deduped = counters["parsed"] - result.messages_added
-        if deduped > 0:
-            print(f"Skipped {deduped} already-ingested email(s)")
+        if result.messages_skipped:
+            print(f"Skipped {result.messages_skipped} already-ingested email(s)")
         if counters["failed"]:
             print(f"Failed to parse {counters['failed']} email(s)")
         print(f"Extracted {semref_count} semantic references")
         print(f"Total time: {elapsed:.1f}s")
     else:
         print(
-            f"Imported {result.messages_added} emails to {database} "
+            f"ingested {result.messages_added} emails to {database} "
             f"({semref_count} refs, {elapsed:.1f}s)"
         )
         if counters["skipped"]:
             print(f"Skipped: {counters['skipped']} (outside date range)")
-        deduped = counters["parsed"] - result.messages_added
-        if deduped > 0:
-            print(f"Skipped: {deduped} (already ingested)")
+        if result.messages_skipped:
+            print(f"Skipped: {result.messages_skipped} (already ingested)")
         if counters["failed"]:
             print(f"Failed: {counters['failed']}")
 

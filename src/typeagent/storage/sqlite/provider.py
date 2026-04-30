@@ -564,6 +564,19 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row is not None and row[0] == STATUS_INGESTED
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        if not source_ids:
+            return set()
+        cursor = self.db.cursor()
+        placeholders = ",".join("?" for _ in source_ids)
+        cursor.execute(
+            f"SELECT source_id FROM IngestedSources"
+            f" WHERE source_id IN ({placeholders}) AND status = ?",
+            [*source_ids, STATUS_INGESTED],
+        )
+        return {row[0] for row in cursor.fetchall()}
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 
