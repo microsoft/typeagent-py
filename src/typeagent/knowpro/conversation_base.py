@@ -238,7 +238,10 @@ class ConversationBase(
 
         Args:
             messages: An async iterable of messages to ingest.
-            batch_size: Number of messages per commit batch.
+            batch_size: Target number of text chunks per commit batch.
+                Messages are never split across batches, so the actual
+                chunk count may exceed ``batch_size`` if a single message
+                has more chunks than that.
             on_batch_committed: Optional callback invoked after each batch is
                 committed, receiving the batch's ``AddMessagesResult``.
 
@@ -305,12 +308,21 @@ class ConversationBase(
 
         try:
             batch: list[TMessage] = []
+            batch_chunks = 0
             async for msg in messages:
-                batch.append(msg)
-                if len(batch) >= batch_size:
+                msg_chunks = len(msg.text_chunks)
+                if batch and batch_chunks + msg_chunks > batch_size:
                     filtered, skipped = await self._filter_ingested(storage, batch)
                     await _submit_batch(filtered, skipped)
                     batch = []
+                    batch_chunks = 0
+                batch.append(msg)
+                batch_chunks += msg_chunks
+                if batch_chunks >= batch_size:
+                    filtered, skipped = await self._filter_ingested(storage, batch)
+                    await _submit_batch(filtered, skipped)
+                    batch = []
+                    batch_chunks = 0
 
             if batch:
                 filtered, skipped = await self._filter_ingested(storage, batch)

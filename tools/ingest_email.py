@@ -143,7 +143,17 @@ def create_arg_parser() -> argparse.ArgumentParser:
         type=int,
         default=100,
         metavar="N",
-        help="Number of messages per commit batch. Default: 100.",
+        help="Number of chunks per commit batch. Default: 100.",
+    )
+    parser.add_argument(
+        "--max-chunks",
+        type=int,
+        default=20,
+        metavar="N",
+        help=(
+            "Maximum number of text chunks to keep per email. "
+            "Extra chunks are silently dropped. Default: 20."
+        ),
     )
 
     return parser
@@ -168,6 +178,10 @@ def _validate_args(args: argparse.Namespace) -> None:
     # --batch-size must be positive
     if args.batch_size <= 0:
         errors.append("--batch-size must be a positive integer.")
+
+    # --max-chunks must be positive when given
+    if args.max_chunks is not None and args.max_chunks <= 0:
+        errors.append("--max-chunks must be a positive integer.")
 
     # --start-date must be before --stop-date when both are given
     if args.start_date and args.stop_date:
@@ -291,6 +305,7 @@ async def _email_generator(
     stop_date: datetime | None,
     offset: int,
     limit: int | None,
+    max_chunks: int | None,
     counters: dict[str, int],
 ) -> AsyncIterator[EmailMessage]:
     """Async generator that parses and yields EmailMessage objects.
@@ -323,6 +338,12 @@ async def _email_generator(
             print(label)
             _print_email_verbose(email)
 
+        # Truncate chunks if --max-chunks is set
+        if max_chunks is not None and len(email.text_chunks) > max_chunks:
+            if verbose:
+                print(f"    Truncating {len(email.text_chunks)} chunks to {max_chunks}")
+            email.text_chunks = email.text_chunks[:max_chunks]
+
         # Set source_id so streaming API handles dedup and tracking
         email.source_id = source_id
         counters["parsed"] += 1
@@ -339,6 +360,7 @@ async def ingest_emails(
     limit: int | None = None,
     concurrency: int | None = None,
     batch_size: int = 100,
+    max_chunks: int | None = 20,
 ) -> None:
     """Ingest email files into a database."""
 
@@ -373,7 +395,7 @@ async def ingest_emails(
     effective_concurrency = settings.semantic_ref_index_settings.concurrency
     if verbose:
         print(f"Concurrency: {effective_concurrency}")
-        print(f"Batch size: {batch_size}")
+        print(f"Batch size: {batch_size} chunks")
         print("\nParsing and importing emails...")
 
     start_time = time.time()
@@ -402,6 +424,7 @@ async def ingest_emails(
         print(
             f"  Batch {counters['batches']}: "
             f"+{result.messages_added} messages, "
+            f"+{result.chunks_added} chunks, "
             f"+{result.semrefs_added} semrefs{skipped_part} | "
             f"{counters['ingested']} total ingested | "
             f"{elapsed:.1f}s elapsed",
@@ -409,7 +432,7 @@ async def ingest_emails(
         )
 
     message_stream = _email_generator(
-        eml_paths, verbose, start_date, stop_date, offset, limit, counters
+        eml_paths, verbose, start_date, stop_date, offset, limit, max_chunks, counters
     )
 
     result = await email_memory.add_messages_streaming(
@@ -473,6 +496,7 @@ def main() -> None:
             limit=args.limit,
             concurrency=args.concurrency,
             batch_size=args.batch_size,
+            max_chunks=args.max_chunks,
         )
     )
 
