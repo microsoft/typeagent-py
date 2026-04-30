@@ -256,7 +256,7 @@ def _iter_emails(
     sliced_total = len(email_files)
     for i, email_file in enumerate(email_files):
         label = f"[{i + 1}/{sliced_total}] {email_file}"
-        yield str(email_file), email_file, label
+        yield str(email_file.resolve()), email_file, label
 
 
 def _print_email_verbose(email: EmailMessage) -> None:
