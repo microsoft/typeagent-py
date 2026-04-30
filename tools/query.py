@@ -8,8 +8,10 @@ __version__ = "0.3"
 import argparse
 import asyncio
 from collections.abc import Mapping
+import contextvars
 from dataclasses import dataclass, field, replace
 import difflib
+import io
 import json
 import os
 import re
@@ -58,6 +60,21 @@ from typeagent.knowpro.interfaces import (
 )
 from typeagent.podcasts import podcast
 from typeagent.storage.utils import create_storage_provider
+
+### Output redirection for batch concurrency ###
+
+_output_buf: contextvars.ContextVar[io.StringIO | None] = contextvars.ContextVar(
+    "_output_buf", default=None
+)
+
+
+def qprint(*args: object, **kwargs: typing.Any) -> None:
+    """Print wrapper that redirects to per-task StringIO when set."""
+    buf = _output_buf.get()
+    if buf is not None and "file" not in kwargs:
+        kwargs["file"] = buf
+    print(*args, **kwargs)
+
 
 ### Classes ###
 
@@ -631,7 +648,9 @@ async def main():
                 + f"Running in batch mode [{args.offset}:{args.offset + args.limit if args.limit else ''}]."
                 + Fore.RESET
             )
-        await batch_loop(context, args.offset, args.limit, args.skip_counters)
+        await batch_loop(
+            context, args.offset, args.limit, args.skip_counters, args.concurrency
+        )
     else:
         if args.verbose:
             print(Fore.YELLOW + "Running in interactive mode." + Fore.RESET)
@@ -696,7 +715,11 @@ async def print_conversation_stats(c: IConversation, verbose: bool = True) -> No
 
 
 async def batch_loop(
-    context: ProcessingContext, offset: int, limit: int, skip_counters: str
+    context: ProcessingContext,
+    offset: int,
+    limit: int,
+    skip_counters: str,
+    concurrency: int,
 ) -> None:
     skips = []
     if skip_counters:
@@ -704,15 +727,36 @@ async def batch_loop(
     if limit == 0:
         limit = len(context.ar_list) - offset
     sublist = context.ar_list[offset : offset + limit]
-    all_scores = []
+
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def run_one(counter: int, question: str) -> tuple[int, float | None, str]:
+        buf = io.StringIO()
+        token = _output_buf.set(buf)
+        try:
+            qprint("-" * 20, counter, question, "-" * 20)
+            async with semaphore:
+                score = await process_query(context, question)
+            return (counter, score, buf.getvalue())
+        finally:
+            _output_buf.reset(token)
+
+    tasks: list[asyncio.Task[tuple[int, float | None, str]]] = []
     for counter, qadata in enumerate(sublist, offset + 1):
         if counter in skips:
             continue
         question = qadata["question"]
-        print("-" * 20, counter, question, "-" * 20)
-        score = await process_query(context, question)
+        tasks.append(asyncio.create_task(run_one(counter, question)))
+
+    results = await asyncio.gather(*tasks)
+
+    # Output in canonical (counter) order
+    all_scores: list[tuple[float, int]] = []
+    for counter, score, output in sorted(results):
+        sys.stdout.write(output)
         if score is not None:
             all_scores.append((score, counter))
+
     if not all_scores:
         return
     print("=" * 50)
@@ -786,14 +830,14 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         if not record or (
             "searchQueryExpr" not in record or "compiledQueryExpr" not in record
         ):
-            print("Can't skip stages 1 or 2, no precomputed outcomes found.")
+            qprint("Can't skip stages 1 or 2, no precomputed outcomes found.")
         else:
             # Skipping stage 2 implies skipping stage 1, and we must supply the
             # precomputed results for both stages.
             debug_context.use_search_query = serialization.deserialize_object(
                 search_query_schema.SearchQuery, record["searchQueryExpr"]
             )
-            print("Skipping stage 1, substituting precomputed search query.")
+            qprint("Skipping stage 1, substituting precomputed search query.")
             if context.debug2 == "skip":
                 debug_context.use_compiled_search_query_exprs = (
                     serialization.deserialize_object(
@@ -801,7 +845,7 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
                         record["compiledQueryExpr"],
                     )
                 )
-                print(
+                qprint(
                     "Skipping stage 2, substituting precomputed compiled query expressions."
                 )
         prsep()
@@ -823,62 +867,62 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
         debug_context=debug_context,
     )
     if isinstance(result, typechat.Failure):
-        print("Stages 1-3 failed:")
-        print(Fore.RED + str(result) + Fore.RESET)
+        qprint("Stages 1-3 failed:")
+        qprint(Fore.RED + str(result) + Fore.RESET)
         return
     search_results = result.value
 
     actual1 = debug_context.search_query
     if actual1:
         if context.debug1 == "full":
-            print("Stage 1 results:")
-            utils.pretty_print(actual1, Fore.GREEN, Fore.RESET)
+            qprint("Stage 1 results:")
+            utils.pretty_print(actual1, Fore.GREEN, Fore.RESET, file=_output_buf.get())
             prsep()
         elif context.debug1 == "diff":
             if record and "searchQueryExpr" in record:
-                print("Stage 1 diff:")
+                qprint("Stage 1 diff:")
                 expected1 = serialization.deserialize_object(
                     search_query_schema.SearchQuery, record["searchQueryExpr"]
                 )
                 compare_and_print_diff(expected1, actual1)
             else:
-                print("Stage 1 diff unavailable")
+                qprint("Stage 1 diff unavailable")
             prsep()
 
     actual2 = debug_context.search_query_expr
     if actual2:
         if context.debug2 == "full":
-            print("Stage 2 results:")
-            utils.pretty_print(actual2, Fore.GREEN, Fore.RESET)
+            qprint("Stage 2 results:")
+            utils.pretty_print(actual2, Fore.GREEN, Fore.RESET, file=_output_buf.get())
             prsep()
         elif context.debug2 == "diff":
             if record and "compiledQueryExpr" in record:
-                print("Stage 2 diff:")
+                qprint("Stage 2 diff:")
                 expected2 = serialization.deserialize_object(
                     list[search.SearchQueryExpr], record["compiledQueryExpr"]
                 )
                 compare_and_print_diff(expected2, actual2)
             else:
-                print("Stage 2 diff unavailable")
+                qprint("Stage 2 diff unavailable")
             prsep()
 
     actual3 = search_results
     if context.debug3 == "full":
-        print("Stage 3 full results:")
-        utils.pretty_print(actual3, Fore.GREEN, Fore.RESET)
+        qprint("Stage 3 full results:")
+        utils.pretty_print(actual3, Fore.GREEN, Fore.RESET, file=_output_buf.get())
         prsep()
     elif context.debug3 == "nice":
-        print("Stage 3 nice results:")
+        qprint("Stage 3 nice results:")
         for sr in search_results:
             await print_result(sr, context.query_context.conversation)
         prsep()
     elif context.debug3 == "diff":
         if record and "results" in record:
-            print("Stage 3 diff:")
+            qprint("Stage 3 diff:")
             expected3: list[RawSearchResultData] = record["results"]
             compare_results(expected3, actual3)
         else:
-            print("Stage 3 diff unavailable")
+            qprint("Stage 3 diff unavailable")
         prsep()
 
     context.answer_context_options.debug = context.debug4 == "full"
@@ -897,19 +941,19 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
             context.history.add(query_text, combined_answer.why_no_answer or "", False)
 
     if context.debug4 == "full":
-        utils.pretty_print(all_answers)
+        utils.pretty_print(all_answers, file=_output_buf.get())
         prsep()
     if context.debug4 in ("full", "nice"):
         if combined_answer.type == "NoAnswer":
-            print(Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET)
+            qprint(Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET)
         else:
-            print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
+            qprint(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
         prsep()
     elif context.debug4 == "diff":
         if query_text in context.ar_index:
             record = context.ar_index[query_text]
             expected4: tuple[str, bool] = (record["answer"], not record["hasNoAnswer"])
-            print("Stage 4 diff:")
+            qprint("Stage 4 diff:")
             match combined_answer.type:
                 case "NoAnswer":
                     actual4 = (combined_answer.why_no_answer or "", False)
@@ -917,23 +961,23 @@ async def process_query(context: ProcessingContext, query_text: str) -> float | 
                     actual4 = (combined_answer.answer or "", True)
             score = await compare_answers(context, expected4, actual4)
             if actual4[0].startswith("TypeChat failure:"):
-                print(Fore.YELLOW + "No answer received" + Fore.RESET)
+                qprint(Fore.YELLOW + "No answer received" + Fore.RESET)
             else:
-                print(f"Score: {score:.3f}; Question: {query_text}")
+                qprint(f"Score: {score:.3f}; Question: {query_text}")
             return score
         else:
-            print("Stage 4 diff unavailable; nice answer:")
+            qprint("Stage 4 diff unavailable; nice answer:")
             if combined_answer.type == "NoAnswer":
-                print(
+                qprint(
                     Fore.RED + f"Failure: {combined_answer.why_no_answer}" + Fore.RESET
                 )
             else:
-                print(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
+                qprint(Fore.GREEN + f"{combined_answer.answer}" + Fore.RESET)
         prsep()
 
 
 def prsep():
-    print("-" * 50)
+    qprint("-" * 50)
 
 
 ### CLI processing ###
@@ -1018,6 +1062,12 @@ def make_arg_parser(description: str) -> argparse.ArgumentParser:
         type=int,
         default=0,
         help="Do just this question (similar to --offset START-1 --limit 1)",
+    )
+    batch.add_argument(
+        "--concurrency",
+        type=int,
+        default=10,
+        help="Max concurrent queries in batch mode (default 10)",
     )
 
     debug = parser.add_argument_group("Debug options")
@@ -1134,13 +1184,13 @@ async def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
     result: search.ConversationSearchResult,
     conversation: IConversation[TMessage, TIndex],
 ) -> None:
-    print(
+    qprint(
         f"Raw query: {result.raw_query_text};",
         f"{len(result.message_matches)} message matches,",
         f"{len(result.knowledge_matches)} knowledge matches",
     )
     if result.message_matches:
-        print("Message matches:")
+        qprint("Message matches:")
         for scored_ord in sorted(
             result.message_matches, key=lambda x: x.score, reverse=True
         ):
@@ -1149,25 +1199,25 @@ async def print_result[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
             msg = await conversation.messages.get_item(msg_ord)
             assert msg.metadata is not None  # For type checkers
             text = " ".join(msg.text_chunks).strip()
-            print(
+            qprint(
                 f"({score:5.1f}) M={msg_ord:d}: "
                 f"{msg.metadata.source!s:>15.15s}: "
                 f"{repr(text)[1:-1]:<150.150s}  "
             )
     if result.knowledge_matches:
-        print(f"Knowledge matches ({', '.join(sorted(result.knowledge_matches))}):")
+        qprint(f"Knowledge matches ({', '.join(sorted(result.knowledge_matches))}):")
         for key, value in sorted(result.knowledge_matches.items()):
-            print(f"Type {key} -- {value.term_matches}:")
+            qprint(f"Type {key} -- {value.term_matches}:")
             for scored_sem_ref_ord in value.semantic_ref_matches:
                 score = scored_sem_ref_ord.score
                 sem_ref_ord = scored_sem_ref_ord.semantic_ref_ordinal
                 if conversation.semantic_refs is None:
-                    print(f"  Ord: {sem_ref_ord} (score {score})")
+                    qprint(f"  Ord: {sem_ref_ord} (score {score})")
                 else:
                     sem_ref = await conversation.semantic_refs.get_item(sem_ref_ord)
                     msg_ord = sem_ref.range.start.message_ordinal
                     msg = await conversation.messages.get_item(msg_ord)
-                    print(
+                    qprint(
                         f"({score:5.1f}) M={msg_ord}: "
                         f"S={summarize_knowledge(sem_ref)}"
                     )
@@ -1227,7 +1277,7 @@ def compare_results(
     results: list[search.ConversationSearchResult],
 ) -> bool:
     if len(results) != len(matches_records):
-        print(f"(Result sizes mismatch, {len(results)} != {len(matches_records)})")
+        qprint(f"(Result sizes mismatch, {len(results)} != {len(matches_records)})")
         return False
     res = True
     for result, record in zip(results, matches_records):
@@ -1277,8 +1327,10 @@ def compare_message_ordinals(aa: list[ScoredMessageOrdinal], b: list[int]) -> bo
     a = [aai.message_ordinal for aai in aa]
     if set(a) ^ set(b) <= NOISE_MESSAGES:
         return True
-    print("Message ordinals do not match:")
-    utils.list_diff("  Expected:", b, "  Actual:", a, max_items=20)
+    qprint("Message ordinals do not match:")
+    utils.list_diff(
+        "  Expected:", b, "  Actual:", a, max_items=20, file=_output_buf.get()
+    )
     return False
 
 
@@ -1288,8 +1340,10 @@ def compare_semantic_ref_ordinals(
     a = [aai.semantic_ref_ordinal for aai in aa]
     if sorted(a) == sorted(b):
         return True
-    print(f"{label.capitalize()} SemanticRef ordinals do not match:")
-    utils.list_diff("  Expected:", b, "  Actual:", a, max_items=20)
+    qprint(f"{label.capitalize()} SemanticRef ordinals do not match:")
+    utils.list_diff(
+        "  Expected:", b, "  Actual:", a, max_items=20, file=_output_buf.get()
+    )
     return False
 
 
@@ -1319,18 +1373,18 @@ async def compare_answers(
     actual_text, actual_success = actual
 
     if expected_success != actual_success:
-        print(
+        qprint(
             f"Expected success: {Fore.RED}{expected_success}{Fore.RESET}; "
             f"actual: {Fore.GREEN}{actual_success}{Fore.RESET}"
         )
         score = 0.000 if expected_success else 0.001  # 0.001 == Answer not expected
 
     elif not actual_success:
-        print(Fore.GREEN + f"Both failed" + Fore.RESET)
+        qprint(Fore.GREEN + f"Both failed" + Fore.RESET)
         score = 1.001
 
     elif expected_text == actual_text:
-        print(Fore.GREEN + f"Both equal" + Fore.RESET)
+        qprint(Fore.GREEN + f"Both equal" + Fore.RESET)
         score = 1.000
 
     else:
@@ -1341,7 +1395,7 @@ async def compare_answers(
     else:
         n = 2
     if score == 1.0:
-        print(actual_text)
+        qprint(actual_text)
     else:
         print_diff(expected_text, actual_text, n=n)
 
@@ -1358,11 +1412,11 @@ def print_diff(a: str, b: str, n: int) -> None:
     )
     for x in diff:
         if x.startswith("-"):
-            print(Fore.RED + x.rstrip("\n") + Fore.RESET)
+            qprint(Fore.RED + x.rstrip("\n") + Fore.RESET)
         elif x.startswith("+"):
-            print(Fore.GREEN + x.rstrip("\n") + Fore.RESET)
+            qprint(Fore.GREEN + x.rstrip("\n") + Fore.RESET)
         else:
-            print(x.rstrip("\n"))
+            qprint(x.rstrip("\n"))
 
 
 async def equality_score(context: ProcessingContext, a: str, b: str) -> float:
