@@ -2,9 +2,14 @@
   "hooks": {
     "PreToolUse": [
       {
-        "type": "command",
-        "command": "uv run python scripts/block_git_mutations.py",
-        "timeout": 5
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run python scripts/block_git_mutations.py",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }
