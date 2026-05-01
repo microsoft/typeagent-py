@@ -181,6 +181,10 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Check if a source has already been ingested."""
         ...
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        ...
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source."""
         ...

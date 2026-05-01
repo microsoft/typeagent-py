@@ -17,24 +17,16 @@ Usage:
     python tools/query.py --database email.db --query "What was discussed?"
 """
 
-"""
-TODO
-
-- Collect knowledge outside db transaction to reduce lock time
-"""
-
 import argparse
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
 import sys
 import time
-import traceback
 from typing import Iterable
 
 from dotenv import load_dotenv
-
-import openai
 
 from typeagent.aitools import utils
 from typeagent.emails.email_import import (
@@ -45,6 +37,8 @@ from typeagent.emails.email_import import (
 from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.interfaces_core import AddMessagesResult
+from typeagent.knowpro.interfaces_storage import IStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 
@@ -134,6 +128,35 @@ def create_arg_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    # Concurrency / batching
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Number of concurrent LLM extraction requests. "
+            "Default: 4 (from ConversationSettings)."
+        ),
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        metavar="N",
+        help="Number of chunks per commit batch. Default: 100.",
+    )
+    parser.add_argument(
+        "--max-chunks",
+        type=int,
+        default=20,
+        metavar="N",
+        help=(
+            "Maximum number of text chunks to keep per email. "
+            "Extra chunks are silently dropped. Default: 20."
+        ),
+    )
+
     return parser
 
 
@@ -149,8 +172,17 @@ def _validate_args(args: argparse.Namespace) -> None:
     if args.limit is not None and args.limit <= 0:
         errors.append("--limit must be a positive integer.")
 
-    # --offset without --limit is allowed (skip first N, ingest the rest)
-    # --limit without --offset is allowed (ingest at most N)
+    # --concurrency must be positive when given
+    if args.concurrency is not None and args.concurrency <= 0:
+        errors.append("--concurrency must be a positive integer.")
+
+    # --batch-size must be positive
+    if args.batch_size <= 0:
+        errors.append("--batch-size must be a positive integer.")
+
+    # --max-chunks must be positive when given
+    if args.max_chunks is not None and args.max_chunks <= 0:
+        errors.append("--max-chunks must be a positive integer.")
 
     # --start-date must be before --stop-date when both are given
     if args.start_date and args.stop_date:
@@ -239,7 +271,7 @@ def _iter_emails(
     sliced_total = len(email_files)
     for i, email_file in enumerate(email_files):
         label = f"[{i + 1}/{sliced_total}] {email_file}"
-        yield str(email_file), email_file, label
+        yield str(email_file.resolve()), email_file, label
 
 
 def _print_email_verbose(email: EmailMessage) -> None:
@@ -267,6 +299,103 @@ def _print_email_verbose(email: EmailMessage) -> None:
         print(f"      {preview}")
 
 
+def _flush_skipped(
+    skip_first: str | None,
+    skip_last: str | None,
+    skip_count: int,
+) -> None:
+    """Print a summary line for a contiguous range of skipped files."""
+    if skip_count == 0:
+        return
+    assert skip_first is not None and skip_last is not None
+    if skip_count == 1:
+        print(f"  Skipped {skip_first} (already ingested)")
+    elif skip_first == skip_last:
+        print(f"  Skipped {skip_first} x{skip_count} (already ingested)")
+    else:
+        print(
+            f"  Skipped {skip_first} .. {skip_last}" f" ({skip_count} already ingested)"
+        )
+
+
+async def _email_generator(
+    eml_paths: list[str],
+    verbose: bool,
+    start_date: datetime | None,
+    stop_date: datetime | None,
+    offset: int,
+    limit: int | None,
+    max_chunks: int | None,
+    counters: dict[str, int],
+    storage: IStorageProvider[EmailMessage],
+) -> AsyncIterator[EmailMessage]:
+    """Async generator that parses and yields EmailMessage objects.
+
+    Checks each file's source_id against already-ingested sources
+    *before* parsing, so batches contain only new messages.
+
+    *counters* is mutated in place to track ``parsed``, ``skipped``,
+    and ``failed`` counts for the caller's summary.
+    """
+    skip_first: str | None = None
+    skip_last: str | None = None
+    skip_count = 0
+
+    for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
+        # Pre-parse dedup: skip before opening the file.
+        # A second dedup pass happens in _filter_ingested() to catch
+        # sources committed by an earlier batch in the same run.
+        if await storage.is_source_ingested(source_id):
+            counters["skipped"] += 1
+            basename = email_file.name
+            if skip_first is None:
+                skip_first = basename
+            skip_last = basename
+            skip_count += 1
+            continue
+
+        # Flush any pending skip summary before processing a new file
+        _flush_skipped(skip_first, skip_last, skip_count)
+        skip_first = None
+        skip_last = None
+        skip_count = 0
+
+        try:
+            email = import_email_from_file(str(email_file))
+        except Exception as e:
+            counters["failed"] += 1
+            print(
+                f"Error parsing {source_id}: {e!r:.150s}",
+                file=sys.stderr,
+            )
+            continue
+
+        # Apply date filter
+        if not email_matches_date_filter(email.timestamp, start_date, stop_date):
+            counters["date_skipped"] += 1
+            if verbose:
+                print(f"{label}  [Outside date range, skipping]")
+            continue
+
+        if verbose:
+            print(label)
+            _print_email_verbose(email)
+
+        # Truncate chunks if --max-chunks is set
+        if max_chunks is not None and len(email.text_chunks) > max_chunks:
+            if verbose:
+                print(f"    Truncating {len(email.text_chunks)} chunks to {max_chunks}")
+            email.text_chunks = email.text_chunks[:max_chunks]
+
+        # Set source_id so streaming API handles dedup and tracking
+        email.source_id = source_id
+        counters["parsed"] += 1
+        yield email
+
+    # Flush any remaining skip summary at end of iteration
+    _flush_skipped(skip_first, skip_last, skip_count)
+
+
 async def ingest_emails(
     eml_paths: list[str],
     database: str,
@@ -275,6 +404,9 @@ async def ingest_emails(
     stop_date: datetime | None = None,
     offset: int = 0,
     limit: int | None = None,
+    concurrency: int | None = None,
+    batch_size: int = 100,
+    max_chunks: int | None = 20,
 ) -> None:
     """Ingest email files into a database."""
 
@@ -288,6 +420,11 @@ async def ingest_emails(
         print("Setting up conversation settings...")
 
     settings = ConversationSettings()
+
+    # Override concurrency if specified
+    if concurrency is not None:
+        settings.semantic_ref_index_settings.concurrency = concurrency
+
     settings.storage_provider = await create_storage_provider(
         settings.message_text_index_settings,
         settings.related_term_index_settings,
@@ -301,97 +438,113 @@ async def ingest_emails(
     if verbose:
         print(f"Target database: {database}")
 
-    concurrency = settings.semantic_ref_index_settings.concurrency
+    effective_concurrency = settings.semantic_ref_index_settings.concurrency
     if verbose:
-        print(f"Concurrency: {concurrency}")
+        print(f"Concurrency: {effective_concurrency}")
+        print(f"Batch size: {batch_size} chunks")
         print("\nParsing and importing emails...")
 
-    success_count = 0
-    failed_count = 0
-    skipped_count = 0
     start_time = time.time()
+    last_batch_time = start_time
 
-    semref_coll = settings.storage_provider.semantic_refs
-    storage_provider = settings.storage_provider
+    # Counters mutated by the generator and callback
+    counters: dict[str, int] = {
+        "parsed": 0,
+        "skipped": 0,
+        "date_skipped": 0,
+        "failed": 0,
+        "ingested": 0,
+        "chunks": 0,
+        "semrefs": 0,
+        "batches": 0,
+    }
 
-    for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
-        try:
-            if verbose:
-                print(label, end="", flush=True)
+    def on_batch_committed(result: AddMessagesResult) -> None:
+        nonlocal last_batch_time
+        counters["ingested"] += result.messages_added
+        counters["chunks"] += result.chunks_added
+        counters["semrefs"] += result.semrefs_added
+        counters["batches"] += 1
+        now = time.time()
+        batch_secs = now - last_batch_time
+        last_batch_time = now
+        elapsed = now - start_time
+        per_chunk = batch_secs / result.chunks_added if result.chunks_added else 0
+        print(
+            f"  Batch {counters['batches']}: "
+            f"+{result.messages_added} messages, "
+            f"+{result.chunks_added} chunks, "
+            f"+{result.semrefs_added} semrefs | "
+            f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
+            f"{counters['ingested']} total ingested | "
+            f"{elapsed:.1f}s elapsed",
+            flush=True,
+        )
 
-            # Parse the email only after confirming it hasn't been ingested
-            email = import_email_from_file(str(email_file))
+    message_stream = _email_generator(
+        eml_paths,
+        verbose,
+        start_date,
+        stop_date,
+        offset,
+        limit,
+        max_chunks,
+        counters,
+        settings.storage_provider,
+    )
 
-            # Apply date filter
-            if not email_matches_date_filter(email.timestamp, start_date, stop_date):
-                skipped_count += 1
-                if verbose:
-                    print("  [Outside date range, skipping]")
-                continue
-
-            if verbose:
-                _print_email_verbose(email)
-
-            # Ingest the email
-            try:
-                await email_memory.add_messages_with_indexing(
-                    [email], source_ids=[source_id]
-                )
-                success_count += 1
-            except openai.AuthenticationError as e:
-                if verbose:
-                    traceback.print_exc()
-                sys.exit(f"Authentication error: {e!r}")
-
-            # Print progress periodically
-            if concurrency and (success_count + failed_count) % concurrency == 0:
-                elapsed = time.time() - start_time
-                semref_count = await semref_coll.size()
-                print(
-                    f"\n{label} "
-                    f"{success_count} imported | "
-                    f"{failed_count} failed | "
-                    f"{skipped_count} skipped | "
-                    f"{semref_count} semrefs | "
-                    f"{elapsed:.1f}s elapsed\n"
-                )
-
-        except Exception as e:
-            failed_count += 1
-            print(
-                f"Error processing {source_id}: {e!r:.150s}",
-                file=sys.stderr,
-            )
-            mod = e.__class__.__module__
-            qual = e.__class__.__qualname__
-            exc_name = qual if mod == "builtins" else f"{mod}.{qual}"
-            async with storage_provider:
-                await storage_provider.mark_source_ingested(source_id, exc_name)
-            if verbose:
-                traceback.print_exc(limit=10)
+    result: AddMessagesResult | None = None
+    interrupted = False
+    try:
+        result = await email_memory.add_messages_streaming(
+            message_stream,
+            batch_size=batch_size,
+            on_batch_committed=on_batch_committed,
+        )
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        interrupted = True
 
     # Final summary
     elapsed = time.time() - start_time
-    semref_count = await semref_coll.size()
+    if interrupted and counters["batches"] == 0:
+        print()
+        print("Interrupted before any batches were committed.")
+        return
+
+    messages_ingested = (
+        result.messages_added if result is not None else counters["ingested"]
+    )
+    total_chunks = result.chunks_added if result is not None else counters["chunks"]
+    semrefs_added = result.semrefs_added if result is not None else counters["semrefs"]
+    overall_per_chunk = elapsed / total_chunks if total_chunks else 0
 
     print()
     if verbose:
-        print(f"Successfully imported {success_count} email(s)")
-        if skipped_count:
-            print(f"Skipped {skipped_count} already-ingested email(s)")
-        if failed_count:
-            print(f"Failed to import {failed_count} email(s)")
-        print(f"Extracted {semref_count} semantic references")
+        if interrupted:
+            print("Ingestion interrupted by user (^C).")
+        print(f"Successfully ingested {messages_ingested} email(s)")
+        print(f"Ingested {total_chunks} chunk(s)")
+        if counters["skipped"]:
+            print(f"Skipped {counters['skipped']} already-ingested email(s)")
+        if counters["date_skipped"]:
+            print(f"Skipped {counters['date_skipped']} email(s) outside date range")
+        if counters["failed"]:
+            print(f"Failed to parse {counters['failed']} email(s)")
+        print(f"Extracted {semrefs_added} semantic references")
         print(f"Total time: {elapsed:.1f}s")
+        print(f"Overall time per chunk: {overall_per_chunk:.2f}s/chunk")
     else:
         print(
-            f"Imported {success_count} emails to {database} "
-            f"({semref_count} refs, {elapsed:.1f}s)"
+            f"Ingested {messages_ingested} emails to {database} "
+            f"({total_chunks} chunks, {semrefs_added} refs added, {elapsed:.1f}s, "
+            f"{overall_per_chunk:.2f}s/chunk)"
         )
-        if skipped_count:
-            print(f"Skipped: {skipped_count} (already ingested)")
-        if failed_count:
-            print(f"Failed: {failed_count}")
+        if counters["skipped"]:
+            print(f"Skipped: {counters['skipped']} (already ingested)")
+        if counters["date_skipped"]:
+            print(f"Skipped: {counters['date_skipped']} (outside date range)")
+        if counters["failed"]:
+            print(f"Failed: {counters['failed']}")
 
     # Show usage information
     print()
@@ -419,6 +572,9 @@ def main() -> None:
             stop_date=stop_date,
             offset=args.offset,
             limit=args.limit,
+            concurrency=args.concurrency,
+            batch_size=args.batch_size,
+            max_chunks=args.max_chunks,
         )
     )
 
