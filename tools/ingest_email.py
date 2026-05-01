@@ -446,7 +446,6 @@ async def ingest_emails(
 
     start_time = time.time()
     last_batch_time = start_time
-    semref_coll = settings.storage_provider.semantic_refs
 
     # Counters mutated by the generator and callback
     counters: dict[str, int] = {
@@ -456,6 +455,7 @@ async def ingest_emails(
         "failed": 0,
         "ingested": 0,
         "chunks": 0,
+        "semrefs": 0,
         "batches": 0,
     }
 
@@ -463,6 +463,7 @@ async def ingest_emails(
         nonlocal last_batch_time
         counters["ingested"] += result.messages_added
         counters["chunks"] += result.chunks_added
+        counters["semrefs"] += result.semrefs_added
         counters["batches"] += 1
         now = time.time()
         batch_secs = now - last_batch_time
@@ -514,8 +515,8 @@ async def ingest_emails(
         result.messages_added if result is not None else counters["ingested"]
     )
     total_chunks = result.chunks_added if result is not None else counters["chunks"]
+    semrefs_added = result.semrefs_added if result is not None else counters["semrefs"]
     overall_per_chunk = elapsed / total_chunks if total_chunks else 0
-    semref_count = await semref_coll.size()
 
     print()
     if verbose:
@@ -529,13 +530,13 @@ async def ingest_emails(
             print(f"Skipped {counters['date_skipped']} email(s) outside date range")
         if counters["failed"]:
             print(f"Failed to parse {counters['failed']} email(s)")
-        print(f"Extracted {semref_count} semantic references")
+        print(f"Extracted {semrefs_added} semantic references")
         print(f"Total time: {elapsed:.1f}s")
         print(f"Overall time per chunk: {overall_per_chunk:.2f}s/chunk")
     else:
         print(
             f"Ingested {messages_ingested} emails to {database} "
-            f"({total_chunks} chunks, {semref_count} refs, {elapsed:.1f}s, "
+            f"({total_chunks} chunks, {semrefs_added} refs added, {elapsed:.1f}s, "
             f"{overall_per_chunk:.2f}s/chunk)"
         )
         if counters["skipped"]:
