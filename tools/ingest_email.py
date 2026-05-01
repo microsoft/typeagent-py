@@ -343,6 +343,9 @@ async def _email_generator(
 
     for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
         # Check source_id before opening the file
+        # Pre-parse dedup: skip before opening the file.
+        # A second dedup pass happens in _filter_ingested() to catch
+        # sources committed by an earlier batch in the same run.
         if await storage.is_source_ingested(source_id):
             counters["skipped"] += 1
             basename = email_file.name
