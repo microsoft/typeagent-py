@@ -455,12 +455,14 @@ async def ingest_emails(
         "date_skipped": 0,
         "failed": 0,
         "ingested": 0,
+        "chunks": 0,
         "batches": 0,
     }
 
     def on_batch_committed(result: AddMessagesResult) -> None:
         nonlocal last_batch_time
         counters["ingested"] += result.messages_added
+        counters["chunks"] += result.chunks_added
         counters["batches"] += 1
         now = time.time()
         batch_secs = now - last_batch_time
@@ -490,21 +492,36 @@ async def ingest_emails(
         settings.storage_provider,
     )
 
-    result = await email_memory.add_messages_streaming(
-        message_stream,
-        batch_size=batch_size,
-        on_batch_committed=on_batch_committed,
-    )
+    result: AddMessagesResult | None = None
+    interrupted = False
+    try:
+        result = await email_memory.add_messages_streaming(
+            message_stream,
+            batch_size=batch_size,
+            on_batch_committed=on_batch_committed,
+        )
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        interrupted = True
 
     # Final summary
     elapsed = time.time() - start_time
-    total_chunks = result.chunks_added
+    if interrupted and counters["batches"] == 0:
+        print()
+        print("Interrupted before any batches were committed.")
+        return
+
+    messages_ingested = (
+        result.messages_added if result is not None else counters["ingested"]
+    )
+    total_chunks = result.chunks_added if result is not None else counters["chunks"]
     overall_per_chunk = elapsed / total_chunks if total_chunks else 0
     semref_count = await semref_coll.size()
 
     print()
     if verbose:
-        print(f"Successfully ingested {result.messages_added} email(s)")
+        if interrupted:
+            print("Ingestion interrupted by user (^C).")
+        print(f"Successfully ingested {messages_ingested} email(s)")
         print(f"Ingested {total_chunks} chunk(s)")
         if counters["skipped"]:
             print(f"Skipped {counters['skipped']} already-ingested email(s)")
@@ -517,7 +534,7 @@ async def ingest_emails(
         print(f"Overall time per chunk: {overall_per_chunk:.2f}s/chunk")
     else:
         print(
-            f"Ingested {result.messages_added} emails to {database} "
+            f"Ingested {messages_ingested} emails to {database} "
             f"({total_chunks} chunks, {semref_count} refs, {elapsed:.1f}s, "
             f"{overall_per_chunk:.2f}s/chunk)"
         )
