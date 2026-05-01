@@ -269,7 +269,9 @@ class ConversationBase(
             nonlocal pending_commit, pending_skipped
             if pending_commit is not None:
                 result = await pending_commit
-                result.messages_skipped = pending_skipped
+                result = await pending_commit
+                result.messages_skipped += pending_skipped
+                _accumulate(result)
                 _accumulate(result)
                 pending_commit = None
                 pending_skipped = 0
