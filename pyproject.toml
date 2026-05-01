@@ -63,6 +63,7 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.pyright]
+extraPaths = ["src", "tools"]
 reportUnusedVariable = true
 reportUnusedImport = true
 reportDuplicateImport = true

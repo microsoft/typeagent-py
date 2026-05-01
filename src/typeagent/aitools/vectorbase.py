@@ -16,22 +16,22 @@ from .model_adapters import create_embedding_model
 DEFAULT_MIN_SCORE = 0.85
 
 # Empirical defaults for built-in OpenAI embedding models.
-# These values come from repeated runs of the Adrian Tchaikovsky Episode 53
+# These values come from the Adrian Tchaikovsky Episode 53
 # search benchmark in `tools/repeat_embedding_benchmarks.py`, using an
-# exhaustive 0.01..1.00 min_score sweep on the Adrian Tchaikovsky Episode 53
-# dataset. We keep the highest min_score that preserves the best benchmark
-# metrics for each model, which yielded the current plateau boundaries of 0.16 for
-# `text-embedding-3-small`, 0.07 for `text-embedding-3-large`, and 0.72 for
-# `text-embedding-ada-002`. These are repository defaults for known models,
-# not universal truths. Unknown models keep the long-standing fallback score
-# of 0.85. Callers can always override `min_score` explicitly for their own
-# use cases or models. We intentionally leave `max_matches` out of this table:
-# the benchmark still reports a best `max_hits` row, but the library default
-# remains `None` unless a caller opts into a specific limit.
+# exhaustive 0.00..1.00 min_score sweep. The benchmark recomputes corpus and
+# query embeddings for each model and ignores the fixture's serialized
+# embedding sidecar. Scores are normalized from cosine similarity to the public
+# 0..1 min_score scale.
+# These are repository defaults for known models, not universal truths.
+# Unknown models keep the long-standing fallback score of 0.85. Callers can
+# always override `min_score` explicitly for their own use cases or models. We
+# intentionally leave `max_matches` out of this table: the benchmark still
+# reports a best `max_hits` row, but the library default remains `None` unless
+# a caller opts into a specific limit.
 MODEL_DEFAULT_MIN_SCORES: dict[str, float] = {
-    "text-embedding-3-large": 0.07,
-    "text-embedding-3-small": 0.16,
-    "text-embedding-ada-002": 0.72,
+    "text-embedding-3-large": 0.74,
+    "text-embedding-3-small": 0.73,
+    "text-embedding-ada-002": 0.93,
 }
 
 
@@ -39,6 +39,12 @@ def get_default_min_score(model_name: str) -> float:
     """Return the repository default score cutoff for a known model name."""
 
     return MODEL_DEFAULT_MIN_SCORES.get(model_name, DEFAULT_MIN_SCORE)
+
+
+def cosine_to_score(cosine_similarity: np.ndarray) -> np.ndarray:
+    """Map cosine similarity from -1..1 to the public 0..1 score scale."""
+
+    return np.clip((cosine_similarity + 1.0) / 2.0, 0.0, 1.0)
 
 
 @dataclass
@@ -109,20 +115,19 @@ class VectorBase:
     def add_embedding(
         self, key: str | None, embedding: NormalizedEmbedding | list[float]
     ) -> None:
-        if isinstance(embedding, list):
-            embedding = np.array(embedding, dtype=np.float32)
+        embedding_array = np.asarray(embedding, dtype=np.float32)
         if self._embedding_size == 0:
-            self._set_embedding_size(len(embedding))
+            self._set_embedding_size(len(embedding_array))
             self._vectors.shape = (0, self._embedding_size)
-        if len(embedding) != self._embedding_size:
+        if len(embedding_array) != self._embedding_size:
             raise ValueError(
                 f"Embedding size mismatch: expected {self._embedding_size}, "
-                f"got {len(embedding)}"
+                f"got {len(embedding_array)}"
             )
-        embeddings = embedding.reshape(1, -1)  # Make it 2D: 1xN
+        embeddings = embedding_array.reshape(1, -1)  # Make it 2D: 1xN
         self._vectors = np.append(self._vectors, embeddings, axis=0)
         if key is not None:
-            self._model.add_embedding(key, embedding)
+            self._model.add_embedding(key, embedding_array)
 
     def add_embeddings(
         self, keys: None | list[str], embeddings: NormalizedEmbeddings
@@ -165,7 +170,7 @@ class VectorBase:
             min_score = 0.0
         if len(self._vectors) == 0:
             return []
-        scores = np.dot(self._vectors, embedding)
+        scores = cosine_to_score(np.dot(self._vectors, embedding))
         if predicate is None:
             # Stay in numpy: filter by score, then top-k via argpartition.
             indices = np.flatnonzero(scores >= min_score)
@@ -199,10 +204,27 @@ class VectorBase:
         max_hits: int | None = None,
         min_score: float | None = None,
     ) -> list[ScoredInt]:
-        ordinals_set = set(ordinals_of_subset)
-        return self.fuzzy_lookup_embedding(
-            embedding, max_hits, min_score, lambda i: i in ordinals_set
-        )
+        if max_hits is None:
+            max_hits = 10
+        if min_score is None:
+            min_score = 0.0
+        if not ordinals_of_subset or len(self._vectors) == 0:
+            return []
+        # Compute dot products only for the subset instead of all vectors.
+        subset = np.asarray(ordinals_of_subset)
+        scores = cosine_to_score(np.dot(self._vectors[subset], embedding))
+        indices = np.flatnonzero(scores >= min_score)
+        if len(indices) == 0:
+            return []
+        filtered_scores = scores[indices]
+        if len(indices) <= max_hits:
+            order = np.argsort(filtered_scores)[::-1]
+        else:
+            top_k = np.argpartition(filtered_scores, -max_hits)[-max_hits:]
+            order = top_k[np.argsort(filtered_scores[top_k])[::-1]]
+        return [
+            ScoredInt(int(subset[indices[i]]), float(filtered_scores[i])) for i in order
+        ]
 
     async def fuzzy_lookup(
         self,

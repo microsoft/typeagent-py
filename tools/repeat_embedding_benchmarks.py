@@ -22,13 +22,33 @@ import json
 from pathlib import Path
 from statistics import mean
 
-import benchmark_embeddings
+from benchmark_embeddings import (
+    ANSWER_EMBEDDING_SOURCE,
+    BenchmarkRow,
+    build_pipeline_conversation,
+    build_text_vector_base,
+    build_vector_base,
+    CORPUS_EMBEDDING_SOURCE,
+    DEFAULT_MAX_HITS,
+    evaluate_grid,
+    INDEX_DATA_PATH,
+    INDEX_EMBEDDINGS_PATH,
+    load_answer_queries,
+    load_corpus_metadata,
+    load_message_texts,
+    load_pipeline_queries,
+    load_related_term_queries,
+    load_related_term_texts,
+    load_search_queries,
+    measure_top_score_stats,
+    parse_int_list,
+    PIPELINE_SCORING_PATHS,
+    QUERY_EMBEDDING_SOURCE,
+    resolve_min_scores,
+    SEARCH_RESULTS_PATH,
+    select_best_row,
+)
 from dotenv import load_dotenv
-
-BenchmarkRow = benchmark_embeddings.BenchmarkRow
-DEFAULT_MAX_HITS = benchmark_embeddings.DEFAULT_MAX_HITS
-parse_int_list = benchmark_embeddings.parse_int_list
-resolve_min_scores = benchmark_embeddings.resolve_min_scores
 
 DEFAULT_MODELS = [
     "openai:text-embedding-3-small",
@@ -46,6 +66,15 @@ class RunRow:
     max_hits: int
     hit_rate: float
     mean_reciprocal_rank: float
+    pipeline_hit_rate: float | None
+    pipeline_mean_reciprocal_rank: float | None
+    pipeline_mean_result_count: float | None
+    related_hit_rate: float | None
+    related_mean_reciprocal_rank: float | None
+    related_mean_result_count: float | None
+    answerable_support: float | None
+    no_answer_rejection_rate: float | None
+    semantic_score: float | None
 
 
 @dataclass
@@ -78,6 +107,33 @@ def benchmark_row_to_run_row(row: BenchmarkRow) -> RunRow:
         max_hits=row.max_hits,
         hit_rate=row.metrics.hit_rate,
         mean_reciprocal_rank=row.metrics.mean_reciprocal_rank,
+        pipeline_hit_rate=(
+            row.pipeline_metrics.hit_rate if row.pipeline_metrics else None
+        ),
+        pipeline_mean_reciprocal_rank=(
+            row.pipeline_metrics.mean_reciprocal_rank if row.pipeline_metrics else None
+        ),
+        pipeline_mean_result_count=(
+            row.pipeline_metrics.mean_result_count if row.pipeline_metrics else None
+        ),
+        related_hit_rate=(
+            row.related_metrics.hit_rate if row.related_metrics else None
+        ),
+        related_mean_reciprocal_rank=(
+            row.related_metrics.mean_reciprocal_rank if row.related_metrics else None
+        ),
+        related_mean_result_count=(
+            row.related_metrics.mean_result_count if row.related_metrics else None
+        ),
+        answerable_support=(
+            row.answer_metrics.answerable_support if row.answer_metrics else None
+        ),
+        no_answer_rejection_rate=(
+            row.answer_metrics.no_answer_rejection_rate if row.answer_metrics else None
+        ),
+        semantic_score=(
+            row.answer_metrics.semantic_score if row.answer_metrics else None
+        ),
     )
 
 
@@ -97,6 +153,31 @@ def summarize_runs(model_spec: str, runs: list[RunResult]) -> dict[str, object]:
                 "max_hits": max_hits,
                 "mean_hit_rate": mean(row.hit_rate for row in rows),
                 "mean_mrr": mean(row.mean_reciprocal_rank for row in rows),
+                "mean_pipeline_hit_rate": mean(
+                    row.pipeline_hit_rate or 0.0 for row in rows
+                ),
+                "mean_pipeline_mrr": mean(
+                    row.pipeline_mean_reciprocal_rank or 0.0 for row in rows
+                ),
+                "mean_pipeline_result_count": mean(
+                    row.pipeline_mean_result_count or 0.0 for row in rows
+                ),
+                "mean_related_hit_rate": mean(
+                    row.related_hit_rate or 0.0 for row in rows
+                ),
+                "mean_related_mrr": mean(
+                    row.related_mean_reciprocal_rank or 0.0 for row in rows
+                ),
+                "mean_related_result_count": mean(
+                    row.related_mean_result_count or 0.0 for row in rows
+                ),
+                "mean_answerable_support": mean(
+                    row.answerable_support or 0.0 for row in rows
+                ),
+                "mean_no_answer_rejection_rate": mean(
+                    row.no_answer_rejection_rate or 0.0 for row in rows
+                ),
+                "mean_semantic_score": mean(row.semantic_score or 0.0 for row in rows),
             }
         )
 
@@ -114,9 +195,14 @@ def summarize_runs(model_spec: str, runs: list[RunResult]) -> dict[str, object]:
     averaged_best_row = max(
         averaged_rows,
         key=lambda row: (
+            float(row["mean_pipeline_mrr"]),
+            float(row["mean_pipeline_hit_rate"]),
+            float(row["mean_related_mrr"]),
+            float(row["mean_related_hit_rate"]),
             float(row["mean_mrr"]),
             float(row["mean_hit_rate"]),
             float(row["min_score"]),
+            float(row["mean_semantic_score"]),
             -int(row["max_hits"]),
         ),
     )
@@ -149,8 +235,14 @@ def write_markdown_summary(path: Path, summaries: list[dict[str, object]]) -> No
     lines = [
         "# Repeated Embedding Benchmark Summary",
         "",
-        "| Model | Runs | Recommended min_score | Recommended max_hits | Mean hit rate | Mean MRR |",
-        "| --- | ---: | ---: | ---: | ---: | ---: |",
+        "Corpus and query embeddings are recomputed for each evaluated model.",
+        (
+            "The serialized benchmark sidecar "
+            f"`{INDEX_EMBEDDINGS_PATH.name}` is ignored."
+        ),
+        "",
+        "| Model | Runs | Recommended min_score | Recommended max_hits | Pipeline hit rate | Pipeline MRR | Related hit rate | Related MRR | Mean hit rate | Mean MRR | Answer support | No-answer rejection | Semantic score |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for summary in summaries:
         recommended_row = summary["recommended_row"]
@@ -161,8 +253,15 @@ def write_markdown_summary(path: Path, summaries: list[dict[str, object]]) -> No
             f"{summary['run_count']} | "
             f"{recommended_row['min_score']:.2f} | "
             f"{recommended_row['max_hits']} | "
+            f"{recommended_row['mean_pipeline_hit_rate']:.2f} | "
+            f"{recommended_row['mean_pipeline_mrr']:.4f} | "
+            f"{recommended_row['mean_related_hit_rate']:.2f} | "
+            f"{recommended_row['mean_related_mrr']:.4f} | "
             f"{recommended_row['mean_hit_rate']:.2f} | "
-            f"{recommended_row['mean_mrr']:.4f} |"
+            f"{recommended_row['mean_mrr']:.4f} | "
+            f"{recommended_row['mean_answerable_support']:.4f} | "
+            f"{recommended_row['mean_no_answer_rejection_rate']:.2f} | "
+            f"{recommended_row['mean_semantic_score']:.2f} |"
         )
     lines.append("")
     for summary in summaries:
@@ -173,6 +272,51 @@ def write_markdown_summary(path: Path, summaries: list[dict[str, object]]) -> No
         )
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def build_run_suite_metadata(
+    repo_root: Path,
+    timestamp: str,
+    models: list[str],
+    runs: int,
+    min_scores: list[float],
+    max_hits_values: list[int],
+    batch_size: int,
+) -> dict[str, object]:
+    """Build the shared metadata payload for one repeated benchmark suite."""
+
+    corpus_metadata = load_corpus_metadata(repo_root)
+    return {
+        "created_at_utc": timestamp,
+        "runs_per_model": runs,
+        "models": models,
+        "message_source_json": str(INDEX_DATA_PATH),
+        "pipeline_source_json": str(SEARCH_RESULTS_PATH),
+        "related_term_source_json": str(SEARCH_RESULTS_PATH),
+        "pipeline_scoring_paths": PIPELINE_SCORING_PATHS,
+        "ignored_serialized_embedding_sidecar": str(INDEX_EMBEDDINGS_PATH),
+        "ignored_serialized_embedding_size": (
+            corpus_metadata.serialized_embedding_size
+        ),
+        "ignored_serialized_message_embedding_count": (
+            corpus_metadata.serialized_message_count
+        ),
+        "ignored_serialized_related_embedding_count": (
+            corpus_metadata.serialized_related_count
+        ),
+        "ignored_serialized_total_embedding_count": (
+            corpus_metadata.serialized_total_embedding_count
+        ),
+        "corpus_embedding_source": CORPUS_EMBEDDING_SOURCE,
+        "query_embedding_source": QUERY_EMBEDDING_SOURCE,
+        "answer_embedding_source": ANSWER_EMBEDDING_SOURCE,
+        "min_scores": min_scores,
+        "max_hits_values": max_hits_values,
+        "min_score_count": len(min_scores),
+        "max_hits_count": len(max_hits_values),
+        "grid_row_count": len(min_scores) * len(max_hits_values),
+        "batch_size": batch_size,
+    }
 
 
 async def run_single_model_benchmark(
@@ -186,56 +330,102 @@ async def run_single_model_benchmark(
     """Run the benchmark repeatedly for one model and persist raw artifacts."""
 
     repo_root = Path(__file__).resolve().parent.parent
-    message_texts = benchmark_embeddings.load_message_texts(repo_root)
-    query_cases = benchmark_embeddings.load_search_queries(repo_root)
+    message_texts = load_message_texts(repo_root)
+    related_terms = load_related_term_texts(repo_root)
+    query_cases = load_search_queries(repo_root)
+    pipeline_query_cases = load_pipeline_queries(repo_root)
+    related_query_cases = load_related_term_queries(repo_root)
+    answer_cases = load_answer_queries(repo_root)
     model_output_dir = output_dir / sanitize_model_name(model_spec)
     model_output_dir.mkdir(parents=True, exist_ok=True)
+    grid_row_count = len(min_scores) * len(max_hits_values)
+    print(
+        "  Loaded fixtures: "
+        f"{len(message_texts)} messages, "
+        f"{len(query_cases)} direct queries, "
+        f"{len(pipeline_query_cases)} pipeline queries, "
+        f"{len(related_query_cases)} related-term queries, "
+        f"{len(answer_cases)} answer queries.",
+        flush=True,
+    )
+    print(
+        f"  Preparing {model_spec} indexes and embeddings once "
+        f"for {grid_row_count} grid rows "
+        f"({len(min_scores)} min_score values x "
+        f"{len(max_hits_values)} max_hits values)...",
+        flush=True,
+    )
+    model, vector_base = await build_vector_base(
+        model_spec,
+        message_texts,
+        batch_size,
+    )
+    print("  Message vector index ready.", flush=True)
+    related_vector_base = await build_text_vector_base(
+        model,
+        related_terms,
+        batch_size,
+    )
+    print("  Related-term vector index ready.", flush=True)
+    pipeline_conversation = await build_pipeline_conversation(
+        repo_root,
+        model,
+    )
+    print("  True pipeline conversation indexes ready.", flush=True)
+    query_embeddings = await model.get_embeddings_nocache(
+        [case.query for case in query_cases]
+    )
+    related_query_embeddings = await model.get_embeddings_nocache(
+        [case.term for case in related_query_cases]
+    )
+    answer_question_embeddings = await model.get_embeddings_nocache(
+        [case.question for case in answer_cases]
+    )
+    answer_embeddings = await model.get_embeddings_nocache(
+        [case.answer for case in answer_cases]
+    )
+    top_score_stats = measure_top_score_stats(
+        vector_base,
+        query_embeddings,
+    )
+    print(
+        "  Direct query-to-message diagnostic ready "
+        f"(best-match score range {top_score_stats.min_top_score:.4f}.."
+        f"{top_score_stats.max_top_score:.4f}; not used to cap the sweep).",
+        flush=True,
+    )
 
     run_results: list[RunResult] = []
     for run_index in range(1, runs + 1):
-        model, vector_base = await benchmark_embeddings.build_vector_base(
-            model_spec,
-            message_texts,
-            batch_size,
+        print(
+            f"  Run {run_index}/{runs}: evaluating {grid_row_count} grid rows...",
+            flush=True,
         )
-        query_embeddings = await model.get_embeddings(
-            [case.query for case in query_cases]
-        )
-        top_score_stats = benchmark_embeddings.measure_top_score_stats(
+        benchmark_rows = await evaluate_grid(
             vector_base,
+            query_cases,
             query_embeddings,
+            min_scores,
+            max_hits_values,
+            pipeline_conversation,
+            pipeline_query_cases,
+            related_vector_base,
+            related_terms,
+            related_query_cases,
+            related_query_embeddings,
+            answer_cases,
+            answer_question_embeddings,
+            answer_embeddings,
+            progress_label=f"  Run {run_index}/{runs}",
         )
-        effective_min_scores, skipped_min_scores = (
-            benchmark_embeddings.filter_min_scores_by_ceiling(
-                min_scores,
-                top_score_stats.max_top_score,
-            )
-        )
-        if not effective_min_scores:
-            raise ValueError(
-                "No requested min_score values are below the observed top-score ceiling "
-                f"of {top_score_stats.max_top_score:.4f} for {model.model_name}"
-            )
-        if skipped_min_scores:
-            print(
-                f"Skipping {len(skipped_min_scores)} min_score values above "
-                f"{top_score_stats.max_top_score:.4f} for {model.model_name}"
-            )
-        benchmark_rows: list[benchmark_embeddings.BenchmarkRow] = []
-        for min_score in effective_min_scores:
-            for max_hits in max_hits_values:
-                metrics = benchmark_embeddings.evaluate_search_queries(
-                    vector_base,
-                    query_cases,
-                    query_embeddings,
-                    min_score,
-                    max_hits,
-                )
-                benchmark_rows.append(
-                    benchmark_embeddings.BenchmarkRow(min_score, max_hits, metrics)
-                )
 
-        best_row = benchmark_embeddings.select_best_row(benchmark_rows)
+        best_row = select_best_row(benchmark_rows)
+        print(
+            "  Run "
+            f"{run_index}/{runs}: best min_score={best_row.min_score:.2f}, "
+            f"max_hits={best_row.max_hits}.",
+            flush=True,
+        )
         run_result = RunResult(
             run_index=run_index,
             model_spec=model_spec,
@@ -269,15 +459,16 @@ async def run_repeated_benchmarks(
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     output_dir = output_root / timestamp
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    metadata = {
-        "created_at_utc": timestamp,
-        "runs_per_model": runs,
-        "models": models,
-        "min_scores": min_scores,
-        "max_hits_values": max_hits_values,
-        "batch_size": batch_size,
-    }
+    repo_root = Path(__file__).resolve().parent.parent
+    metadata = build_run_suite_metadata(
+        repo_root=repo_root,
+        timestamp=timestamp,
+        models=models,
+        runs=runs,
+        min_scores=min_scores,
+        max_hits_values=max_hits_values,
+        batch_size=batch_size,
+    )
     write_json(output_dir / "metadata.json", metadata)
 
     summaries: list[dict[str, object]] = []

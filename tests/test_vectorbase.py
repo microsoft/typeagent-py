@@ -236,6 +236,22 @@ def test_fuzzy_lookup_embedding_in_subset(
     assert result == []
 
 
+def test_fuzzy_lookup_embedding_reports_normalized_score_scale() -> None:
+    vector_base = make_vector_base()
+    vector_base.add_embedding(None, np.array([1.0, 0.0], dtype=np.float32))
+    vector_base.add_embedding(None, np.array([0.0, 1.0], dtype=np.float32))
+    vector_base.add_embedding(None, np.array([-1.0, 0.0], dtype=np.float32))
+
+    results = vector_base.fuzzy_lookup_embedding(
+        np.array([1.0, 0.0], dtype=np.float32),
+        max_hits=3,
+        min_score=0.0,
+    )
+
+    assert [result.item for result in results] == [0, 1, 2]
+    assert [result.score for result in results] == [1.0, 0.5, 0.0]
+
+
 def test_add_embedding_size_mismatch(vector_base: VectorBase) -> None:
     """Adding an embedding of wrong size raises ValueError."""
     emb3 = np.array([0.1, 0.2, 0.3], dtype=np.float32)
@@ -264,9 +280,9 @@ def test_add_embeddings_wrong_ndim(vector_base: VectorBase) -> None:
 @pytest.mark.parametrize(
     ("model_name", "expected_min_score"),
     [
-        ("text-embedding-3-large", 0.07),
-        ("text-embedding-3-small", 0.16),
-        ("text-embedding-ada-002", 0.72),
+        ("text-embedding-3-large", 0.74),
+        ("text-embedding-3-small", 0.73),
+        ("text-embedding-ada-002", 0.93),
     ],
 )
 def test_text_embedding_index_settings_uses_known_model_default(
