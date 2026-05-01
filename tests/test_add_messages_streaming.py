@@ -14,7 +14,7 @@ import typechat
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import IKnowledgeExtractor
+from typeagent.knowpro.interfaces_core import AddMessagesResult, IKnowledgeExtractor
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
     Transcript,
@@ -774,5 +774,47 @@ async def test_streaming_preflush_avoids_oversized_batch() -> None:
         assert result.chunks_added == 12
         # Batch 1: 3 msgs × 3 chunks = 9, Batch 2: 1 msg × 3 chunks = 3
         assert batch_chunks == [9, 3]
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_all_skipped_batch_after_real_batch() -> None:
+    """A batch of all-duplicates reports skipped correctly.
+
+    First call ingests messages s-0..s-2. Second call re-submits the same
+    source_ids — they should all be filtered by _filter_ingested, exercising
+    the all-skipped + pending_commit path.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        transcript, storage = await _create_transcript(db_path)
+
+        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
+
+        # First call — ingest originals
+        result1 = await transcript.add_messages_streaming(
+            _async_iter(msgs),
+            batch_size=3,
+        )
+        assert result1.messages_added == 3
+        assert result1.messages_skipped == 0
+
+        # Second call — all duplicates
+        dupes = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
+        batch_results: list[AddMessagesResult] = []
+        result2 = await transcript.add_messages_streaming(
+            _async_iter(dupes),
+            batch_size=3,
+            on_batch_committed=lambda r: batch_results.append(r),
+        )
+
+        assert result2.messages_added == 0
+        assert result2.messages_skipped == 3
+
+        # One callback for the all-skipped batch
+        assert len(batch_results) == 1
+        assert batch_results[0].messages_added == 0
+        assert batch_results[0].messages_skipped == 3
 
         await storage.close()

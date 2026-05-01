@@ -342,7 +342,6 @@ async def _email_generator(
     skip_count = 0
 
     for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
-        # Check source_id before opening the file
         # Pre-parse dedup: skip before opening the file.
         # A second dedup pass happens in _filter_ingested() to catch
         # sources committed by an earlier batch in the same run.

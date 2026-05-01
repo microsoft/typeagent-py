@@ -34,7 +34,7 @@ import numpy as np
 from numpy.typing import NDArray
 import stamina
 from stamina import BoundAsyncRetryingCaller
-from stamina.instrumentation import RetryDetails, set_on_retry_hooks
+from stamina.instrumentation import get_on_retry_hooks, RetryDetails, set_on_retry_hooks
 
 import openai
 from pydantic_ai import Embedder as _PydanticAIEmbedder
@@ -96,7 +96,8 @@ def _on_retry(details: RetryDetails) -> None:
     )
 
 
-set_on_retry_hooks([_on_retry])
+if not get_on_retry_hooks():
+    set_on_retry_hooks([_on_retry])
 
 
 # ---------------------------------------------------------------------------
