@@ -3,7 +3,7 @@
     "PreToolUse": [
       {
         "type": "command",
-        "command": "./scripts/block-git-mutations.sh",
+        "command": "uv run python scripts/block_git_mutations.py",
         "timeout": 5
       }
     ]
