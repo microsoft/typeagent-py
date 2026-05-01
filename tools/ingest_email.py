@@ -498,11 +498,14 @@ async def ingest_emails(
 
     # Final summary
     elapsed = time.time() - start_time
+    total_chunks = result.chunks_added
+    overall_per_chunk = elapsed / total_chunks if total_chunks else 0
     semref_count = await semref_coll.size()
 
     print()
     if verbose:
         print(f"Successfully ingested {result.messages_added} email(s)")
+        print(f"Ingested {total_chunks} chunk(s)")
         if counters["skipped"]:
             print(f"Skipped {counters['skipped']} already-ingested email(s)")
         if counters["date_skipped"]:
@@ -511,10 +514,12 @@ async def ingest_emails(
             print(f"Failed to parse {counters['failed']} email(s)")
         print(f"Extracted {semref_count} semantic references")
         print(f"Total time: {elapsed:.1f}s")
+        print(f"Overall time per chunk: {overall_per_chunk:.2f}s/chunk")
     else:
         print(
-            f"ingested {result.messages_added} emails to {database} "
-            f"({semref_count} refs, {elapsed:.1f}s)"
+            f"Ingested {result.messages_added} emails to {database} "
+            f"({total_chunks} chunks, {semref_count} refs, {elapsed:.1f}s, "
+            f"{overall_per_chunk:.2f}s/chunk)"
         )
         if counters["skipped"]:
             print(f"Skipped: {counters['skipped']} (already ingested)")
