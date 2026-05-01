@@ -38,6 +38,7 @@ from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces_core import AddMessagesResult
+from typeagent.knowpro.interfaces_storage import IStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 
@@ -298,6 +299,25 @@ def _print_email_verbose(email: EmailMessage) -> None:
         print(f"      {preview}")
 
 
+def _flush_skipped(
+    skip_first: str | None,
+    skip_last: str | None,
+    skip_count: int,
+) -> None:
+    """Print a summary line for a contiguous range of skipped files."""
+    if skip_count == 0:
+        return
+    assert skip_first is not None and skip_last is not None
+    if skip_count == 1:
+        print(f"  Skipped {skip_first} (already ingested)")
+    elif skip_first == skip_last:
+        print(f"  Skipped {skip_first} x{skip_count} (already ingested)")
+    else:
+        print(
+            f"  Skipped {skip_first} .. {skip_last}" f" ({skip_count} already ingested)"
+        )
+
+
 async def _email_generator(
     eml_paths: list[str],
     verbose: bool,
@@ -307,16 +327,37 @@ async def _email_generator(
     limit: int | None,
     max_chunks: int | None,
     counters: dict[str, int],
+    storage: IStorageProvider[EmailMessage],
 ) -> AsyncIterator[EmailMessage]:
     """Async generator that parses and yields EmailMessage objects.
 
-    Sets ``source_id`` on each message so that ``add_messages_streaming``
-    can handle deduplication and source tracking automatically.
+    Checks each file's source_id against already-ingested sources
+    *before* parsing, so batches contain only new messages.
 
-    *counters* is mutated in place to track ``parsed`` and ``skipped``
-    counts for the caller's summary.
+    *counters* is mutated in place to track ``parsed``, ``skipped``,
+    and ``failed`` counts for the caller's summary.
     """
+    skip_first: str | None = None
+    skip_last: str | None = None
+    skip_count = 0
+
     for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
+        # Check source_id before opening the file
+        if await storage.is_source_ingested(source_id):
+            counters["skipped"] += 1
+            basename = email_file.name
+            if skip_first is None:
+                skip_first = basename
+            skip_last = basename
+            skip_count += 1
+            continue
+
+        # Flush any pending skip summary before processing a new file
+        _flush_skipped(skip_first, skip_last, skip_count)
+        skip_first = None
+        skip_last = None
+        skip_count = 0
+
         try:
             email = import_email_from_file(str(email_file))
         except Exception as e:
@@ -329,7 +370,7 @@ async def _email_generator(
 
         # Apply date filter
         if not email_matches_date_filter(email.timestamp, start_date, stop_date):
-            counters["skipped"] += 1
+            counters["date_skipped"] += 1
             if verbose:
                 print(f"{label}  [Outside date range, skipping]")
             continue
@@ -348,6 +389,9 @@ async def _email_generator(
         email.source_id = source_id
         counters["parsed"] += 1
         yield email
+
+    # Flush any remaining skip summary at end of iteration
+    _flush_skipped(skip_first, skip_last, skip_count)
 
 
 async def ingest_emails(
@@ -399,40 +443,49 @@ async def ingest_emails(
         print("\nParsing and importing emails...")
 
     start_time = time.time()
+    last_batch_time = start_time
     semref_coll = settings.storage_provider.semantic_refs
 
     # Counters mutated by the generator and callback
     counters: dict[str, int] = {
         "parsed": 0,
         "skipped": 0,
+        "date_skipped": 0,
         "failed": 0,
         "ingested": 0,
-        "deduped": 0,
         "batches": 0,
     }
 
     def on_batch_committed(result: AddMessagesResult) -> None:
+        nonlocal last_batch_time
         counters["ingested"] += result.messages_added
-        counters["deduped"] += result.messages_skipped
         counters["batches"] += 1
-        elapsed = time.time() - start_time
-        skipped_part = (
-            f", {result.messages_skipped} already ingested"
-            if result.messages_skipped
-            else ""
-        )
+        now = time.time()
+        batch_secs = now - last_batch_time
+        last_batch_time = now
+        elapsed = now - start_time
+        per_chunk = batch_secs / result.chunks_added if result.chunks_added else 0
         print(
             f"  Batch {counters['batches']}: "
             f"+{result.messages_added} messages, "
             f"+{result.chunks_added} chunks, "
-            f"+{result.semrefs_added} semrefs{skipped_part} | "
+            f"+{result.semrefs_added} semrefs | "
+            f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
             f"{counters['ingested']} total ingested | "
             f"{elapsed:.1f}s elapsed",
             flush=True,
         )
 
     message_stream = _email_generator(
-        eml_paths, verbose, start_date, stop_date, offset, limit, max_chunks, counters
+        eml_paths,
+        verbose,
+        start_date,
+        stop_date,
+        offset,
+        limit,
+        max_chunks,
+        counters,
+        settings.storage_provider,
     )
 
     result = await email_memory.add_messages_streaming(
@@ -449,9 +502,9 @@ async def ingest_emails(
     if verbose:
         print(f"Successfully ingested {result.messages_added} email(s)")
         if counters["skipped"]:
-            print(f"Skipped {counters['skipped']} email(s) outside date range")
-        if result.messages_skipped:
-            print(f"Skipped {result.messages_skipped} already-ingested email(s)")
+            print(f"Skipped {counters['skipped']} already-ingested email(s)")
+        if counters["date_skipped"]:
+            print(f"Skipped {counters['date_skipped']} email(s) outside date range")
         if counters["failed"]:
             print(f"Failed to parse {counters['failed']} email(s)")
         print(f"Extracted {semref_count} semantic references")
@@ -462,9 +515,9 @@ async def ingest_emails(
             f"({semref_count} refs, {elapsed:.1f}s)"
         )
         if counters["skipped"]:
-            print(f"Skipped: {counters['skipped']} (outside date range)")
-        if result.messages_skipped:
-            print(f"Skipped: {result.messages_skipped} (already ingested)")
+            print(f"Skipped: {counters['skipped']} (already ingested)")
+        if counters["date_skipped"]:
+            print(f"Skipped: {counters['date_skipped']} (outside date range)")
         if counters["failed"]:
             print(f"Failed: {counters['failed']}")
 
