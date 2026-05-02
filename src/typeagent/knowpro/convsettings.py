@@ -12,6 +12,9 @@ from ..aitools.model_adapters import create_embedding_model
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .interfaces import IKnowledgeExtractor, IStorageProvider
 
+DEFAULT_RELATED_TERM_MIN_SCORE = 0.85
+DEFAULT_MESSAGE_TEXT_MIN_SCORE = 0.7
+
 
 @dataclass
 class MessageTextIndexSettings:
@@ -54,13 +57,13 @@ class ConversationSettings:
         # All settings share the same model, so they share the embedding cache.
         model = model or create_embedding_model(retrier=embed_retrier)
         self.embedding_model = model
-        min_score = 0.85
+        min_score = DEFAULT_RELATED_TERM_MIN_SCORE
         self.related_term_index_settings = RelatedTermIndexSettings(
             TextEmbeddingIndexSettings(model, min_score=min_score, max_matches=50)
         )
         self.thread_settings = TextEmbeddingIndexSettings(model, min_score=min_score)
         self.message_text_index_settings = MessageTextIndexSettings(
-            TextEmbeddingIndexSettings(model, min_score=0.7)
+            TextEmbeddingIndexSettings(model, min_score=DEFAULT_MESSAGE_TEXT_MIN_SCORE)
         )
         self.semantic_ref_index_settings = SemanticRefIndexSettings(
             concurrency=4,
