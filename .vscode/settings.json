@@ -1,0 +1,12 @@
+{
+  "github.copilot.chat.agent.hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "uv run python scripts/block_git_mutations.py",
+        "windows": "uv run python scripts\\block_git_mutations.py",
+        "timeout": 5
+      }
+    ]
+  }
+}

@@ -1,5 +1,6 @@
-# Editor settings
-.vscode
+# Editor settings (but .vscode/settings.json is tracked for Copilot hooks)
+.vscode/*
+!.vscode/settings.json
 
 # Python
 __pycache__
