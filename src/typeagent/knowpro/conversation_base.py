@@ -263,6 +263,7 @@ class ConversationBase(
                 on_batch_committed(result)
 
         pending_commit: asyncio.Task[AddMessagesResult] | None = None
+        pending_extraction: asyncio.Task[_ExtractionResult | None] | None = None
         pending_skipped: int = 0
 
         async def _drain_commit() -> None:
@@ -275,7 +276,7 @@ class ConversationBase(
                 pending_skipped = 0
 
         async def _submit_batch(filtered: list[TMessage], skipped: int) -> None:
-            nonlocal pending_commit, pending_skipped
+            nonlocal pending_commit, pending_extraction, pending_skipped
             if not filtered and not skipped:
                 return
 
@@ -285,6 +286,7 @@ class ConversationBase(
                 )
             else:
                 next_extraction = None
+            pending_extraction = next_extraction
 
             # Wait for previous commit to finish (frees the DB connection)
             await _drain_commit()
@@ -298,6 +300,7 @@ class ConversationBase(
 
             # Await extraction result for this batch
             extraction = await next_extraction if next_extraction is not None else None
+            pending_extraction = None
 
             # Start commit (DB transaction) — runs concurrently with the
             # *next* batch's LLM extraction once we yield back to the loop.
@@ -330,6 +333,10 @@ class ConversationBase(
 
             await _drain_commit()
         except BaseException:
+            if pending_extraction is not None and not pending_extraction.done():
+                pending_extraction.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await pending_extraction
             if pending_commit is not None and not pending_commit.done():
                 pending_commit.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
