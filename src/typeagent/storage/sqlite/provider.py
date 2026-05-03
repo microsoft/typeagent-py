@@ -564,6 +564,26 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row is not None and row[0] == STATUS_INGESTED
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        if not source_ids:
+            return set()
+        cursor = self.db.cursor()
+        result: set[str] = set()
+        # Chunk to stay within SQLite's SQLITE_MAX_VARIABLE_NUMBER
+        # (999 on older builds, 32766 on 3.32.0+).
+        chunk_size = 500
+        for i in range(0, len(source_ids), chunk_size):
+            chunk = source_ids[i : i + chunk_size]
+            placeholders = ",".join("?" for _ in chunk)
+            cursor.execute(
+                f"SELECT source_id FROM IngestedSources"
+                f" WHERE source_id IN ({placeholders}) AND status = ?",
+                [*chunk, STATUS_INGESTED],
+            )
+            result.update(row[0] for row in cursor.fetchall())
+        return result
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 

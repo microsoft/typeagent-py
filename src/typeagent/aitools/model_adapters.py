@@ -27,18 +27,21 @@ required environment variables.
 """
 
 from collections.abc import Sequence
+import logging
 import os
 
 import numpy as np
 from numpy.typing import NDArray
 import stamina
 from stamina import BoundAsyncRetryingCaller
+from stamina.instrumentation import RetryDetails, set_on_retry_hooks
 
 import openai
 from pydantic_ai import Embedder as _PydanticAIEmbedder
 from pydantic_ai.embeddings.base import EmbeddingModel as _PydanticAIEmbeddingModelBase
 from pydantic_ai.embeddings.result import EmbeddingResult, EmbedInputType
 from pydantic_ai.embeddings.settings import EmbeddingSettings
+from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -60,14 +63,41 @@ _TRANSIENT_ERRORS = (
     openai.APIConnectionError,
     openai.APITimeoutError,
     openai.InternalServerError,
+    ModelAPIError,
 )
 
 DEFAULT_CHAT_RETRIER = stamina.AsyncRetryingCaller(attempts=6, timeout=120).on(
     _TRANSIENT_ERRORS
 )
-DEFAULT_EMBED_RETRIER = stamina.AsyncRetryingCaller(attempts=4, timeout=30).on(
+DEFAULT_EMBED_RETRIER = stamina.AsyncRetryingCaller(attempts=6, timeout=120).on(
     _TRANSIENT_ERRORS
 )
+
+_logger = logging.getLogger("stamina")
+
+_CALLABLE_LABELS: dict[str, str] = {
+    "request": "chat",
+    "embed_documents": "embedding",
+}
+
+
+def _on_retry(details: RetryDetails) -> None:
+    kind = _CALLABLE_LABELS.get(details.name, details.name)
+    caused = details.caused_by
+    exc_summary = repr(caused)[:200]
+    _logger.warning(
+        "stamina: retrying %s request (attempt %d, waited %.1fs so far, "
+        "waiting %.1fs): %s",
+        kind,
+        details.retry_num,
+        details.waited_so_far,
+        details.wait_for,
+        exc_summary,
+    )
+
+
+set_on_retry_hooks([_on_retry])
+
 
 # ---------------------------------------------------------------------------
 # Chat model adapter
