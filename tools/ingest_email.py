@@ -451,6 +451,7 @@ async def ingest_emails(
     counters: dict[str, int] = {
         "parsed": 0,
         "skipped": 0,
+        "batch_skipped": 0,
         "date_skipped": 0,
         "failed": 0,
         "ingested": 0,
@@ -462,6 +463,7 @@ async def ingest_emails(
     def on_batch_committed(result: AddMessagesResult) -> None:
         nonlocal last_batch_time
         counters["ingested"] += result.messages_added
+        counters["batch_skipped"] += result.messages_skipped
         counters["chunks"] += result.chunks_added
         counters["semrefs"] += result.semrefs_added
         counters["batches"] += 1
@@ -516,6 +518,7 @@ async def ingest_emails(
     )
     total_chunks = result.chunks_added if result is not None else counters["chunks"]
     semrefs_added = result.semrefs_added if result is not None else counters["semrefs"]
+    total_skipped = counters["skipped"] + counters["batch_skipped"]
     overall_per_chunk = elapsed / total_chunks if total_chunks else 0
 
     print()
@@ -524,8 +527,8 @@ async def ingest_emails(
             print("Ingestion interrupted by user (^C).")
         print(f"Successfully ingested {messages_ingested} email(s)")
         print(f"Ingested {total_chunks} chunk(s)")
-        if counters["skipped"]:
-            print(f"Skipped {counters['skipped']} already-ingested email(s)")
+        if total_skipped:
+            print(f"Skipped {total_skipped} already-ingested email(s)")
         if counters["date_skipped"]:
             print(f"Skipped {counters['date_skipped']} email(s) outside date range")
         if counters["failed"]:
@@ -539,8 +542,8 @@ async def ingest_emails(
             f"({total_chunks} chunks, {semrefs_added} refs added, {elapsed:.1f}s, "
             f"{overall_per_chunk:.2f}s/chunk)"
         )
-        if counters["skipped"]:
-            print(f"Skipped: {counters['skipped']} (already ingested)")
+        if total_skipped:
+            print(f"Skipped: {total_skipped} (already ingested)")
         if counters["date_skipped"]:
             print(f"Skipped: {counters['date_skipped']} (outside date range)")
         if counters["failed"]:
