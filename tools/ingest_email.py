@@ -38,7 +38,6 @@ from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces_core import AddMessagesResult
-from typeagent.knowpro.interfaces_storage import IStorageProvider
 from typeagent.storage.utils import create_storage_provider
 
 
@@ -299,63 +298,31 @@ def _print_email_verbose(email: EmailMessage) -> None:
         print(f"      {preview}")
 
 
-def _flush_skipped(
-    skip_first: str | None,
-    skip_last: str | None,
-    skip_count: int,
-) -> None:
-    """Print a summary line for a contiguous range of skipped files."""
-    if skip_count == 0:
-        return
-    assert skip_first is not None and skip_last is not None
-    if skip_count == 1:
-        print(f"  Skipped {skip_first} (already ingested)")
-    elif skip_first == skip_last:
-        print(f"  Skipped {skip_first} x{skip_count} (already ingested)")
-    else:
-        print(
-            f"  Skipped {skip_first} .. {skip_last}" f" ({skip_count} already ingested)"
-        )
-
-
 async def _email_generator(
-    eml_paths: list[str],
+    email_entries: list[tuple[str, Path, str]],
     verbose: bool,
     start_date: datetime | None,
     stop_date: datetime | None,
-    offset: int,
-    limit: int | None,
     max_chunks: int | None,
     counters: dict[str, int],
-    storage: IStorageProvider[EmailMessage],
+    already_ingested: set[str],
 ) -> AsyncIterator[EmailMessage]:
     """Async generator that parses and yields EmailMessage objects.
 
-    Checks each file's source_id against already-ingested sources
-    *before* parsing, so batches contain only new messages.
+    *email_entries* is a pre-collected list of ``(source_id, file_path, label)``
+    tuples produced by :func:`_iter_emails`.
+
+    *already_ingested* is the set of source_ids known to be in the DB at
+    the start of this run (one bulk query).  Files in this set are skipped
+    before parsing.
 
     *counters* is mutated in place to track ``parsed``, ``skipped``,
-    and ``failed`` counts for the caller's summary.
+    ``date_skipped``, and ``failed`` counts for the caller's summary.
     """
-    skip_first: str | None = None
-    skip_last: str | None = None
-    skip_count = 0
-
-    for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
-        if await storage.is_source_ingested(source_id):
+    for source_id, email_file, label in email_entries:
+        if source_id in already_ingested:
             counters["skipped"] += 1
-            basename = email_file.name
-            if skip_first is None:
-                skip_first = basename
-            skip_last = basename
-            skip_count += 1
             continue
-
-        # Flush any pending skip summary before processing a new file
-        _flush_skipped(skip_first, skip_last, skip_count)
-        skip_first = None
-        skip_last = None
-        skip_count = 0
 
         try:
             email = import_email_from_file(str(email_file))
@@ -388,9 +355,6 @@ async def _email_generator(
         email.source_id = source_id
         counters["parsed"] += 1
         yield email
-
-    # Flush any remaining skip summary at end of iteration
-    _flush_skipped(skip_first, skip_last, skip_count)
 
 
 async def ingest_emails(
@@ -439,6 +403,20 @@ async def ingest_emails(
     if verbose:
         print(f"Concurrency: {effective_concurrency}")
         print(f"Batch size: {batch_size} chunks")
+
+    # One bulk query: collect all source_ids, then ask the DB which are
+    # already ingested.  This replaces N per-file is_source_ingested calls
+    # with a single are_sources_ingested call.
+    storage = settings.storage_provider
+    email_entries = list(_iter_emails(eml_paths, verbose, offset, limit))
+    all_source_ids = [sid for sid, _, _ in email_entries]
+    already_ingested = await storage.are_sources_ingested(all_source_ids)
+    if already_ingested and verbose:
+        print(
+            f"Pre-filter: {len(already_ingested)} of {len(all_source_ids)} already ingested"
+        )
+
+    if verbose:
         print("\nParsing and importing emails...")
 
     start_time = time.time()
@@ -467,11 +445,14 @@ async def ingest_emails(
         last_batch_time = now
         elapsed = now - start_time
         per_chunk = batch_secs / result.chunks_added if result.chunks_added else 0
+        parts = [
+            f"  Batch {counters['batches']}:",
+            f"+{result.messages_added} messages,",
+            f"+{result.chunks_added} chunks,",
+            f"+{result.semrefs_added} semrefs",
+        ]
         print(
-            f"  Batch {counters['batches']}: "
-            f"+{result.messages_added} messages, "
-            f"+{result.chunks_added} chunks, "
-            f"+{result.semrefs_added} semrefs | "
+            f"{' '.join(parts)} | "
             f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
             f"{counters['ingested']} total ingested | "
             f"{elapsed:.1f}s elapsed",
@@ -479,15 +460,13 @@ async def ingest_emails(
         )
 
     message_stream = _email_generator(
-        eml_paths,
+        email_entries,
         verbose,
         start_date,
         stop_date,
-        offset,
-        limit,
         max_chunks,
         counters,
-        settings.storage_provider,
+        already_ingested,
     )
 
     result: AddMessagesResult | None = None
