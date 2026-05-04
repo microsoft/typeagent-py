@@ -15,6 +15,7 @@ Usage:
 
 import argparse
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import timedelta
 import os
 from pathlib import Path
@@ -27,6 +28,7 @@ import webvtt
 from typeagent.aitools.model_adapters import create_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import ConversationMetadata
+from typeagent.knowpro.interfaces_core import AddMessagesResult
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.storage.utils import create_storage_provider
 from typeagent.transcripts.transcript import (
@@ -82,6 +84,13 @@ def create_arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        help="Number of chunks per commit batch (default: 100)",
+    )
+
+    parser.add_argument(
         "--embedding-name",
         type=str,
         default=None,
@@ -133,6 +142,7 @@ async def ingest_vtt_files(
     merge_consecutive: bool = False,
     verbose: bool = False,
     concurrency: int | None = None,
+    batch_size: int = 100,
     embedding_name: str | None = None,
 ) -> None:
     """Ingest one or more VTT files into a database."""
@@ -254,110 +264,106 @@ async def ingest_vtt_files(
             )
             sys.exit(1)
 
-        # Process all VTT files and collect messages
-        all_messages: list[TranscriptMessage] = []
-        time_offset = 0.0  # Cumulative time offset for multiple files
+        msg_count = [0]  # mutable counter shared with the generator
 
-        for file_idx, vtt_file in enumerate(vtt_files):
-            if verbose:
-                print(f"  Processing {vtt_file}...")
-                if file_idx > 0:
-                    print(f"    Time offset: {time_offset:.2f} seconds")
+        async def _message_stream() -> AsyncIterator[TranscriptMessage]:
+            time_offset = 0.0
 
-            # Parse VTT file
-            try:
-                vtt = webvtt.read(vtt_file)
-            except Exception as e:
-                print(
-                    f"Error: Failed to parse VTT file {vtt_file}: {e}", file=sys.stderr
-                )
-                sys.exit(1)
+            for file_idx, vtt_file in enumerate(vtt_files):
+                if verbose:
+                    print(f"  Processing {vtt_file}...")
+                    if file_idx > 0:
+                        print(f"    Time offset: {time_offset:.2f} seconds")
 
-            current_speaker = None
-            current_text_chunks = []
-            current_start_time = None
-            file_max_end_time = 0.0  # Track the maximum end time in this file
+                try:
+                    vtt = webvtt.read(vtt_file)
+                except Exception as e:
+                    print(
+                        f"Error: Failed to parse VTT file {vtt_file}: {e}",
+                        file=sys.stderr,
+                    )
+                    sys.exit(1)
 
-            def save_current_message():
-                """Helper to save the current message and add to all_messages."""
-                if current_text_chunks and current_start_time is not None:
-                    combined_text = " ".join(current_text_chunks).strip()
-                    if combined_text:
-                        # Calculate timestamp from WebVTT start time
-                        offset_seconds = webvtt_timestamp_to_seconds(current_start_time)
-                        timestamp = format_timestamp_utc(
-                            UNIX_EPOCH + timedelta(seconds=offset_seconds)
-                        )
-                        metadata = TranscriptMessageMeta(
-                            speaker=current_speaker,
-                            recipients=[],
-                        )
-                        message = TranscriptMessage(
-                            text_chunks=[combined_text],
-                            metadata=metadata,
-                            timestamp=timestamp,
-                        )
-                        all_messages.append(message)
+                current_speaker: str | None = None
+                current_text_chunks: list[str] = []
+                current_start_time: str | None = None
+                file_max_end_time = 0.0
 
-            for caption in vtt:
-                # Skip empty captions
-                if not caption.text.strip():
-                    continue
+                def _build_message() -> TranscriptMessage | None:
+                    if current_text_chunks and current_start_time is not None:
+                        combined_text = " ".join(current_text_chunks).strip()
+                        if combined_text:
+                            offset_seconds = webvtt_timestamp_to_seconds(
+                                current_start_time
+                            )
+                            timestamp = format_timestamp_utc(
+                                UNIX_EPOCH + timedelta(seconds=offset_seconds)
+                            )
+                            metadata = TranscriptMessageMeta(
+                                speaker=current_speaker,
+                                recipients=[],
+                            )
+                            return TranscriptMessage(
+                                text_chunks=[combined_text],
+                                metadata=metadata,
+                                timestamp=timestamp,
+                                source_id=f"{vtt_file}#{msg_count[0]}",
+                            )
+                    return None
 
-                # Parse raw text for voice tags (handles multiple speakers per cue)
-                raw_text = getattr(caption, "raw_text", caption.text)
-                voice_segments = parse_voice_tags(raw_text)
-
-                # Convert WebVTT timestamps and apply offset for multi-file continuity
-                start_time_seconds = (
-                    vtt_timestamp_to_seconds(caption.start) + time_offset
-                )
-                end_time_seconds = vtt_timestamp_to_seconds(caption.end) + time_offset
-                start_time = seconds_to_vtt_timestamp(start_time_seconds)
-
-                # Track the maximum end time for this file
-                if end_time_seconds > file_max_end_time:
-                    file_max_end_time = end_time_seconds
-
-                # Process each voice segment in this caption
-                for speaker, text in voice_segments:
-                    if not text.strip():
+                for caption in vtt:
+                    if not caption.text.strip():
                         continue
 
-                    # If we should merge consecutive segments from the same speaker
-                    if (
-                        merge_consecutive
-                        and speaker == current_speaker
-                        and current_text_chunks
-                    ):
-                        # Merge with current message
-                        current_text_chunks.append(text)
-                    else:
-                        # Save previous message if it exists
-                        save_current_message()
+                    raw_text = getattr(caption, "raw_text", caption.text)
+                    voice_segments = parse_voice_tags(raw_text)
 
-                        # Start new message
-                        current_speaker = speaker
-                        current_text_chunks = [text] if text.strip() else []
-                        current_start_time = start_time
-
-            # Don't forget the last message from this file
-            save_current_message()
-
-            if verbose:
-                print(f"    Extracted {len(all_messages)} messages so far")
-                if file_max_end_time > 0:
-                    print(
-                        f"    File time range: 0.00s to {file_max_end_time - time_offset:.2f}s (with offset: {time_offset:.2f}s to {file_max_end_time:.2f}s)"
+                    start_time_seconds = (
+                        vtt_timestamp_to_seconds(caption.start) + time_offset
                     )
+                    end_time_seconds = (
+                        vtt_timestamp_to_seconds(caption.end) + time_offset
+                    )
+                    start_time = seconds_to_vtt_timestamp(start_time_seconds)
 
-            # Update time offset for next file: add 5 seconds gap
-            if file_max_end_time > 0:
-                time_offset = file_max_end_time + 5.0
+                    if end_time_seconds > file_max_end_time:
+                        file_max_end_time = end_time_seconds
 
-        # Add all messages to the database in batches with indexing
-        if verbose:
-            print(f"\nAdding {len(all_messages)} total messages to database...")
+                    for speaker, text in voice_segments:
+                        if not text.strip():
+                            continue
+
+                        if (
+                            merge_consecutive
+                            and speaker == current_speaker
+                            and current_text_chunks
+                        ):
+                            current_text_chunks.append(text)
+                        else:
+                            msg = _build_message()
+                            if msg is not None:
+                                msg_count[0] += 1
+                                yield msg
+
+                            current_speaker = speaker
+                            current_text_chunks = [text] if text.strip() else []
+                            current_start_time = start_time
+
+                # Last message from this file
+                msg = _build_message()
+                if msg is not None:
+                    msg_count[0] += 1
+                    yield msg
+
+                if verbose:
+                    print(f"    Extracted {msg_count[0]} messages so far")
+                    if file_max_end_time > 0:
+                        print(
+                            f"    File time range: 0.00s to {file_max_end_time - time_offset:.2f}s (with offset: {time_offset:.2f}s to {file_max_end_time:.2f}s)"
+                        )
+
+                if file_max_end_time > 0:
+                    time_offset = file_max_end_time + 5.0
 
         try:
             # Enable knowledge extraction for index building
@@ -378,43 +384,100 @@ async def ingest_vtt_files(
                 tags=[name, "vtt-transcript"],
             )
 
-            # Process messages in batches for recoverability
-            batch_size = 50
-            successful_count = 0
             start_time = time.time()
+            last_batch_time = start_time
+
+            counters: dict[str, int] = {
+                "ingested": 0,
+                "skipped": 0,
+                "chunks": 0,
+                "semrefs": 0,
+                "batches": 0,
+            }
+
+            def on_batch_committed(result: AddMessagesResult) -> None:
+                nonlocal last_batch_time
+                counters["ingested"] += result.messages_added
+                counters["skipped"] += result.messages_skipped
+                counters["chunks"] += result.chunks_added
+                counters["semrefs"] += result.semrefs_added
+                counters["batches"] += 1
+                now = time.time()
+                batch_secs = now - last_batch_time
+                last_batch_time = now
+                elapsed = now - start_time
+                per_chunk = (
+                    batch_secs / result.chunks_added if result.chunks_added else 0
+                )
+                parts = [
+                    f"    {counters['ingested']} messages",
+                    f"+{result.chunks_added} chunks",
+                    f"+{result.semrefs_added} semrefs",
+                ]
+                if result.messages_skipped:
+                    parts.append(f"{result.messages_skipped} skipped")
+                print(
+                    f"{' | '.join(parts)} | "
+                    f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
+                    f"{elapsed:.1f}s elapsed",
+                    flush=True,
+                )
 
             print(
-                f"  Processing {len(all_messages)} messages"
+                f"  Processing messages in batches of {batch_size}"
                 f" (concurrency={settings.semantic_ref_index_settings.concurrency})..."
             )
 
-            for i in range(0, len(all_messages), batch_size):
-                batch = all_messages[i : i + batch_size]
-                batch_start = time.time()
-
-                result = await transcript.add_messages_with_indexing(batch)
-
-                successful_count += result.messages_added
-                batch_time = time.time() - batch_start
-
-                elapsed = time.time() - start_time
-                print(
-                    f"    {successful_count}/{len(all_messages)} messages | "
-                    f"{await semref_coll.size()} refs | "
-                    f"{batch_time:.1f}s/batch | "
-                    f"{elapsed:.1f}s elapsed"
+            result: AddMessagesResult | None = None
+            interrupted = False
+            try:
+                result = await transcript.add_messages_streaming(
+                    _message_stream(),
+                    batch_size=batch_size,
+                    on_batch_committed=on_batch_committed,
                 )
+            except (KeyboardInterrupt, asyncio.CancelledError):
+                interrupted = True
+
+            elapsed = time.time() - start_time
+            if interrupted and counters["batches"] == 0:
+                print()
+                print("Interrupted before any batches were committed.")
+                return
+
+            messages_ingested = (
+                result.messages_added if result is not None else counters["ingested"]
+            )
+            total_chunks = (
+                result.chunks_added if result is not None else counters["chunks"]
+            )
+            semrefs_added = (
+                result.semrefs_added if result is not None else counters["semrefs"]
+            )
+            total_skipped = counters["skipped"]
+            overall_per_chunk = elapsed / total_chunks if total_chunks else 0
 
             if verbose:
-                semref_count = await semref_coll.size()
-                print(f"  Successfully added {successful_count} messages")
-                print(f"  Extracted {semref_count} semantic references")
+                if interrupted:
+                    print("Ingestion interrupted by user (^C).")
+                print(f"  Successfully added {messages_ingested} messages")
+                print(f"  Ingested {total_chunks} chunk(s)")
+                if total_skipped:
+                    print(f"  Skipped {total_skipped} already-ingested message(s)")
+                print(f"  Extracted {semrefs_added} semantic references")
+                print(f"  Total time: {elapsed:.1f}s")
+                print(f"  Overall time per chunk: {overall_per_chunk:.2f}s/chunk")
             else:
                 print(
-                    f"Imported {successful_count} messages from {len(vtt_files)} file(s) to {database}"
+                    f"Imported {messages_ingested} messages from {len(vtt_files)} file(s) to {database}"
+                    f" ({total_chunks} chunks, {semrefs_added} refs, {elapsed:.1f}s,"
+                    f" {overall_per_chunk:.2f}s/chunk)"
                 )
+                if total_skipped:
+                    print(f"Skipped: {total_skipped} (already ingested)")
 
-            print("All indexes built successfully")
+            if not interrupted:
+                print("All indexes built successfully")
 
         except BaseException as e:
             print(f"\nError: Failed to process messages: {e}", file=sys.stderr)
@@ -451,6 +514,7 @@ def main():
             name=args.name,
             merge_consecutive=args.merge,
             concurrency=args.concurrency,
+            batch_size=args.batch_size,
             embedding_name=args.embedding_name,
             verbose=args.verbose,
         )
