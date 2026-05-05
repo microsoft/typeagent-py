@@ -162,29 +162,6 @@ async def test_streaming_batching() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_skips_already_ingested() -> None:
-    """Messages whose source_id is already ingested are skipped."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        transcript, storage = await _create_transcript(db_path)
-
-        # Pre-mark some sources as ingested
-        async with storage:
-            await storage.mark_source_ingested("s-1")
-            await storage.mark_source_ingested("s-3")
-
-        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(5)]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
-
-        # s-1 and s-3 skipped -> only 3 added
-        assert result.messages_added == 3
-        assert await transcript.messages.size() == 3
-        assert _ingested_count(storage) == 5  # 2 pre-existing + 3 new
-
-        await storage.close()
-
-
-@pytest.mark.asyncio
 async def test_streaming_no_source_id_always_ingested() -> None:
     """Messages without source_id are always ingested (never skipped)."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -274,26 +251,6 @@ async def test_streaming_empty_iterable() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_all_skipped_batch() -> None:
-    """A batch where all messages are already ingested produces no commit."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        transcript, storage = await _create_transcript(db_path)
-
-        # Pre-mark all sources
-        async with storage:
-            for i in range(3):
-                await storage.mark_source_ingested(f"s-{i}")
-
-        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
-
-        assert result.messages_added == 0
-        assert await transcript.messages.size() == 0
-
-        await storage.close()
-
-
 # ---------------------------------------------------------------------------
 # Pipeline overlap and DB batching tests
 # ---------------------------------------------------------------------------
@@ -664,36 +621,6 @@ async def test_streaming_multi_chunk_exception_preserves_earlier_batch() -> None
 
 
 @pytest.mark.asyncio
-async def test_streaming_multi_chunk_skip_and_ingest_mixed() -> None:
-    """Multi-chunk messages are skipped or ingested as a whole based on source_id."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        extractor = ControlledExtractor()
-        transcript, storage = await _create_transcript(
-            db_path, auto_extract=True, knowledge_extractor=extractor
-        )
-
-        # Pre-mark s-1 as ingested
-        async with storage:
-            await storage.mark_source_ingested("s-1")
-
-        msgs = [
-            _make_multi_chunk_message(["a", "b"], source_id="s-0"),  # ingested
-            _make_multi_chunk_message(["c", "d", "e"], source_id="s-1"),  # skipped
-            _make_message("f", source_id="s-2"),  # ingested
-        ]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
-
-        assert result.messages_added == 2
-        assert result.messages_skipped == 1
-        assert result.chunks_added == 3  # 2 + 1 (not 5)
-        # Only 3 extraction calls (2 chunks from s-0 + 1 chunk from s-2)
-        assert extractor.call_count == 3
-
-        await storage.close()
-
-
-@pytest.mark.asyncio
 async def test_streaming_batch_size_1_separates_all() -> None:
     """batch_size=1 commits every single-chunk message individually."""
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -710,38 +637,6 @@ async def test_streaming_batch_size_1_separates_all() -> None:
 
         assert result.messages_added == 4
         assert batch_results == [1, 1, 1, 1]
-
-        await storage.close()
-
-
-@pytest.mark.asyncio
-async def test_streaming_callback_reports_skipped_multi_chunk() -> None:
-    """on_batch_committed reports skipped count for batches with multi-chunk messages."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        transcript, storage = await _create_transcript(db_path)
-
-        # Pre-mark s-1 as ingested
-        async with storage:
-            await storage.mark_source_ingested("s-1")
-
-        msgs = [
-            _make_multi_chunk_message(["a", "b"], source_id="s-0"),  # 2 chunks
-            _make_multi_chunk_message(["c", "d"], source_id="s-1"),  # 2 chunks, skipped
-            _make_message("e", source_id="s-2"),  # 1 chunk → total = 5 chunks in batch
-        ]
-        callback_results: list[tuple[int, int]] = []
-        result = await transcript.add_messages_streaming(
-            _async_iter(msgs),
-            batch_size=10,  # all fit in one batch
-            on_batch_committed=lambda r: callback_results.append(
-                (r.messages_added, r.messages_skipped)
-            ),
-        )
-
-        assert result.messages_added == 2
-        assert result.messages_skipped == 1
-        assert callback_results == [(2, 1)]
 
         await storage.close()
 
@@ -775,48 +670,6 @@ async def test_streaming_preflush_avoids_oversized_batch() -> None:
         assert result.chunks_added == 12
         # Batch 1: 3 msgs × 3 chunks = 9, Batch 2: 1 msg × 3 chunks = 3
         assert batch_chunks == [9, 3]
-
-        await storage.close()
-
-
-@pytest.mark.asyncio
-async def test_streaming_all_skipped_batch_after_real_batch() -> None:
-    """A batch of all-duplicates reports skipped correctly.
-
-    First call ingests messages s-0..s-2. Second call re-submits the same
-    source_ids — they should all be filtered by _filter_ingested, exercising
-    the all-skipped + pending_commit path.
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        transcript, storage = await _create_transcript(db_path)
-
-        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
-
-        # First call — ingest originals
-        result1 = await transcript.add_messages_streaming(
-            _async_iter(msgs),
-            batch_size=3,
-        )
-        assert result1.messages_added == 3
-        assert result1.messages_skipped == 0
-
-        # Second call — all duplicates
-        dupes = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
-        batch_results: list[AddMessagesResult] = []
-        result2 = await transcript.add_messages_streaming(
-            _async_iter(dupes),
-            batch_size=3,
-            on_batch_committed=lambda r: batch_results.append(r),
-        )
-
-        assert result2.messages_added == 0
-        assert result2.messages_skipped == 3
-
-        # One callback for the all-skipped batch
-        assert len(batch_results) == 1
-        assert batch_results[0].messages_added == 0
-        assert batch_results[0].messages_skipped == 3
 
         await storage.close()
 
@@ -932,8 +785,8 @@ async def test_streaming_pending_commit_cancelled_on_iterator_error() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_empty_batch_after_filter() -> None:
-    """Streaming with an empty iterator after a real batch returns zeros."""
+async def test_streaming_empty_iterator() -> None:
+    """Streaming with an empty iterator returns zeros."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
         transcript, storage = await _create_transcript(db_path)

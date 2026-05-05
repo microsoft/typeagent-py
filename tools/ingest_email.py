@@ -342,9 +342,6 @@ async def _email_generator(
     skip_count = 0
 
     for source_id, email_file, label in _iter_emails(eml_paths, verbose, offset, limit):
-        # Pre-parse dedup: skip before opening the file.
-        # A second dedup pass happens in _filter_ingested() to catch
-        # sources committed by an earlier batch in the same run.
         if await storage.is_source_ingested(source_id):
             counters["skipped"] += 1
             basename = email_file.name
@@ -451,7 +448,6 @@ async def ingest_emails(
     counters: dict[str, int] = {
         "parsed": 0,
         "skipped": 0,
-        "batch_skipped": 0,
         "date_skipped": 0,
         "failed": 0,
         "ingested": 0,
@@ -463,7 +459,6 @@ async def ingest_emails(
     def on_batch_committed(result: AddMessagesResult) -> None:
         nonlocal last_batch_time
         counters["ingested"] += result.messages_added
-        counters["batch_skipped"] += result.messages_skipped
         counters["chunks"] += result.chunks_added
         counters["semrefs"] += result.semrefs_added
         counters["batches"] += 1
@@ -518,7 +513,7 @@ async def ingest_emails(
     )
     total_chunks = result.chunks_added if result is not None else counters["chunks"]
     semrefs_added = result.semrefs_added if result is not None else counters["semrefs"]
-    total_skipped = counters["skipped"] + counters["batch_skipped"]
+    total_skipped = counters["skipped"]
     overall_per_chunk = elapsed / total_chunks if total_chunks else 0
 
     print()

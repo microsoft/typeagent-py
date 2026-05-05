@@ -226,8 +226,8 @@ class ConversationBase(
         nearly doubles throughput for multi-batch ingestions.
 
         **Source-ID tracking**: each message's ``source_id`` (if not ``None``)
-        is checked before ingestion.  Already-ingested sources are silently
-        skipped.  Newly ingested sources are marked within the same transaction.
+        is marked as ingested within the commit transaction.  Callers are
+        responsible for filtering duplicates before yielding messages.
 
         **Extraction failures**: when knowledge extraction returns a
         ``Failure`` for a chunk, the failure is recorded via
@@ -258,56 +258,39 @@ class ConversationBase(
             total.messages_added += result.messages_added
             total.semrefs_added += result.semrefs_added
             total.chunks_added += result.chunks_added
-            total.messages_skipped += result.messages_skipped
             if on_batch_committed:
                 on_batch_committed(result)
 
         pending_commit: asyncio.Task[AddMessagesResult] | None = None
         pending_extraction: asyncio.Task[_ExtractionResult | None] | None = None
-        pending_skipped: int = 0
 
         async def _drain_commit() -> None:
-            nonlocal pending_commit, pending_skipped
+            nonlocal pending_commit
             if pending_commit is not None:
-                result = await pending_commit
-                result.messages_skipped += pending_skipped
-                _accumulate(result)
+                _accumulate(await pending_commit)
                 pending_commit = None
-                pending_skipped = 0
 
-        async def _submit_batch(filtered: list[TMessage], skipped: int) -> None:
-            nonlocal pending_commit, pending_extraction, pending_skipped
-            if not filtered and not skipped:
+        async def _submit_batch(batch: list[TMessage]) -> None:
+            nonlocal pending_commit, pending_extraction
+            if not batch:
                 return
 
-            if filtered and should_extract:
+            if should_extract:
                 next_extraction = asyncio.create_task(
-                    self._extract_knowledge_for_batch(filtered)
+                    self._extract_knowledge_for_batch(batch)
                 )
             else:
                 next_extraction = None
             pending_extraction = next_extraction
 
-            # Wait for previous commit to finish (frees the DB connection)
             await _drain_commit()
 
-            if not filtered:
-                # Nothing to commit, just report skipped
-                total.messages_skipped += skipped
-                if on_batch_committed:
-                    on_batch_committed(AddMessagesResult(messages_skipped=skipped))
-                return
-
-            # Await extraction result for this batch
             extraction = await next_extraction if next_extraction is not None else None
             pending_extraction = None
 
-            # Start commit (DB transaction) — runs concurrently with the
-            # *next* batch's LLM extraction once we yield back to the loop.
             pending_commit = asyncio.create_task(
-                self._commit_batch_streaming(storage, filtered, extraction)
+                self._commit_batch_streaming(storage, batch, extraction)
             )
-            pending_skipped = skipped
 
         try:
             batch: list[TMessage] = []
@@ -315,21 +298,18 @@ class ConversationBase(
             async for msg in messages:
                 msg_chunks = len(msg.text_chunks)
                 if batch and batch_chunks + msg_chunks > batch_size:
-                    filtered, skipped = await self._filter_ingested(storage, batch)
-                    await _submit_batch(filtered, skipped)
+                    await _submit_batch(batch)
                     batch = []
                     batch_chunks = 0
                 batch.append(msg)
                 batch_chunks += msg_chunks
                 if batch_chunks >= batch_size:
-                    filtered, skipped = await self._filter_ingested(storage, batch)
-                    await _submit_batch(filtered, skipped)
+                    await _submit_batch(batch)
                     batch = []
                     batch_chunks = 0
 
             if batch:
-                filtered, skipped = await self._filter_ingested(storage, batch)
-                await _submit_batch(filtered, skipped)
+                await _submit_batch(batch)
 
             await _drain_commit()
         except BaseException:
@@ -344,31 +324,6 @@ class ConversationBase(
             raise
 
         return total
-
-    async def _filter_ingested(
-        self,
-        storage: IStorageProvider[TMessage],
-        batch: list[TMessage],
-    ) -> tuple[list[TMessage], int]:
-        """Filter out messages whose source_id has already been ingested.
-
-        Returns (filtered_messages, skipped_count).
-
-        Uses a single batch query instead of per-message lookups.
-        """
-        source_ids = [m.source_id for m in batch if m.source_id is not None]
-        if source_ids:
-            ingested = await storage.are_sources_ingested(source_ids)
-        else:
-            ingested = set[str]()
-        filtered: list[TMessage] = []
-        skipped = 0
-        for msg in batch:
-            if msg.source_id is not None and msg.source_id in ingested:
-                skipped += 1
-                continue
-            filtered.append(msg)
-        return filtered, skipped
 
     async def _extract_knowledge_for_batch(
         self,
