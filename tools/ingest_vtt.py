@@ -264,9 +264,10 @@ async def ingest_vtt_files(
             )
             sys.exit(1)
 
-        msg_count = [0]  # mutable counter shared with the generator
+        msg_count = 0
 
         async def _message_stream() -> AsyncIterator[TranscriptMessage]:
+            nonlocal msg_count
             time_offset = 0.0
 
             for file_idx, vtt_file in enumerate(vtt_files):
@@ -307,7 +308,7 @@ async def ingest_vtt_files(
                                 text_chunks=[combined_text],
                                 metadata=metadata,
                                 timestamp=timestamp,
-                                source_id=f"{vtt_file}#{msg_count[0]}",
+                                source_id=f"{vtt_file}#{msg_count}",
                             )
                     return None
 
@@ -342,7 +343,7 @@ async def ingest_vtt_files(
                         else:
                             msg = _build_message()
                             if msg is not None:
-                                msg_count[0] += 1
+                                msg_count += 1
                                 yield msg
 
                             current_speaker = speaker
@@ -352,15 +353,8 @@ async def ingest_vtt_files(
                 # Last message from this file
                 msg = _build_message()
                 if msg is not None:
-                    msg_count[0] += 1
+                    msg_count += 1
                     yield msg
-
-                if verbose:
-                    print(f"    Extracted {msg_count[0]} messages so far")
-                    if file_max_end_time > 0:
-                        print(
-                            f"    File time range: 0.00s to {file_max_end_time - time_offset:.2f}s (with offset: {time_offset:.2f}s to {file_max_end_time:.2f}s)"
-                        )
 
                 if file_max_end_time > 0:
                     time_offset = file_max_end_time + 5.0
