@@ -383,7 +383,6 @@ async def ingest_vtt_files(
 
             counters: dict[str, int] = {
                 "ingested": 0,
-                "skipped": 0,
                 "chunks": 0,
                 "semrefs": 0,
                 "batches": 0,
@@ -392,7 +391,6 @@ async def ingest_vtt_files(
             def on_batch_committed(result: AddMessagesResult) -> None:
                 nonlocal last_batch_time
                 counters["ingested"] += result.messages_added
-                counters["skipped"] += result.messages_skipped
                 counters["chunks"] += result.chunks_added
                 counters["semrefs"] += result.semrefs_added
                 counters["batches"] += 1
@@ -408,8 +406,6 @@ async def ingest_vtt_files(
                     f"+{result.chunks_added} chunks",
                     f"+{result.semrefs_added} semrefs",
                 ]
-                if result.messages_skipped:
-                    parts.append(f"{result.messages_skipped} skipped")
                 print(
                     f"{' | '.join(parts)} | "
                     f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
@@ -448,7 +444,6 @@ async def ingest_vtt_files(
             semrefs_added = (
                 result.semrefs_added if result is not None else counters["semrefs"]
             )
-            total_skipped = counters["skipped"]
             overall_per_chunk = elapsed / total_chunks if total_chunks else 0
 
             if verbose:
@@ -456,8 +451,6 @@ async def ingest_vtt_files(
                     print("Ingestion interrupted by user (^C).")
                 print(f"  Successfully added {messages_ingested} messages")
                 print(f"  Ingested {total_chunks} chunk(s)")
-                if total_skipped:
-                    print(f"  Skipped {total_skipped} already-ingested message(s)")
                 print(f"  Extracted {semrefs_added} semantic references")
                 print(f"  Total time: {elapsed:.1f}s")
                 print(f"  Overall time per chunk: {overall_per_chunk:.2f}s/chunk")
@@ -467,8 +460,6 @@ async def ingest_vtt_files(
                     f" ({total_chunks} chunks, {semrefs_added} refs, {elapsed:.1f}s,"
                     f" {overall_per_chunk:.2f}s/chunk)"
                 )
-                if total_skipped:
-                    print(f"Skipped: {total_skipped} (already ingested)")
 
             if not interrupted:
                 print("All indexes built successfully")
