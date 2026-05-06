@@ -20,7 +20,7 @@ class ConversationMessage(
     text_chunks: list[str],  # Text of the message, 1 or more chunks
     tags: list[str] = [],  # Optional tags
     timestamp: str | None = None,  # ISO timestamp in UTC with 'z' suffix
-    metadata: ConversationMessageMeta,  # See below 
+    metadata: ConversationMessageMeta,  # See below
 )
 ```
 
@@ -64,7 +64,32 @@ extracted and indexed knowledge thereof.
 It is constructed by calling the factory function
 `typeagent.create_conversation` described below.
 
-It has one public method:
+It has these public methods:
+
+- `add_messages_with_indexing`
+  ```py
+  async def add_messages_with_indexing(
+      messages: list[TMessage],
+      *,
+      source_ids: list[str] | None = None,
+  ) -> AddMessagesResult
+  ```
+
+  Adds messages and updates all indexes in a single transaction.
+  For SQLite storage this is all-or-nothing.
+
+- `add_messages_streaming`
+  ```py
+  async def add_messages_streaming(
+      messages: AsyncIterable[TMessage],
+      *,
+      batch_size: int = 100,
+      on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
+  ) -> AddMessagesResult
+  ```
+
+  Adds messages from an async stream, committing each batch separately.
+  Useful for very large ingestions where one large transaction is impractical.
 
 - `query`
   ```py
@@ -80,7 +105,7 @@ It has one public method:
 
 ## Functions
 
-There is currently only one public function.
+There is currently only one public top-level function.
 
 #### Factory function
 

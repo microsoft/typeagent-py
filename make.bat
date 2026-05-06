@@ -45,12 +45,15 @@ uv run pytest
 goto end
 
 :coverage
+setlocal
 if not exist ".venv\" call make.bat venv
 echo Running test coverage...
 uv run coverage erase
+set "COVERAGE_PROCESS_START=.coveragerc"
 uv run coverage run -m pytest
 uv run coverage combine
 uv run coverage report
+endlocal
 goto end
 
 

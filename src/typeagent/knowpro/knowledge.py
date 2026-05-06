@@ -5,31 +5,17 @@ import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from typechat import Result, TypeChatLanguageModel
+from typechat import Result
 
-from . import convknowledge
 from . import knowledge_schema as kplib
-from ..aitools import model_adapters
 from .interfaces import IKnowledgeExtractor
-
-
-def create_knowledge_extractor(
-    chat_model: TypeChatLanguageModel | None = None,
-) -> convknowledge.KnowledgeExtractor:
-    """Create a knowledge extractor using the given Chat Model."""
-    chat_model = chat_model or model_adapters.create_chat_model()
-    extractor = convknowledge.KnowledgeExtractor(
-        chat_model, max_chars_per_chunk=4096, merge_action_knowledge=False
-    )
-    return extractor
 
 
 async def extract_knowledge_from_text(
     knowledge_extractor: IKnowledgeExtractor,
     text: str,
 ) -> Result[kplib.KnowledgeResponse]:
-    """Extract knowledge from a single text input with retries."""
-    # TODO: Add a retry mechanism to handle transient errors.
+    """Extract knowledge from a single text input."""
     return await knowledge_extractor.extract(text)
 
 
@@ -47,7 +33,7 @@ async def batch_worker(
 async def extract_knowledge_from_text_batch(
     knowledge_extractor: IKnowledgeExtractor,
     text_batch: list[str],
-    concurrency: int = 2,
+    concurrency: int = 4,
 ) -> list[Result[kplib.KnowledgeResponse]]:
     """Extract knowledge from a batch of text inputs concurrently."""
     if not text_batch:
@@ -193,25 +179,3 @@ def merge_topics(topics: list[str]) -> list[str]:
     # TODO: Preserve order of first occurrence?
     merged_topics = set(topics)
     return list(merged_topics)
-
-
-async def extract_knowledge_for_text_batch_q(
-    knowledge_extractor: convknowledge.KnowledgeExtractor,
-    text_batch: list[str],
-    concurrency: int = 2,
-) -> list[Result[kplib.KnowledgeResponse]]:
-    """Extract knowledge for a batch of text inputs using a task queue."""
-    raise NotImplementedError("TODO")
-    # TODO: BatchTask etc.
-    # task_batch = [BatchTask(task=text) for text in text_batch]
-
-    # await run_in_batches(
-    #     task_batch,
-    #     lambda text: extract_knowledge_from_text(knowledge_extractor, text),
-    #     concurrency,
-    # )
-
-    # results = []
-    # for task in task_batch:
-    #     results.append(task.result if task.result else Failure("No result"))
-    # return results

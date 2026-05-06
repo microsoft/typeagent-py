@@ -23,7 +23,9 @@ from .email_message import EmailMessage
 
 class EmailMemorySettings:
     def __init__(self, conversation_settings: ConversationSettings) -> None:
-        self.language_model = model_adapters.create_chat_model()
+        self.language_model = model_adapters.create_chat_model(
+            retrier=conversation_settings.chat_retrier
+        )
         self.query_translator = utils.create_translator(
             self.language_model, search_query_schema.SearchQuery
         )

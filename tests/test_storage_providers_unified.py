@@ -102,27 +102,27 @@ async def test_all_index_creation(
     storage_provider, _ = storage_provider_type
 
     # Test all index types are created and return proper interface objects
-    conv_index = await storage_provider.get_semantic_ref_index()
+    conv_index = storage_provider.semantic_ref_index
     assert conv_index is not None
     assert hasattr(conv_index, "lookup_term")  # Basic interface check
 
-    prop_index = await storage_provider.get_property_index()
+    prop_index = storage_provider.property_index
     assert prop_index is not None
     assert hasattr(prop_index, "lookup_property")  # Basic interface check
 
-    time_index = await storage_provider.get_timestamp_index()
+    time_index = storage_provider.timestamp_index
     assert time_index is not None
     assert hasattr(time_index, "lookup_range")  # Basic interface check
 
-    msg_index = await storage_provider.get_message_text_index()
+    msg_index = storage_provider.message_text_index
     assert msg_index is not None
     assert hasattr(msg_index, "lookup_messages")  # Basic interface check
 
-    rel_index = await storage_provider.get_related_terms_index()
+    rel_index = storage_provider.related_terms_index
     assert rel_index is not None
     assert hasattr(rel_index, "aliases")  # Basic interface check
 
-    threads = await storage_provider.get_conversation_threads()
+    threads = storage_provider.conversation_threads
     assert threads is not None
     assert hasattr(threads, "threads")  # Basic interface check
 
@@ -135,16 +135,16 @@ async def test_index_persistence(
     storage_provider, _ = storage_provider_type
 
     # All index types should return same instance across calls
-    conv1 = await storage_provider.get_semantic_ref_index()
-    conv2 = await storage_provider.get_semantic_ref_index()
+    conv1 = storage_provider.semantic_ref_index
+    conv2 = storage_provider.semantic_ref_index
     assert conv1 is conv2
 
-    prop1 = await storage_provider.get_property_index()
-    prop2 = await storage_provider.get_property_index()
+    prop1 = storage_provider.property_index
+    prop2 = storage_provider.property_index
     assert prop1 is prop2
 
-    time1 = await storage_provider.get_timestamp_index()
-    time2 = await storage_provider.get_timestamp_index()
+    time1 = storage_provider.timestamp_index
+    time2 = storage_provider.timestamp_index
     assert time1 is time2
 
 
@@ -156,7 +156,7 @@ async def test_message_collection_basic_operations(
     storage_provider, _ = storage_provider_type
 
     # Create message collection
-    collection = await storage_provider.get_message_collection()
+    collection = storage_provider.messages
 
     # Test initial state
     assert await collection.size() == 0
@@ -196,7 +196,7 @@ async def test_semantic_ref_collection_basic_operations(
     storage_provider, _ = storage_provider_type
 
     # Create semantic ref collection
-    collection = await storage_provider.get_semantic_ref_collection()
+    collection = storage_provider.semantic_refs
 
     # Test initial state
     assert await collection.size() == 0
@@ -251,7 +251,7 @@ async def test_semantic_ref_index_behavior_parity(
     """Test that semantic ref index behaves identically in both providers."""
     storage_provider, _ = storage_provider_type
 
-    conv_index = await storage_provider.get_semantic_ref_index()
+    conv_index = storage_provider.semantic_ref_index
 
     # Test empty state
     empty_results = await conv_index.lookup_term("nonexistent")
@@ -269,7 +269,7 @@ async def test_timestamp_index_behavior_parity(
     """Test that timestamp index behaves identically in both providers."""
     storage_provider, _provider_type = storage_provider_type
 
-    time_index = await storage_provider.get_timestamp_index()
+    time_index = storage_provider.timestamp_index
 
     # Test empty lookup_range interface
     start_time = Datetime.fromisoformat("2024-01-01T00:00:00Z")
@@ -288,7 +288,7 @@ async def test_message_text_index_interface_parity(
     """Test that message text index interface works identically in both providers."""
     storage_provider, _ = storage_provider_type
 
-    msg_index = await storage_provider.get_message_text_index()
+    msg_index = storage_provider.message_text_index
 
     # Test empty lookup_messages
     empty_results = await msg_index.lookup_messages("nonexistent query", 10)
@@ -303,7 +303,7 @@ async def test_related_terms_index_interface_parity(
     """Test that related terms index interface works identically in both providers."""
     storage_provider, _ = storage_provider_type
 
-    rel_index = await storage_provider.get_related_terms_index()
+    rel_index = storage_provider.related_terms_index
 
     # Test interface properties
     aliases = rel_index.aliases
@@ -321,7 +321,7 @@ async def test_conversation_threads_interface_parity(
     """Test that conversation threads interface works identically in both providers."""
     storage_provider, _ = storage_provider_type
 
-    threads = await storage_provider.get_conversation_threads()
+    threads = storage_provider.conversation_threads
 
     # Test initial empty state
     assert len(threads.threads) == 0
@@ -352,8 +352,8 @@ async def test_cross_provider_message_collection_equivalence(
 
     try:
         # Create collections in both
-        memory_collection = await memory_provider.get_message_collection()
-        sqlite_collection = await sqlite_provider.get_message_collection()
+        memory_collection = memory_provider.messages
+        sqlite_collection = sqlite_provider.messages
 
         # Add identical data to both
         test_messages = [
@@ -394,8 +394,8 @@ async def test_property_index_population_from_semantic_refs(
     storage_provider, provider_type = storage_provider_type
 
     # Get collections
-    sem_ref_collection = await storage_provider.get_semantic_ref_collection()
-    prop_index = await storage_provider.get_property_index()
+    sem_ref_collection = storage_provider.semantic_refs
+    prop_index = storage_provider.property_index
 
     # Check initial state
     initial_sem_ref_count = await sem_ref_collection.size()
@@ -476,7 +476,7 @@ async def test_property_index_basic_operations(
     """Test basic property index operations work identically in both providers."""
     storage_provider, _ = storage_provider_type
 
-    prop_index = await storage_provider.get_property_index()
+    prop_index = storage_provider.property_index
 
     # Test initial state - should be able to handle lookups even when empty
     empty_results = await prop_index.lookup_property("name", "nonexistent")
@@ -495,7 +495,7 @@ async def test_timestamp_index_range_queries(
     """Test timestamp index range query functionality in both providers."""
     storage_provider, _ = storage_provider_type
 
-    timestamp_index = await storage_provider.get_timestamp_index()
+    timestamp_index = storage_provider.timestamp_index
 
     # Test basic interface - empty range query
     start_time = Datetime.fromisoformat("2024-01-01T00:00:00Z")
@@ -526,8 +526,8 @@ async def test_timestamp_index_with_data(
     storage_provider, provider_type = storage_provider_type
 
     # First add some messages to work with
-    message_collection = await storage_provider.get_message_collection()
-    timestamp_index = await storage_provider.get_timestamp_index()
+    message_collection = storage_provider.messages
+    timestamp_index = storage_provider.timestamp_index
 
     # Add test messages
     test_messages = [
@@ -631,12 +631,12 @@ async def test_storage_provider_independence(
         )
 
         # Test memory provider independence
-        memory_index1 = await memory_provider1.get_semantic_ref_index()
-        memory_index2 = await memory_provider2.get_semantic_ref_index()
+        memory_index1 = memory_provider1.semantic_ref_index
+        memory_index2 = memory_provider2.semantic_ref_index
         assert memory_index1 is not memory_index2
 
-        memory_collection1 = await memory_provider1.get_message_collection()
-        memory_collection2 = await memory_provider2.get_message_collection()
+        memory_collection1 = memory_provider1.messages
+        memory_collection2 = memory_provider2.messages
 
         # Add data to first memory provider
         await memory_collection1.append(DummyTestMessage(["memory test 1"]))
@@ -644,12 +644,12 @@ async def test_storage_provider_independence(
         assert await memory_collection2.size() == 0  # Second provider unaffected
 
         # Test sqlite provider independence
-        sqlite_index1 = await sqlite_provider1.get_semantic_ref_index()
-        sqlite_index2 = await sqlite_provider2.get_semantic_ref_index()
+        sqlite_index1 = sqlite_provider1.semantic_ref_index
+        sqlite_index2 = sqlite_provider2.semantic_ref_index
         assert sqlite_index1 is not sqlite_index2
 
-        sqlite_collection1 = await sqlite_provider1.get_message_collection()
-        sqlite_collection2 = await sqlite_provider2.get_message_collection()
+        sqlite_collection1 = sqlite_provider1.messages
+        sqlite_collection2 = sqlite_provider2.messages
 
         # Add data to first sqlite provider
         await sqlite_collection1.append(DummyTestMessage(["sqlite test 1"]))
@@ -681,7 +681,7 @@ async def test_collection_operations_comprehensive(
     storage_provider, _ = storage_provider_type
 
     # Test message collection operations
-    message_collection = await storage_provider.get_message_collection()
+    message_collection = storage_provider.messages
 
     # Test initial state
     assert await message_collection.size() == 0

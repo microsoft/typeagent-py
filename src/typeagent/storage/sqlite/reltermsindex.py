@@ -209,30 +209,24 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         return [row[0] for row in cursor.fetchall()]
 
     async def add_terms(self, texts: list[str]) -> None:
-        """Add terms."""
+        """Add terms with batched embedding generation and DB writes."""
+        new_terms = [t for t in texts if t not in self._added_terms]
+        if not new_terms:
+            return
+
+        embeddings = await self._vector_base.add_keys(new_terms)
+        assert embeddings is not None
+
         cursor = self.db.cursor()
-        # TODO: Batch additions to database
-        for text in texts:
-            if text in self._added_terms:
-                continue
-
-            # Add to VectorBase for fuzzy lookup
-            await self._vector_base.add_key(text)
-            self._terms_list.append(text)
-            self._added_terms.add(text)
-
-            # Generate embedding for term and store in database
-            embedding = await self._vector_base.get_embedding(text)  # Cached
-            serialized_embedding = serialize_embedding(embedding)
-            # Insert term and embedding
-            cursor.execute(
-                """
-                INSERT OR REPLACE INTO RelatedTermsFuzzy
-                (term, term_embedding)
-                VALUES (?, ?)
-                """,
-                (text, serialized_embedding),
-            )
+        cursor.executemany(
+            "INSERT OR REPLACE INTO RelatedTermsFuzzy (term, term_embedding) VALUES (?, ?)",
+            [
+                (term, serialize_embedding(embeddings[i]))
+                for i, term in enumerate(new_terms)
+            ],
+        )
+        self._terms_list.extend(new_terms)
+        self._added_terms.update(new_terms)
 
     async def lookup_terms(
         self,

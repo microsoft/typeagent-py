@@ -54,7 +54,7 @@ async def load_json_to_database(
 
     # Get the storage provider to check if database is empty
     provider = await settings.get_storage_provider()
-    msgs = await provider.get_message_collection()
+    msgs = provider.messages
 
     # Check if database already has data
     msg_count = await msgs.size()
