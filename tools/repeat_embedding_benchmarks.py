@@ -229,6 +229,12 @@ def write_json(path: Path, data: object) -> None:
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
+def serialize_metadata_path(path: Path) -> str:
+    """Serialize repository-relative metadata paths consistently across OSes."""
+
+    return path.as_posix()
+
+
 def write_markdown_summary(path: Path, summaries: list[dict[str, object]]) -> None:
     """Write the reviewer-facing markdown summary for all benchmarked models."""
 
@@ -290,11 +296,13 @@ def build_run_suite_metadata(
         "created_at_utc": timestamp,
         "runs_per_model": runs,
         "models": models,
-        "message_source_json": str(INDEX_DATA_PATH),
-        "pipeline_source_json": str(SEARCH_RESULTS_PATH),
-        "related_term_source_json": str(SEARCH_RESULTS_PATH),
+        "message_source_json": serialize_metadata_path(INDEX_DATA_PATH),
+        "pipeline_source_json": serialize_metadata_path(SEARCH_RESULTS_PATH),
+        "related_term_source_json": serialize_metadata_path(SEARCH_RESULTS_PATH),
         "pipeline_scoring_paths": PIPELINE_SCORING_PATHS,
-        "ignored_serialized_embedding_sidecar": str(INDEX_EMBEDDINGS_PATH),
+        "ignored_serialized_embedding_sidecar": serialize_metadata_path(
+            INDEX_EMBEDDINGS_PATH
+        ),
         "ignored_serialized_embedding_size": (
             corpus_metadata.serialized_embedding_size
         ),

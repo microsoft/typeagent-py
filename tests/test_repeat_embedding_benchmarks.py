@@ -36,10 +36,10 @@ def test_build_run_suite_metadata_records_ignored_sidecar() -> None:
     assert metadata["ignored_serialized_related_embedding_count"] == 1188
     assert metadata["ignored_serialized_total_embedding_count"] == 1294
     assert metadata["pipeline_source_json"] == (
-        "tests\\testdata\\Episode_53_Search_results.json"
+        "tests/testdata/Episode_53_Search_results.json"
     )
     assert metadata["related_term_source_json"] == (
-        "tests\\testdata\\Episode_53_Search_results.json"
+        "tests/testdata/Episode_53_Search_results.json"
     )
     assert metadata["pipeline_scoring_paths"] == [
         "src/typeagent/knowpro/search.py::run_search_query",
