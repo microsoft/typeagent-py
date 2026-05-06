@@ -45,15 +45,15 @@ def test_conversation_secondary_indexes_initialization(
     embedding_settings = TextEmbeddingIndexSettings(test_model)
     settings = RelatedTermIndexSettings(embedding_settings)
     indexes = ConversationSecondaryIndexes(storage_provider, settings)
-    # Note: indexes are None until initialize() is called
-    assert indexes.property_to_semantic_ref_index is None
-    assert indexes.timestamp_index is None
-    assert indexes.term_to_related_terms_index is None
+    # Indexes are initialized from storage provider in __init__
+    assert indexes.property_to_semantic_ref_index is not None
+    assert indexes.timestamp_index is not None
+    assert indexes.term_to_related_terms_index is not None
 
     # Test with custom settings
     settings2 = RelatedTermIndexSettings(embedding_settings)
     indexes_with_settings = ConversationSecondaryIndexes(storage_provider, settings2)
-    assert indexes_with_settings.property_to_semantic_ref_index is None
+    assert indexes_with_settings.property_to_semantic_ref_index is not None
 
 
 @pytest.mark.asyncio

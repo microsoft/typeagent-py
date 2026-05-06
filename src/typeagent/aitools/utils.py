@@ -5,6 +5,7 @@
 
 from contextlib import contextmanager
 import difflib
+import io
 import os
 import re
 import shutil
@@ -43,12 +44,17 @@ def timelog(label: str, verbose: bool = True):
             )
 
 
-def pretty_print(obj: object, prefix: str = "", suffix: str = "") -> None:
+def pretty_print(
+    obj: object,
+    prefix: str = "",
+    suffix: str = "",
+    file: io.StringIO | None = None,
+) -> None:
     """Pretty-print an object using pprint."""
     import pprint
 
     line_width = min(200, shutil.get_terminal_size().columns)
-    print(prefix + pprint.pformat(obj, width=line_width) + suffix)
+    print(prefix + pprint.pformat(obj, width=line_width) + suffix, file=file)
 
 
 def format_code(text: str, line_width=None) -> str:
@@ -91,7 +97,7 @@ def create_translator[T](
 
 
 # Vibe-coded by o4-mini-high
-def list_diff(label_a, a, label_b, b, max_items):
+def list_diff(label_a, a, label_b, b, max_items, file=None):
     """Print colorized diff between two sorted list of numbers."""
     sm = difflib.SequenceMatcher(None, a, b)
     a_out, b_out = [], []
@@ -145,8 +151,8 @@ def list_diff(label_a, a, label_b, b, max_items):
     # print each segment
     for start, end in segments:
         seg_widths = widths[start:end]
-        print(la, fmt(a_cols[start:end], seg_widths))
-        print(lb, fmt(b_cols[start:end], seg_widths))
+        print(la, fmt(a_cols[start:end], seg_widths), file=file)
+        print(lb, fmt(b_cols[start:end], seg_widths), file=file)
 
 
 def setup_logfire():
@@ -250,52 +256,6 @@ def get_azure_api_key(azure_api_key: str) -> str:
         azure_api_key = token_provider.get_token()
 
     return azure_api_key
-
-
-def create_async_openai_client(
-    endpoint_envvar: str = "AZURE_OPENAI_ENDPOINT",
-    base_url: str | None = None,
-):
-    """Create AsyncOpenAI or AsyncAzureOpenAI client based on environment variables.
-
-    Returns the appropriate async OpenAI client based on what credentials are available.
-    Prefers OPENAI_API_KEY over AZURE_OPENAI_API_KEY.
-
-    Args:
-        endpoint_envvar: Environment variable name for Azure endpoint (default: AZURE_OPENAI_ENDPOINT).
-        base_url: Optional base URL override for OpenAI client.
-
-    Returns:
-        AsyncOpenAI or AsyncAzureOpenAI client instance.
-
-    Raises:
-        RuntimeError: If neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY is set.
-    """
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
-
-    if openai_api_key := os.getenv("OPENAI_API_KEY"):
-        return AsyncOpenAI(api_key=openai_api_key, base_url=base_url, max_retries=5)
-
-    elif azure_api_key := os.getenv("AZURE_OPENAI_API_KEY"):
-        azure_api_key = get_azure_api_key(azure_api_key)
-        azure_endpoint, api_version = parse_azure_endpoint(endpoint_envvar)
-
-        apim_key = os.getenv("AZURE_APIM_SUBSCRIPTION_KEY")
-
-        return AsyncAzureOpenAI(
-            api_version=api_version,
-            azure_endpoint=azure_endpoint,
-            api_key=azure_api_key,
-            default_headers=(
-                {"Ocp-Apim-Subscription-Key": apim_key} if apim_key else None
-            ),
-            max_retries=5,
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
 
 
 def resolve_azure_model_name(

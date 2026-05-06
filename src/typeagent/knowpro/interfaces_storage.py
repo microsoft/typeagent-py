@@ -67,6 +67,21 @@ class SemanticRefMetadata(NamedTuple):
     knowledge_type: KnowledgeType
 
 
+@dataclass
+class ChunkFailure:
+    """Record of a single failed knowledge-extraction attempt for one chunk.
+
+    Stored in the storage provider so that ingestion pipelines can retry just
+    the failed chunks without re-processing whole messages.
+    """
+
+    message_ordinal: int
+    chunk_ordinal: int
+    error_class: str
+    error_message: str
+    failed_at: Datetime
+
+
 class IReadonlyCollection[T, TOrdinal](AsyncIterable[T], Protocol):
     async def size(self) -> int: ...
 
@@ -111,23 +126,31 @@ class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Proto
 class IStorageProvider[TMessage: IMessage](Protocol):
     """API spec for storage providers -- maybe in-memory or persistent."""
 
-    async def get_message_collection(self) -> IMessageCollection[TMessage]: ...
+    @property
+    def messages(self) -> IMessageCollection[TMessage]: ...
 
-    async def get_semantic_ref_collection(self) -> ISemanticRefCollection: ...
+    @property
+    def semantic_refs(self) -> ISemanticRefCollection: ...
 
-    # Index getters - ALL 6 index types for this conversation
+    # Index properties - ALL 6 index types for this conversation
 
-    async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex: ...
+    @property
+    def semantic_ref_index(self) -> ITermToSemanticRefIndex: ...
 
-    async def get_property_index(self) -> IPropertyToSemanticRefIndex: ...
+    @property
+    def property_index(self) -> IPropertyToSemanticRefIndex: ...
 
-    async def get_timestamp_index(self) -> ITimestampToTextRangeIndex: ...
+    @property
+    def timestamp_index(self) -> ITimestampToTextRangeIndex: ...
 
-    async def get_message_text_index(self) -> IMessageTextIndex[TMessage]: ...
+    @property
+    def message_text_index(self) -> IMessageTextIndex[TMessage]: ...
 
-    async def get_related_terms_index(self) -> ITermToRelatedTermsIndex: ...
+    @property
+    def related_terms_index(self) -> ITermToRelatedTermsIndex: ...
 
-    async def get_conversation_threads(self) -> IConversationThreads: ...
+    @property
+    def conversation_threads(self) -> IConversationThreads: ...
 
     # Metadata management
 
@@ -158,6 +181,10 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         """Check if a source has already been ingested."""
         ...
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        ...
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source."""
         ...
@@ -166,6 +193,39 @@ class IStorageProvider[TMessage: IMessage](Protocol):
         self, source_id: str, status: str = STATUS_INGESTED
     ) -> None:
         """Mark a source as ingested (no commit; call within transaction context)."""
+        ...
+
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        ...
+
+    # Chunk-level extraction failure tracking
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record an extraction failure for a single chunk.
+
+        Idempotent: re-recording overwrites any prior entry for the same
+        (message_ordinal, chunk_ordinal). No commit; call within transaction
+        context.
+        """
+        ...
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove the failure record for one chunk (e.g., after a retry succeeds)."""
+        ...
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by message and chunk."""
         ...
 
     # Transaction management
@@ -198,6 +258,7 @@ class IConversation[
 
 
 __all__ = [
+    "ChunkFailure",
     "ConversationMetadata",
     "ICollection",
     "IConversation",

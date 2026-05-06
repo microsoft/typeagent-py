@@ -30,7 +30,7 @@ async def build_message_index[
     if csi is None:
         return
     if csi.message_index is None:
-        csi.message_index = await storage_provider.get_message_text_index()
+        csi.message_index = storage_provider.message_text_index
     messages = conversation.messages
     # Convert collection to list for add_messages
     messages_list = await messages.get_slice(0, await messages.size())

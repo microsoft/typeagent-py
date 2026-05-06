@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from stamina import BoundAsyncRetryingCaller
+
 from ..aitools.embeddings import IEmbeddingModel
 from ..aitools.model_adapters import create_embedding_model
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
@@ -32,7 +34,7 @@ class RelatedTermIndexSettings:
 
 @dataclass
 class SemanticRefIndexSettings:
-    batch_size: int
+    concurrency: int
     auto_extract_knowledge: bool
     knowledge_extractor: IKnowledgeExtractor | None = None
 
@@ -44,9 +46,16 @@ class ConversationSettings:
         self,
         model: IEmbeddingModel | None = None,
         storage_provider: IStorageProvider | None = None,
+        *,
+        chat_retrier: BoundAsyncRetryingCaller | None = None,
+        embed_retrier: BoundAsyncRetryingCaller | None = None,
     ):
+        # Retry callers -- None means "use the default" in model_adapters.
+        self.chat_retrier = chat_retrier
+        self.embed_retrier = embed_retrier
+
         # All settings share the same model, so they share the embedding cache.
-        model = model or create_embedding_model()
+        model = model or create_embedding_model(retrier=embed_retrier)
         self.embedding_model = model
         min_score = DEFAULT_RELATED_TERM_MIN_SCORE
         self.related_term_index_settings = RelatedTermIndexSettings(
@@ -57,7 +66,7 @@ class ConversationSettings:
             TextEmbeddingIndexSettings(model, min_score=DEFAULT_MESSAGE_TEXT_MIN_SCORE)
         )
         self.semantic_ref_index_settings = SemanticRefIndexSettings(
-            batch_size=4,  # Effectively max concurrency
+            concurrency=4,
             auto_extract_knowledge=True,  # The high-level API wants this
         )
 

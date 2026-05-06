@@ -11,6 +11,8 @@ from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
+from ...knowpro.interfaces_storage import ChunkFailure
+from ..memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
 from .propindex import SqlitePropertyIndex
@@ -97,6 +99,11 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         # Initialize related terms index
         self._related_terms_index = SqliteRelatedTermsIndex(
             self.db, self.related_term_index_settings.embedding_index_settings
+        )
+
+        # Initialize conversation threads
+        self._conversation_threads = ConversationThreads(
+            self.message_text_index_settings.embedding_index_settings
         )
 
         # Connect message collection to message text index for automatic indexing
@@ -324,7 +331,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         return self._semantic_ref_collection
 
     @property
-    def term_to_semantic_ref_index(self) -> SqliteTermToSemanticRefIndex:
+    def semantic_ref_index(self) -> SqliteTermToSemanticRefIndex:
         return self._term_to_semantic_ref_index
 
     @property
@@ -343,46 +350,9 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
     def related_terms_index(self) -> SqliteRelatedTermsIndex:
         return self._related_terms_index
 
-    # Async getters required by base class
-    async def get_message_collection(
-        self, message_type: type[TMessage] | None = None
-    ) -> interfaces.IMessageCollection[TMessage]:
-        """Get the message collection."""
-        return self._message_collection
-
-    async def get_semantic_ref_collection(self) -> interfaces.ISemanticRefCollection:
-        """Get the semantic reference collection."""
-        return self._semantic_ref_collection
-
-    async def get_semantic_ref_index(self) -> interfaces.ITermToSemanticRefIndex:
-        """Get the semantic reference index."""
-        return self._term_to_semantic_ref_index
-
-    async def get_property_index(self) -> interfaces.IPropertyToSemanticRefIndex:
-        """Get the property index."""
-        return self._property_index
-
-    async def get_timestamp_index(self) -> interfaces.ITimestampToTextRangeIndex:
-        """Get the timestamp index."""
-        return self._timestamp_index
-
-    async def get_message_text_index(self) -> interfaces.IMessageTextIndex[TMessage]:
-        """Get the message text index."""
-        return self._message_text_index
-
-    async def get_related_terms_index(self) -> interfaces.ITermToRelatedTermsIndex:
-        """Get the related terms index."""
-        return self._related_terms_index
-
-    async def get_conversation_threads(self) -> interfaces.IConversationThreads:
-        """Get the conversation threads."""
-        # For now, return a simple implementation
-        # In a full implementation, this would be stored/retrieved from SQLite
-        from ...storage.memory.convthreads import ConversationThreads
-
-        return ConversationThreads(
-            self.message_text_index_settings.embedding_index_settings
-        )
+    @property
+    def conversation_threads(self) -> ConversationThreads:
+        return self._conversation_threads
 
     async def clear(self) -> None:
         """Clear all data from the storage provider."""
@@ -594,6 +564,26 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         row = cursor.fetchone()
         return row is not None and row[0] == STATUS_INGESTED
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        if not source_ids:
+            return set()
+        cursor = self.db.cursor()
+        result: set[str] = set()
+        # Chunk to stay within SQLite's SQLITE_MAX_VARIABLE_NUMBER
+        # (999 on older builds, 32766 on 3.32.0+).
+        chunk_size = 500
+        for i in range(0, len(source_ids), chunk_size):
+            chunk = source_ids[i : i + chunk_size]
+            placeholders = ",".join("?" for _ in chunk)
+            cursor.execute(
+                f"SELECT source_id FROM IngestedSources"
+                f" WHERE source_id IN ({placeholders}) AND status = ?",
+                [*chunk, STATUS_INGESTED],
+            )
+            result.update(row[0] for row in cursor.fetchall())
+        return result
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 
@@ -627,3 +617,68 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
             "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
             (source_id, status),
         )
+
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        if not source_ids:
+            return
+        cursor = self.db.cursor()
+        cursor.executemany(
+            "INSERT OR REPLACE INTO IngestedSources (source_id, status) VALUES (?, ?)",
+            [(sid, status) for sid in source_ids],
+        )
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record a knowledge-extraction failure for a single chunk.
+
+        Idempotent: re-recording overwrites any prior entry for the same
+        (message_ordinal, chunk_ordinal). No commit; call within a transaction
+        context.
+        """
+        failed_at = datetime.now(timezone.utc).isoformat()
+        cursor = self.db.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO ChunkFailures
+                (msg_id, chunk_ordinal, error_class, error_message, failed_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (message_ordinal, chunk_ordinal, error_class, error_message, failed_at),
+        )
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove a previously recorded chunk failure (no-op if absent)."""
+        cursor = self.db.cursor()
+        cursor.execute(
+            "DELETE FROM ChunkFailures WHERE msg_id = ? AND chunk_ordinal = ?",
+            (message_ordinal, chunk_ordinal),
+        )
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by (msg_id, chunk_ordinal)."""
+        cursor = self.db.cursor()
+        cursor.execute("""
+            SELECT msg_id, chunk_ordinal, error_class, error_message, failed_at
+            FROM ChunkFailures
+            ORDER BY msg_id, chunk_ordinal
+            """)
+        return [
+            ChunkFailure(
+                message_ordinal=row[0],
+                chunk_ordinal=row[1],
+                error_class=row[2],
+                error_message=row[3],
+                failed_at=datetime.fromisoformat(row[4]),
+            )
+            for row in cursor.fetchall()
+        ]

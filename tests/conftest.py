@@ -10,6 +10,10 @@ from typing import Any
 from dotenv import load_dotenv
 import pytest
 import pytest_asyncio
+import stamina
+
+stamina.set_testing(True)
+
 
 from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.model_adapters import create_test_embedding_model
@@ -328,7 +332,7 @@ class FakeConversation(IConversation[FakeMessage, FakeTermIndex]):
             storage_provider = await self.settings.get_storage_provider()
             self._storage_provider = storage_provider
             if self.semantic_ref_index is None:
-                self.semantic_ref_index = await storage_provider.get_semantic_ref_index()  # type: ignore
+                self.semantic_ref_index = storage_provider.semantic_ref_index  # type: ignore
 
             if self._has_secondary_indexes:
                 # Set up secondary indexes

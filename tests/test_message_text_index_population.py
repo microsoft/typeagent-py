@@ -59,7 +59,7 @@ async def test_message_text_index_population_from_database():
             ),
         ]
 
-        msg_collection = await storage1.get_message_collection()
+        msg_collection = storage1.messages
         await msg_collection.extend(test_messages)
         assert await msg_collection.size() == len(test_messages)
 
@@ -74,7 +74,7 @@ async def test_message_text_index_population_from_database():
         )
 
         # Check message collection size
-        msg_collection2 = await storage2.get_message_collection()
+        msg_collection2 = storage2.messages
         msg_count = await msg_collection2.size()
         print(f"Message collection size: {msg_count}")
         assert msg_count == len(
@@ -82,7 +82,7 @@ async def test_message_text_index_population_from_database():
         ), f"Expected {len(test_messages)} messages, got {msg_count}"
 
         # Check message text index
-        msg_text_index = await storage2.get_message_text_index()
+        msg_text_index = storage2.message_text_index
         # Check that it implements the interface correctly
         from typeagent.knowpro.interfaces import IMessageTextIndex
 

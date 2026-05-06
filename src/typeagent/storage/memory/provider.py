@@ -3,10 +3,11 @@
 
 """In-memory storage provider implementation."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
+    ChunkFailure,
     ConversationMetadata,
     IConversationThreads,
     IMessage,
@@ -40,6 +41,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     _related_terms_index: RelatedTermsIndex
     _conversation_threads: ConversationThreads
     _ingested_sources: set[str]
+    _chunk_failures: dict[tuple[int, int], ChunkFailure]
 
     def __init__(
         self,
@@ -60,6 +62,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         thread_settings = message_text_settings.embedding_index_settings
         self._conversation_threads = ConversationThreads(thread_settings)
         self._ingested_sources = set()
+        self._chunk_failures = {}
 
     async def __aenter__(self) -> "MemoryStorageProvider[TMessage]":
         """Enter transaction context. No-op for in-memory storage."""
@@ -74,30 +77,36 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """Exit transaction context. No-op for in-memory storage."""
         pass
 
-    async def get_semantic_ref_index(self) -> ITermToSemanticRefIndex:
+    @property
+    def semantic_ref_index(self) -> ITermToSemanticRefIndex:
         return self._conversation_index
 
-    async def get_property_index(self) -> IPropertyToSemanticRefIndex:
+    @property
+    def property_index(self) -> IPropertyToSemanticRefIndex:
         return self._property_index
 
-    async def get_timestamp_index(self) -> ITimestampToTextRangeIndex:
+    @property
+    def timestamp_index(self) -> ITimestampToTextRangeIndex:
         return self._timestamp_index
 
-    async def get_message_text_index(self) -> IMessageTextIndex[TMessage]:
+    @property
+    def message_text_index(self) -> IMessageTextIndex[TMessage]:
         return self._message_text_index
 
-    async def get_related_terms_index(self) -> ITermToRelatedTermsIndex:
+    @property
+    def related_terms_index(self) -> ITermToRelatedTermsIndex:
         return self._related_terms_index
 
-    async def get_conversation_threads(self) -> IConversationThreads:
+    @property
+    def conversation_threads(self) -> IConversationThreads:
         return self._conversation_threads
 
-    async def get_message_collection(
-        self, message_type: type[TMessage] | None = None
-    ) -> MemoryMessageCollection[TMessage]:
+    @property
+    def messages(self) -> MemoryMessageCollection[TMessage]:
         return self._message_collection
 
-    async def get_semantic_ref_collection(self) -> MemorySemanticRefCollection:
+    @property
+    def semantic_refs(self) -> MemorySemanticRefCollection:
         return self._semantic_ref_collection
 
     async def close(self) -> None:
@@ -150,6 +159,10 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         """
         return source_id in self._ingested_sources
 
+    async def are_sources_ingested(self, source_ids: list[str]) -> set[str]:
+        """Return the subset of source_ids that have already been ingested."""
+        return self._ingested_sources & set(source_ids)
+
     async def get_source_status(self, source_id: str) -> str | None:
         """Get the ingestion status of a source.
 
@@ -172,3 +185,35 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
             source_id: External source identifier (email ID, file path, etc.)
         """
         self._ingested_sources.add(source_id)
+
+    async def mark_sources_ingested_batch(
+        self, source_ids: list[str], status: str = STATUS_INGESTED
+    ) -> None:
+        """Mark multiple sources as ingested in one operation."""
+        self._ingested_sources.update(source_ids)
+
+    async def record_chunk_failure(
+        self,
+        message_ordinal: int,
+        chunk_ordinal: int,
+        error_class: str,
+        error_message: str,
+    ) -> None:
+        """Record a knowledge-extraction failure for a single chunk."""
+        self._chunk_failures[(message_ordinal, chunk_ordinal)] = ChunkFailure(
+            message_ordinal=message_ordinal,
+            chunk_ordinal=chunk_ordinal,
+            error_class=error_class,
+            error_message=error_message,
+            failed_at=datetime.now(timezone.utc),
+        )
+
+    async def clear_chunk_failure(
+        self, message_ordinal: int, chunk_ordinal: int
+    ) -> None:
+        """Remove a previously recorded chunk failure (no-op if absent)."""
+        self._chunk_failures.pop((message_ordinal, chunk_ordinal), None)
+
+    async def get_chunk_failures(self) -> list[ChunkFailure]:
+        """Return all recorded chunk failures, ordered by (msg_ordinal, chunk_ordinal)."""
+        return [self._chunk_failures[k] for k in sorted(self._chunk_failures)]

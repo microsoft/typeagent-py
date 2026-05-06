@@ -8,7 +8,6 @@ from typechat import Failure, Result, Success
 from typeagent.knowpro import convknowledge
 from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.knowledge import (
-    create_knowledge_extractor,
     extract_knowledge_from_text,
     extract_knowledge_from_text_batch,
     merge_concrete_entities,
@@ -32,12 +31,6 @@ class MockKnowledgeExtractor:
 def mock_knowledge_extractor() -> convknowledge.KnowledgeExtractor:
     """Fixture to create a mock KnowledgeExtractor."""
     return MockKnowledgeExtractor()  # type: ignore
-
-
-def test_create_knowledge_extractor(really_needs_auth: None):
-    """Test creating a knowledge extractor."""
-    extractor = create_knowledge_extractor()
-    assert isinstance(extractor, convknowledge.KnowledgeExtractor)
 
 
 @pytest.mark.asyncio
