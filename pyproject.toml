@@ -56,6 +56,11 @@ logfire = [
 GitHub = "https://github.com/microsoft/typeagent-py"
 Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README.md"
 
+[tool.uv]
+constraint-dependencies = [
+    "python-multipart>=0.0.27",
+]
+
 [tool.uv.build-backend]
 module-root = "src"
 
