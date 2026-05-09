@@ -47,6 +47,7 @@ In all cases show what you added to AGENTS.md.
 - Use `make format` to format all files using `black`. Do this before reporting success.
 - When validating changes, first run `pytest` only on new/modified test files, then run `make format check test` once at the end.
 - Keep ad-hoc and performance benchmarks under `tools/`, not `tests/`, so `make test` does not run them.
+- In add-messages pipeline chunk processing, compute chunk-text embeddings with uncached model calls and related-term embeddings with cached model calls.
 
 ## Package Management with uv
 
