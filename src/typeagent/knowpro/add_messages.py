@@ -4,7 +4,7 @@
 """New modular implementation of add_messages_streaming with pipelined architecture."""
 
 import asyncio
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass
 
 import typechat
@@ -12,7 +12,9 @@ import typechat
 from . import knowledge_schema as kplib
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from ..storage.memory.semrefindex import collect_action_terms, collect_entity_terms
-from .interfaces_core import IKnowledgeExtractor, IMessage, TextLocation
+from .interfaces_core import IKnowledgeExtractor, IMessage, MessageOrdinal, TextLocation
+
+type ChunkOrdinal = int
 
 
 @dataclass
@@ -30,7 +32,7 @@ class PipelineStopState:
 class ProducerState:
     """Mutable producer state shared with orchestrator/reporting."""
 
-    next_message_id: int
+    next_message_id: MessageOrdinal
     produced_messages: int = 0
     produced_chunks: int = 0
     exception: Exception | None = None
@@ -41,8 +43,6 @@ class ChunkWorkItem[TMessage: IMessage]:
     """One chunk scheduled by the producer for worker processing."""
 
     chunk_id: TextLocation
-    message_id: int
-    chunk_ordinal: int
     chunk_count: int
     chunk_text: str
     message: TMessage
@@ -73,8 +73,6 @@ async def _producer_task[TMessage: IMessage](
                 await chunk_queue.put(
                     ChunkWorkItem[TMessage](
                         chunk_id=TextLocation(message_id, chunk_ordinal),
-                        message_id=message_id,
-                        chunk_ordinal=chunk_ordinal,
                         chunk_count=chunk_count,
                         chunk_text=chunk_text,
                         message=message,
@@ -93,7 +91,7 @@ async def _producer_task[TMessage: IMessage](
 
 async def _worker_task[TMessage: IMessage](
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
-    result_queue: asyncio.Queue[ChunkProcessingResult],
+    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage]],
     stop_state: PipelineStopState,
     knowledge_extractor: IKnowledgeExtractor,
     message_embedding_model: IEmbeddingModel,
@@ -112,14 +110,15 @@ async def _worker_task[TMessage: IMessage](
 
         stop_at = stop_state.stop_at_message_id
 
-        if work_item.message_id >= stop_at:
+        if work_item.chunk_id.message_ordinal >= stop_at:
             await result_queue.put(
                 ChunkProcessingResult(
                     chunk_id=work_item.chunk_id,
-                    message_id=work_item.message_id,
+                    chunk_count=work_item.chunk_count,
+                    message=work_item.message,
                     error=RuntimeError(
                         "Chunk skipped because stop_at_message_id "
-                        f"is {stop_at} and message_id is {work_item.message_id}"
+                        f"is {stop_at} and message_id is {work_item.chunk_id.message_ordinal}"
                     ),
                 )
             )
@@ -127,8 +126,9 @@ async def _worker_task[TMessage: IMessage](
 
         result = await process_chunk_with_extraction_and_embeddings(
             chunk_id=work_item.chunk_id,
-            message_id=work_item.message_id,
             chunk_text=work_item.chunk_text,
+            chunk_count=work_item.chunk_count,
+            message=work_item.message,
             knowledge_extractor=knowledge_extractor,
             message_embedding_model=message_embedding_model,
             related_terms_embedding_model=related_terms_embedding_model,
@@ -137,19 +137,18 @@ async def _worker_task[TMessage: IMessage](
         if result.error is not None:
             stop_state.stop_at_message_id = min(
                 stop_state.stop_at_message_id,
-                work_item.message_id,
+                work_item.chunk_id.message_ordinal,
             )
 
         await result_queue.put(result)
 
 
 @dataclass
-class ChunkProcessingResult:
+class ChunkProcessingResult[TMessage: IMessage]:
     """Result of processing a single chunk through extraction and embeddings.
 
     Attributes:
         chunk_id: Message/chunk location for the processed chunk
-        message_id: Global message ordinal
         extracted_knowledge: Extracted KnowledgeResponse, or None if extraction failed/wasn't run
         chunk_embedding: Normalized embedding vector for the message chunk
         related_terms: Lowercased related-term texts extracted from knowledge
@@ -158,7 +157,8 @@ class ChunkProcessingResult:
     """
 
     chunk_id: TextLocation
-    message_id: int
+    chunk_count: int
+    message: TMessage
     extracted_knowledge: kplib.KnowledgeResponse | None = None
     chunk_embedding: NormalizedEmbedding | None = None
     related_terms: list[str] | None = None
@@ -208,14 +208,15 @@ def _collect_related_terms_for_fuzzy_index(
     return related_terms
 
 
-async def process_chunk_with_extraction_and_embeddings(
+async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
     chunk_id: TextLocation,
-    message_id: int,
     chunk_text: str,
+    chunk_count: int,
+    message: TMessage,
     knowledge_extractor: IKnowledgeExtractor,
     message_embedding_model: IEmbeddingModel,
     related_terms_embedding_model: IEmbeddingModel | None = None,
-) -> ChunkProcessingResult:
+) -> ChunkProcessingResult[TMessage]:
     """Process a single text chunk through knowledge extraction and embeddings.
 
     Runs both knowledge extraction and embedding in a single function call,
@@ -228,7 +229,6 @@ async def process_chunk_with_extraction_and_embeddings(
 
     Args:
         chunk_id: Message/chunk location for this chunk
-        message_id: Global message ordinal (1-based in SQLite context)
         chunk_text: Text content of the chunk (stripped)
         knowledge_extractor: IKnowledgeExtractor instance for LLM extraction
         message_embedding_model: Embedding model for chunk text embeddings
@@ -239,7 +239,11 @@ async def process_chunk_with_extraction_and_embeddings(
         ChunkProcessingResult with knowledge, chunk embedding, related-term
         embeddings, or an error from the first failed operation.
     """
-    result = ChunkProcessingResult(chunk_id=chunk_id, message_id=message_id)
+    result = ChunkProcessingResult(
+        chunk_id=chunk_id,
+        chunk_count=chunk_count,
+        message=message,
+    )
 
     # Step 1: Extract knowledge
     try:
@@ -281,3 +285,151 @@ async def process_chunk_with_extraction_and_embeddings(
         return result
 
     return result
+
+
+@dataclass
+class MessageAssembly[TMessage: IMessage]:
+    """In-memory chunk accumulation for one message."""
+
+    message_id: MessageOrdinal
+    chunk_count: int
+    message: TMessage
+    chunks: dict[ChunkOrdinal, ChunkProcessingResult[TMessage]]
+    has_error: bool = False
+
+    def is_complete(self) -> bool:
+        return len(self.chunks) == self.chunk_count
+
+
+@dataclass
+class ReassemblerResult:
+    """Progress and counters produced by the reassembler stage."""
+
+    first_uncommitted_ordinal: MessageOrdinal
+    messages_committed: int = 0
+    chunks_committed: int = 0
+    chunk_failures: int = 0
+    buffered_messages: int = 0
+
+
+async def _reassembler_task[TMessage: IMessage](
+    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None],
+    stop_state: PipelineStopState,
+    first_uncommitted_ordinal: MessageOrdinal,
+    target_commit_chunk_count: int,
+    commit_batch: Callable[
+        [list[TMessage], list[ChunkProcessingResult[TMessage]]],
+        Awaitable[None],
+    ],
+    on_batch_committed: Callable[[int, int], None] | None = None,
+) -> ReassemblerResult:
+    """Reassemble chunks into messages and commit only consecutive complete ones.
+
+    This stage consumes worker results until it sees a ``None`` sentinel.
+    It never commits out-of-order messages: if message N is incomplete or failed,
+    messages N+1 and later remain buffered.
+    """
+    state = ReassemblerResult(first_uncommitted_ordinal=first_uncommitted_ordinal)
+    assemblies: dict[MessageOrdinal, MessageAssembly[TMessage]] = {}
+
+    staged_messages: list[TMessage] = []
+    staged_results: list[ChunkProcessingResult[TMessage]] = []
+    staged_chunks = 0
+
+    async def _commit_if_needed(force: bool = False) -> None:
+        nonlocal staged_chunks
+        if not staged_messages:
+            return
+        if not force and staged_chunks < target_commit_chunk_count:
+            return
+        msg_count = len(staged_messages)
+        chunk_count = staged_chunks
+        await commit_batch(staged_messages, staged_results)
+        state.messages_committed += msg_count
+        state.chunks_committed += chunk_count
+        if on_batch_committed is not None:
+            on_batch_committed(msg_count, chunk_count)
+        staged_messages.clear()
+        staged_results.clear()
+        staged_chunks = 0
+
+    async def _drain_consecutive_complete() -> None:
+        nonlocal staged_chunks
+        while True:
+            assembly = assemblies.get(state.first_uncommitted_ordinal)
+            if assembly is None:
+                return
+            if not assembly.is_complete() or assembly.has_error:
+                return
+
+            ordered_chunk_ordinals = sorted(assembly.chunks)
+            ordered_results = [assembly.chunks[i] for i in ordered_chunk_ordinals]
+            staged_messages.append(assembly.message)
+            staged_results.extend(ordered_results)
+            staged_chunks += len(ordered_results)
+
+            del assemblies[state.first_uncommitted_ordinal]
+            state.first_uncommitted_ordinal += 1
+            await _commit_if_needed()
+
+    try:
+        while True:
+            item = await result_queue.get()
+            if item is None:
+                break
+
+            chunk_ordinal = item.chunk_id.chunk_ordinal
+            message_id = item.chunk_id.message_ordinal
+
+            try:
+                if chunk_ordinal < 0 or chunk_ordinal >= item.chunk_count:
+                    raise RuntimeError(
+                        f"Invalid chunk ordinal: message_id={message_id}, "
+                        f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
+                    )
+
+                existing = assemblies.get(message_id)
+                if existing is None:
+                    existing = MessageAssembly[TMessage](
+                        message_id=message_id,
+                        chunk_count=item.chunk_count,
+                        message=item.message,
+                        chunks={},
+                    )
+                    assemblies[message_id] = existing
+                elif existing.chunk_count != item.chunk_count:
+                    raise RuntimeError(
+                        f"Mismatched chunk count for message: message_id={message_id}, "
+                        f"expected={existing.chunk_count}, got={item.chunk_count}"
+                    )
+
+                if chunk_ordinal in existing.chunks:
+                    raise RuntimeError(
+                        f"Duplicate chunk: message_id={message_id}, "
+                        f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
+                    )
+
+                existing.chunks[chunk_ordinal] = item
+            except Exception:
+                # On validation error, set stop flag and re-raise
+                # The finally block will drain and commit consecutive complete messages
+                stop_state.stop_at_message_id = min(
+                    stop_state.stop_at_message_id, message_id
+                )
+                raise
+
+            if item.error is not None:
+                existing.has_error = True
+                state.chunk_failures += 1
+                stop_state.stop_at_message_id = min(
+                    stop_state.stop_at_message_id, message_id
+                )
+
+            await _drain_consecutive_complete()
+    finally:
+        # Always drain and commit consecutive complete messages before raising
+        await _drain_consecutive_complete()
+        await _commit_if_needed(force=True)
+
+    state.buffered_messages = len(assemblies)
+    return state
