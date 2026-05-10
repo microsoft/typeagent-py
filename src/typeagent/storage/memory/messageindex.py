@@ -75,25 +75,67 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
         messages: Iterable[TMessage],
     ) -> None:
         base_message_ordinal: MessageOrdinal = await self.text_location_index.size()
-        all_chunks: list[tuple[str, TextLocation]] = []
-        # Collect everything so we can batch efficiently.
-        for message_ordinal, message in enumerate(messages, base_message_ordinal):
-            for chunk_ordinal, chunk in enumerate(message.text_chunks):
-                all_chunks.append((chunk, TextLocation(message_ordinal, chunk_ordinal)))
-        await self.text_location_index.add_text_locations(all_chunks)
+        message_list = list(messages)
+        if not message_list:
+            return
 
-    async def add_messages_starting_at(
+        chunk_texts: list[str] = []
+        for message in message_list:
+            chunk_texts.extend(message.text_chunks)
+
+        chunk_embeddings = await self.text_location_index.generate_embeddings(
+            chunk_texts,
+            cache=True,
+        )
+        await self.add_messages_starting_at_with_embeddings(
+            base_message_ordinal,
+            message_list,
+            chunk_embeddings,
+        )
+
+    async def add_messages_starting_at[TMessage: IMessage](
         self,
         start_message_ordinal: int,
-        messages: list[IMessage],
+        messages: list[TMessage],
     ) -> None:
         """Add messages to the index starting at the given ordinal."""
-        all_chunks: list[tuple[str, TextLocation]] = []
+        chunk_texts: list[str] = []
+        for message in messages:
+            chunk_texts.extend(message.text_chunks)
+
+        chunk_embeddings = await self.text_location_index.generate_embeddings(
+            chunk_texts,
+            cache=True,
+        )
+        await self.add_messages_starting_at_with_embeddings(
+            start_message_ordinal,
+            messages,
+            chunk_embeddings,
+        )
+
+    async def add_messages_starting_at_with_embeddings[TMessage: IMessage](
+        self,
+        start_message_ordinal: int,
+        messages: list[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        """Add messages starting at an ordinal using precomputed chunk embeddings."""
+        text_locations: list[TextLocation] = []
         for idx, message in enumerate(messages):
             msg_ord = start_message_ordinal + idx
-            for chunk_ord, chunk in enumerate(message.text_chunks):
-                all_chunks.append((chunk, TextLocation(msg_ord, chunk_ord)))
-        await self.text_location_index.add_text_locations(all_chunks)
+            for chunk_ord, _chunk in enumerate(message.text_chunks):
+                text_locations.append(TextLocation(msg_ord, chunk_ord))
+
+        if len(text_locations) != len(chunk_embeddings):
+            raise ValueError(
+                "messages and chunk_embeddings produced different chunk counts: "
+                f"{len(text_locations)} != {len(chunk_embeddings)}"
+            )
+
+        await self.text_location_index.add_text_locations_with_embeddings(
+            text_locations,
+            chunk_embeddings,
+        )
 
     async def lookup_messages(
         self,

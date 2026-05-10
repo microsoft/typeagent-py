@@ -4,6 +4,9 @@
 from collections.abc import Callable
 from typing import Protocol, TYPE_CHECKING
 
+import numpy as np
+
+from typeagent.aitools.embeddings import NormalizedEmbedding
 from typeagent.aitools.vectorbase import (
     ScoredInt,
     TextEmbeddingIndexSettings,
@@ -285,7 +288,27 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
         return len(self._vectorbase)
 
     async def add_terms(self, texts: list[str]) -> None:
-        await self._vectorbase.add_keys(texts)
+        if not texts:
+            return
+        embeddings = await self._vectorbase.get_embeddings(texts)
+        await self.add_terms_with_embeddings(
+            texts, [embedding for embedding in embeddings]
+        )
+
+    async def add_terms_with_embeddings(
+        self,
+        texts: list[str],
+        embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        if len(texts) != len(embeddings):
+            raise ValueError(
+                "texts and embeddings must have the same length: "
+                f"{len(texts)} != {len(embeddings)}"
+            )
+        if not texts:
+            return
+        embedding_array = np.stack(embeddings, axis=0).astype(np.float32, copy=False)
+        self._vectorbase.add_embeddings(texts, embedding_array)
         self._texts.extend(texts)
 
     async def lookup_term(

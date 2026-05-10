@@ -5,6 +5,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
+import numpy as np
+
 from ..aitools.embeddings import NormalizedEmbedding
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
 from .fuzzyindex import EmbeddingIndex, ScoredInt
@@ -25,6 +27,12 @@ class ITextToTextLocationIndex(Protocol):
     async def add_text_locations(
         self,
         text_and_locations: list[tuple[str, TextLocation]],
+    ) -> None: ...
+
+    async def add_text_locations_with_embeddings(
+        self,
+        text_locations: list[TextLocation],
+        embeddings: list[NormalizedEmbedding],
     ) -> None: ...
 
     async def lookup_text(
@@ -71,6 +79,22 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         await self._embedding_index.add_texts([text for text, _ in text_and_locations])
         self._text_locations.extend([loc for _, loc in text_and_locations])
 
+    async def add_text_locations_with_embeddings(
+        self,
+        text_locations: list[TextLocation],
+        embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        if len(text_locations) != len(embeddings):
+            raise ValueError(
+                "text_locations and embeddings must have the same length: "
+                f"{len(text_locations)} != {len(embeddings)}"
+            )
+        if not text_locations:
+            return
+        embedding_array = np.stack(embeddings, axis=0).astype(np.float32, copy=False)
+        self._embedding_index.push(embedding_array)
+        self._text_locations.extend(text_locations)
+
     async def lookup_text(
         self,
         text: str,
@@ -111,6 +135,16 @@ class TextToTextLocationIndex(ITextToTextLocationIndex):
         self, text: str, cache: bool = True
     ) -> NormalizedEmbedding:
         return await self._embedding_index.get_embedding(text, cache)
+
+    async def generate_embeddings(
+        self, texts: list[str], cache: bool = True
+    ) -> list[NormalizedEmbedding]:
+        if not texts:
+            return []
+        embeddings = await self._embedding_index._vector_base.get_embeddings(
+            texts, cache=cache
+        )
+        return [embedding for embedding in embeddings]
 
     def lookup_by_embedding(
         self,

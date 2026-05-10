@@ -213,15 +213,43 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         new_terms = [t for t in texts if t not in self._added_terms]
         if not new_terms:
             return
+        embeddings = await self._vector_base.get_embeddings(new_terms)
+        await self.add_terms_with_embeddings(
+            new_terms,
+            [embedding for embedding in embeddings],
+        )
 
-        embeddings = await self._vector_base.add_keys(new_terms)
-        assert embeddings is not None
+    async def add_terms_with_embeddings(
+        self,
+        texts: list[str],
+        embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        if len(texts) != len(embeddings):
+            raise ValueError(
+                "texts and embeddings must have the same length: "
+                f"{len(texts)} != {len(embeddings)}"
+            )
+
+        new_term_embeddings = [
+            (term, embedding)
+            for term, embedding in zip(texts, embeddings)
+            if term not in self._added_terms
+        ]
+        if not new_term_embeddings:
+            return
+
+        new_terms = [term for term, _ in new_term_embeddings]
+        new_embeddings = [embedding for _, embedding in new_term_embeddings]
+        embedding_array = np.stack(new_embeddings, axis=0).astype(
+            np.float32, copy=False
+        )
+        self._vector_base.add_embeddings(new_terms, embedding_array)
 
         cursor = self.db.cursor()
         cursor.executemany(
             "INSERT OR REPLACE INTO RelatedTermsFuzzy (term, term_embedding) VALUES (?, ?)",
             [
-                (term, serialize_embedding(embeddings[i]))
+                (term, serialize_embedding(new_embeddings[i]))
                 for i, term in enumerate(new_terms)
             ],
         )

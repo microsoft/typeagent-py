@@ -51,6 +51,7 @@ In all cases show what you added to AGENTS.md.
 - In add-messages pipeline chunk processing, compute chunk-text embeddings with uncached model calls and related-term embeddings with cached model calls.
 - In add-messages pipeline flow, lower stop_at_message_id to min(existing, failing_message_id), and always enqueue queue-1 sentinels even when the input iterator fails so workers can drain and exit cleanly.
 - In add-messages pipeline data structures, use `TextLocation` as the chunk identifier instead of a formatted string chunk ID.
+- When adding precomputed-embedding write paths, expose explicit `*_with_embeddings` methods and have existing methods compute embeddings then delegate to those methods.
 - In asyncio code, avoid locks for in-memory state updates that do not `await` between read/modify/write; use locks only when a critical section spans `await` points.
 - Name returned summary/value objects as `*Result`; reserve `*State` for mutable shared/internal state.
 - Keep internal helper type naming consistent within a module; avoid mixing underscored and non-underscored helper class names without a clear API-boundary reason.

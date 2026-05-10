@@ -58,24 +58,56 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         messages: list[interfaces.IMessage],
     ) -> None:
         """Add messages to the text index starting at the given ordinal."""
-        chunks_to_embed: list[tuple[int, int, str]] = []
-        for msg_ord, message in enumerate(messages, start_message_ordinal):
-            for chunk_ord, chunk in enumerate(message.text_chunks):
-                chunks_to_embed.append((msg_ord, chunk_ord, chunk))
+        chunks_to_embed: list[str] = []
+        for _msg_ord, message in enumerate(messages, start_message_ordinal):
+            for _chunk_ord, chunk in enumerate(message.text_chunks):
+                chunks_to_embed.append(chunk)
 
         if not chunks_to_embed:
             return
 
         embeddings = await self._vectorbase.get_embeddings(
-            [chunk for _, _, chunk in chunks_to_embed], cache=False
+            chunks_to_embed,
+            cache=False,
         )
 
+        await self.add_messages_starting_at_with_embeddings(
+            start_message_ordinal,
+            messages,
+            [embedding for embedding in embeddings],
+        )
+
+    async def add_messages_starting_at_with_embeddings(
+        self,
+        start_message_ordinal: int,
+        messages: list[interfaces.IMessage],
+        chunk_embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        """Add messages to the text index using precomputed chunk embeddings."""
+        chunk_locations: list[tuple[int, int]] = []
+        for msg_ord, message in enumerate(messages, start_message_ordinal):
+            for chunk_ord, _chunk in enumerate(message.text_chunks):
+                chunk_locations.append((msg_ord, chunk_ord))
+
+        if len(chunk_locations) != len(chunk_embeddings):
+            raise ValueError(
+                "messages and chunk_embeddings produced different chunk counts: "
+                f"{len(chunk_locations)} != {len(chunk_embeddings)}"
+            )
+
+        if not chunk_locations:
+            return
+
+        current_size = len(self._vectorbase)
+        embedding_array = np.stack(chunk_embeddings, axis=0).astype(
+            np.float32, copy=False
+        )
+        self._vectorbase.add_embeddings(None, embedding_array)
+
         insertion_data: list[tuple[int, int, bytes, int]] = []
-        for idx, ((msg_ord, chunk_ord, _), embedding) in enumerate(
-            zip(chunks_to_embed, embeddings)
+        for idx, ((msg_ord, chunk_ord), embedding) in enumerate(
+            zip(chunk_locations, chunk_embeddings)
         ):
-            # Get the current VectorBase size to determine the index position
-            current_size = len(self._vectorbase)
             index_position = current_size + idx
             insertion_data.append(
                 (msg_ord, chunk_ord, serialize_embedding(embedding), index_position)

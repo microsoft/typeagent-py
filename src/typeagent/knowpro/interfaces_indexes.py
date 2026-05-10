@@ -9,6 +9,7 @@ from typing import Protocol, runtime_checkable
 
 from pydantic.dataclasses import dataclass
 
+from ..aitools.embeddings import NormalizedEmbedding
 from .interfaces_core import (
     DateRange,
     IMessage,
@@ -131,6 +132,12 @@ class ITermToRelatedTermsFuzzy(Protocol):
 
     async def add_terms(self, texts: list[str]) -> None: ...
 
+    async def add_terms_with_embeddings(
+        self,
+        texts: list[str],
+        embeddings: list[NormalizedEmbedding],
+    ) -> None: ...
+
     async def lookup_term(
         self,
         text: str,
@@ -212,6 +219,13 @@ class IMessageTextIndex[TMessage: IMessage](Protocol):
         self,
         start_message_ordinal: int,
         messages: list[TMessage],
+    ) -> None: ...
+
+    async def add_messages_starting_at_with_embeddings(
+        self,
+        start_message_ordinal: int,
+        messages: list[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding],
     ) -> None: ...
 
     async def lookup_messages(
