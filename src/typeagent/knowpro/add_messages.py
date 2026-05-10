@@ -3,6 +3,8 @@
 
 """New modular implementation of add_messages_streaming with pipelined architecture."""
 
+import asyncio
+from collections.abc import AsyncIterable
 from dataclasses import dataclass
 
 import typechat
@@ -10,7 +12,83 @@ import typechat
 from . import knowledge_schema as kplib
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from ..storage.memory.semrefindex import collect_action_terms, collect_entity_terms
-from .interfaces_core import IKnowledgeExtractor
+from .interfaces_core import IKnowledgeExtractor, IMessage, TextLocation
+
+
+@dataclass
+class PipelineStopState:
+    """Shared stop marker for pipeline stages.
+
+    A message ordinal greater than or equal to ``stop_at_message_id`` is
+    considered out-of-scope for further processing.
+    """
+
+    stop_at_message_id: int = 10**100
+
+
+@dataclass
+class ProducerState:
+    """Mutable producer state shared with orchestrator/reporting."""
+
+    next_message_id: int
+    produced_messages: int = 0
+    produced_chunks: int = 0
+    exception: Exception | None = None
+
+
+@dataclass
+class ChunkWorkItem[TMessage: IMessage]:
+    """One chunk scheduled by the producer for worker processing."""
+
+    chunk_id: TextLocation
+    message_id: int
+    chunk_ordinal: int
+    chunk_count: int
+    chunk_text: str
+    message: TMessage
+
+
+async def _producer_task[TMessage: IMessage](
+    messages: AsyncIterable[TMessage],
+    chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
+    worker_count: int,
+    stop_state: PipelineStopState,
+    producer_state: ProducerState,
+) -> None:
+    """Read input messages and enqueue chunk work items.
+
+    The producer stops enqueueing once it reaches ``stop_at_message_id``.
+    It always sends one sentinel per worker, even if the input iterator raises.
+    """
+    try:
+        async for message in messages:
+            message_id = producer_state.next_message_id
+            if message_id >= stop_state.stop_at_message_id:
+                break
+
+            chunk_count = len(message.text_chunks)
+            for chunk_ordinal, chunk_text in enumerate(message.text_chunks):
+                if message_id >= stop_state.stop_at_message_id:
+                    break
+                await chunk_queue.put(
+                    ChunkWorkItem[TMessage](
+                        chunk_id=TextLocation(message_id, chunk_ordinal),
+                        message_id=message_id,
+                        chunk_ordinal=chunk_ordinal,
+                        chunk_count=chunk_count,
+                        chunk_text=chunk_text,
+                        message=message,
+                    )
+                )
+                producer_state.produced_chunks += 1
+
+            producer_state.produced_messages += 1
+            producer_state.next_message_id += 1
+    except Exception as exc:
+        producer_state.exception = exc
+    finally:
+        for _ in range(worker_count):
+            await chunk_queue.put(None)
 
 
 @dataclass
@@ -18,7 +96,7 @@ class ChunkProcessingResult:
     """Result of processing a single chunk through extraction and embeddings.
 
     Attributes:
-        chunk_id: Identifier for the chunk being processed
+        chunk_id: Message/chunk location for the processed chunk
         message_id: Global message ordinal
         extracted_knowledge: Extracted KnowledgeResponse, or None if extraction failed/wasn't run
         chunk_embedding: Normalized embedding vector for the message chunk
@@ -27,7 +105,7 @@ class ChunkProcessingResult:
         error: Exception from the first failing operation, or None if successful
     """
 
-    chunk_id: str
+    chunk_id: TextLocation
     message_id: int
     extracted_knowledge: kplib.KnowledgeResponse | None = None
     chunk_embedding: NormalizedEmbedding | None = None
@@ -79,7 +157,7 @@ def _collect_related_terms_for_fuzzy_index(
 
 
 async def process_chunk_with_extraction_and_embeddings(
-    chunk_id: str,
+    chunk_id: TextLocation,
     message_id: int,
     chunk_text: str,
     knowledge_extractor: IKnowledgeExtractor,
@@ -97,7 +175,7 @@ async def process_chunk_with_extraction_and_embeddings(
     computed using cache-aware model calls.
 
     Args:
-        chunk_id: Identifier for this chunk (e.g., for debugging/tracking)
+        chunk_id: Message/chunk location for this chunk
         message_id: Global message ordinal (1-based in SQLite context)
         chunk_text: Text content of the chunk (stripped)
         knowledge_extractor: IKnowledgeExtractor instance for LLM extraction
