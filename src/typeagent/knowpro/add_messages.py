@@ -51,14 +51,14 @@ class ChunkWorkItem[TMessage: IMessage]:
 async def _producer_task[TMessage: IMessage](
     messages: AsyncIterable[TMessage],
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
-    worker_count: int,
     stop_state: PipelineStopState,
     producer_state: ProducerState,
 ) -> None:
     """Read input messages and enqueue chunk work items.
 
     The producer stops enqueueing once it reaches ``stop_at_message_id``.
-    It always sends one sentinel per worker, even if the input iterator raises.
+    It always sends a sentinel to shut down the dispatcher, even if the
+    input iterator raises.
     """
     try:
         async for message in messages:
@@ -85,62 +85,73 @@ async def _producer_task[TMessage: IMessage](
     except Exception as exc:
         producer_state.exception = exc
     finally:
-        for _ in range(worker_count):
-            await chunk_queue.put(None)
+        await chunk_queue.put(None)
 
 
-async def _worker_task[TMessage: IMessage](
+async def _dispatcher_task[TMessage: IMessage](
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
-    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage]],
+    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None],
     stop_state: PipelineStopState,
     knowledge_extractor: IKnowledgeExtractor,
     message_embedding_model: IEmbeddingModel,
     related_terms_embedding_model: IEmbeddingModel | None = None,
+    concurrency: int = 4,
 ) -> None:
-    """Consume chunk work items and produce chunk processing results.
+    """Dispatch chunk work items to bounded per-item worker tasks.
 
-    Workers stop when they receive a ``None`` sentinel from ``chunk_queue``.
-    Chunks at or beyond ``stop_at_message_id`` are skipped and reported as
-    error results so downstream code can account for them deterministically.
+    Reads work items from ``chunk_queue`` until it receives a ``None``
+    sentinel, then awaits all in-flight tasks via a TaskGroup and puts a
+    ``None`` sentinel on ``result_queue`` to signal the reassembler.
+
+    Concurrency is bounded by a semaphore so at most ``concurrency`` worker
+    tasks run simultaneously.  Chunks at or beyond ``stop_at_message_id`` are
+    skipped and reported as error results so the reassembler can account for
+    them deterministically.
     """
-    while True:
-        work_item = await chunk_queue.get()
-        if work_item is None:
-            return
+    sem = asyncio.Semaphore(concurrency)
 
-        stop_at = stop_state.stop_at_message_id
-
-        if work_item.chunk_id.message_ordinal >= stop_at:
-            await result_queue.put(
-                ChunkProcessingResult(
+    async def _process_one(work_item: ChunkWorkItem[TMessage]) -> None:
+        try:
+            stop_at = stop_state.stop_at_message_id
+            if work_item.chunk_id.message_ordinal >= stop_at:
+                result: ChunkProcessingResult[TMessage] = ChunkProcessingResult(
                     chunk_id=work_item.chunk_id,
                     chunk_count=work_item.chunk_count,
                     message=work_item.message,
                     error=RuntimeError(
                         "Chunk skipped because stop_at_message_id "
-                        f"is {stop_at} and message_id is {work_item.chunk_id.message_ordinal}"
+                        f"is {stop_at} and message_id is "
+                        f"{work_item.chunk_id.message_ordinal}"
                     ),
                 )
-            )
-            continue
+            else:
+                result = await process_chunk_with_extraction_and_embeddings(
+                    chunk_id=work_item.chunk_id,
+                    chunk_text=work_item.chunk_text,
+                    chunk_count=work_item.chunk_count,
+                    message=work_item.message,
+                    knowledge_extractor=knowledge_extractor,
+                    message_embedding_model=message_embedding_model,
+                    related_terms_embedding_model=related_terms_embedding_model,
+                )
+                if result.error is not None:
+                    stop_state.stop_at_message_id = min(
+                        stop_state.stop_at_message_id,
+                        work_item.chunk_id.message_ordinal,
+                    )
+            await result_queue.put(result)
+        finally:
+            sem.release()
 
-        result = await process_chunk_with_extraction_and_embeddings(
-            chunk_id=work_item.chunk_id,
-            chunk_text=work_item.chunk_text,
-            chunk_count=work_item.chunk_count,
-            message=work_item.message,
-            knowledge_extractor=knowledge_extractor,
-            message_embedding_model=message_embedding_model,
-            related_terms_embedding_model=related_terms_embedding_model,
-        )
+    async with asyncio.TaskGroup() as tg:
+        while True:
+            item = await chunk_queue.get()
+            if item is None:
+                break
+            await sem.acquire()
+            tg.create_task(_process_one(item))
 
-        if result.error is not None:
-            stop_state.stop_at_message_id = min(
-                stop_state.stop_at_message_id,
-                work_item.chunk_id.message_ordinal,
-            )
-
-        await result_queue.put(result)
+    await result_queue.put(None)
 
 
 @dataclass
