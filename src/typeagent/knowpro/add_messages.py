@@ -91,6 +91,58 @@ async def _producer_task[TMessage: IMessage](
             await chunk_queue.put(None)
 
 
+async def _worker_task[TMessage: IMessage](
+    chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
+    result_queue: asyncio.Queue[ChunkProcessingResult],
+    stop_state: PipelineStopState,
+    knowledge_extractor: IKnowledgeExtractor,
+    message_embedding_model: IEmbeddingModel,
+    related_terms_embedding_model: IEmbeddingModel | None = None,
+) -> None:
+    """Consume chunk work items and produce chunk processing results.
+
+    Workers stop when they receive a ``None`` sentinel from ``chunk_queue``.
+    Chunks at or beyond ``stop_at_message_id`` are skipped and reported as
+    error results so downstream code can account for them deterministically.
+    """
+    while True:
+        work_item = await chunk_queue.get()
+        if work_item is None:
+            return
+
+        stop_at = stop_state.stop_at_message_id
+
+        if work_item.message_id >= stop_at:
+            await result_queue.put(
+                ChunkProcessingResult(
+                    chunk_id=work_item.chunk_id,
+                    message_id=work_item.message_id,
+                    error=RuntimeError(
+                        "Chunk skipped because stop_at_message_id "
+                        f"is {stop_at} and message_id is {work_item.message_id}"
+                    ),
+                )
+            )
+            continue
+
+        result = await process_chunk_with_extraction_and_embeddings(
+            chunk_id=work_item.chunk_id,
+            message_id=work_item.message_id,
+            chunk_text=work_item.chunk_text,
+            knowledge_extractor=knowledge_extractor,
+            message_embedding_model=message_embedding_model,
+            related_terms_embedding_model=related_terms_embedding_model,
+        )
+
+        if result.error is not None:
+            stop_state.stop_at_message_id = min(
+                stop_state.stop_at_message_id,
+                work_item.message_id,
+            )
+
+        await result_queue.put(result)
+
+
 @dataclass
 class ChunkProcessingResult:
     """Result of processing a single chunk through extraction and embeddings.

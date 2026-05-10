@@ -46,10 +46,12 @@ In all cases show what you added to AGENTS.md.
 - Use `make check test` to run `make check` and if it passes also run `make test`
 - Use `make format` to format all files using `black`. Do this before reporting success.
 - When validating changes, first run `pytest` only on new/modified test files, then run `make format check test` once at the end.
+- While building `add_messages.py` before dedicated tests exist, skip running the full test suite; run full tests after those tests are added.
 - Keep ad-hoc and performance benchmarks under `tools/`, not `tests/`, so `make test` does not run them.
 - In add-messages pipeline chunk processing, compute chunk-text embeddings with uncached model calls and related-term embeddings with cached model calls.
 - In add-messages pipeline flow, lower stop_at_message_id to min(existing, failing_message_id), and always enqueue queue-1 sentinels even when the input iterator fails so workers can drain and exit cleanly.
 - In add-messages pipeline data structures, use `TextLocation` as the chunk identifier instead of a formatted string chunk ID.
+- In asyncio code, avoid locks for in-memory state updates that do not `await` between read/modify/write; use locks only when a critical section spans `await` points.
 
 ## Package Management with uv
 
