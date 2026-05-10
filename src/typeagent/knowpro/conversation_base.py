@@ -8,7 +8,7 @@ from collections.abc import AsyncIterable, Callable, Sequence
 import contextlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Generic, Self, TypeVar
+from typing import Generic, Protocol, Self, TypeVar
 
 import typechat
 
@@ -24,6 +24,7 @@ from . import (
 )
 from . import knowledge_schema as kplib
 from ..aitools import model_adapters, utils
+from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import semrefindex
 from .convsettings import ConversationSettings
 from .interfaces import (
@@ -44,6 +45,16 @@ from .knowledge import extract_knowledge_from_text_batch
 from .messageutils import get_all_message_chunk_locations
 
 TMessage = TypeVar("TMessage", bound=IMessage)
+
+
+class _ChunkCommitResult(Protocol):
+    """Neutral chunk commit payload shape used by pipeline batch commit."""
+
+    chunk_id: TextLocation
+    extracted_knowledge: kplib.KnowledgeResponse | None
+    chunk_embedding: NormalizedEmbedding | None
+    related_terms: list[str] | None
+    related_term_embeddings: list[NormalizedEmbedding] | None
 
 
 @dataclass(frozen=True)
@@ -425,6 +436,141 @@ class ConversationBase(
                 chunks_added=chunks_added,
                 semrefs_added=await self.semantic_refs.size()
                 - start_points.semref_count,
+            )
+
+    async def _commit_batch_from_chunk_results(
+        self,
+        storage: IStorageProvider[TMessage],
+        messages_batch: list[TMessage],
+        chunk_results: list[_ChunkCommitResult],
+    ) -> AddMessagesResult:
+        """Commit one pipeline batch using precomputed extraction and embeddings."""
+        if not messages_batch:
+            return AddMessagesResult()
+
+        async with storage:
+            start_points = IndexingStartPoints(
+                message_count=await self.messages.size(),
+                semref_count=await self.semantic_refs.size(),
+            )
+
+            await self.messages.extend(messages_batch)
+
+            source_ids = [m.source_id for m in messages_batch if m.source_id is not None]
+            if source_ids:
+                await storage.mark_sources_ingested_batch(source_ids)
+
+            await self._add_metadata_knowledge_incremental(start_points.message_count)
+
+            knowledge_items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]] = []
+            chunk_embeddings: list[NormalizedEmbedding] = []
+            fuzzy_terms: list[str] = []
+            fuzzy_term_embeddings: list[NormalizedEmbedding] = []
+
+            for result in chunk_results:
+                if result.chunk_embedding is None:
+                    raise ValueError(
+                        "Chunk result missing chunk embedding for "
+                        f"message={result.chunk_id.message_ordinal}, "
+                        f"chunk={result.chunk_id.chunk_ordinal}"
+                    )
+                chunk_embeddings.append(result.chunk_embedding)
+
+                if result.extracted_knowledge is None:
+                    raise ValueError(
+                        "Chunk result missing extracted knowledge for "
+                        f"message={result.chunk_id.message_ordinal}, "
+                        f"chunk={result.chunk_id.chunk_ordinal}"
+                    )
+                knowledge_items.append(
+                    (
+                        result.chunk_id.message_ordinal,
+                        result.chunk_id.chunk_ordinal,
+                        result.extracted_knowledge,
+                    )
+                )
+
+                if result.related_terms is None or result.related_term_embeddings is None:
+                    raise ValueError(
+                        "Chunk result missing related-term embeddings for "
+                        f"message={result.chunk_id.message_ordinal}, "
+                        f"chunk={result.chunk_id.chunk_ordinal}"
+                    )
+                if len(result.related_terms) != len(result.related_term_embeddings):
+                    raise ValueError(
+                        "related_terms and related_term_embeddings length mismatch for "
+                        f"message={result.chunk_id.message_ordinal}, "
+                        f"chunk={result.chunk_id.chunk_ordinal}: "
+                        f"{len(result.related_terms)} != "
+                        f"{len(result.related_term_embeddings)}"
+                    )
+                fuzzy_terms.extend(result.related_terms)
+                fuzzy_term_embeddings.extend(result.related_term_embeddings)
+
+            await semrefindex.add_knowledge_batch_to_semantic_ref_index(
+                self,
+                knowledge_items,
+            )
+
+            await self._update_secondary_indexes_incremental_with_embeddings(
+                start_points,
+                messages_batch,
+                chunk_embeddings,
+                fuzzy_terms,
+                fuzzy_term_embeddings,
+            )
+
+            await storage.update_conversation_timestamps(
+                updated_at=datetime.now(timezone.utc)
+            )
+
+            messages_added = await self.messages.size() - start_points.message_count
+            chunks_added = sum(
+                len(message.text_chunks) for message in messages_batch[:messages_added]
+            )
+            return AddMessagesResult(
+                messages_added=messages_added,
+                chunks_added=chunks_added,
+                semrefs_added=await self.semantic_refs.size()
+                - start_points.semref_count,
+            )
+
+    async def _update_secondary_indexes_incremental_with_embeddings(
+        self,
+        start_points: IndexingStartPoints,
+        new_messages: list[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding],
+        related_terms: list[str],
+        related_term_embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        """Update secondary indexes using precomputed embeddings when available."""
+        if self.secondary_indexes is None:
+            return
+
+        from ..storage.memory import propindex
+
+        await propindex.add_to_property_index(self, start_points.semref_count)
+
+        await self._add_timestamps_for_messages(
+            new_messages,
+            start_points.message_count,
+        )
+
+        term_to_related = self.secondary_indexes.term_to_related_terms_index
+        if term_to_related is not None:
+            fuzzy_index = term_to_related.fuzzy_index
+            if fuzzy_index is not None and related_terms:
+                await fuzzy_index.add_terms_with_embeddings(
+                    related_terms,
+                    related_term_embeddings,
+                )
+
+        message_index = self.secondary_indexes.message_index
+        if message_index is not None:
+            await message_index.add_messages_starting_at_with_embeddings(
+                start_points.message_count,
+                new_messages,
+                chunk_embeddings,
             )
 
     async def _add_metadata_knowledge_incremental(
