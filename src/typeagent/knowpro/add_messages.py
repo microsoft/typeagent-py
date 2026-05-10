@@ -364,7 +364,7 @@ async def _reassembler_task[TMessage: IMessage](
         staged_results.clear()
         staged_chunks = 0
 
-    async def _drain_consecutive_complete() -> None:
+    async def _drain_consecutive_complete(force: bool = False) -> None:
         nonlocal staged_chunks
         while True:
             assembly = assemblies.get(state.first_uncommitted_ordinal)
@@ -381,7 +381,7 @@ async def _reassembler_task[TMessage: IMessage](
 
             del assemblies[state.first_uncommitted_ordinal]
             state.first_uncommitted_ordinal += 1
-            await _commit_if_needed()
+            await _commit_if_needed(force)
 
     try:
         while True:
@@ -392,45 +392,43 @@ async def _reassembler_task[TMessage: IMessage](
             chunk_ordinal = item.chunk_id.chunk_ordinal
             message_id = item.chunk_id.message_ordinal
 
-            try:
-                if chunk_ordinal < 0 or chunk_ordinal >= item.chunk_count:
-                    raise RuntimeError(
-                        f"Invalid chunk ordinal: message_id={message_id}, "
-                        f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
-                    )
+            validation_error: str | None = None
+            assembly = assemblies.get(message_id)
+            if chunk_ordinal < 0 or chunk_ordinal >= item.chunk_count:
+                validation_error = (
+                    f"Invalid chunk ordinal: message_id={message_id}, "
+                    f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
+                )
+            elif assembly is None:
+                assembly = MessageAssembly[TMessage](
+                    message_id=message_id,
+                    chunk_count=item.chunk_count,
+                    message=item.message,
+                    chunks={},
+                )
+                assemblies[message_id] = assembly
+            elif assembly.chunk_count != item.chunk_count:
+                validation_error = (
+                    f"Mismatched chunk count for message: message_id={message_id}, "
+                    f"expected={assembly.chunk_count}, got={item.chunk_count}"
+                )
+            elif chunk_ordinal in assembly.chunks:
+                validation_error = (
+                    f"Duplicate chunk: message_id={message_id}, "
+                    f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
+                )
 
-                existing = assemblies.get(message_id)
-                if existing is None:
-                    existing = MessageAssembly[TMessage](
-                        message_id=message_id,
-                        chunk_count=item.chunk_count,
-                        message=item.message,
-                        chunks={},
-                    )
-                    assemblies[message_id] = existing
-                elif existing.chunk_count != item.chunk_count:
-                    raise RuntimeError(
-                        f"Mismatched chunk count for message: message_id={message_id}, "
-                        f"expected={existing.chunk_count}, got={item.chunk_count}"
-                    )
-
-                if chunk_ordinal in existing.chunks:
-                    raise RuntimeError(
-                        f"Duplicate chunk: message_id={message_id}, "
-                        f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
-                    )
-
-                existing.chunks[chunk_ordinal] = item
-            except Exception:
-                # On validation error, set stop flag and re-raise
-                # The finally block will drain and commit consecutive complete messages
+            if validation_error is not None:
                 stop_state.stop_at_message_id = min(
                     stop_state.stop_at_message_id, message_id
                 )
-                raise
+                raise RuntimeError(validation_error)
+
+            assert assembly is not None
+            assembly.chunks[chunk_ordinal] = item
 
             if item.error is not None:
-                existing.has_error = True
+                assembly.has_error = True
                 state.chunk_failures += 1
                 stop_state.stop_at_message_id = min(
                     stop_state.stop_at_message_id, message_id
@@ -439,8 +437,7 @@ async def _reassembler_task[TMessage: IMessage](
             await _drain_consecutive_complete()
     finally:
         # Always drain and commit consecutive complete messages before raising
-        await _drain_consecutive_complete()
-        await _commit_if_needed(force=True)
+        await _drain_consecutive_complete(force=True)
 
     state.buffered_messages = len(assemblies)
     return state
