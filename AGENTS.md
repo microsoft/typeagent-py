@@ -56,6 +56,7 @@ In all cases show what you added to AGENTS.md.
 - Name returned summary/value objects as `*Result`; reserve `*State` for mutable shared/internal state.
 - Keep internal helper type naming consistent within a module; avoid mixing underscored and non-underscored helper class names without a clear API-boundary reason.
 - Prefer ordinal type aliases (e.g., `MessageOrdinal`, `ChunkOrdinal`) over raw `int` in pipeline code for readability.
+- When the user asks to "fix the test only", update tests/mocks first and avoid adding production compatibility fallbacks unless explicitly requested.
 
 ## Package Management with uv
 

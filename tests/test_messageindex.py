@@ -30,7 +30,16 @@ def mock_text_location_index() -> MagicMock:
     mock_index = MagicMock(spec=TextToTextLocationIndex)
     # Empty index, so first message starts at ordinal 0
     mock_index.size = AsyncMock(return_value=0)
+
+    def _fake_generate_embeddings(
+        texts: list[str], cache: bool = True
+    ) -> list[np.ndarray]:
+        del cache
+        return [np.array([1.0, 0.0, 0.0], dtype=np.float32) for _ in texts]
+
+    mock_index.generate_embeddings = AsyncMock(side_effect=_fake_generate_embeddings)
     mock_index.add_text_locations = AsyncMock(return_value=None)
+    mock_index.add_text_locations_with_embeddings = AsyncMock(return_value=None)
     mock_index.lookup_text = AsyncMock(return_value=[])
     mock_index.lookup_text_in_subset = AsyncMock(return_value=[])
     mock_index.serialize = MagicMock(return_value={"mock": "data"})
@@ -79,25 +88,20 @@ async def test_add_messages(
 
     await message_text_index.add_messages(messages)
 
-    # Check that add_text_locations was called with the expected text and location data
+    # Check that add_text_locations_with_embeddings was called with expected locations
+    # and one embedding per chunk.
     mock_text_loc_index = cast(
         MagicMock, cast(MessageTextIndex, message_text_index).text_location_index
     )
-    call_args = mock_text_loc_index.add_text_locations.call_args
+    call_args = mock_text_loc_index.add_text_locations_with_embeddings.call_args
     assert call_args is not None
-    text_and_locations = call_args[0][0]  # First positional argument
-    assert (
-        len(text_and_locations) == 3
-    )  # Two chunks from first message, one from second
-    assert text_and_locations[0] == (
-        "chunk1",
-        TextLocation(0, 0),
-    )  # First message starts at ordinal 0
-    assert text_and_locations[1] == ("chunk2", TextLocation(0, 1))
-    assert text_and_locations[2] == (
-        "chunk3",
-        TextLocation(1, 0),
-    )  # Second message at ordinal 1
+    text_locations = call_args[0][0]  # First positional argument
+    embeddings = call_args[0][1]  # Second positional argument
+    assert len(text_locations) == 3  # Two chunks from first message, one from second
+    assert text_locations[0] == TextLocation(0, 0)  # First message starts at ordinal 0
+    assert text_locations[1] == TextLocation(0, 1)
+    assert text_locations[2] == TextLocation(1, 0)  # Second message at ordinal 1
+    assert len(embeddings) == 3
 
 
 @pytest.mark.asyncio
