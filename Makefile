@@ -21,10 +21,10 @@ test: venv
 
 .PHONY: coverage
 coverage: venv
-	coverage erase
+	uv run coverage erase
 	COVERAGE_PROCESS_START=.coveragerc uv run coverage run -m pytest $(FLAGS)
-	coverage combine
-	coverage report
+	uv run coverage combine
+	uv run coverage report
 
 .PHONY: demo
 demo: venv

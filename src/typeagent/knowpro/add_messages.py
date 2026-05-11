@@ -251,9 +251,7 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         embeddings, or an error from the first failed operation.
     """
     result = ChunkProcessingResult(
-        chunk_id=chunk_id,
-        chunk_count=chunk_count,
-        message=message,
+        chunk_id=chunk_id, chunk_count=chunk_count, message=message
     )
 
     # Step 1: Extract knowledge
@@ -284,9 +282,7 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
             chunk_text
         )
         if result.related_terms:
-            rel_embeddings = await related_model.get_embeddings(
-                result.related_terms,
-            )
+            rel_embeddings = await related_model.get_embeddings(result.related_terms)
             result.related_term_embeddings = [e for e in rel_embeddings]
         else:
             result.related_term_embeddings = []
@@ -329,8 +325,7 @@ async def _reassembler_task[TMessage: IMessage](
     first_uncommitted_ordinal: MessageOrdinal,
     target_commit_chunk_count: int,
     commit_batch: Callable[
-        [list[TMessage], list[ChunkProcessingResult[TMessage]]],
-        Awaitable[None],
+        [list[TMessage], list[ChunkProcessingResult[TMessage]]], Awaitable[None]
     ],
     on_batch_committed: Callable[[int, int], None] | None = None,
 ) -> ReassemblerResult:
@@ -368,9 +363,8 @@ async def _reassembler_task[TMessage: IMessage](
         nonlocal staged_chunks
         while True:
             assembly = assemblies.get(state.first_uncommitted_ordinal)
-            if assembly is None:
-                return
-            if not assembly.is_complete() or assembly.has_error:
+            if assembly is None or not assembly.is_complete() or assembly.has_error:
+                await _commit_if_needed(force)
                 return
 
             ordered_chunk_ordinals = sorted(assembly.chunks)
