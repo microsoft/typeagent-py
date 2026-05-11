@@ -442,7 +442,7 @@ class ConversationBase(
         self,
         storage: IStorageProvider[TMessage],
         messages_batch: list[TMessage],
-        chunk_results: list[_ChunkCommitResult],
+        chunk_results: Sequence[_ChunkCommitResult],
     ) -> AddMessagesResult:
         """Commit one pipeline batch using precomputed extraction and embeddings."""
         if not messages_batch:

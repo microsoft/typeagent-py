@@ -6,13 +6,18 @@
 import asyncio
 from collections.abc import AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import typechat
 
 from . import knowledge_schema as kplib
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from ..storage.memory.semrefindex import collect_action_terms, collect_entity_terms
+from .interfaces import AddMessagesResult
 from .interfaces_core import IKnowledgeExtractor, IMessage, MessageOrdinal, TextLocation
+
+if TYPE_CHECKING:
+    from .conversation_base import ConversationBase
 
 type ChunkOrdinal = int
 
@@ -435,3 +440,76 @@ async def _reassembler_task[TMessage: IMessage](
 
     state.buffered_messages = len(assemblies)
     return state
+
+
+async def add_messages_streaming[TMessage: IMessage](
+    conv: "ConversationBase[TMessage]",
+    messages: AsyncIterable[TMessage],
+    *,
+    batch_size: int = 100,
+    on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
+) -> AddMessagesResult:
+    """Add messages using the pipelined extraction+embedding architecture."""
+    from . import convknowledge
+
+    settings = conv.settings
+    sem_ref_settings = settings.semantic_ref_index_settings
+    storage = await settings.get_storage_provider()
+    knowledge_extractor = (
+        sem_ref_settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+    )
+    embedding_model = settings.embedding_model
+
+    initial_message_id: MessageOrdinal = await conv.messages.size()
+
+    total = AddMessagesResult()
+
+    def _accumulate(result: AddMessagesResult) -> None:
+        total.messages_added += result.messages_added
+        total.semrefs_added += result.semrefs_added
+        total.chunks_added += result.chunks_added
+        if on_batch_committed:
+            on_batch_committed(result)
+
+    async def _commit_batch(
+        messages_batch: list[TMessage],
+        chunk_results: list[ChunkProcessingResult[TMessage]],
+    ) -> None:
+        result = await conv._commit_batch_from_chunk_results(
+            storage, messages_batch, chunk_results
+        )
+        _accumulate(result)
+
+    chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None] = asyncio.Queue()
+    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None] = asyncio.Queue()
+    stop_state = PipelineStopState()
+    producer_state = ProducerState(next_message_id=initial_message_id)
+
+    async with asyncio.TaskGroup() as tg:
+        tg.create_task(
+            _producer_task(messages, chunk_queue, stop_state, producer_state)
+        )
+        tg.create_task(
+            _dispatcher_task(
+                chunk_queue,
+                result_queue,
+                stop_state,
+                knowledge_extractor,
+                embedding_model,
+                concurrency=sem_ref_settings.concurrency,
+            )
+        )
+        tg.create_task(
+            _reassembler_task(
+                result_queue,
+                stop_state,
+                first_uncommitted_ordinal=initial_message_id,
+                target_commit_chunk_count=batch_size,
+                commit_batch=_commit_batch,
+            )
+        )
+
+    if producer_state.exception is not None:
+        raise producer_state.exception
+
+    return total
