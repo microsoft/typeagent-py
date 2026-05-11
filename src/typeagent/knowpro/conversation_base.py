@@ -456,13 +456,17 @@ class ConversationBase(
 
             await self.messages.extend(messages_batch)
 
-            source_ids = [m.source_id for m in messages_batch if m.source_id is not None]
+            source_ids = [
+                m.source_id for m in messages_batch if m.source_id is not None
+            ]
             if source_ids:
                 await storage.mark_sources_ingested_batch(source_ids)
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
 
-            knowledge_items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]] = []
+            knowledge_items: list[
+                tuple[MessageOrdinal, int, kplib.KnowledgeResponse]
+            ] = []
             chunk_embeddings: list[NormalizedEmbedding] = []
             fuzzy_terms: list[str] = []
             fuzzy_term_embeddings: list[NormalizedEmbedding] = []
@@ -490,7 +494,10 @@ class ConversationBase(
                     )
                 )
 
-                if result.related_terms is None or result.related_term_embeddings is None:
+                if (
+                    result.related_terms is None
+                    or result.related_term_embeddings is None
+                ):
                     raise ValueError(
                         "Chunk result missing related-term embeddings for "
                         f"message={result.chunk_id.message_ordinal}, "
