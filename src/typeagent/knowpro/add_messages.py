@@ -127,7 +127,7 @@ async def _producer_task[TMessage: IMessage](
 
 async def _dispatcher_task[TMessage: IMessage](
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
-    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None],
+    result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"],
     stop_state: PipelineStopState,
     knowledge_extractor: IKnowledgeExtractor,
     message_embedding_model: IEmbeddingModel,
@@ -151,7 +151,7 @@ async def _dispatcher_task[TMessage: IMessage](
         try:
             stop_at = stop_state.stop_at_message_id
             if work_item.chunk_id.message_ordinal >= stop_at:
-                result: ChunkProcessingResult[TMessage] = ChunkProcessingResult(
+                result: "ChunkProcessingResult[TMessage]" = ChunkProcessingResult(
                     chunk_id=work_item.chunk_id,
                     chunk_count=work_item.chunk_count,
                     message=work_item.message,

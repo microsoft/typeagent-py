@@ -86,6 +86,8 @@ please follow these guidelines:
 
 * Assume Python 3.12
 
+* `from __future__ import annotations` is not allowed.
+
 * Always strip trailing spaces
 
 * Keep class and type names in `PascalCase`

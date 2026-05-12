@@ -13,7 +13,8 @@ format: venv
 
 .PHONY: check
 check: venv
-	uv run pyright src tests tools examples
+	uv run pyright --pythonversion 3.12 src tests tools examples
+	uv run pyright --pythonversion 3.14 src tests tools examples
 
 .PHONY: test
 test: venv
