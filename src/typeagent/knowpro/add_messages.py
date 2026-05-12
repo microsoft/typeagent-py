@@ -201,12 +201,17 @@ class ChunkProcessingResult[TMessage: IMessage]:
     """Result of processing a single chunk through extraction and embeddings.
 
     Attributes:
-        chunk_id: Message/chunk location for the processed chunk
-        extracted_knowledge: Extracted KnowledgeResponse, or None if extraction failed/wasn't run
-        chunk_embedding: Normalized embedding vector for the message chunk
-        related_terms: Lowercased related-term texts extracted from knowledge
-        related_term_embeddings: Embeddings for related_terms (same order)
-        error: Exception from the first failing operation, or None if successful
+        chunk_id: Message/chunk location for the processed chunk.
+        chunk_count: Total number of chunks in the message that owns this chunk.
+        message: Original message object containing this chunk.
+        extracted_knowledge: Extracted KnowledgeResponse if extraction succeeded, else None.
+        chunk_embedding: Normalized embedding vector for the message chunk, or None if extraction or embedding failed.
+        related_terms: Lowercased, deduplicated related-term texts extracted from knowledge.
+        related_term_embeddings: Embeddings for related_terms in the same order, or [] when there are no related terms.
+        error: Exception from the first failing operation, or None if extraction and embedding succeeded.
+
+        The ``success`` property is True only when extraction succeeded, chunk embedding was
+        generated, related-term embeddings were generated, and no error occurred.
     """
 
     chunk_id: TextLocation
@@ -476,12 +481,12 @@ async def _reassembler_task[TMessage: IMessage](
                 )
                 raise RuntimeError(validation_error)
 
+            assert assembly is not None
+
             if item.chunk_count > 0:
-                assert assembly is not None
                 assembly.chunks[chunk_ordinal] = item
 
             if item.error is not None:
-                assert assembly is not None
                 assembly.has_error = True
                 state.chunk_failures += 1
                 stop_state.stop_at_message_id = min(
@@ -545,36 +550,55 @@ async def add_messages_streaming[TMessage: IMessage](
     stop_state = PipelineStopState()
     producer_state = ProducerState(next_message_id=initial_message_id)
 
-    async with asyncio.TaskGroup() as tg:
-        tg.create_task(
-            _producer_task(
-                messages, chunk_queue, stop_state, producer_state, result_queue
+    task_exceptions: list[Exception] = []
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(
+                _producer_task(
+                    messages, chunk_queue, stop_state, producer_state, result_queue
+                )
             )
-        )
-        tg.create_task(
-            _dispatcher_task(
-                chunk_queue,
-                result_queue,
-                stop_state,
-                knowledge_extractor,
-                embedding_model,
-                concurrency=sem_ref_settings.concurrency,
+            tg.create_task(
+                _dispatcher_task(
+                    chunk_queue,
+                    result_queue,
+                    stop_state,
+                    knowledge_extractor,
+                    embedding_model,
+                    concurrency=sem_ref_settings.concurrency,
+                )
             )
-        )
-        tg.create_task(
-            _reassembler_task(
-                result_queue,
-                stop_state,
-                first_uncommitted_ordinal=initial_message_id,
-                target_commit_chunk_count=batch_size,
-                commit_batch=_commit_batch,
+            tg.create_task(
+                _reassembler_task(
+                    result_queue,
+                    stop_state,
+                    first_uncommitted_ordinal=initial_message_id,
+                    target_commit_chunk_count=batch_size,
+                    commit_batch=_commit_batch,
+                )
             )
-        )
+    except ExceptionGroup as eg:
+        task_exceptions.extend(eg.exceptions)
+    except Exception as exc:
+        task_exceptions.append(exc)
 
     if producer_state.exception is not None:
-        raise producer_state.exception
+        task_exceptions.append(producer_state.exception)
 
     if stop_state.exception is not None:
-        raise stop_state.exception
+        task_exceptions.append(stop_state.exception)
+
+    if task_exceptions:
+        distinct_exceptions: list[Exception] = []
+        for exc in task_exceptions:
+            if exc not in distinct_exceptions:
+                distinct_exceptions.append(exc)
+
+        if len(distinct_exceptions) == 1:
+            raise distinct_exceptions[0]
+        raise ExceptionGroup(
+            "add_messages_streaming failed",
+            distinct_exceptions,
+        )
 
     return total
