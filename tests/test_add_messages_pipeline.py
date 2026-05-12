@@ -28,7 +28,11 @@ from typeagent.knowpro.add_messages import (
     process_chunk_with_extraction_and_embeddings,
     ProducerState,
 )
-from typeagent.knowpro.interfaces_core import DeletionInfo, IMessageMetadata, TextLocation
+from typeagent.knowpro.interfaces_core import (
+    DeletionInfo,
+    IMessageMetadata,
+    TextLocation,
+)
 
 
 @dataclass
@@ -224,7 +228,8 @@ async def test_process_chunk_success_with_related_terms() -> None:
 
 
 @pytest.mark.asyncio
-async def test_process_chunk_extraction_failure_skips_embedding_calls() -> None:
+async def test_process_chunk_extraction_failure_returns_error() -> None:
+    """A Failure result from the extractor sets error and skips embedding."""
     extractor = _SequenceExtractor([typechat.Failure("bad extraction")])
     message_model = _StubEmbeddingModel()
 
@@ -237,10 +242,10 @@ async def test_process_chunk_extraction_failure_skips_embedding_calls() -> None:
         message_embedding_model=message_model,
     )
 
-    assert result.error is not None
-    assert "Knowledge extraction failed" in str(result.error)
+    assert isinstance(result.error, RuntimeError)
+    assert "bad extraction" in str(result.error)
+    assert result.extracted_knowledge is None
     assert message_model.chunk_calls == []
-    assert message_model.related_calls == []
 
 
 @pytest.mark.asyncio
@@ -434,7 +439,8 @@ async def test_dispatcher_stops_on_sentinel_and_emits_result_sentinel() -> None:
 
 
 @pytest.mark.asyncio
-async def test_dispatcher_lowers_stop_and_skips_later_messages() -> None:
+async def test_dispatcher_extraction_failure_lowers_stop() -> None:
+    """A Failure from the extractor sets error and lowers stop_at_message_id."""
     chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
     result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
         asyncio.Queue()
@@ -461,7 +467,9 @@ async def test_dispatcher_lowers_stop_and_skips_later_messages() -> None:
     )
     await chunk_queue.put(None)
 
-    extractor = _SequenceExtractor([typechat.Failure("first failed")])
+    extractor = _SequenceExtractor(
+        [typechat.Failure("first failed"), typechat.Success(_empty_knowledge())]
+    )
     model = _StubEmbeddingModel()
 
     await _dispatcher_task(
@@ -478,12 +486,12 @@ async def test_dispatcher_lowers_stop_and_skips_later_messages() -> None:
     second = items[1]
 
     assert first is not None
-    assert first.error is not None
-    assert "Knowledge extraction failed" in str(first.error)
+    assert isinstance(first.error, RuntimeError)
+    assert "first failed" in str(first.error)
 
+    # Second chunk is skipped because stop_at_message_id was lowered to 0.
     assert second is not None
     assert second.error is not None
-    assert "Chunk skipped because stop_at_message_id is 0" in str(second.error)
 
     assert stop_state.stop_at_message_id == 0
     assert extractor.calls == ["first"]

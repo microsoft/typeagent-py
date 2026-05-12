@@ -21,6 +21,17 @@ if TYPE_CHECKING:
 
 type ChunkOrdinal = int
 
+_EMPTY_KNOWLEDGE = kplib.KnowledgeResponse(
+    entities=[], actions=[], inverse_actions=[], topics=[]
+)
+
+
+class _NoOpKnowledgeExtractor:
+    """No-op extractor used when auto_extract_knowledge is False."""
+
+    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+        return typechat.Success(_EMPTY_KNOWLEDGE)
+
 
 @dataclass
 class PipelineStopState:
@@ -28,9 +39,14 @@ class PipelineStopState:
 
     A message ordinal greater than or equal to ``stop_at_message_id`` is
     considered out-of-scope for further processing.
+
+    ``exception`` holds the error from the lowest-ordinal message that
+    caused the stop, so the orchestrator can re-raise it after the pipeline
+    drains.
     """
 
     stop_at_message_id: int = 10**100
+    exception: Exception | None = None
 
 
 @dataclass
@@ -58,6 +74,7 @@ async def _producer_task[TMessage: IMessage](
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
     stop_state: PipelineStopState,
     producer_state: ProducerState,
+    result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"] | None = None,
 ) -> None:
     """Read input messages and enqueue chunk work items.
 
@@ -72,6 +89,21 @@ async def _producer_task[TMessage: IMessage](
                 break
 
             chunk_count = len(message.text_chunks)
+            if chunk_count == 0:
+                # Zero-chunk message: nothing for the dispatcher to process.
+                # Emit a zero-chunk result directly to the reassembler.
+                if result_queue is not None:
+                    await result_queue.put(
+                        ChunkProcessingResult[TMessage](
+                            chunk_id=TextLocation(message_id, 0),
+                            chunk_count=0,
+                            message=message,
+                        )
+                    )
+                producer_state.produced_messages += 1
+                producer_state.next_message_id += 1
+                continue
+
             for chunk_ordinal, chunk_text in enumerate(message.text_chunks):
                 if message_id >= stop_state.stop_at_message_id:
                     break
@@ -140,10 +172,15 @@ async def _dispatcher_task[TMessage: IMessage](
                     related_terms_embedding_model=related_terms_embedding_model,
                 )
                 if result.error is not None:
-                    stop_state.stop_at_message_id = min(
+                    new_stop = min(
                         stop_state.stop_at_message_id,
                         work_item.chunk_id.message_ordinal,
                     )
+                    if new_stop < stop_state.stop_at_message_id:
+                        stop_state.stop_at_message_id = new_stop
+                        stop_state.exception = result.error
+                    elif stop_state.exception is None:
+                        stop_state.exception = result.error
             await result_queue.put(result)
         finally:
             sem.release()
@@ -265,18 +302,16 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         if isinstance(knowledge_result, typechat.Success):
             result.extracted_knowledge = knowledge_result.value
         else:
-            # Extraction returned a Failure; treat as error and stop
             result.error = RuntimeError(
                 f"Knowledge extraction failed: {knowledge_result.message}"
             )
             return result
     except Exception as e:
-        # Extraction raised an exception; stop processing
         result.error = e
         return result
 
     result.related_terms = _collect_related_terms_for_fuzzy_index(
-        result.extracted_knowledge
+        result.extracted_knowledge  # type: ignore[arg-type]
     )
 
     related_model = related_terms_embedding_model or message_embedding_model
@@ -372,6 +407,14 @@ async def _reassembler_task[TMessage: IMessage](
                 await _commit_if_needed(force)
                 return
 
+            # Pre-flush: if staging this message would push staged_chunks past
+            # the target, commit the current batch first.
+            if (
+                staged_messages
+                and staged_chunks + assembly.chunk_count > target_commit_chunk_count
+            ):
+                await _commit_if_needed(force=True)
+
             ordered_chunk_ordinals = sorted(assembly.chunks)
             ordered_results = [assembly.chunks[i] for i in ordered_chunk_ordinals]
             staged_messages.append(assembly.message)
@@ -393,7 +436,17 @@ async def _reassembler_task[TMessage: IMessage](
 
             validation_error: str | None = None
             assembly = assemblies.get(message_id)
-            if chunk_ordinal < 0 or chunk_ordinal >= item.chunk_count:
+            if item.chunk_count == 0:
+                # Zero-chunk message: create an immediately-complete assembly.
+                if assembly is None:
+                    assembly = MessageAssembly[TMessage](
+                        message_id=message_id,
+                        chunk_count=0,
+                        message=item.message,
+                        chunks={},
+                    )
+                    assemblies[message_id] = assembly
+            elif chunk_ordinal < 0 or chunk_ordinal >= item.chunk_count:
                 validation_error = (
                     f"Invalid chunk ordinal: message_id={message_id}, "
                     f"chunk_ordinal={chunk_ordinal}, chunk_count={item.chunk_count}"
@@ -423,10 +476,12 @@ async def _reassembler_task[TMessage: IMessage](
                 )
                 raise RuntimeError(validation_error)
 
-            assert assembly is not None
-            assembly.chunks[chunk_ordinal] = item
+            if item.chunk_count > 0:
+                assert assembly is not None
+                assembly.chunks[chunk_ordinal] = item
 
             if item.error is not None:
+                assert assembly is not None
                 assembly.has_error = True
                 state.chunk_failures += 1
                 stop_state.stop_at_message_id = min(
@@ -455,9 +510,12 @@ async def add_messages_streaming[TMessage: IMessage](
     settings = conv.settings
     sem_ref_settings = settings.semantic_ref_index_settings
     storage = await settings.get_storage_provider()
-    knowledge_extractor = (
-        sem_ref_settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
-    )
+    if sem_ref_settings.auto_extract_knowledge:
+        knowledge_extractor: IKnowledgeExtractor = (
+            sem_ref_settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+        )
+    else:
+        knowledge_extractor = _NoOpKnowledgeExtractor()
     embedding_model = settings.embedding_model
 
     initial_message_id: MessageOrdinal = await conv.messages.size()
@@ -481,13 +539,17 @@ async def add_messages_streaming[TMessage: IMessage](
         _accumulate(result)
 
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None] = asyncio.Queue()
-    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None] = asyncio.Queue()
+    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None] = (
+        asyncio.Queue()
+    )
     stop_state = PipelineStopState()
     producer_state = ProducerState(next_message_id=initial_message_id)
 
     async with asyncio.TaskGroup() as tg:
         tg.create_task(
-            _producer_task(messages, chunk_queue, stop_state, producer_state)
+            _producer_task(
+                messages, chunk_queue, stop_state, producer_state, result_queue
+            )
         )
         tg.create_task(
             _dispatcher_task(
@@ -511,5 +573,8 @@ async def add_messages_streaming[TMessage: IMessage](
 
     if producer_state.exception is not None:
         raise producer_state.exception
+
+    if stop_state.exception is not None:
+        raise stop_state.exception
 
     return total

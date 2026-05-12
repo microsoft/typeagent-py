@@ -51,6 +51,7 @@ class _ChunkCommitResult(Protocol):
     """Neutral chunk commit payload shape used by pipeline batch commit."""
 
     chunk_id: TextLocation
+    chunk_count: int
     extracted_knowledge: kplib.KnowledgeResponse | None
     chunk_embedding: NormalizedEmbedding | None
     related_terms: list[str] | None
@@ -472,6 +473,9 @@ class ConversationBase(
             fuzzy_term_embeddings: list[NormalizedEmbedding] = []
 
             for result in chunk_results:
+                if result.chunk_count == 0:
+                    continue
+
                 if result.chunk_embedding is None:
                     raise ValueError(
                         "Chunk result missing chunk embedding for "
@@ -572,13 +576,8 @@ class ConversationBase(
                     related_term_embeddings,
                 )
 
-        message_index = self.secondary_indexes.message_index
-        if message_index is not None:
-            await message_index.add_messages_starting_at_with_embeddings(
-                start_points.message_count,
-                new_messages,
-                chunk_embeddings,
-            )
+        # The message text index is already populated by messages.extend() during
+        # the commit, so no explicit update is needed here.
 
     async def _add_metadata_knowledge_incremental(
         self,
