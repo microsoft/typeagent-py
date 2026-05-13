@@ -500,7 +500,28 @@ async def add_messages_streaming[TMessage: IMessage](
     batch_size: int = 100,
     on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
 ) -> AddMessagesResult:
-    """Add messages using the pipelined extraction+embedding architecture."""
+    """Ingest messages through a producer/dispatcher/reassembler pipeline.
+
+    The function preserves message commit order while processing chunk extraction
+    and embedding concurrently. Batches are committed only for consecutive,
+    complete, non-failing messages.
+
+    Args:
+        conv: Conversation receiving the new messages.
+        messages: Async iterable of messages to ingest.
+        batch_size: Target number of chunks per commit batch.
+        on_batch_committed: Optional callback invoked after each committed batch
+            with that batch's AddMessagesResult.
+
+    Returns:
+        AddMessagesResult aggregating all committed batches.
+
+    Raises:
+        Exception: If a single failure occurs during production, processing,
+            reassembly, or commit.
+        ExceptionGroup: If multiple distinct failures are observed across
+            pipeline stages.
+    """
     from . import convknowledge
 
     settings = conv.settings
