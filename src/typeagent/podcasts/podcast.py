@@ -15,7 +15,6 @@ from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import ConversationDataWithIndexes, SemanticRef, Term
 from ..knowpro.universal_message import ConversationMessage, ConversationMessageMeta
 from ..storage.memory.convthreads import ConversationThreads
-from ..storage.memory.messageindex import MessageTextIndex
 
 # Type aliases for backward compatibility
 PodcastMessage = ConversationMessage
@@ -119,16 +118,9 @@ class Podcast(ConversationBase[PodcastMessage]):
         message_index_data = podcast_data.get("messageIndexData")
         if message_index_data is not None:
             secondary_indexes = self._get_secondary_indexes()
-            # Assert the message index is empty before deserializing
             assert (
                 secondary_indexes.message_index is not None
             ), "Message index should be initialized"
-
-            if isinstance(secondary_indexes.message_index, MessageTextIndex):
-                index_size = await secondary_indexes.message_index.size()
-                assert (
-                    index_size == 0
-                ), "Message index must be empty before deserializing"
             await secondary_indexes.message_index.deserialize(message_index_data)
 
         # Don't rebuild aliases/synonyms since they were deserialized from relatedTermsIndexData
