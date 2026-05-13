@@ -217,6 +217,7 @@ class ConversationBase(
         *,
         batch_size: int = 100,
         on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
+        skip_failed_messages: bool = False,
     ) -> AddMessagesResult:
         """Delegate to the pipelined add_messages implementation."""
         from . import add_messages
@@ -226,6 +227,7 @@ class ConversationBase(
             messages,
             batch_size=batch_size,
             on_batch_committed=on_batch_committed,
+            skip_failed_messages=skip_failed_messages,
         )
 
     async def _commit_batch_from_chunk_results(

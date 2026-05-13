@@ -428,6 +428,7 @@ async def test_dispatcher_stops_on_sentinel_and_emits_result_sentinel() -> None:
         extractor,
         model,
         concurrency=2,
+        skip_failed_messages=False,
     )
 
     items = await _drain_result_queue(result_queue)
@@ -478,6 +479,7 @@ async def test_dispatcher_extraction_failure_lowers_stop() -> None:
         extractor,
         model,
         concurrency=1,
+        skip_failed_messages=False,
     )
 
     items = await _drain_result_queue(result_queue)
@@ -494,6 +496,64 @@ async def test_dispatcher_extraction_failure_lowers_stop() -> None:
 
     assert stop_state.stop_at_message_id == 0
     assert extractor.calls == ["first"]
+
+
+@pytest.mark.asyncio
+async def test_dispatcher_extraction_failure_skips_and_keeps_processing() -> None:
+    chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
+    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
+        asyncio.Queue()
+    )
+    stop_state = PipelineStopState()
+
+    m0 = _Message(["first"])
+    m1 = _Message(["second"])
+    await chunk_queue.put(
+        ChunkWorkItem(
+            chunk_id=TextLocation(0, 0),
+            chunk_count=1,
+            chunk_text="first",
+            message=m0,
+        )
+    )
+    await chunk_queue.put(
+        ChunkWorkItem(
+            chunk_id=TextLocation(1, 0),
+            chunk_count=1,
+            chunk_text="second",
+            message=m1,
+        )
+    )
+    await chunk_queue.put(None)
+
+    extractor = _SequenceExtractor(
+        [typechat.Failure("first failed"), typechat.Success(_empty_knowledge())]
+    )
+    model = _StubEmbeddingModel()
+
+    await _dispatcher_task(
+        chunk_queue,
+        result_queue,
+        stop_state,
+        extractor,
+        model,
+        concurrency=1,
+        skip_failed_messages=True,
+    )
+
+    items = await _drain_result_queue(result_queue)
+    first = items[0]
+    second = items[1]
+
+    assert first is not None
+    assert isinstance(first.error, RuntimeError)
+    assert "first failed" in str(first.error)
+
+    assert second is not None
+    assert second.error is None
+
+    assert stop_state.stop_at_message_id == 10**100
+    assert extractor.calls == ["first", "second"]
 
 
 def _chunk_result(
@@ -583,6 +643,46 @@ async def test_reassembler_marks_failure_and_blocks_later_commits() -> None:
     assert state.messages_committed == 0
     assert state.buffered_messages == 2
     assert stop_state.stop_at_message_id == 0
+
+
+@pytest.mark.asyncio
+async def test_reassembler_skips_failed_message_and_commits_later_messages() -> None:
+    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
+        asyncio.Queue()
+    )
+    stop_state = PipelineStopState()
+
+    m0 = _Message(["m0"])
+    m1 = _Message(["m1"])
+    await result_queue.put(_chunk_result(m0, 0, 0, 1, error=RuntimeError("boom")))
+    await result_queue.put(_chunk_result(m1, 1, 0, 1))
+    await result_queue.put(None)
+
+    committed_batches: list[tuple[int, int]] = []
+
+    async def _commit(
+        messages: list[_Message],
+        results: list[ChunkProcessingResult[_Message]],
+    ) -> None:
+        committed_batches.append((len(messages), len(results)))
+
+    state = await _reassembler_task(
+        result_queue,
+        stop_state,
+        first_uncommitted_ordinal=0,
+        target_commit_chunk_count=1,
+        commit_batch=_commit,
+        skip_failed_messages=True,
+    )
+
+    assert committed_batches == [(1, 1)]
+    assert state.chunk_failures == 1
+    assert state.messages_skipped == 1
+    assert state.messages_committed == 1
+    assert state.chunks_committed == 1
+    assert state.buffered_messages == 0
+    assert state.first_uncommitted_ordinal == 2
+    assert stop_state.stop_at_message_id == 10**100
 
 
 @pytest.mark.asyncio

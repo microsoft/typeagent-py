@@ -134,6 +134,7 @@ async def _dispatcher_task[TMessage: IMessage](
     knowledge_extractor: IKnowledgeExtractor,
     embedding_model: IEmbeddingModel,
     concurrency: int,
+    skip_failed_messages: bool,
 ) -> None:
     """Dispatch chunk work items to bounded per-item worker tasks.
 
@@ -145,6 +146,10 @@ async def _dispatcher_task[TMessage: IMessage](
     tasks run simultaneously.  Chunks at or beyond ``stop_at_message_id`` are
     skipped and reported as error results so the reassembler can account for
     them deterministically.
+
+    Args:
+        skip_failed_messages: If True, don't halt producer on extraction/embedding
+            failures; continue processing. If False, halt on first failure.
     """
     sem = asyncio.Semaphore(concurrency)
 
@@ -172,15 +177,20 @@ async def _dispatcher_task[TMessage: IMessage](
                     embedding_model=embedding_model,
                 )
                 if result.error is not None:
-                    new_stop = min(
-                        stop_state.stop_at_message_id,
-                        work_item.chunk_id.message_ordinal,
-                    )
-                    if new_stop < stop_state.stop_at_message_id:
-                        stop_state.stop_at_message_id = new_stop
-                        stop_state.exception = result.error
-                    elif stop_state.exception is None:
-                        stop_state.exception = result.error
+                    if skip_failed_messages:
+                        print(
+                            f"Skipping message {work_item.chunk_id.message_ordinal} "
+                            f"due to extraction/embedding error: {result.error}"
+                        )
+                    else:
+                        new_stop = min(
+                            stop_state.stop_at_message_id,
+                            work_item.chunk_id.message_ordinal,
+                        )
+                        if new_stop < stop_state.stop_at_message_id:
+                            stop_state.stop_at_message_id = new_stop
+                        if stop_state.exception is None:
+                            stop_state.exception = result.error
             await result_queue.put(result)
         finally:
             sem.release()
@@ -346,6 +356,7 @@ class ReassemblerResult:
     messages_committed: int = 0
     chunks_committed: int = 0
     chunk_failures: int = 0
+    messages_skipped: int = 0
     buffered_messages: int = 0
 
 
@@ -358,12 +369,17 @@ async def _reassembler_task[TMessage: IMessage](
         [list[TMessage], list[ChunkProcessingResult[TMessage]]], Awaitable[None]
     ],
     on_batch_committed: Callable[[int, int], None] | None = None,
+    skip_failed_messages: bool = False,
 ) -> ReassemblerResult:
     """Reassemble chunks into messages and commit only consecutive complete ones.
 
     This stage consumes worker results until it sees a ``None`` sentinel.
     It never commits out-of-order messages: if message N is incomplete or failed,
     messages N+1 and later remain buffered.
+
+    Args:
+        skip_failed_messages: If True, skip messages that fail extraction/embedding
+            and continue processing. If False, halt processing on first failure.
     """
     state = ReassemblerResult(first_uncommitted_ordinal=first_uncommitted_ordinal)
     assemblies: dict[MessageOrdinal, MessageAssembly[TMessage]] = {}
@@ -393,9 +409,34 @@ async def _reassembler_task[TMessage: IMessage](
         nonlocal staged_chunks
         while True:
             assembly = assemblies.get(state.first_uncommitted_ordinal)
-            if assembly is None or not assembly.is_complete() or assembly.has_error:
+            if assembly is None:
                 await _commit_if_needed(force)
                 return
+            if not assembly.is_complete():
+                await _commit_if_needed(force)
+                return
+            if assembly.has_error:
+                if skip_failed_messages:
+                    # Skip this failed message and continue
+                    # Find the error from one of the chunks for logging
+                    error_msg = "Unknown error"
+                    for chunk_result in assembly.chunks.values():
+                        if chunk_result.error is not None:
+                            error_msg = str(chunk_result.error)
+                            break
+                    print(
+                        f"Skipping message {state.first_uncommitted_ordinal} "
+                        f"due to chunk processing error: {error_msg}"
+                    )
+                    del assemblies[state.first_uncommitted_ordinal]
+                    state.first_uncommitted_ordinal += 1
+                    state.messages_skipped += 1
+                    # Continue to check the next message
+                    continue
+                else:
+                    # Stop at failed message; halt processing
+                    await _commit_if_needed(force)
+                    return
 
             # Pre-flush: if staging this message would push staged_chunks past
             # the target, commit the current batch first.
@@ -474,9 +515,10 @@ async def _reassembler_task[TMessage: IMessage](
             if item.error is not None:
                 assembly.has_error = True
                 state.chunk_failures += 1
-                stop_state.stop_at_message_id = min(
-                    stop_state.stop_at_message_id, message_id
-                )
+                if not skip_failed_messages:
+                    stop_state.stop_at_message_id = min(
+                        stop_state.stop_at_message_id, message_id
+                    )
 
             await _drain_consecutive_complete()
     finally:
@@ -493,6 +535,7 @@ async def add_messages_streaming[TMessage: IMessage](
     *,
     batch_size: int = 100,
     on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
+    skip_failed_messages: bool = False,
 ) -> AddMessagesResult:
     """Ingest messages through a producer/dispatcher/reassembler pipeline.
 
@@ -506,15 +549,19 @@ async def add_messages_streaming[TMessage: IMessage](
         batch_size: Target number of chunks per commit batch.
         on_batch_committed: Optional callback invoked after each committed batch
             with that batch's AddMessagesResult.
+        skip_failed_messages: If True, skip messages that fail extraction or
+            embedding and continue processing. If False (default), halt on
+            first failure and raise an exception.
 
     Returns:
-        AddMessagesResult aggregating all committed batches.
+        AddMessagesResult aggregating all committed batches, including count
+        of messages_skipped when skip_failed_messages is True.
 
     Raises:
         Exception: If a single failure occurs during production, processing,
-            reassembly, or commit.
+            reassembly, or commit (when skip_failed_messages is False).
         ExceptionGroup: If multiple distinct failures are observed across
-            pipeline stages.
+            pipeline stages (when skip_failed_messages is False).
     """
     from . import convknowledge
 
@@ -559,6 +606,7 @@ async def add_messages_streaming[TMessage: IMessage](
     producer_state = ProducerState(next_message_id=initial_message_id)
 
     task_exceptions: list[Exception] = []
+    reassembler_task: asyncio.Task[ReassemblerResult] | None = None
     try:
         async with asyncio.TaskGroup() as tg:
             tg.create_task(
@@ -574,15 +622,17 @@ async def add_messages_streaming[TMessage: IMessage](
                     knowledge_extractor,
                     embedding_model,
                     concurrency=sem_ref_settings.concurrency,
+                    skip_failed_messages=skip_failed_messages,
                 )
             )
-            tg.create_task(
+            reassembler_task = tg.create_task(
                 _reassembler_task(
                     result_queue,
                     stop_state,
                     first_uncommitted_ordinal=initial_message_id,
                     target_commit_chunk_count=batch_size,
                     commit_batch=_commit_batch,
+                    skip_failed_messages=skip_failed_messages,
                 )
             )
     except ExceptionGroup as eg:
@@ -593,7 +643,7 @@ async def add_messages_streaming[TMessage: IMessage](
     if producer_state.exception is not None:
         task_exceptions.append(producer_state.exception)
 
-    if stop_state.exception is not None:
+    if stop_state.exception is not None and not skip_failed_messages:
         task_exceptions.append(stop_state.exception)
 
     if task_exceptions:
@@ -605,5 +655,14 @@ async def add_messages_streaming[TMessage: IMessage](
         if len(distinct_exceptions) == 1:
             raise distinct_exceptions[0]
         raise ExceptionGroup("add_messages_streaming failed", distinct_exceptions)
+
+    # Collect messages_skipped from reassembler result if skip_failed_messages is True
+    if skip_failed_messages and reassembler_task is not None:
+        try:
+            reassembler_result = reassembler_task.result()
+            total.messages_skipped = reassembler_result.messages_skipped
+        except Exception:
+            # reassembler_task result may not be available if task group failed
+            pass
 
     return total

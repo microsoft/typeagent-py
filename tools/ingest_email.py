@@ -476,6 +476,7 @@ async def ingest_emails(
             message_stream,
             batch_size=batch_size,
             on_batch_committed=on_batch_committed,
+            skip_failed_messages=True,
         )
     except (KeyboardInterrupt, asyncio.CancelledError):
         interrupted = True
