@@ -31,7 +31,7 @@ jobs:
   #     - name: Get User Permission
   #       if: ${{ github.event_name == 'pull_request_target' || github.triggering_actor != 'github-merge-queue[bot]' }}
   #       id: checkAccess
-  #       uses: actions-cool/check-user-permission@v2
+  #       uses: actions-cool/check-user-permission@c21884f3dda18dafc2f8b402fe807ccc9ec1aa5e # v2.4.0
   #       with:
   #         require: write
   #         username: ${{ github.triggering_actor }}
@@ -60,17 +60,20 @@ jobs:
     name: ${{ matrix.os }} check (py ${{ matrix.python-version }})
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.14"
 
       - name: Run Check (Linux)
         if: runner.os == 'Linux'
@@ -98,17 +101,20 @@ jobs:
     name: ${{ matrix.os }} format (py ${{ matrix.python-version }})
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.14"
 
       - name: Run Format (Linux)
         if: runner.os == 'Linux'
@@ -134,17 +140,20 @@ jobs:
     name: ${{ matrix.os }} (py ${{ matrix.python-version }})
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.14"
 
       - name: Run Test (Linux)
         if: runner.os == 'Linux'
@@ -170,17 +179,19 @@ jobs:
   #   name: ${{ matrix.os }} (py ${{ matrix.python-version }})
 
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
   #       with:
   #         ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
   #     - name: Set up Python
-  #       uses: actions/setup-python@v5
+  #       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
   #       with:
   #         python-version: ${{ matrix.python-version }}
 
   #     - name: Install uv
-  #       uses: astral-sh/setup-uv@v7
+  #       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+  #       with:
+  #         version: "0.11.14"
 
   #     - name: Install Dependencies (Linux)
   #       if: runner.os == 'Linux'
@@ -194,7 +205,7 @@ jobs:
   #           make sync
 
   #     - name: Login to Azure
-  #       uses: azure/login@v2.2.0
+  #       uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
   #       with:
   #         client-id: ${{ secrets.AZURE_CLIENTID }}
   #         tenant-id: ${{ secrets.AZURE_TENANTID }}
