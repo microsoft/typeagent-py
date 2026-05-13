@@ -217,7 +217,6 @@ async def test_process_chunk_success_with_related_terms() -> None:
     )
 
     assert result.error is None
-    assert result.success
     assert result.extracted_knowledge is not None
     assert result.chunk_embedding is not None
     assert result.related_terms is not None

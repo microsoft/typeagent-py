@@ -16,6 +16,8 @@ from ..storage.memory.semrefindex import collect_action_terms, collect_entity_te
 from .interfaces import AddMessagesResult
 from .interfaces_core import IKnowledgeExtractor, IMessage, MessageOrdinal, TextLocation
 
+__all__ = ["add_messages_streaming"]
+
 if TYPE_CHECKING:
     from .conversation_base import ConversationBase
 
@@ -26,7 +28,7 @@ _EMPTY_KNOWLEDGE = kplib.KnowledgeResponse(
 )
 
 
-class _NoOpKnowledgeExtractor:
+class NoOpKnowledgeExtractor:
     """No-op extractor used when auto_extract_knowledge is False."""
 
     async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
@@ -221,17 +223,6 @@ class ChunkProcessingResult[TMessage: IMessage]:
     related_term_embeddings: list[NormalizedEmbedding] | None = None
     error: Exception | None = None
 
-    @property
-    def success(self) -> bool:
-        """True if both extraction and embedding succeeded."""
-        return (
-            self.extracted_knowledge is not None
-            and self.chunk_embedding is not None
-            and self.related_terms is not None
-            and self.related_term_embeddings is not None
-            and self.error is None
-        )
-
 
 def _collect_related_terms_for_fuzzy_index(
     knowledge: kplib.KnowledgeResponse,
@@ -264,6 +255,7 @@ def _collect_related_terms_for_fuzzy_index(
     return related_terms
 
 
+# "Public", imported by tests
 async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
     chunk_id: TextLocation,
     chunk_text: str,
@@ -534,7 +526,7 @@ async def add_messages_streaming[TMessage: IMessage](
             sem_ref_settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
         )
     else:
-        knowledge_extractor = _NoOpKnowledgeExtractor()
+        knowledge_extractor = NoOpKnowledgeExtractor()
     embedding_model = settings.embedding_model
 
     initial_message_id: MessageOrdinal = await conv.messages.size()
