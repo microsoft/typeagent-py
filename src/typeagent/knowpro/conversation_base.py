@@ -3,6 +3,7 @@
 
 """Base class for conversations with incremental indexing support."""
 
+import asyncio
 from collections.abc import AsyncIterable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -218,6 +219,7 @@ class ConversationBase(
         batch_size: int = 100,
         on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
         skip_failed_messages: bool = False,
+        shutdown_event: asyncio.Event | None = None,
     ) -> AddMessagesResult:
         """Delegate to the pipelined add_messages implementation."""
         from . import add_messages
@@ -228,6 +230,7 @@ class ConversationBase(
             batch_size=batch_size,
             on_batch_committed=on_batch_committed,
             skip_failed_messages=skip_failed_messages,
+            shutdown_event=shutdown_event,
         )
 
     async def _commit_batch_from_chunk_results(

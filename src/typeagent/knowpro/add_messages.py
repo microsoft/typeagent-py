@@ -77,6 +77,7 @@ async def _producer_task[TMessage: IMessage](
     stop_state: PipelineStopState,
     producer_state: ProducerState,
     result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"] | None = None,
+    shutdown_event: asyncio.Event | None = None,
 ) -> None:
     """Read input messages and enqueue chunk work items.
 
@@ -88,6 +89,8 @@ async def _producer_task[TMessage: IMessage](
         async for message in messages:
             message_id = producer_state.next_message_id
             if message_id >= stop_state.stop_at_message_id:
+                break
+            if shutdown_event is not None and shutdown_event.is_set():
                 break
 
             chunk_count = len(message.text_chunks)
@@ -536,6 +539,7 @@ async def add_messages_streaming[TMessage: IMessage](
     batch_size: int = 100,
     on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
     skip_failed_messages: bool = False,
+    shutdown_event: asyncio.Event | None = None,
 ) -> AddMessagesResult:
     """Ingest messages through a producer/dispatcher/reassembler pipeline.
 
@@ -611,7 +615,12 @@ async def add_messages_streaming[TMessage: IMessage](
         async with asyncio.TaskGroup() as tg:
             tg.create_task(
                 _producer_task(
-                    messages, chunk_queue, stop_state, producer_state, result_queue
+                    messages,
+                    chunk_queue,
+                    stop_state,
+                    producer_state,
+                    result_queue,
+                    shutdown_event=shutdown_event,
                 )
             )
             tg.create_task(

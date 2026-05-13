@@ -22,6 +22,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
+import signal
 import sys
 import time
 from typing import Iterable
@@ -273,7 +274,9 @@ def _iter_emails(
         yield str(email_file.resolve()), email_file, label
 
 
-def _print_email_verbose(email: EmailMessage, original_chunk_count: int | None = None) -> None:
+def _print_email_verbose(
+    email: EmailMessage, original_chunk_count: int | None = None
+) -> None:
     """Print verbose details for an email."""
     print(f"    From: {decode_encoded_words(email.metadata.sender)}")
     if email.metadata.recipients:
@@ -289,8 +292,12 @@ def _print_email_verbose(email: EmailMessage, original_chunk_count: int | None =
             f"    Subject: {decode_encoded_words(email.metadata.subject).replace('\n', '\\n')}"
         )
     print(f"    Date: {email.timestamp}")
-    if original_chunk_count is not None and original_chunk_count != len(email.text_chunks):
-        print(f"    Body chunks: {len(email.text_chunks)} (clipped from {original_chunk_count})")
+    if original_chunk_count is not None and original_chunk_count != len(
+        email.text_chunks
+    ):
+        print(
+            f"    Body chunks: {len(email.text_chunks)} (clipped from {original_chunk_count})"
+        )
     else:
         print(f"    Body chunks: {len(email.text_chunks)}")
     MAIL_PREVIEW_LEN = 80
@@ -473,15 +480,41 @@ async def ingest_emails(
 
     result: AddMessagesResult | None = None
     interrupted = False
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    _sigint_count = 0
+    _main_task = asyncio.current_task()
+
+    def _on_sigint() -> None:
+        nonlocal _sigint_count
+        _sigint_count += 1
+        if _sigint_count == 1:
+            print(
+                "\nInterrupt received; stopping after current batch completes "
+                "(press ^C again to force quit)...",
+                flush=True,
+            )
+            shutdown_event.set()
+        else:
+            print("\nForce quit.", flush=True)
+            loop.remove_signal_handler(signal.SIGINT)
+            if _main_task is not None:
+                _main_task.cancel()
+
+    loop.add_signal_handler(signal.SIGINT, _on_sigint)
     try:
         result = await email_memory.add_messages_streaming(
             message_stream,
             batch_size=batch_size,
             on_batch_committed=on_batch_committed,
             skip_failed_messages=True,
+            shutdown_event=shutdown_event,
         )
+        interrupted = shutdown_event.is_set()
     except (KeyboardInterrupt, asyncio.CancelledError):
         interrupted = True
+    finally:
+        loop.remove_signal_handler(signal.SIGINT)
 
     # Final summary
     elapsed = time.time() - start_time
@@ -543,20 +576,28 @@ def main() -> None:
     start_date = _parse_date(args.start_date) if args.start_date else None
     stop_date = _parse_date(args.stop_date) if args.stop_date else None
 
-    asyncio.run(
-        ingest_emails(
-            eml_paths=args.paths,
-            database=args.database,
-            verbose=args.verbose,
-            start_date=start_date,
-            stop_date=stop_date,
-            offset=args.offset,
-            limit=args.limit,
-            concurrency=args.concurrency,
-            batch_size=args.batch_size,
-            max_chunks=args.max_chunks,
+    try:
+        asyncio.run(
+            ingest_emails(
+                eml_paths=args.paths,
+                database=args.database,
+                verbose=args.verbose,
+                start_date=start_date,
+                stop_date=stop_date,
+                offset=args.offset,
+                limit=args.limit,
+                concurrency=args.concurrency,
+                batch_size=args.batch_size,
+                max_chunks=args.max_chunks,
+            )
         )
-    )
+    except KeyboardInterrupt:
+        pass
+    except Exception as exc:
+        if args.verbose:
+            raise
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
