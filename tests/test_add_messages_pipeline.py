@@ -213,7 +213,7 @@ async def test_process_chunk_success_with_related_terms() -> None:
         chunk_count=1,
         message=_Message(["hello"]),
         knowledge_extractor=extractor,
-        message_embedding_model=message_model,
+        embedding_model=message_model,
     )
 
     assert result.error is None
@@ -239,7 +239,7 @@ async def test_process_chunk_extraction_failure_returns_error() -> None:
         chunk_count=1,
         message=_Message(["hello"]),
         knowledge_extractor=extractor,
-        message_embedding_model=message_model,
+        embedding_model=message_model,
     )
 
     assert isinstance(result.error, RuntimeError)
@@ -259,7 +259,7 @@ async def test_process_chunk_extraction_exception_returns_error() -> None:
         chunk_count=1,
         message=_Message(["hello"]),
         knowledge_extractor=extractor,
-        message_embedding_model=message_model,
+        embedding_model=message_model,
     )
 
     assert isinstance(result.error, RuntimeError)
@@ -277,7 +277,7 @@ async def test_process_chunk_chunk_embedding_exception_returns_error() -> None:
         chunk_count=1,
         message=_Message(["hello"]),
         knowledge_extractor=extractor,
-        message_embedding_model=message_model,
+        embedding_model=message_model,
     )
 
     assert isinstance(result.error, RuntimeError)
@@ -295,7 +295,7 @@ async def test_process_chunk_related_term_embedding_exception_returns_error() ->
         chunk_count=1,
         message=_Message(["hello"]),
         knowledge_extractor=extractor,
-        message_embedding_model=message_model,
+        embedding_model=message_model,
     )
 
     assert isinstance(result.error, RuntimeError)
