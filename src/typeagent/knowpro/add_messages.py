@@ -279,14 +279,16 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
 
     Extraction runs first; if it fails, embedding work is skipped.
 
-    Chunk embeddings are computed uncached, while related-term embeddings are
-    computed using cache-aware model calls.
+    Chunk embeddings are computed uncached; related-term embeddings use
+    cache-aware model calls on the same embedding model.
 
     Args:
-        chunk_id: Message/chunk location for this chunk
-        chunk_text: Text content of the chunk (stripped)
-        knowledge_extractor: IKnowledgeExtractor instance for LLM extraction
-        embedding_model: Embedding model for both chunk and related-term embeddings
+        chunk_id: Message/chunk location for this chunk.
+        chunk_text: Text content of the chunk (stripped).
+        chunk_count: Total number of chunks in the message.
+        message: Original message object containing this chunk.
+        knowledge_extractor: IKnowledgeExtractor instance for LLM extraction.
+        embedding_model: Embedding model for chunk and related-term embeddings.
 
     Returns:
         ChunkProcessingResult with knowledge, chunk embedding, related-term
