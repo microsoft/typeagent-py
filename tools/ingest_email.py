@@ -273,7 +273,7 @@ def _iter_emails(
         yield str(email_file.resolve()), email_file, label
 
 
-def _print_email_verbose(email: EmailMessage) -> None:
+def _print_email_verbose(email: EmailMessage, original_chunk_count: int | None = None) -> None:
     """Print verbose details for an email."""
     print(f"    From: {decode_encoded_words(email.metadata.sender)}")
     if email.metadata.recipients:
@@ -289,7 +289,10 @@ def _print_email_verbose(email: EmailMessage) -> None:
             f"    Subject: {decode_encoded_words(email.metadata.subject).replace('\n', '\\n')}"
         )
     print(f"    Date: {email.timestamp}")
-    print(f"    Body chunks: {len(email.text_chunks)}")
+    if original_chunk_count is not None and original_chunk_count != len(email.text_chunks):
+        print(f"    Body chunks: {len(email.text_chunks)} (clipped from {original_chunk_count})")
+    else:
+        print(f"    Body chunks: {len(email.text_chunks)}")
     MAIL_PREVIEW_LEN = 80
     for chunk in email.text_chunks:
         preview = repr(chunk[: MAIL_PREVIEW_LEN + 1])[1:-1]
@@ -341,15 +344,14 @@ async def _email_generator(
                 print(f"{label}  [Outside date range, skipping]")
             continue
 
+        # Truncate chunks if --max-chunks is set
+        original_chunk_count: int | None = None
+        if max_chunks is not None and len(email.text_chunks) > max_chunks:
+            original_chunk_count = len(email.text_chunks)
+            email.text_chunks = email.text_chunks[:max_chunks]
         if verbose:
             print(label)
-            _print_email_verbose(email)
-
-        # Truncate chunks if --max-chunks is set
-        if max_chunks is not None and len(email.text_chunks) > max_chunks:
-            if verbose:
-                print(f"    Truncating {len(email.text_chunks)} chunks to {max_chunks}")
-            email.text_chunks = email.text_chunks[:max_chunks]
+            _print_email_verbose(email, original_chunk_count)
 
         # Set source_id so streaming API handles dedup and tracking
         email.source_id = source_id
@@ -452,10 +454,10 @@ async def ingest_emails(
             f"+{result.semrefs_added} semrefs",
         ]
         print(
-            f"{' '.join(parts)} | "
+            f"\n{' '.join(parts)} | "
             f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
             f"{counters['ingested']} total ingested | "
-            f"{elapsed:.1f}s elapsed",
+            f"{elapsed:.1f}s elapsed\n",
             flush=True,
         )
 
