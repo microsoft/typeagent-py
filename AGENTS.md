@@ -90,6 +90,8 @@ please follow these guidelines:
 
 * Always strip trailing spaces
 
+* Keep docstrings in sync with code when changing implementation.
+
 * Keep class and type names in `PascalCase`
 * Use `python_case` for variable/field and function/method names
 
