@@ -130,9 +130,8 @@ async def _dispatcher_task[TMessage: IMessage](
     result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"],
     stop_state: PipelineStopState,
     knowledge_extractor: IKnowledgeExtractor,
-    message_embedding_model: IEmbeddingModel,
-    related_terms_embedding_model: IEmbeddingModel | None = None,
-    concurrency: int = 4,
+    embedding_model: IEmbeddingModel,
+    concurrency: int,
 ) -> None:
     """Dispatch chunk work items to bounded per-item worker tasks.
 
@@ -168,8 +167,7 @@ async def _dispatcher_task[TMessage: IMessage](
                     chunk_count=work_item.chunk_count,
                     message=work_item.message,
                     knowledge_extractor=knowledge_extractor,
-                    message_embedding_model=message_embedding_model,
-                    related_terms_embedding_model=related_terms_embedding_model,
+                    embedding_model=embedding_model,
                 )
                 if result.error is not None:
                     new_stop = min(
@@ -272,8 +270,7 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
     chunk_count: int,
     message: TMessage,
     knowledge_extractor: IKnowledgeExtractor,
-    message_embedding_model: IEmbeddingModel,
-    related_terms_embedding_model: IEmbeddingModel | None = None,
+    embedding_model: IEmbeddingModel,
 ) -> ChunkProcessingResult[TMessage]:
     """Process a single text chunk through knowledge extraction and embeddings.
 
@@ -289,9 +286,7 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         chunk_id: Message/chunk location for this chunk
         chunk_text: Text content of the chunk (stripped)
         knowledge_extractor: IKnowledgeExtractor instance for LLM extraction
-        message_embedding_model: Embedding model for chunk text embeddings
-        related_terms_embedding_model: Optional embedding model for related-term
-            embeddings. If None, message_embedding_model is used.
+        embedding_model: Embedding model for both chunk and related-term embeddings
 
     Returns:
         ChunkProcessingResult with knowledge, chunk embedding, related-term
@@ -319,15 +314,11 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         result.extracted_knowledge  # type: ignore[arg-type]
     )
 
-    related_model = related_terms_embedding_model or message_embedding_model
-
     # Step 2: Generate embeddings (only if extraction succeeded)
     try:
-        result.chunk_embedding = await message_embedding_model.get_embedding_nocache(
-            chunk_text
-        )
+        result.chunk_embedding = await embedding_model.get_embedding_nocache(chunk_text)
         if result.related_terms:
-            rel_embeddings = await related_model.get_embeddings(result.related_terms)
+            rel_embeddings = await embedding_model.get_embeddings(result.related_terms)
             result.related_term_embeddings = [e for e in rel_embeddings]
         else:
             result.related_term_embeddings = []
@@ -543,9 +534,11 @@ async def add_messages_streaming[TMessage: IMessage](
         )
         _accumulate(result)
 
-    chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None] = asyncio.Queue()
-    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None] = (
-        asyncio.Queue()
+    chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None] = asyncio.Queue(
+        maxsize=sem_ref_settings.concurrency * 2
+    )
+    result_queue: asyncio.Queue[ChunkProcessingResult[TMessage] | None] = asyncio.Queue(
+        maxsize=sem_ref_settings.concurrency * 2
     )
     stop_state = PipelineStopState()
     producer_state = ProducerState(next_message_id=initial_message_id)
@@ -596,9 +589,6 @@ async def add_messages_streaming[TMessage: IMessage](
 
         if len(distinct_exceptions) == 1:
             raise distinct_exceptions[0]
-        raise ExceptionGroup(
-            "add_messages_streaming failed",
-            distinct_exceptions,
-        )
+        raise ExceptionGroup("add_messages_streaming failed", distinct_exceptions)
 
     return total
