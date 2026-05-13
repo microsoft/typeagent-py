@@ -21,6 +21,7 @@ import argparse
 import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
+import os
 from pathlib import Path
 import signal
 import sys
@@ -497,9 +498,9 @@ async def ingest_emails(
             shutdown_event.set()
         else:
             print("\nForce quit.", flush=True)
-            loop.remove_signal_handler(signal.SIGINT)
-            if _main_task is not None:
-                _main_task.cancel()
+            # Bypass cooperative cancellation on repeated Ctrl+C.
+            # Some pending async operations may not respond promptly and can hang.
+            os._exit(130)
 
     loop.add_signal_handler(signal.SIGINT, _on_sigint)
     try:

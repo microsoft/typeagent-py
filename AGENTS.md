@@ -36,6 +36,7 @@ In all cases show what you added to AGENTS.md.
 
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
 - When running 'make' commands, do not use the venv (the Makefile uses 'uv run')
+- If a term can refer to OS behavior or repository code behavior (for example, 'force quit'), prefer the in-repo meaning first and verify by searching the code.
 - To get API keys in ad-hoc code, call `load_dotenv()`
 - Use `pytest test` to run tests in test/
 - Use `pyright` to check type annotations in src/, tools/,  tests/, examples/
