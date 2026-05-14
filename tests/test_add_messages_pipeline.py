@@ -12,10 +12,7 @@ import pytest
 
 import typechat
 
-from typeagent.aitools.embeddings import (
-    NormalizedEmbedding,
-    NormalizedEmbeddings,
-)
+from typeagent.aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
 from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.add_messages import (
     _collect_related_terms_for_fuzzy_index,
@@ -50,8 +47,7 @@ class _Message:
 
 class _SequenceExtractor:
     def __init__(
-        self,
-        outputs: list[typechat.Result[kplib.KnowledgeResponse] | Exception],
+        self, outputs: list[typechat.Result[kplib.KnowledgeResponse] | Exception]
     ) -> None:
         self._outputs = outputs
         self.calls: list[str] = []
@@ -312,7 +308,10 @@ async def test_producer_enqueues_all_chunks_and_sentinel() -> None:
         for message in messages:
             yield message
 
-    await _producer_task(_iter_messages(), queue, stop_state, producer_state)
+    result_queue = asyncio.Queue()
+    await _producer_task(
+        _iter_messages(), queue, stop_state, producer_state, result_queue, None
+    )
 
     items: list[ChunkWorkItem[_Message] | None] = [
         await queue.get(),
@@ -342,7 +341,10 @@ async def test_producer_stops_at_stop_marker() -> None:
         yield _Message(["a"])
         yield _Message(["b"])
 
-    await _producer_task(_iter_messages(), queue, stop_state, producer_state)
+    result_queue = asyncio.Queue()
+    await _producer_task(
+        _iter_messages(), queue, stop_state, producer_state, result_queue, None
+    )
 
     first = await queue.get()
     sentinel = await queue.get()
@@ -359,12 +361,12 @@ async def test_producer_sets_exception_and_still_sends_sentinel() -> None:
     stop_state = PipelineStopState()
     producer_state = ProducerState(next_message_id=0)
 
-    failing_iter = _FailingAsyncMessages(
-        [_Message(["a"])],
-        RuntimeError("input boom"),
-    )
+    failing_iter = _FailingAsyncMessages([_Message(["a"])], RuntimeError("input boom"))
 
-    await _producer_task(failing_iter, queue, stop_state, producer_state)
+    result_queue = asyncio.Queue()
+    await _producer_task(
+        failing_iter, queue, stop_state, producer_state, result_queue, None
+    )
 
     first = await queue.get()
     sentinel = await queue.get()
@@ -388,7 +390,10 @@ async def test_producer_breaks_inside_chunk_loop_when_stop_marker_changes() -> N
     async def _iter_messages() -> AsyncIterator[_Message]:
         yield message
 
-    await _producer_task(_iter_messages(), queue, stop_state, producer_state)
+    result_queue = asyncio.Queue()
+    await _producer_task(
+        _iter_messages(), queue, stop_state, producer_state, result_queue, None
+    )
 
     first = await queue.get()
     sentinel = await queue.get()
@@ -402,9 +407,7 @@ async def test_producer_breaks_inside_chunk_loop_when_stop_marker_changes() -> N
 @pytest.mark.asyncio
 async def test_dispatcher_stops_on_sentinel_and_emits_result_sentinel() -> None:
     chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["hello"])
@@ -442,27 +445,19 @@ async def test_dispatcher_stops_on_sentinel_and_emits_result_sentinel() -> None:
 async def test_dispatcher_extraction_failure_lowers_stop() -> None:
     """A Failure from the extractor sets error and lowers stop_at_message_id."""
     chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     m0 = _Message(["first"])
     m1 = _Message(["second"])
     await chunk_queue.put(
         ChunkWorkItem(
-            chunk_id=TextLocation(0, 0),
-            chunk_count=1,
-            chunk_text="first",
-            message=m0,
+            chunk_id=TextLocation(0, 0), chunk_count=1, chunk_text="first", message=m0
         )
     )
     await chunk_queue.put(
         ChunkWorkItem(
-            chunk_id=TextLocation(1, 0),
-            chunk_count=1,
-            chunk_text="second",
-            message=m1,
+            chunk_id=TextLocation(1, 0), chunk_count=1, chunk_text="second", message=m1
         )
     )
     await chunk_queue.put(None)
@@ -501,27 +496,19 @@ async def test_dispatcher_extraction_failure_lowers_stop() -> None:
 @pytest.mark.asyncio
 async def test_dispatcher_extraction_failure_skips_and_keeps_processing() -> None:
     chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     m0 = _Message(["first"])
     m1 = _Message(["second"])
     await chunk_queue.put(
         ChunkWorkItem(
-            chunk_id=TextLocation(0, 0),
-            chunk_count=1,
-            chunk_text="first",
-            message=m0,
+            chunk_id=TextLocation(0, 0), chunk_count=1, chunk_text="first", message=m0
         )
     )
     await chunk_queue.put(
         ChunkWorkItem(
-            chunk_id=TextLocation(1, 0),
-            chunk_count=1,
-            chunk_text="second",
-            message=m1,
+            chunk_id=TextLocation(1, 0), chunk_count=1, chunk_text="second", message=m1
         )
     )
     await chunk_queue.put(None)
@@ -574,9 +561,7 @@ def _chunk_result(
 
 @pytest.mark.asyncio
 async def test_reassembler_commits_out_of_order_after_gap_is_filled() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     m0 = _Message(["m0"])
@@ -588,8 +573,7 @@ async def test_reassembler_commits_out_of_order_after_gap_is_filled() -> None:
     committed_batches: list[tuple[int, int]] = []
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         committed_batches.append((len(messages), len(results)))
 
@@ -599,6 +583,8 @@ async def test_reassembler_commits_out_of_order_after_gap_is_filled() -> None:
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=10,
         commit_batch=_commit,
+        on_batch_committed=None,
+        skip_failed_messages=False,
     )
 
     assert committed_batches == [(2, 2)]
@@ -610,9 +596,7 @@ async def test_reassembler_commits_out_of_order_after_gap_is_filled() -> None:
 
 @pytest.mark.asyncio
 async def test_reassembler_marks_failure_and_blocks_later_commits() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     m0 = _Message(["m0"])
@@ -624,8 +608,7 @@ async def test_reassembler_marks_failure_and_blocks_later_commits() -> None:
     commit_calls = 0
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         nonlocal commit_calls
         commit_calls += 1
@@ -636,6 +619,8 @@ async def test_reassembler_marks_failure_and_blocks_later_commits() -> None:
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=1,
         commit_batch=_commit,
+        on_batch_committed=None,
+        skip_failed_messages=False,
     )
 
     assert commit_calls == 0
@@ -647,9 +632,7 @@ async def test_reassembler_marks_failure_and_blocks_later_commits() -> None:
 
 @pytest.mark.asyncio
 async def test_reassembler_skips_failed_message_and_commits_later_messages() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     m0 = _Message(["m0"])
@@ -661,8 +644,7 @@ async def test_reassembler_skips_failed_message_and_commits_later_messages() -> 
     committed_batches: list[tuple[int, int]] = []
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         committed_batches.append((len(messages), len(results)))
 
@@ -672,6 +654,7 @@ async def test_reassembler_skips_failed_message_and_commits_later_messages() -> 
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=1,
         commit_batch=_commit,
+        on_batch_committed=None,
         skip_failed_messages=True,
     )
 
@@ -687,9 +670,7 @@ async def test_reassembler_skips_failed_message_and_commits_later_messages() -> 
 
 @pytest.mark.asyncio
 async def test_reassembler_force_commits_small_staged_tail() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["m0"])
@@ -699,8 +680,7 @@ async def test_reassembler_force_commits_small_staged_tail() -> None:
     commit_calls = 0
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         nonlocal commit_calls
         commit_calls += 1
@@ -711,6 +691,8 @@ async def test_reassembler_force_commits_small_staged_tail() -> None:
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=99,
         commit_batch=_commit,
+        on_batch_committed=None,
+        skip_failed_messages=False,
     )
 
     assert commit_calls == 1
@@ -722,9 +704,7 @@ async def test_reassembler_force_commits_small_staged_tail() -> None:
 async def test_reassembler_raises_on_invalid_chunk_ordinal_and_sets_stop_marker() -> (
     None
 ):
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["m0", "m0b"])
@@ -732,8 +712,7 @@ async def test_reassembler_raises_on_invalid_chunk_ordinal_and_sets_stop_marker(
     await result_queue.put(None)
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         return None
 
@@ -744,6 +723,8 @@ async def test_reassembler_raises_on_invalid_chunk_ordinal_and_sets_stop_marker(
             first_uncommitted_ordinal=0,
             target_commit_chunk_count=1,
             commit_batch=_commit,
+            on_batch_committed=None,
+            skip_failed_messages=False,
         )
 
     assert stop_state.stop_at_message_id == 3
@@ -751,9 +732,7 @@ async def test_reassembler_raises_on_invalid_chunk_ordinal_and_sets_stop_marker(
 
 @pytest.mark.asyncio
 async def test_reassembler_raises_on_duplicate_chunk_and_sets_stop_marker() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["m1-a", "m1-b"])
@@ -762,8 +741,7 @@ async def test_reassembler_raises_on_duplicate_chunk_and_sets_stop_marker() -> N
     await result_queue.put(None)
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         return None
 
@@ -774,6 +752,8 @@ async def test_reassembler_raises_on_duplicate_chunk_and_sets_stop_marker() -> N
             first_uncommitted_ordinal=0,
             target_commit_chunk_count=1,
             commit_batch=_commit,
+            on_batch_committed=None,
+            skip_failed_messages=False,
         )
 
     assert stop_state.stop_at_message_id == 5
@@ -781,9 +761,7 @@ async def test_reassembler_raises_on_duplicate_chunk_and_sets_stop_marker() -> N
 
 @pytest.mark.asyncio
 async def test_reassembler_on_batch_committed_callback_is_invoked() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["m0"])
@@ -793,8 +771,7 @@ async def test_reassembler_on_batch_committed_callback_is_invoked() -> None:
     callback_calls: list[tuple[int, int]] = []
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         return None
 
@@ -807,6 +784,7 @@ async def test_reassembler_on_batch_committed_callback_is_invoked() -> None:
         on_batch_committed=lambda msg_count, chunk_count: callback_calls.append(
             (msg_count, chunk_count)
         ),
+        skip_failed_messages=False,
     )
 
     assert callback_calls == [(1, 1)]
@@ -816,9 +794,7 @@ async def test_reassembler_on_batch_committed_callback_is_invoked() -> None:
 async def test_reassembler_raises_on_mismatched_chunk_count_and_sets_stop_marker() -> (
     None
 ):
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["m0-a", "m0-b", "m0-c"])
@@ -827,8 +803,7 @@ async def test_reassembler_raises_on_mismatched_chunk_count_and_sets_stop_marker
     await result_queue.put(None)
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         return None
 
@@ -839,6 +814,8 @@ async def test_reassembler_raises_on_mismatched_chunk_count_and_sets_stop_marker
             first_uncommitted_ordinal=0,
             target_commit_chunk_count=1,
             commit_batch=_commit,
+            on_batch_committed=None,
+            skip_failed_messages=False,
         )
 
     assert stop_state.stop_at_message_id == 4
@@ -846,9 +823,7 @@ async def test_reassembler_raises_on_mismatched_chunk_count_and_sets_stop_marker
 
 @pytest.mark.asyncio
 async def test_reassembler_handles_existing_assembly_non_duplicate_chunk() -> None:
-    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = (
-        asyncio.Queue()
-    )
+    result_queue = asyncio.Queue()
     stop_state = PipelineStopState()
 
     message = _Message(["m0-a", "m0-b"])
@@ -859,8 +834,7 @@ async def test_reassembler_handles_existing_assembly_non_duplicate_chunk() -> No
     commit_calls = 0
 
     async def _commit(
-        messages: list[_Message],
-        results: list[ChunkProcessingResult[_Message]],
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
     ) -> None:
         nonlocal commit_calls
         commit_calls += 1
@@ -871,6 +845,8 @@ async def test_reassembler_handles_existing_assembly_non_duplicate_chunk() -> No
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=1,
         commit_batch=_commit,
+        on_batch_committed=None,
+        skip_failed_messages=False,
     )
 
     assert commit_calls == 1

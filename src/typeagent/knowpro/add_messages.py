@@ -76,8 +76,8 @@ async def _producer_task[TMessage: IMessage](
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
     stop_state: PipelineStopState,
     producer_state: ProducerState,
-    result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"] | None = None,
-    shutdown_event: asyncio.Event | None = None,
+    result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"],
+    shutdown_event: asyncio.Event | None,
 ) -> None:
     """Read input messages and enqueue chunk work items.
 
@@ -97,14 +97,13 @@ async def _producer_task[TMessage: IMessage](
             if chunk_count == 0:
                 # Zero-chunk message: nothing for the dispatcher to process.
                 # Emit a zero-chunk result directly to the reassembler.
-                if result_queue is not None:
-                    await result_queue.put(
-                        ChunkProcessingResult[TMessage](
-                            chunk_id=TextLocation(message_id, 0),
-                            chunk_count=0,
-                            message=message,
-                        )
+                await result_queue.put(
+                    ChunkProcessingResult[TMessage](
+                        chunk_id=TextLocation(message_id, 0),
+                        chunk_count=0,
+                        message=message,
                     )
+                )
                 producer_state.produced_messages += 1
                 producer_state.next_message_id += 1
                 continue
@@ -371,8 +370,8 @@ async def _reassembler_task[TMessage: IMessage](
     commit_batch: Callable[
         [list[TMessage], list[ChunkProcessingResult[TMessage]]], Awaitable[None]
     ],
-    on_batch_committed: Callable[[int, int], None] | None = None,
-    skip_failed_messages: bool = False,
+    on_batch_committed: Callable[[int, int], None] | None,
+    skip_failed_messages: bool,
 ) -> ReassemblerResult:
     """Reassemble chunks into messages and commit only consecutive complete ones.
 
@@ -641,6 +640,7 @@ async def add_messages_streaming[TMessage: IMessage](
                     first_uncommitted_ordinal=initial_message_id,
                     target_commit_chunk_count=batch_size,
                     commit_batch=_commit_batch,
+                    on_batch_committed=None,
                     skip_failed_messages=skip_failed_messages,
                 )
             )
