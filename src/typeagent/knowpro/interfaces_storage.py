@@ -112,6 +112,17 @@ class IMessageCollection[TMessage: IMessage](
 ):
     """A collection of Messages."""
 
+    async def extend(
+        self, items: Iterable[TMessage], chunk_embeddings: list[Any] | None = None
+    ) -> None:
+        """Append multiple items to the collection.
+
+        Args:
+            items: Messages to append.
+            chunk_embeddings: Optional precomputed embeddings for text chunks.
+        """
+        ...
+
 
 class ISemanticRefCollection(ICollection[SemanticRef, SemanticRefOrdinal], Protocol):
     """A collection of SemanticRefs."""

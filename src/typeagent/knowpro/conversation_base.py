@@ -243,14 +243,78 @@ class ConversationBase(
         if not messages_batch:
             return AddMessagesResult()
 
+        # Process chunk results first to collect embeddings and knowledge items
+        knowledge_items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]] = []
+        fuzzy_terms: list[str] = []
+        fuzzy_term_embeddings: list[NormalizedEmbedding] = []
+        chunk_embedding_map: dict[tuple[int, int], NormalizedEmbedding] = {}
+
+        for result in chunk_results:
+            if result.chunk_count == 0:
+                continue
+
+            if result.chunk_embedding is None:
+                raise ValueError(
+                    "Chunk result missing chunk embedding for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+
+            if result.extracted_knowledge is None:
+                raise ValueError(
+                    "Chunk result missing extracted knowledge for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+            knowledge_items.append(
+                (
+                    result.chunk_id.message_ordinal,
+                    result.chunk_id.chunk_ordinal,
+                    result.extracted_knowledge,
+                )
+            )
+
+            if result.related_terms is None or result.related_term_embeddings is None:
+                raise ValueError(
+                    "Chunk result missing related-term embeddings for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+            if len(result.related_terms) != len(result.related_term_embeddings):
+                raise ValueError(
+                    "related_terms and related_term_embeddings length mismatch for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}: "
+                    f"{len(result.related_terms)} != "
+                    f"{len(result.related_term_embeddings)}"
+                )
+            fuzzy_terms.extend(result.related_terms)
+            fuzzy_term_embeddings.extend(result.related_term_embeddings)
+            # Store embedding for later retrieval in correct message/chunk order
+            chunk_embedding_map[
+                (result.chunk_id.message_ordinal, result.chunk_id.chunk_ordinal)
+            ] = result.chunk_embedding
+
         async with storage:
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
                 semref_count=await self.semantic_refs.size(),
             )
 
-            await self.messages.extend(messages_batch)
+            # Build chunk_embeddings in the correct order (matching message/chunk iteration)
+            chunk_embeddings: list[NormalizedEmbedding] = []
+            for msg_ord, message in enumerate(
+                messages_batch, start_points.message_count
+            ):
+                for chunk_ord in range(len(message.text_chunks)):
+                    embedding = chunk_embedding_map.get((msg_ord, chunk_ord))
+                    if embedding is not None:
+                        chunk_embeddings.append(embedding)
 
+            # Use precomputed embeddings to avoid redundant embedding work
+            await self.messages.extend(
+                messages_batch, chunk_embeddings=chunk_embeddings
+            )
             source_ids = [
                 m.source_id for m in messages_batch if m.source_id is not None
             ]
@@ -258,57 +322,6 @@ class ConversationBase(
                 await storage.mark_sources_ingested_batch(source_ids)
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
-
-            knowledge_items: list[
-                tuple[MessageOrdinal, int, kplib.KnowledgeResponse]
-            ] = []
-            fuzzy_terms: list[str] = []
-            fuzzy_term_embeddings: list[NormalizedEmbedding] = []
-
-            for result in chunk_results:
-                if result.chunk_count == 0:
-                    continue
-
-                if result.chunk_embedding is None:
-                    raise ValueError(
-                        "Chunk result missing chunk embedding for "
-                        f"message={result.chunk_id.message_ordinal}, "
-                        f"chunk={result.chunk_id.chunk_ordinal}"
-                    )
-
-                if result.extracted_knowledge is None:
-                    raise ValueError(
-                        "Chunk result missing extracted knowledge for "
-                        f"message={result.chunk_id.message_ordinal}, "
-                        f"chunk={result.chunk_id.chunk_ordinal}"
-                    )
-                knowledge_items.append(
-                    (
-                        result.chunk_id.message_ordinal,
-                        result.chunk_id.chunk_ordinal,
-                        result.extracted_knowledge,
-                    )
-                )
-
-                if (
-                    result.related_terms is None
-                    or result.related_term_embeddings is None
-                ):
-                    raise ValueError(
-                        "Chunk result missing related-term embeddings for "
-                        f"message={result.chunk_id.message_ordinal}, "
-                        f"chunk={result.chunk_id.chunk_ordinal}"
-                    )
-                if len(result.related_terms) != len(result.related_term_embeddings):
-                    raise ValueError(
-                        "related_terms and related_term_embeddings length mismatch for "
-                        f"message={result.chunk_id.message_ordinal}, "
-                        f"chunk={result.chunk_id.chunk_ordinal}: "
-                        f"{len(result.related_terms)} != "
-                        f"{len(result.related_term_embeddings)}"
-                    )
-                fuzzy_terms.extend(result.related_terms)
-                fuzzy_term_embeddings.extend(result.related_term_embeddings)
 
             await semrefindex.add_knowledge_batch_to_semantic_ref_index(
                 self,
@@ -320,6 +333,7 @@ class ConversationBase(
                 messages_batch,
                 fuzzy_terms,
                 fuzzy_term_embeddings,
+                chunk_embeddings,
             )
 
             await storage.update_conversation_timestamps(
@@ -343,6 +357,7 @@ class ConversationBase(
         new_messages: list[TMessage],
         related_terms: list[str],
         related_term_embeddings: list[NormalizedEmbedding],
+        chunk_embeddings: list[NormalizedEmbedding],
     ) -> None:
         """Update secondary indexes using precomputed embeddings when available."""
         if self.secondary_indexes is None:
