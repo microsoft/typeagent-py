@@ -117,12 +117,14 @@ class IMessageCollection[TMessage: IMessage](
         self,
         items: Iterable[TMessage],
         chunk_embeddings: list[NormalizedEmbedding] | None = None,
+        index_messages: bool = True,
     ) -> None:
         """Append multiple items to the collection.
 
         Args:
             items: Messages to append.
             chunk_embeddings: Optional precomputed embeddings for text chunks.
+            index_messages: If False, skip updating the message text index.
         """
         ...
 

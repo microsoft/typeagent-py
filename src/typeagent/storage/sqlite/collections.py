@@ -190,6 +190,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         self,
         items: typing.Iterable[TMessage],
         chunk_embeddings: list[typing.Any] | None = None,
+        index_messages: bool = True,
     ) -> None:
         items_list = list(items)  # Convert to list to iterate twice
         if not items_list:
@@ -233,7 +234,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
             )
 
         # Also add to message text index if available
-        if self.message_text_index is not None:
+        if index_messages and self.message_text_index is not None:
             if chunk_embeddings is not None:
                 # Use precomputed embeddings (avoids redundant embedding work)
                 await self.message_text_index.add_messages_starting_at_with_embeddings(

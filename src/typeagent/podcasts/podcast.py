@@ -80,7 +80,7 @@ class Podcast(ConversationBase[PodcastMessage]):
         self.name_tag = podcast_data["nameTag"]
 
         message_list = [PodcastMessage.deserialize(m) for m in podcast_data["messages"]]
-        await self.messages.extend(message_list)
+        await self.messages.extend(message_list, index_messages=False)
 
         semantic_refs_data = podcast_data.get("semanticRefs")
         if semantic_refs_data is not None:

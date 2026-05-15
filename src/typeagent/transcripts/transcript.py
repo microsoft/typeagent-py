@@ -81,7 +81,7 @@ class Transcript(ConversationBase[TranscriptMessage]):
         message_list = [
             TranscriptMessage.deserialize(m) for m in transcript_data["messages"]
         ]
-        await self.messages.extend(message_list)
+        await self.messages.extend(message_list, index_messages=False)
 
         semantic_refs_data = transcript_data.get("semanticRefs")
         if semantic_refs_data is not None:

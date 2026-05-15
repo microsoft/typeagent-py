@@ -85,7 +85,7 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
 
         chunk_embeddings = await self.text_location_index.generate_embeddings(
             chunk_texts,
-            cache=True,
+            cache=False,
         )
         await self.add_messages_starting_at_with_embeddings(
             base_message_ordinal,
@@ -105,7 +105,7 @@ class MessageTextIndex(IMessageTextEmbeddingIndex):
 
         chunk_embeddings = await self.text_location_index.generate_embeddings(
             chunk_texts,
-            cache=True,
+            cache=False,
         )
         await self.add_messages_starting_at_with_embeddings(
             start_message_ordinal,

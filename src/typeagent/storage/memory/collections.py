@@ -102,13 +102,14 @@ class MemoryMessageCollection[TMessage: IMessage](
         self,
         items: Iterable[TMessage],
         chunk_embeddings: list[NormalizedEmbedding] | None = None,
+        index_messages: bool = True,
     ) -> None:
         items_list = list(items)
         if not items_list:
             return
         current_size = await self.size()
         self.items.extend(items_list)
-        if self.message_text_index is not None:
+        if index_messages and self.message_text_index is not None:
             if chunk_embeddings is not None:
                 await self.message_text_index.add_messages_starting_at_with_embeddings(
                     current_size,
