@@ -10,6 +10,7 @@ from typing import Any, NamedTuple, Protocol, Self
 
 from pydantic.dataclasses import dataclass
 
+from ..aitools.embeddings import NormalizedEmbedding
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,
@@ -113,7 +114,9 @@ class IMessageCollection[TMessage: IMessage](
     """A collection of Messages."""
 
     async def extend(
-        self, items: Iterable[TMessage], chunk_embeddings: list[Any] | None = None
+        self,
+        items: Iterable[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding] | None = None,
     ) -> None:
         """Append multiple items to the collection.
 

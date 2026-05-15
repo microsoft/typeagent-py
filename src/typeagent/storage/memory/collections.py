@@ -3,8 +3,9 @@
 
 """Memory-based collection implementations."""
 
-from typing import Any, Iterable
+from typing import Iterable
 
+from ...aitools.embeddings import NormalizedEmbedding
 from ...knowpro.interfaces import (
     ICollection,
     IMessage,
@@ -98,7 +99,9 @@ class MemoryMessageCollection[TMessage: IMessage](
             await self.message_text_index.add_messages_starting_at(msg_id, [item])
 
     async def extend(
-        self, items: Iterable[TMessage], chunk_embeddings: list[Any] | None = None
+        self,
+        items: Iterable[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding] | None = None,
     ) -> None:
         items_list = list(items)
         if not items_list:
