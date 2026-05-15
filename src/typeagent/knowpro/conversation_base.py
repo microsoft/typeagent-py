@@ -333,7 +333,6 @@ class ConversationBase(
                 messages_batch,
                 fuzzy_terms,
                 fuzzy_term_embeddings,
-                chunk_embeddings,
             )
 
             await storage.update_conversation_timestamps(
@@ -357,7 +356,6 @@ class ConversationBase(
         new_messages: list[TMessage],
         related_terms: list[str],
         related_term_embeddings: list[NormalizedEmbedding],
-        chunk_embeddings: list[NormalizedEmbedding],
     ) -> None:
         """Update secondary indexes using precomputed embeddings when available."""
         if self.secondary_indexes is None:
