@@ -316,8 +316,9 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         result.error = e
         return result
 
+    assert result.extracted_knowledge is not None
     result.related_terms = _collect_related_terms_for_fuzzy_index(
-        result.extracted_knowledge  # type: ignore[arg-type]
+        result.extracted_knowledge
     )
 
     # Step 2: Generate embeddings (only if extraction succeeded)
