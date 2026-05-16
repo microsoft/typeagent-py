@@ -224,7 +224,11 @@ async def test_process_chunk_success_with_related_terms() -> None:
 
 @pytest.mark.asyncio
 async def test_process_chunk_extraction_failure_returns_error() -> None:
-    """A Failure result from the extractor sets error and skips embedding."""
+    """A Failure result from the extractor sets error.
+
+    Chunk embedding may still run because extraction and chunk embedding are
+    launched concurrently.
+    """
     extractor = _SequenceExtractor([typechat.Failure("bad extraction")])
     message_model = _StubEmbeddingModel()
 
@@ -240,7 +244,7 @@ async def test_process_chunk_extraction_failure_returns_error() -> None:
     assert isinstance(result.error, RuntimeError)
     assert "bad extraction" in str(result.error)
     assert result.extracted_knowledge is None
-    assert message_model.chunk_calls == []
+    assert message_model.chunk_calls == ["hello"]
 
 
 @pytest.mark.asyncio

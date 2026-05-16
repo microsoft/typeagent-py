@@ -279,10 +279,8 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
 ) -> ChunkProcessingResult[TMessage]:
     """Process a single text chunk through knowledge extraction and embeddings.
 
-    Runs both knowledge extraction and embedding in a single function call,
+    Runs extraction/related-term embedding and chunk embedding concurrently,
     capturing the first failure and stopping processing if an error occurs.
-
-    Extraction runs first; if it fails, embedding work is skipped.
 
     Chunk embeddings are computed uncached; related-term embeddings use
     cache-aware model calls on the same embedding model.
@@ -302,38 +300,42 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
     result = ChunkProcessingResult(
         chunk_id=chunk_id, chunk_count=chunk_count, message=message
     )
+    sem = asyncio.Semaphore(1)  # Avoid concurrent embedding requests
 
-    # Step 1: Extract knowledge
-    try:
+    async def _extract_knowledge_and_related_embeddings() -> None:
         knowledge_result = await knowledge_extractor.extract(chunk_text)
-        if isinstance(knowledge_result, typechat.Success):
-            result.extracted_knowledge = knowledge_result.value
-        else:
-            result.error = RuntimeError(
+        if isinstance(knowledge_result, typechat.Failure):
+            raise RuntimeError(
                 f"Knowledge extraction failed: {knowledge_result.message}"
             )
-            return result
-    except Exception as e:
-        result.error = e
-        return result
+        result.extracted_knowledge = knowledge_result.value
 
-    assert result.extracted_knowledge is not None
-    result.related_terms = _collect_related_terms_for_fuzzy_index(
-        result.extracted_knowledge
-    )
-
-    # Step 2: Generate embeddings (only if extraction succeeded)
-    try:
-        result.chunk_embedding = await embedding_model.get_embedding_nocache(chunk_text)
+        result.related_terms = _collect_related_terms_for_fuzzy_index(
+            result.extracted_knowledge
+        )
         if result.related_terms:
-            rel_embeddings = await embedding_model.get_embeddings(result.related_terms)
+            async with sem:
+                rel_embeddings = await embedding_model.get_embeddings(
+                    result.related_terms
+                )
             result.related_term_embeddings = list(rel_embeddings)
         else:
             result.related_term_embeddings = []
-    except Exception as e:
-        # Embedding failed; record error and return
-        result.error = e
-        return result
+
+    async def _generate_chunk_embedding() -> None:
+        async with sem:
+            result.chunk_embedding = await embedding_model.get_embedding_nocache(
+                chunk_text
+            )
+
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(_extract_knowledge_and_related_embeddings())
+            tg.create_task(_generate_chunk_embedding())
+    except Exception as error:
+        while isinstance(error, ExceptionGroup) and len(error.exceptions) == 1:
+            error = error.exceptions[0]
+        result.error = error
 
     return result
 
