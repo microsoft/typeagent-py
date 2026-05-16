@@ -291,9 +291,7 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
         if not texts:
             return
         embeddings = await self._vectorbase.get_embeddings(texts)
-        await self.add_terms_with_embeddings(
-            texts, [embedding for embedding in embeddings]
-        )
+        await self.add_terms_with_embeddings(texts, list(embeddings))
 
     async def add_terms_with_embeddings(
         self,

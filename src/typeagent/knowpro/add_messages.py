@@ -327,7 +327,7 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         result.chunk_embedding = await embedding_model.get_embedding_nocache(chunk_text)
         if result.related_terms:
             rel_embeddings = await embedding_model.get_embeddings(result.related_terms)
-            result.related_term_embeddings = [e for e in rel_embeddings]
+            result.related_term_embeddings = list(rel_embeddings)
         else:
             result.related_term_embeddings = []
     except Exception as e:

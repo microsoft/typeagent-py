@@ -216,7 +216,7 @@ class SqliteRelatedTermsFuzzy(interfaces.ITermToRelatedTermsFuzzy):
         embeddings = await self._vector_base.get_embeddings(new_terms)
         await self.add_terms_with_embeddings(
             new_terms,
-            [embedding for embedding in embeddings],
+            list(embeddings),
         )
 
     async def add_terms_with_embeddings(
