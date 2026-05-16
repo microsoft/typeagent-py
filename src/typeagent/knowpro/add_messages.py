@@ -180,12 +180,7 @@ async def _dispatcher_task[TMessage: IMessage](
                     embedding_model=embedding_model,
                 )
                 if result.error is not None:
-                    if skip_failed_messages:
-                        print(
-                            f"Skipping message {work_item.chunk_id.message_ordinal} "
-                            f"due to extraction/embedding error: {result.error}"
-                        )
-                    else:
+                    if not skip_failed_messages:
                         new_stop = min(
                             stop_state.stop_at_message_id,
                             work_item.chunk_id.message_ordinal,
