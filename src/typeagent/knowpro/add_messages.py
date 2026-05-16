@@ -392,21 +392,27 @@ async def _reassembler_task[TMessage: IMessage](
     staged_chunks = 0
 
     async def _commit_if_needed(force: bool = False) -> None:
-        nonlocal staged_chunks
+        nonlocal staged_chunks, staged_messages, staged_results
         if not staged_messages:
             return
         if not force and staged_chunks < target_commit_chunk_count:
             return
-        msg_count = len(staged_messages)
+        pending_messages = staged_messages
+        pending_results = staged_results
+        msg_count = len(pending_messages)
         chunk_count = staged_chunks
-        await commit_batch(staged_messages, staged_results)
+
+        # Clear staged state before awaiting commit/callback paths so a post-commit
+        # exception cannot trigger a duplicate retry during final drain.
+        staged_messages = []
+        staged_results = []
+        staged_chunks = 0
+
+        await commit_batch(pending_messages, pending_results)
         state.messages_committed += msg_count
         state.chunks_committed += chunk_count
         if on_batch_committed is not None:
             on_batch_committed(msg_count, chunk_count)
-        staged_messages.clear()
-        staged_results.clear()
-        staged_chunks = 0
 
     async def _drain_consecutive_complete(force: bool = False) -> None:
         nonlocal staged_chunks
