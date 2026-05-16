@@ -7,6 +7,7 @@ import json
 import sqlite3
 import typing
 
+from ...aitools.embeddings import NormalizedEmbedding
 from ...knowpro import interfaces, serialization
 from .schema import ShreddedMessage, ShreddedSemanticRef
 
@@ -186,7 +187,12 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
         if self.message_text_index is not None:
             await self.message_text_index.add_messages_starting_at(msg_id, [item])
 
-    async def extend(self, items: typing.Iterable[TMessage]) -> None:
+    async def extend(
+        self,
+        items: typing.Iterable[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding] | None = None,
+        index_messages: bool = True,
+    ) -> None:
         items_list = list(items)  # Convert to list to iterate twice
         if not items_list:
             return
@@ -229,10 +235,17 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
             )
 
         # Also add to message text index if available
-        if self.message_text_index is not None:
-            await self.message_text_index.add_messages_starting_at(
-                current_size, items_list
-            )
+        if index_messages and self.message_text_index is not None:
+            if chunk_embeddings is not None:
+                # Use precomputed embeddings (avoids redundant embedding work)
+                await self.message_text_index.add_messages_starting_at_with_embeddings(
+                    current_size, items_list, chunk_embeddings
+                )
+            else:
+                # Compute embeddings on the fly
+                await self.message_text_index.add_messages_starting_at(
+                    current_size, items_list
+                )
 
 
 class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):

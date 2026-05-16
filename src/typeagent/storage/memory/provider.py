@@ -51,13 +51,15 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     ) -> None:
         """Create and initialize a MemoryStorageProvider with all indexes."""
         self._metadata = metadata or ConversationMetadata()
-        self._message_collection = MemoryMessageCollection[TMessage]()
+        self._message_text_index = MessageTextIndex(message_text_settings)
+        self._message_collection = MemoryMessageCollection[TMessage](
+            message_text_index=self._message_text_index
+        )
         self._semantic_ref_collection = MemorySemanticRefCollection()
 
         self._conversation_index = TermToSemanticRefIndex()
         self._property_index = PropertyIndex()
         self._timestamp_index = TimestampToTextRangeIndex()
-        self._message_text_index = MessageTextIndex(message_text_settings)
         self._related_terms_index = RelatedTermsIndex(related_terms_settings)
         thread_settings = message_text_settings.embedding_index_settings
         self._conversation_threads = ConversationThreads(thread_settings)

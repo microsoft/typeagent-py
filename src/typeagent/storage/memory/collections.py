@@ -5,9 +5,11 @@
 
 from typing import Iterable
 
+from ...aitools.embeddings import NormalizedEmbedding
 from ...knowpro.interfaces import (
     ICollection,
     IMessage,
+    IMessageTextIndex,
     MessageOrdinal,
     SemanticRef,
     SemanticRefMetadata,
@@ -81,3 +83,41 @@ class MemoryMessageCollection[TMessage: IMessage](
     MemoryCollection[TMessage, MessageOrdinal]
 ):
     """A collection of messages."""
+
+    def __init__(
+        self,
+        items: list[TMessage] | None = None,
+        message_text_index: IMessageTextIndex[TMessage] | None = None,
+    ):
+        super().__init__(items)
+        self.message_text_index = message_text_index
+
+    async def append(self, item: TMessage) -> None:
+        msg_id = await self.size()
+        self.items.append(item)
+        if self.message_text_index is not None:
+            await self.message_text_index.add_messages_starting_at(msg_id, [item])
+
+    async def extend(
+        self,
+        items: Iterable[TMessage],
+        chunk_embeddings: list[NormalizedEmbedding] | None = None,
+        index_messages: bool = True,
+    ) -> None:
+        items_list = list(items)
+        if not items_list:
+            return
+        current_size = await self.size()
+        self.items.extend(items_list)
+        if index_messages and self.message_text_index is not None:
+            if chunk_embeddings is not None:
+                await self.message_text_index.add_messages_starting_at_with_embeddings(
+                    current_size,
+                    items_list,
+                    chunk_embeddings,
+                )
+            else:
+                await self.message_text_index.add_messages_starting_at(
+                    current_size,
+                    items_list,
+                )

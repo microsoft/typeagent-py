@@ -3,7 +3,6 @@
 
 """Tests for add_messages_streaming."""
 
-import asyncio
 from collections.abc import AsyncIterator
 import os
 import tempfile
@@ -14,8 +13,9 @@ import typechat
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro import knowledge_schema as kplib
+from typeagent.knowpro.add_messages import add_messages_streaming
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import AddMessagesResult, IKnowledgeExtractor
+from typeagent.knowpro.interfaces_core import IKnowledgeExtractor
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
     Transcript,
@@ -132,7 +132,7 @@ async def test_streaming_basic() -> None:
         transcript, storage = await _create_transcript(db_path)
 
         msgs = [_make_message(f"msg-{i}") for i in range(5)]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        result = await add_messages_streaming(transcript, _async_iter(msgs))
 
         assert result.messages_added == 5
         assert await transcript.messages.size() == 5
@@ -148,8 +148,8 @@ async def test_streaming_batching() -> None:
         transcript, storage = await _create_transcript(db_path)
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(7)]
-        result = await transcript.add_messages_streaming(
-            _async_iter(msgs), batch_size=3
+        result = await add_messages_streaming(
+            transcript, _async_iter(msgs), batch_size=3
         )
 
         # 3 batches: [0,1,2], [3,4,5], [6]
@@ -169,7 +169,7 @@ async def test_streaming_no_source_id_always_ingested() -> None:
         transcript, storage = await _create_transcript(db_path)
 
         msgs = [_make_message(f"msg-{i}") for i in range(3)]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        result = await add_messages_streaming(transcript, _async_iter(msgs))
 
         assert result.messages_added == 3
         assert _ingested_count(storage) == 0  # no source IDs to track
@@ -178,11 +178,11 @@ async def test_streaming_no_source_id_always_ingested() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_records_chunk_failures() -> None:
-    """Extraction Failure results are recorded, not raised."""
+async def test_streaming_extraction_failure_stops_at_failing_message() -> None:
+    """Extraction Failure raises and stops processing; messages before the failure are committed."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
-        extractor = ControlledExtractor(fail_on={1})  # second chunk fails
+        extractor = ControlledExtractor(fail_on={1})  # second message fails
         transcript, storage = await _create_transcript(
             db_path, auto_extract=True, knowledge_extractor=extractor
         )
@@ -192,16 +192,10 @@ async def test_streaming_records_chunk_failures() -> None:
             _make_message("bad chunk 1"),
             _make_message("good chunk 2"),
         ]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        with pytest.raises(RuntimeError):
+            await add_messages_streaming(transcript, _async_iter(msgs))
 
-        assert result.messages_added == 3
-        assert _failure_count(storage) == 1
-
-        failures = await storage.get_chunk_failures()
-        assert len(failures) == 1
-        assert failures[0].message_ordinal == 1
-        assert failures[0].chunk_ordinal == 0
-        assert "Extraction failed" in failures[0].error_message
+        assert await transcript.messages.size() == 1
 
         await storage.close()
 
@@ -219,14 +213,8 @@ async def test_streaming_exception_stops_run() -> None:
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
 
-        with pytest.raises(ExceptionGroup) as exc_info:
-            await transcript.add_messages_streaming(_async_iter(msgs), batch_size=3)
-
-        # Verify the wrapped exception is our RuntimeError
-        assert any(
-            isinstance(e, RuntimeError) and "Systemic failure" in str(e)
-            for e in exc_info.value.exceptions
-        )
+        with pytest.raises(RuntimeError, match="Systemic failure"):
+            await add_messages_streaming(transcript, _async_iter(msgs), batch_size=3)
 
         # First batch (3 messages, 3 extract calls 0-2) committed
         assert await transcript.messages.size() == 3
@@ -242,7 +230,7 @@ async def test_streaming_empty_iterable() -> None:
         db_path = os.path.join(tmpdir, "test.db")
         transcript, storage = await _create_transcript(db_path)
 
-        result = await transcript.add_messages_streaming(_async_iter([]))
+        result = await add_messages_streaming(transcript, _async_iter([]))
 
         assert result.messages_added == 0
         assert result.semrefs_added == 0
@@ -265,7 +253,8 @@ async def test_streaming_on_batch_committed_fires_per_batch() -> None:
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(7)]
         batch_results: list[int] = []
-        result = await transcript.add_messages_streaming(
+        result = await add_messages_streaming(
+            transcript,
             _async_iter(msgs),
             batch_size=3,
             on_batch_committed=lambda r: batch_results.append(r.messages_added),
@@ -289,8 +278,8 @@ async def test_streaming_extraction_with_multiple_batches() -> None:
         )
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
-        result = await transcript.add_messages_streaming(
-            _async_iter(msgs), batch_size=3
+        result = await add_messages_streaming(
+            transcript, _async_iter(msgs), batch_size=3
         )
 
         assert result.messages_added == 6
@@ -304,27 +293,21 @@ async def test_streaming_extraction_with_multiple_batches() -> None:
 
 @pytest.mark.asyncio
 async def test_streaming_extraction_failure_across_batches() -> None:
-    """Extraction failures are recorded with correct global ordinals across batches."""
+    """Extraction failure in a later batch leaves earlier batches committed."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
-        # Fail on call index 1 (batch 0, msg 1) and 4 (batch 1, msg 1)
-        extractor = ControlledExtractor(fail_on={1, 4})
+        # Fail on call index 3 (first message of second batch)
+        extractor = ControlledExtractor(fail_on={3})
         transcript, storage = await _create_transcript(
             db_path, auto_extract=True, knowledge_extractor=extractor
         )
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
-        result = await transcript.add_messages_streaming(
-            _async_iter(msgs), batch_size=3
-        )
+        with pytest.raises(RuntimeError):
+            await add_messages_streaming(transcript, _async_iter(msgs), batch_size=3)
 
-        assert result.messages_added == 6
-        assert _failure_count(storage) == 2
-
-        failures = await storage.get_chunk_failures()
-        failure_ordinals = sorted(f.message_ordinal for f in failures)
-        # msg 1 in batch 0 → global ordinal 1, msg 1 in batch 1 → global ordinal 4
-        assert failure_ordinals == [1, 4]
+        # First batch (messages 0-2) committed; second batch stopped at message 3.
+        assert await transcript.messages.size() == 3
 
         await storage.close()
 
@@ -341,13 +324,8 @@ async def test_streaming_exception_in_later_batch_preserves_earlier() -> None:
         )
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
-        with pytest.raises(ExceptionGroup) as exc_info:
-            await transcript.add_messages_streaming(_async_iter(msgs), batch_size=3)
-
-        assert any(
-            isinstance(e, RuntimeError) and "Systemic failure" in str(e)
-            for e in exc_info.value.exceptions
-        )
+        with pytest.raises(RuntimeError, match="Systemic failure"):
+            await add_messages_streaming(transcript, _async_iter(msgs), batch_size=3)
 
         # Batch 0 committed (3 messages), batch 1 rolled back
         assert await transcript.messages.size() == 3
@@ -429,7 +407,7 @@ async def test_streaming_extraction_with_empty_text_chunks() -> None:
             ),
             _make_message("has content", source_id="has-content"),
         ]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        result = await add_messages_streaming(transcript, _async_iter(msgs))
 
         assert result.messages_added == 2
         # Only the message with content triggers extraction
@@ -470,7 +448,7 @@ async def test_streaming_multi_chunk_extraction() -> None:
             _make_multi_chunk_message(["c0", "c1", "c2"], source_id="s-0"),
             _make_message("single chunk", source_id="s-1"),
         ]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        result = await add_messages_streaming(transcript, _async_iter(msgs))
 
         assert result.messages_added == 2
         assert result.chunks_added == 4  # 3 + 1
@@ -492,7 +470,8 @@ async def test_streaming_batch_size_counts_chunks() -> None:
             _make_message("d", source_id="s-1"),  # 1 chunk
         ]
         batch_results: list[int] = []
-        result = await transcript.add_messages_streaming(
+        result = await add_messages_streaming(
+            transcript,
             _async_iter(msgs),
             batch_size=3,
             on_batch_committed=lambda r: batch_results.append(r.messages_added),
@@ -519,7 +498,8 @@ async def test_streaming_large_message_exceeds_batch_size() -> None:
             _make_message("small", source_id="s-small"),
         ]
         batch_results: list[int] = []
-        result = await transcript.add_messages_streaming(
+        result = await add_messages_streaming(
+            transcript,
             _async_iter(msgs),
             batch_size=3,
             on_batch_committed=lambda r: batch_results.append(r.messages_added),
@@ -549,7 +529,8 @@ async def test_streaming_mixed_chunk_sizes_batching() -> None:
             _make_message("e", source_id="s-4"),  # 1 chunk, total=3 → flush
         ]
         batch_results: list[int] = []
-        result = await transcript.add_messages_streaming(
+        result = await add_messages_streaming(
+            transcript,
             _async_iter(msgs),
             batch_size=3,
             on_batch_committed=lambda r: batch_results.append(r.messages_added),
@@ -564,32 +545,25 @@ async def test_streaming_mixed_chunk_sizes_batching() -> None:
 
 
 @pytest.mark.asyncio
-async def test_streaming_multi_chunk_failure_ordinals() -> None:
-    """Extraction failures in multi-chunk messages record correct ordinals."""
+async def test_streaming_multi_chunk_failure_stops_message() -> None:
+    """Extraction failure in a chunk stops that message and all later ones."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
-        # Fail on call index 1 (chunk 1 of first message) and 3 (chunk 0 of second message)
-        extractor = ControlledExtractor(fail_on={1, 3})
+        # Fail on call index 1 (chunk 1 of first message)
+        extractor = ControlledExtractor(fail_on={1})
         transcript, storage = await _create_transcript(
             db_path, auto_extract=True, knowledge_extractor=extractor
         )
 
         msgs = [
-            _make_multi_chunk_message(
-                ["c0", "c1", "c2"], source_id="s-0"
-            ),  # calls 0,1,2
-            _make_multi_chunk_message(["d0", "d1"], source_id="s-1"),  # calls 3,4
+            _make_multi_chunk_message(["c0", "c1", "c2"], source_id="s-0"),
+            _make_multi_chunk_message(["d0", "d1"], source_id="s-1"),
         ]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        with pytest.raises(RuntimeError):
+            await add_messages_streaming(transcript, _async_iter(msgs))
 
-        assert result.messages_added == 2
-        assert extractor.call_count == 5
-        assert _failure_count(storage) == 2
-
-        failures = await storage.get_chunk_failures()
-        failure_locs = sorted((f.message_ordinal, f.chunk_ordinal) for f in failures)
-        # call 1 → msg 0, chunk 1; call 3 → msg 1, chunk 0
-        assert failure_locs == [(0, 1), (1, 0)]
+        # Message 0 had a chunk failure so nothing is committed.
+        assert await transcript.messages.size() == 0
 
         await storage.close()
 
@@ -610,8 +584,8 @@ async def test_streaming_multi_chunk_exception_preserves_earlier_batch() -> None
             _make_multi_chunk_message(["d", "e"], source_id="s-1"),  # batch 2
         ]
 
-        with pytest.raises(ExceptionGroup):
-            await transcript.add_messages_streaming(_async_iter(msgs), batch_size=3)
+        with pytest.raises(RuntimeError, match="Systemic failure"):
+            await add_messages_streaming(transcript, _async_iter(msgs), batch_size=3)
 
         # Batch 1 committed (1 message, 3 chunks), batch 2 rolled back
         assert await transcript.messages.size() == 1
@@ -629,7 +603,8 @@ async def test_streaming_batch_size_1_separates_all() -> None:
 
         msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(4)]
         batch_results: list[int] = []
-        result = await transcript.add_messages_streaming(
+        result = await add_messages_streaming(
+            transcript,
             _async_iter(msgs),
             batch_size=1,
             on_batch_committed=lambda r: batch_results.append(r.messages_added),
@@ -660,7 +635,8 @@ async def test_streaming_preflush_avoids_oversized_batch() -> None:
             for i in range(4)
         ]
         batch_chunks: list[int] = []
-        result = await transcript.add_messages_streaming(
+        result = await add_messages_streaming(
+            transcript,
             _async_iter(msgs),
             batch_size=10,
             on_batch_committed=lambda r: batch_chunks.append(r.chunks_added),
@@ -674,116 +650,6 @@ async def test_streaming_preflush_avoids_oversized_batch() -> None:
         await storage.close()
 
 
-# ---------------------------------------------------------------------------
-# Coverage gap tests
-# ---------------------------------------------------------------------------
-
-
-class SlowExtractor:
-    """Extractor that blocks on an event, allowing tests to control timing."""
-
-    def __init__(self, block_from: int) -> None:
-        self.call_count = 0
-        self.block_from = block_from
-        self.blocked = asyncio.Event()
-        self.cancelled = False
-
-    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
-        idx = self.call_count
-        self.call_count += 1
-        if idx >= self.block_from:
-            self.blocked.set()
-            try:
-                await asyncio.sleep(60)
-            except asyncio.CancelledError:
-                self.cancelled = True
-                raise
-        return typechat.Success(_EMPTY_RESPONSE)
-
-
-@pytest.mark.asyncio
-async def test_streaming_pending_extraction_cancelled_on_commit_failure() -> None:
-    """pending_extraction is cancelled when a prior commit raises during _drain_commit.
-
-    Timeline:
-    1. Batch 0: extraction succeeds (calls 0-2, fast), commit task created
-       (pending_commit = failing_commit)
-    2. Batch 1: extraction task created (pending_extraction, calls 3+, slow),
-       _drain_commit awaits batch 0's pending_commit which raises
-    3. except block: pending_extraction (batch 1's) is still in-flight → cancelled
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        # Block extraction starting from call 3 (first call of batch 1)
-        # so that pending_extraction is still running when the except fires
-        extractor = SlowExtractor(block_from=3)
-        transcript, storage = await _create_transcript(
-            db_path, auto_extract=True, knowledge_extractor=extractor
-        )
-
-        async def failing_commit(*args, **kwargs):
-            raise RuntimeError("Simulated commit failure")
-
-        transcript._commit_batch_streaming = failing_commit  # type: ignore[assignment]
-
-        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
-
-        with pytest.raises(RuntimeError, match="Simulated commit failure"):
-            await transcript.add_messages_streaming(_async_iter(msgs), batch_size=3)
-
-        assert extractor.cancelled
-
-        await storage.close()
-
-
-@pytest.mark.asyncio
-async def test_streaming_pending_commit_cancelled_on_iterator_error() -> None:
-    """pending_commit is cancelled when the message iterator raises.
-
-    After batch 0 is submitted (pending_commit in flight), the async iterator
-    raises on the next message. The except block must cancel the still-running
-    pending_commit.
-    """
-
-    async def _error_after(
-        items: list[TranscriptMessage], error_after: int
-    ) -> AsyncIterator[TranscriptMessage]:
-        for i, item in enumerate(items):
-            if i == error_after:
-                # Yield to event loop so pending tasks start running
-                await asyncio.sleep(0)
-                raise ValueError("Iterator error")
-            yield item
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = os.path.join(tmpdir, "test.db")
-        transcript, storage = await _create_transcript(db_path)
-
-        commit_cancelled = False
-
-        async def slow_commit(*args, **kwargs):
-            nonlocal commit_cancelled
-            try:
-                await asyncio.sleep(60)
-            except asyncio.CancelledError:
-                commit_cancelled = True
-                raise
-            return AddMessagesResult()
-
-        transcript._commit_batch_streaming = slow_commit  # type: ignore[assignment]
-
-        msgs = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(6)]
-
-        with pytest.raises(ValueError, match="Iterator error"):
-            await transcript.add_messages_streaming(
-                _error_after(msgs, error_after=4), batch_size=3
-            )
-
-        assert commit_cancelled
-
-        await storage.close()
-
-
 @pytest.mark.asyncio
 async def test_streaming_empty_iterator() -> None:
     """Streaming with an empty iterator returns zeros."""
@@ -793,11 +659,11 @@ async def test_streaming_empty_iterator() -> None:
 
         # Ingest one real message, then do a second call with an empty iterator
         msgs = [_make_message("msg-0", source_id="s-0")]
-        r1 = await transcript.add_messages_streaming(_async_iter(msgs))
+        r1 = await add_messages_streaming(transcript, _async_iter(msgs))
         assert r1.messages_added == 1
 
         # Empty iterator → _submit_batch never called with content
-        r2 = await transcript.add_messages_streaming(_async_iter([]))
+        r2 = await add_messages_streaming(transcript, _async_iter([]))
         assert r2.messages_added == 0
         assert r2.messages_skipped == 0
 
@@ -832,7 +698,7 @@ async def test_streaming_extraction_returns_none_for_empty_chunks() -> None:
                 source_id="empty-1",
             ),
         ]
-        result = await transcript.add_messages_streaming(_async_iter(msgs))
+        result = await add_messages_streaming(transcript, _async_iter(msgs))
 
         assert result.messages_added == 2
         assert result.chunks_added == 0

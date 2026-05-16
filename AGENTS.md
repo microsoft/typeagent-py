@@ -19,6 +19,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 
 - Don't use '!' on the command line, it's some bash magic (even inside single quotes)
 - When running 'make' commands, do not use the venv (the Makefile uses 'uv run')
+- If a term can refer to OS behavior or repository code behavior (for example, 'force quit'), prefer the in-repo meaning first and verify by searching the code.
 - To get API keys in ad-hoc code, call `load_dotenv()`
 - Use `pytest test` to run tests in test/
 - Use `pyright` to check type annotations in src/, tools/,  tests/, examples/
@@ -29,7 +30,21 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - Use `make check test` to run `make check` and if it passes also run `make test`
 - Use `make format` to format all files using `black`. Do this before reporting success.
 - When validating changes, first run `pytest` only on new/modified test files, then run `make format check test` once at the end.
+- While building `add_messages.py` before dedicated tests exist, skip running the full test suite; run full tests after those tests are added.
 - Keep ad-hoc and performance benchmarks under `tools/`, not `tests/`, so `make test` does not run them.
+- In add-messages pipeline chunk processing, compute chunk-text embeddings with uncached model calls and related-term embeddings with cached model calls.
+- In add-messages pipeline flow, lower stop_at_message_id to min(existing, failing_message_id), and always enqueue queue-1 sentinels even when the input iterator fails so workers can drain and exit cleanly.
+- In add-messages pipeline data structures, use `TextLocation` as the chunk identifier instead of a formatted string chunk ID.
+- In add-messages reassembler validation, prefer explicit guard checks over wrapping validation-only logic in `try/except` blocks.
+- In add-messages reassembler validation, prefer a single `validation_error` variable with consistent `if/elif` checks over helper functions for simple message-only validation.
+- When adding precomputed-embedding write paths, expose explicit `*_with_embeddings` methods and have existing methods compute embeddings then delegate to those methods.
+- In asyncio code, avoid locks for in-memory state updates that do not `await` between read/modify/write; use locks only when a critical section spans `await` points.
+- Name returned summary/value objects as `*Result`; reserve `*State` for mutable shared/internal state.
+- Keep internal helper type naming consistent within a module; avoid mixing underscored and non-underscored helper class names without a clear API-boundary reason.
+- Prefer variable names that reflect role rather than lifecycle; for accumulators like message assemblies, use neutral names (e.g., `assembly`) instead of state-qualified names (e.g., `existing`).
+- Avoid potential import cycles between conversation orchestration and pipeline modules by using neutral payload protocols/arguments instead of importing concrete pipeline result classes across modules.
+- Prefer ordinal type aliases (e.g., `MessageOrdinal`, `ChunkOrdinal`) over raw `int` in pipeline code for readability.
+- When the user asks to "fix the test only", update tests/mocks first and avoid adding production compatibility fallbacks unless explicitly requested.
 
 ## Package Management with uv
 
@@ -55,7 +70,11 @@ please follow these guidelines:
 
 * Assume Python 3.12
 
+* `from __future__ import annotations` is not allowed.
+
 * Always strip trailing spaces
+
+* Keep docstrings in sync with code when changing implementation.
 
 * Keep class and type names in `PascalCase`
 * Use `python_case` for variable/field and function/method names

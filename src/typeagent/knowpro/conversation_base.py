@@ -5,10 +5,9 @@
 
 import asyncio
 from collections.abc import AsyncIterable, Callable, Sequence
-import contextlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Generic, Self, TypeVar
+from typing import Generic, Protocol, Self, TypeVar
 
 import typechat
 
@@ -24,6 +23,7 @@ from . import (
 )
 from . import knowledge_schema as kplib
 from ..aitools import model_adapters, utils
+from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import semrefindex
 from .convsettings import ConversationSettings
 from .interfaces import (
@@ -40,19 +40,20 @@ from .interfaces import (
     Topic,
 )
 from .interfaces_core import TextLocation
-from .knowledge import extract_knowledge_from_text_batch
 from .messageutils import get_all_message_chunk_locations
 
 TMessage = TypeVar("TMessage", bound=IMessage)
 
 
-@dataclass(frozen=True)
-class _ExtractionResult:
-    """Pre-extracted knowledge for a batch, ready to commit."""
+class _ChunkCommitResult(Protocol):
+    """Neutral chunk commit payload shape used by pipeline batch commit."""
 
-    messages: Sequence[IMessage]
-    text_locations: list[TextLocation]
-    knowledge_results: list[typechat.Result[kplib.KnowledgeResponse]]
+    chunk_id: TextLocation
+    chunk_count: int
+    extracted_knowledge: kplib.KnowledgeResponse | None
+    chunk_embedding: NormalizedEmbedding | None
+    related_terms: list[str] | None
+    related_term_embeddings: list[NormalizedEmbedding] | None
 
 
 @dataclass(init=False)
@@ -217,215 +218,170 @@ class ConversationBase(
         *,
         batch_size: int = 100,
         on_batch_committed: Callable[[AddMessagesResult], None] | None = None,
+        skip_failed_messages: bool = False,
+        shutdown_event: asyncio.Event | None = None,
     ) -> AddMessagesResult:
-        """Add messages from an async iterable, committing in batches.
+        """Delegate to the pipelined add_messages implementation."""
+        from . import add_messages
 
-        Uses a two-stage pipeline: while batch N is being committed (DB writes,
-        embeddings, secondary indexes), batch N+1's LLM extraction runs
-        concurrently.  LLM extraction is typically 95% of wall time, so this
-        nearly doubles throughput for multi-batch ingestions.
-
-        **Source-ID tracking**: each message's ``source_id`` (if not ``None``)
-        is marked as ingested within the commit transaction.  Callers are
-        responsible for filtering duplicates before yielding messages.
-
-        **Extraction failures**: when knowledge extraction returns a
-        ``Failure`` for a chunk, the failure is recorded via
-        ``storage.record_chunk_failure`` and processing continues with the
-        remaining chunks.  Raised exceptions (HTTP errors, timeouts, etc.)
-        are treated as systemic and stop the run immediately — the current
-        batch is rolled back and the exception propagates.
-
-        Args:
-            messages: An async iterable of messages to ingest.
-            batch_size: Target number of text chunks per commit batch.
-                Messages are never split across batches, so the actual
-                chunk count may exceed ``batch_size`` if a single message
-                has more chunks than that.
-            on_batch_committed: Optional callback invoked after each batch is
-                committed, receiving the batch's ``AddMessagesResult``.
-
-        Returns:
-            Cumulative ``AddMessagesResult`` across all committed batches.
-        """
-        storage = await self.settings.get_storage_provider()
-        should_extract = (
-            self.settings.semantic_ref_index_settings.auto_extract_knowledge
-        )
-        total = AddMessagesResult()
-
-        def _accumulate(result: AddMessagesResult) -> None:
-            total.messages_added += result.messages_added
-            total.semrefs_added += result.semrefs_added
-            total.chunks_added += result.chunks_added
-            if on_batch_committed:
-                on_batch_committed(result)
-
-        pending_commit: asyncio.Task[AddMessagesResult] | None = None
-        pending_extraction: asyncio.Task[_ExtractionResult | None] | None = None
-
-        async def _drain_commit() -> None:
-            nonlocal pending_commit
-            if pending_commit is not None:
-                _accumulate(await pending_commit)
-                pending_commit = None
-
-        async def _submit_batch(batch: list[TMessage]) -> None:
-            nonlocal pending_commit, pending_extraction
-            if not batch:
-                return
-
-            if should_extract:
-                next_extraction = asyncio.create_task(
-                    self._extract_knowledge_for_batch(batch)
-                )
-            else:
-                next_extraction = None
-            pending_extraction = next_extraction
-
-            await _drain_commit()
-
-            extraction = await next_extraction if next_extraction is not None else None
-            pending_extraction = None
-
-            pending_commit = asyncio.create_task(
-                self._commit_batch_streaming(storage, batch, extraction)
-            )
-
-        try:
-            batch: list[TMessage] = []
-            batch_chunks = 0
-            async for msg in messages:
-                msg_chunks = len(msg.text_chunks)
-                if batch and batch_chunks + msg_chunks > batch_size:
-                    await _submit_batch(batch)
-                    batch = []
-                    batch_chunks = 0
-                batch.append(msg)
-                batch_chunks += msg_chunks
-                if batch_chunks >= batch_size:
-                    await _submit_batch(batch)
-                    batch = []
-                    batch_chunks = 0
-
-            if batch:
-                await _submit_batch(batch)
-
-            await _drain_commit()
-        except BaseException:
-            if pending_extraction is not None and not pending_extraction.done():
-                pending_extraction.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await pending_extraction
-            if pending_commit is not None and not pending_commit.done():
-                pending_commit.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await pending_commit
-            raise
-
-        return total
-
-    async def _extract_knowledge_for_batch(
-        self,
-        messages: list[TMessage],
-    ) -> _ExtractionResult | None:
-        """Run LLM extraction on message texts — no DB access.
-
-        Uses 0-based ordinals; the caller remaps to global ordinals at commit
-        time.  Safe to run concurrently with a DB transaction on another batch.
-        """
-        text_locations = get_all_message_chunk_locations(messages, 0)
-        if not text_locations:
-            return None
-
-        settings = self.settings.semantic_ref_index_settings
-        knowledge_extractor = (
-            settings.knowledge_extractor or convknowledge.KnowledgeExtractor()
+        return await add_messages.add_messages_streaming(
+            self,
+            messages,
+            batch_size=batch_size,
+            on_batch_committed=on_batch_committed,
+            skip_failed_messages=skip_failed_messages,
+            shutdown_event=shutdown_event,
         )
 
-        text_batch = [
-            messages[tl.message_ordinal].text_chunks[tl.chunk_ordinal].strip()
-            for tl in text_locations
-        ]
-
-        knowledge_results = await extract_knowledge_from_text_batch(
-            knowledge_extractor,
-            text_batch,
-            settings.concurrency,
-        )
-        return _ExtractionResult(
-            messages=messages,
-            text_locations=text_locations,
-            knowledge_results=knowledge_results,
-        )
-
-    async def _apply_extraction_results(
+    async def _commit_batch_from_chunk_results(
         self,
         storage: IStorageProvider[TMessage],
-        extraction: _ExtractionResult,
-        global_message_start: int,
-    ) -> None:
-        """Write pre-extracted knowledge into the DB.  Must be inside a transaction."""
-        bulk_items: list[tuple[int, int, kplib.KnowledgeResponse]] = []
-        for i, knowledge_result in enumerate(extraction.knowledge_results):
-            tl = extraction.text_locations[i]
-            global_msg_ord = tl.message_ordinal + global_message_start
-            if isinstance(knowledge_result, typechat.Failure):
-                await storage.record_chunk_failure(
-                    global_msg_ord,
-                    tl.chunk_ordinal,
-                    type(knowledge_result).__name__,
-                    knowledge_result.message[:500],
-                )
+        messages_batch: list[TMessage],
+        chunk_results: Sequence[_ChunkCommitResult],
+    ) -> AddMessagesResult:
+        """Commit one pipeline batch using precomputed extraction and embeddings."""
+        if not messages_batch:
+            return AddMessagesResult()
+
+        # Process chunk results first to collect embeddings and knowledge items
+        knowledge_items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]] = []
+        fuzzy_terms: list[str] = []
+        fuzzy_term_embeddings: list[NormalizedEmbedding] = []
+        chunk_embedding_map: dict[tuple[int, int], NormalizedEmbedding] = {}
+
+        for result in chunk_results:
+            if result.chunk_count == 0:
                 continue
-            bulk_items.append(
-                (global_msg_ord, tl.chunk_ordinal, knowledge_result.value)
-            )
-        if bulk_items:
-            await semrefindex.add_knowledge_batch_to_semantic_ref_index(
-                self, bulk_items
+
+            if result.chunk_embedding is None:
+                raise ValueError(
+                    "Chunk result missing chunk embedding for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+
+            if result.extracted_knowledge is None:
+                raise ValueError(
+                    "Chunk result missing extracted knowledge for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+            knowledge_items.append(
+                (
+                    result.chunk_id.message_ordinal,
+                    result.chunk_id.chunk_ordinal,
+                    result.extracted_knowledge,
+                )
             )
 
-    async def _commit_batch_streaming(
-        self,
-        storage: IStorageProvider[TMessage],
-        filtered: list[TMessage],
-        extraction: _ExtractionResult | None,
-    ) -> AddMessagesResult:
-        """Commit a single batch with pre-extracted knowledge."""
+            if result.related_terms is None or result.related_term_embeddings is None:
+                raise ValueError(
+                    "Chunk result missing related-term embeddings for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+            if len(result.related_terms) != len(result.related_term_embeddings):
+                raise ValueError(
+                    "related_terms and related_term_embeddings length mismatch for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}: "
+                    f"{len(result.related_terms)} != "
+                    f"{len(result.related_term_embeddings)}"
+                )
+            fuzzy_terms.extend(result.related_terms)
+            fuzzy_term_embeddings.extend(result.related_term_embeddings)
+            # Store embedding for later retrieval in correct message/chunk order
+            chunk_embedding_map[
+                (result.chunk_id.message_ordinal, result.chunk_id.chunk_ordinal)
+            ] = result.chunk_embedding
+
         async with storage:
             start_points = IndexingStartPoints(
                 message_count=await self.messages.size(),
                 semref_count=await self.semantic_refs.size(),
             )
 
-            await self.messages.extend(filtered)
+            # Build chunk_embeddings in the correct order (matching message/chunk iteration)
+            chunk_embeddings: list[NormalizedEmbedding] = []
+            for msg_ord, message in enumerate(
+                messages_batch, start_points.message_count
+            ):
+                for chunk_ord in range(len(message.text_chunks)):
+                    embedding = chunk_embedding_map.get((msg_ord, chunk_ord))
+                    if embedding is None:
+                        raise ValueError(
+                            "Missing chunk embedding for staged message chunk: "
+                            f"message={msg_ord}, chunk={chunk_ord}"
+                        )
+                    chunk_embeddings.append(embedding)
 
-            source_ids = [m.source_id for m in filtered if m.source_id is not None]
+            # Use precomputed embeddings to avoid redundant embedding work
+            await self.messages.extend(
+                messages_batch, chunk_embeddings=chunk_embeddings
+            )
+            source_ids = [
+                m.source_id for m in messages_batch if m.source_id is not None
+            ]
             if source_ids:
                 await storage.mark_sources_ingested_batch(source_ids)
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
 
-            if extraction is not None:
-                await self._apply_extraction_results(
-                    storage, extraction, start_points.message_count
-                )
+            await semrefindex.add_knowledge_batch_to_semantic_ref_index(
+                self,
+                knowledge_items,
+            )
 
-            await self._update_secondary_indexes_incremental(start_points)
+            await self._update_secondary_indexes_incremental_with_embeddings(
+                start_points,
+                messages_batch,
+                fuzzy_terms,
+                fuzzy_term_embeddings,
+            )
 
             await storage.update_conversation_timestamps(
                 updated_at=datetime.now(timezone.utc)
             )
 
             messages_added = await self.messages.size() - start_points.message_count
-            chunks_added = sum(len(m.text_chunks) for m in filtered[:messages_added])
+            chunks_added = sum(
+                len(message.text_chunks) for message in messages_batch[:messages_added]
+            )
             return AddMessagesResult(
                 messages_added=messages_added,
                 chunks_added=chunks_added,
                 semrefs_added=await self.semantic_refs.size()
                 - start_points.semref_count,
             )
+
+    async def _update_secondary_indexes_incremental_with_embeddings(
+        self,
+        start_points: IndexingStartPoints,
+        new_messages: list[TMessage],
+        related_terms: list[str],
+        related_term_embeddings: list[NormalizedEmbedding],
+    ) -> None:
+        """Update secondary indexes using precomputed embeddings when available."""
+        if self.secondary_indexes is None:
+            return
+
+        from ..storage.memory import propindex
+
+        await propindex.add_to_property_index(self, start_points.semref_count)
+
+        await self._add_timestamps_for_messages(
+            new_messages,
+            start_points.message_count,
+        )
+
+        term_to_related = self.secondary_indexes.term_to_related_terms_index
+        if term_to_related is not None:
+            fuzzy_index = term_to_related.fuzzy_index
+            if fuzzy_index is not None and related_terms:
+                await fuzzy_index.add_terms_with_embeddings(
+                    related_terms,
+                    related_term_embeddings,
+                )
 
     async def _add_metadata_knowledge_incremental(
         self,

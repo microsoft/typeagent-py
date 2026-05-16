@@ -21,7 +21,9 @@ import argparse
 import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
+import os
 from pathlib import Path
+import signal
 import sys
 import time
 from typing import Iterable
@@ -273,7 +275,9 @@ def _iter_emails(
         yield str(email_file.resolve()), email_file, label
 
 
-def _print_email_verbose(email: EmailMessage) -> None:
+def _print_email_verbose(
+    email: EmailMessage, original_chunk_count: int | None = None
+) -> None:
     """Print verbose details for an email."""
     print(f"    From: {decode_encoded_words(email.metadata.sender)}")
     if email.metadata.recipients:
@@ -289,7 +293,14 @@ def _print_email_verbose(email: EmailMessage) -> None:
             f"    Subject: {decode_encoded_words(email.metadata.subject).replace('\n', '\\n')}"
         )
     print(f"    Date: {email.timestamp}")
-    print(f"    Body chunks: {len(email.text_chunks)}")
+    if original_chunk_count is not None and original_chunk_count != len(
+        email.text_chunks
+    ):
+        print(
+            f"    Body chunks: {len(email.text_chunks)} (clipped from {original_chunk_count})"
+        )
+    else:
+        print(f"    Body chunks: {len(email.text_chunks)}")
     MAIL_PREVIEW_LEN = 80
     for chunk in email.text_chunks:
         preview = repr(chunk[: MAIL_PREVIEW_LEN + 1])[1:-1]
@@ -341,15 +352,14 @@ async def _email_generator(
                 print(f"{label}  [Outside date range, skipping]")
             continue
 
+        # Truncate chunks if --max-chunks is set
+        original_chunk_count: int | None = None
+        if max_chunks is not None and len(email.text_chunks) > max_chunks:
+            original_chunk_count = len(email.text_chunks)
+            email.text_chunks = email.text_chunks[:max_chunks]
         if verbose:
             print(label)
-            _print_email_verbose(email)
-
-        # Truncate chunks if --max-chunks is set
-        if max_chunks is not None and len(email.text_chunks) > max_chunks:
-            if verbose:
-                print(f"    Truncating {len(email.text_chunks)} chunks to {max_chunks}")
-            email.text_chunks = email.text_chunks[:max_chunks]
+            _print_email_verbose(email, original_chunk_count)
 
         # Set source_id so streaming API handles dedup and tracking
         email.source_id = source_id
@@ -452,10 +462,10 @@ async def ingest_emails(
             f"+{result.semrefs_added} semrefs",
         ]
         print(
-            f"{' '.join(parts)} | "
+            f"\n{' '.join(parts)} | "
             f"{batch_secs:.1f}s ({per_chunk:.2f}s/chunk) | "
             f"{counters['ingested']} total ingested | "
-            f"{elapsed:.1f}s elapsed",
+            f"{elapsed:.1f}s elapsed\n",
             flush=True,
         )
 
@@ -471,14 +481,41 @@ async def ingest_emails(
 
     result: AddMessagesResult | None = None
     interrupted = False
+    shutdown_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    _sigint_count = 0
+    _main_task = asyncio.current_task()
+
+    def _on_sigint() -> None:
+        nonlocal _sigint_count
+        _sigint_count += 1
+        if _sigint_count == 1:
+            print(
+                "\nInterrupt received; stopping after current batch completes "
+                "(press ^C again to force quit)...",
+                flush=True,
+            )
+            shutdown_event.set()
+        else:
+            print("\nForce quit.", flush=True)
+            # Bypass cooperative cancellation on repeated Ctrl+C.
+            # Some pending async operations may not respond promptly and can hang.
+            os._exit(130)
+
+    loop.add_signal_handler(signal.SIGINT, _on_sigint)
     try:
         result = await email_memory.add_messages_streaming(
             message_stream,
             batch_size=batch_size,
             on_batch_committed=on_batch_committed,
+            skip_failed_messages=True,
+            shutdown_event=shutdown_event,
         )
+        interrupted = shutdown_event.is_set()
     except (KeyboardInterrupt, asyncio.CancelledError):
         interrupted = True
+    finally:
+        loop.remove_signal_handler(signal.SIGINT)
 
     # Final summary
     elapsed = time.time() - start_time
@@ -540,20 +577,28 @@ def main() -> None:
     start_date = _parse_date(args.start_date) if args.start_date else None
     stop_date = _parse_date(args.stop_date) if args.stop_date else None
 
-    asyncio.run(
-        ingest_emails(
-            eml_paths=args.paths,
-            database=args.database,
-            verbose=args.verbose,
-            start_date=start_date,
-            stop_date=stop_date,
-            offset=args.offset,
-            limit=args.limit,
-            concurrency=args.concurrency,
-            batch_size=args.batch_size,
-            max_chunks=args.max_chunks,
+    try:
+        asyncio.run(
+            ingest_emails(
+                eml_paths=args.paths,
+                database=args.database,
+                verbose=args.verbose,
+                start_date=start_date,
+                stop_date=stop_date,
+                offset=args.offset,
+                limit=args.limit,
+                concurrency=args.concurrency,
+                batch_size=args.batch_size,
+                max_chunks=args.max_chunks,
+            )
         )
-    )
+    except KeyboardInterrupt:
+        pass
+    except Exception as exc:
+        if args.verbose:
+            raise
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

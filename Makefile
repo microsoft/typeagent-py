@@ -13,7 +13,8 @@ format: venv
 
 .PHONY: check
 check: venv
-	uv run pyright src tests tools examples
+	uv run pyright --pythonversion 3.12 src tests tools examples
+	uv run pyright --pythonversion 3.14 src tests tools examples
 
 .PHONY: test
 test: venv
@@ -21,10 +22,10 @@ test: venv
 
 .PHONY: coverage
 coverage: venv
-	coverage erase
+	uv run coverage erase
 	COVERAGE_PROCESS_START=.coveragerc uv run coverage run -m pytest $(FLAGS)
-	coverage combine
-	coverage report
+	uv run coverage combine
+	uv run coverage report
 
 .PHONY: demo
 demo: venv

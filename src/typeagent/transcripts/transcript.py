@@ -14,7 +14,6 @@ from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import ConversationDataWithIndexes, SemanticRef, Term
 from ..knowpro.universal_message import ConversationMessage, ConversationMessageMeta
 from ..storage.memory.convthreads import ConversationThreads
-from ..storage.memory.messageindex import MessageTextIndex
 
 # Type aliases for backward compatibility
 TranscriptMessage = ConversationMessage
@@ -82,7 +81,9 @@ class Transcript(ConversationBase[TranscriptMessage]):
         message_list = [
             TranscriptMessage.deserialize(m) for m in transcript_data["messages"]
         ]
-        await self.messages.extend(message_list)
+        # Message index data is deserialized later and replaces prior state,
+        # so skip incremental indexing while bulk-loading messages.
+        await self.messages.extend(message_list, index_messages=False)
 
         semantic_refs_data = transcript_data.get("semanticRefs")
         if semantic_refs_data is not None:
@@ -120,16 +121,9 @@ class Transcript(ConversationBase[TranscriptMessage]):
         message_index_data = transcript_data.get("messageIndexData")
         if message_index_data is not None:
             secondary_indexes = self._get_secondary_indexes()
-            # Assert the message index is empty before deserializing
             assert (
                 secondary_indexes.message_index is not None
             ), "Message index should be initialized"
-
-            if isinstance(secondary_indexes.message_index, MessageTextIndex):
-                index_size = await secondary_indexes.message_index.size()
-                assert (
-                    index_size == 0
-                ), "Message index must be empty before deserializing"
             await secondary_indexes.message_index.deserialize(message_index_data)
 
         # Don't rebuild aliases/synonyms since they were deserialized from relatedTermsIndexData
@@ -180,9 +174,7 @@ class Transcript(ConversationBase[TranscriptMessage]):
 
     @staticmethod
     async def read_from_file(
-        filename_prefix: str,
-        settings: ConversationSettings,
-        dbname: str | None = None,
+        filename_prefix: str, settings: ConversationSettings, dbname: str | None = None
     ) -> "Transcript":
         data = Transcript._read_conversation_data_from_file(filename_prefix)
 
