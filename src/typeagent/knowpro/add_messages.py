@@ -194,9 +194,10 @@ async def _dispatcher_task[TMessage: IMessage](
                             stop_state.stop_at_message_id = new_stop
                         if stop_state.exception is None:
                             stop_state.exception = result.error
-            await result_queue.put(result)
         finally:
             sem.release()
+
+        await result_queue.put(result)
 
     async with asyncio.TaskGroup() as tg:
         while True:
