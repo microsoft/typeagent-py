@@ -81,6 +81,8 @@ class Transcript(ConversationBase[TranscriptMessage]):
         message_list = [
             TranscriptMessage.deserialize(m) for m in transcript_data["messages"]
         ]
+        # Message index data is deserialized later and replaces prior state,
+        # so skip incremental indexing while bulk-loading messages.
         await self.messages.extend(message_list, index_messages=False)
 
         semantic_refs_data = transcript_data.get("semanticRefs")

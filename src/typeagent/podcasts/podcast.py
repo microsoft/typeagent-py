@@ -80,6 +80,8 @@ class Podcast(ConversationBase[PodcastMessage]):
         self.name_tag = podcast_data["nameTag"]
 
         message_list = [PodcastMessage.deserialize(m) for m in podcast_data["messages"]]
+        # Message index data is deserialized later and replaces prior state,
+        # so skip incremental indexing while bulk-loading messages.
         await self.messages.extend(message_list, index_messages=False)
 
         semantic_refs_data = podcast_data.get("semanticRefs")
