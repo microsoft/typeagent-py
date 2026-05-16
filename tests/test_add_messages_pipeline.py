@@ -587,7 +587,6 @@ async def test_reassembler_commits_out_of_order_after_gap_is_filled() -> None:
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=10,
         commit_batch=_commit,
-        on_batch_committed=None,
         skip_failed_messages=False,
     )
 
@@ -623,7 +622,6 @@ async def test_reassembler_marks_failure_and_blocks_later_commits() -> None:
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=1,
         commit_batch=_commit,
-        on_batch_committed=None,
         skip_failed_messages=False,
     )
 
@@ -658,7 +656,6 @@ async def test_reassembler_skips_failed_message_and_commits_later_messages() -> 
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=1,
         commit_batch=_commit,
-        on_batch_committed=None,
         skip_failed_messages=True,
     )
 
@@ -695,7 +692,6 @@ async def test_reassembler_force_commits_small_staged_tail() -> None:
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=99,
         commit_batch=_commit,
-        on_batch_committed=None,
         skip_failed_messages=False,
     )
 
@@ -727,7 +723,6 @@ async def test_reassembler_raises_on_invalid_chunk_ordinal_and_sets_stop_marker(
             first_uncommitted_ordinal=0,
             target_commit_chunk_count=1,
             commit_batch=_commit,
-            on_batch_committed=None,
             skip_failed_messages=False,
         )
 
@@ -756,42 +751,10 @@ async def test_reassembler_raises_on_duplicate_chunk_and_sets_stop_marker() -> N
             first_uncommitted_ordinal=0,
             target_commit_chunk_count=1,
             commit_batch=_commit,
-            on_batch_committed=None,
             skip_failed_messages=False,
         )
 
     assert stop_state.stop_at_message_id == 5
-
-
-@pytest.mark.asyncio
-async def test_reassembler_on_batch_committed_callback_is_invoked() -> None:
-    result_queue = asyncio.Queue()
-    stop_state = PipelineStopState()
-
-    message = _Message(["m0"])
-    await result_queue.put(_chunk_result(message, 0, 0, 1))
-    await result_queue.put(None)
-
-    callback_calls: list[tuple[int, int]] = []
-
-    async def _commit(
-        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
-    ) -> None:
-        return None
-
-    await _reassembler_task(
-        result_queue,
-        stop_state,
-        first_uncommitted_ordinal=0,
-        target_commit_chunk_count=1,
-        commit_batch=_commit,
-        on_batch_committed=lambda msg_count, chunk_count: callback_calls.append(
-            (msg_count, chunk_count)
-        ),
-        skip_failed_messages=False,
-    )
-
-    assert callback_calls == [(1, 1)]
 
 
 @pytest.mark.asyncio
@@ -818,7 +781,6 @@ async def test_reassembler_raises_on_mismatched_chunk_count_and_sets_stop_marker
             first_uncommitted_ordinal=0,
             target_commit_chunk_count=1,
             commit_batch=_commit,
-            on_batch_committed=None,
             skip_failed_messages=False,
         )
 
@@ -849,7 +811,6 @@ async def test_reassembler_handles_existing_assembly_non_duplicate_chunk() -> No
         first_uncommitted_ordinal=0,
         target_commit_chunk_count=1,
         commit_batch=_commit,
-        on_batch_committed=None,
         skip_failed_messages=False,
     )
 

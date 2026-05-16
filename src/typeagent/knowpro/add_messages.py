@@ -375,7 +375,6 @@ async def _reassembler_task[TMessage: IMessage](
     commit_batch: Callable[
         [list[TMessage], list[ChunkProcessingResult[TMessage]]], Awaitable[None]
     ],
-    on_batch_committed: Callable[[int, int], None] | None,
     skip_failed_messages: bool,
 ) -> ReassemblerResult:
     """Reassemble chunks into messages and commit only consecutive complete ones.
@@ -415,8 +414,6 @@ async def _reassembler_task[TMessage: IMessage](
         await commit_batch(pending_messages, pending_results)
         state.messages_committed += msg_count
         state.chunks_committed += chunk_count
-        if on_batch_committed is not None:
-            on_batch_committed(msg_count, chunk_count)
 
     async def _drain_consecutive_complete(force: bool = False) -> None:
         nonlocal staged_chunks
@@ -651,7 +648,6 @@ async def add_messages_streaming[TMessage: IMessage](
                     first_uncommitted_ordinal=initial_message_id,
                     target_commit_chunk_count=batch_size,
                     commit_batch=_commit_batch,
-                    on_batch_committed=None,
                     skip_failed_messages=skip_failed_messages,
                 )
             )
