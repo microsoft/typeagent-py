@@ -7,6 +7,7 @@ import json
 import sqlite3
 import typing
 
+from ...aitools.embeddings import NormalizedEmbedding
 from ...knowpro import interfaces, serialization
 from .schema import ShreddedMessage, ShreddedSemanticRef
 
@@ -189,7 +190,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
     async def extend(
         self,
         items: typing.Iterable[TMessage],
-        chunk_embeddings: list[typing.Any] | None = None,
+        chunk_embeddings: list[NormalizedEmbedding] | None = None,
         index_messages: bool = True,
     ) -> None:
         items_list = list(items)  # Convert to list to iterate twice
