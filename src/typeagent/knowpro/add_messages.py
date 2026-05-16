@@ -6,6 +6,7 @@
 import asyncio
 from collections.abc import AsyncIterable, Awaitable, Callable
 from dataclasses import dataclass
+from itertools import chain
 from typing import TYPE_CHECKING
 
 import typechat
@@ -257,7 +258,7 @@ def _collect_related_terms_for_fuzzy_index(
         for term in collect_entity_terms(entity):
             _add_term(term)
 
-    for action in list(knowledge.actions) + list(knowledge.inverse_actions):
+    for action in chain(knowledge.actions, knowledge.inverse_actions):
         for term in collect_action_terms(action):
             _add_term(term)
 
