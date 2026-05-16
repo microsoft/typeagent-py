@@ -308,8 +308,12 @@ class ConversationBase(
             ):
                 for chunk_ord in range(len(message.text_chunks)):
                     embedding = chunk_embedding_map.get((msg_ord, chunk_ord))
-                    if embedding is not None:
-                        chunk_embeddings.append(embedding)
+                    if embedding is None:
+                        raise ValueError(
+                            "Missing chunk embedding for staged message chunk: "
+                            f"message={msg_ord}, chunk={chunk_ord}"
+                        )
+                    chunk_embeddings.append(embedding)
 
             # Use precomputed embeddings to avoid redundant embedding work
             await self.messages.extend(
