@@ -2,6 +2,68 @@
 
 ## 2026
 
+### 0.5.0 (May 26)
+
+This release focuses on ingestion throughput, robustness, and developer tooling,
+with a new streaming ingestion pipeline and substantial performance work.
+Thanks go out to:
+  - Bernhard Merkle
+  - Kevin Turcios
+  - Shreejay Kurhade
+  - Dhaval Gojiya
+  - Tushar Mudi
+  - ANGELUSD11
+  - dependabot[bot]
+
+#### Core typeagent package
+- Deliver a new high-throughput streaming ingestion architecture and a new API
+  `add_messages_streaming`, with stronger correctness and broader test coverage
+  (#252, #266, #277).
+- Move ingestion workflows onto the streaming path (notably email and VTT),
+  simplifying duplicate filtering logic (#265, #267, #268, #271).
+- Tune embedding model parameters per-model and add supporting benchmark (#228).
+- Improve ingestion and query performance via batched SQLite writes,
+  batched metadata lookups (removing N+1 paths), overlapped streaming pipeline
+  stages, numpy-vectorized embedding lookup, and higher podcast ingest
+  concurrency (#230, #232, #234, #248, #260).
+- Replace ad-hoc retries with `stamina` and increase retries to better handle
+  429s (#255, #245).
+- Resolve Azure endpoint/URL parsing issues and regressions, with expanded
+  parsing tests (#231, #239, #241, #244).
+- Turn async provider accessor methods into sync properties for provider
+  attributes (#256).
+- Remove dead and obsolete internal code paths
+  (`extract_knowledge_for_text_batch_q`, `create_async_openai_client`) (#254,
+  #259).
+- Rename `kplib.py` to `knowledge_schema.py` (#212).
+- Remove runtime `black` dependency: switch to using `pprint`
+  (#229, #235, #237).
+
+#### Tools
+- Add benchmark scripts under `tools/` (`benchmark_query.py`,
+  `benchmark_vectorbase.py`, `benchmark_embeddings.py`,
+  `repeat_embedding_benchmarks.py`) (#251, #228, #247).
+- Improve streaming ingestion tool ergonomics in `ingest_email.py` and
+  `ingest_vtt.py` with explicit batching/concurrency controls and clearer
+  per-batch progress reporting (#265, #267, #268).
+- Add utility to convert mbox files to `.eml` files (#220).
+- Add new `chat_sessions.py` tool to browse/dump VS Code Copilot chat sessions
+  (#226, #233).
+- Add `make eval` target (#237).
+
+#### Docs
+- Document high-level ingestion methods in API docs (#261).
+
+#### Testing and coverage
+- Improved test coverage -- somewhat.
+- Fixed coverage support on Windows (`.coveragerc`, `make.bat`) (#249, #253).
+
+#### CI and security
+- Harden CI workflow permissions and trigger model (`pull_request`, remove
+  unnecessary `id-token: write`) (#214).
+- Apply workflow security fixes reported by zizmor across CI/CodeQL and release
+- workflows (#276).
+
 ### 0.4.0 (March 3)
 
 Lots of improvements; the highlights are provider-agnostic model
