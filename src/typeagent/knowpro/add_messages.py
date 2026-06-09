@@ -218,9 +218,6 @@ class ChunkProcessingResult[TMessage: IMessage]:
         related_terms: Lowercased, deduplicated related-term texts extracted from knowledge.
         related_term_embeddings: Embeddings for related_terms in the same order, or [] when there are no related terms.
         error: Exception from the first failing operation, or None if extraction and embedding succeeded.
-
-        The ``success`` property is True only when extraction succeeded, chunk embedding was
-        generated, related-term embeddings were generated, and no error occurred.
     """
 
     chunk_id: TextLocation
