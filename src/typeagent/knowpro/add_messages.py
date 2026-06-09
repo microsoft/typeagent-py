@@ -112,6 +112,8 @@ async def _producer_task[TMessage: IMessage](
             for chunk_ordinal, chunk_text in enumerate(message.text_chunks):
                 if message_id >= stop_state.stop_at_message_id:
                     break
+                if shutdown_event is not None and shutdown_event.is_set():
+                    break
                 await chunk_queue.put(
                     ChunkWorkItem[TMessage](
                         chunk_id=TextLocation(message_id, chunk_ordinal),
@@ -207,6 +209,13 @@ async def _dispatcher_task[TMessage: IMessage](
                 break
             await sem.acquire()
             tg.create_task(_process_one(item))
+        else:
+            # Shutdown was set: drain remaining items so the producer's put()
+            # calls can unblock and it can send the None sentinel.
+            while True:
+                item = await chunk_queue.get()
+                if item is None:
+                    break
 
     await result_queue.put(None)
 
