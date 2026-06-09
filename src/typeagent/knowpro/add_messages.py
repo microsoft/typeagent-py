@@ -357,6 +357,7 @@ class MessageAssembly[TMessage: IMessage]:
     message: TMessage
     chunks: dict[ChunkOrdinal, ChunkProcessingResult[TMessage]]
     has_error: bool = False
+    first_error_msg: str = "Unknown error"
 
     def is_complete(self) -> bool:
         return len(self.chunks) == self.chunk_count
@@ -434,16 +435,9 @@ async def _reassembler_task[TMessage: IMessage](
                 return
             if assembly.has_error:
                 if skip_failed_messages:
-                    # Skip this failed message and continue
-                    # Find the error from one of the chunks for logging
-                    error_msg = "Unknown error"
-                    for chunk_result in assembly.chunks.values():
-                        if chunk_result.error is not None:
-                            error_msg = str(chunk_result.error)
-                            break
                     print(
                         f"Skipping message {state.first_uncommitted_ordinal} "
-                        f"due to chunk processing error: {error_msg}"
+                        f"due to chunk processing error: {assembly.first_error_msg}"
                     )
                     del assemblies[state.first_uncommitted_ordinal]
                     state.first_uncommitted_ordinal += 1
@@ -530,6 +524,8 @@ async def _reassembler_task[TMessage: IMessage](
                 assembly.chunks[chunk_ordinal] = item
 
             if item.error is not None:
+                if not assembly.has_error:
+                    assembly.first_error_msg = str(item.error)
                 assembly.has_error = True
                 state.chunk_failures += 1
                 if not skip_failed_messages:
