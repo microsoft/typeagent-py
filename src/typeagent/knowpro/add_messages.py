@@ -138,6 +138,7 @@ async def _dispatcher_task[TMessage: IMessage](
     embedding_model: IEmbeddingModel,
     concurrency: int,
     skip_failed_messages: bool,
+    shutdown_event: asyncio.Event | None = None,
 ) -> None:
     """Dispatch chunk work items to bounded per-item worker tasks.
 
@@ -153,13 +154,18 @@ async def _dispatcher_task[TMessage: IMessage](
     Args:
         skip_failed_messages: If True, don't halt producer on extraction/embedding
             failures; continue processing. If False, halt on first failure.
+        shutdown_event: If set, stop processing new chunks and let the pipeline drain.
     """
     sem = asyncio.Semaphore(concurrency)
 
     async def _process_one(work_item: ChunkWorkItem[TMessage]) -> None:
         try:
             stop_at = stop_state.stop_at_message_id
-            if work_item.chunk_id.message_ordinal >= stop_at:
+            if (
+                work_item.chunk_id.message_ordinal >= stop_at
+                or shutdown_event is not None
+                and shutdown_event.is_set()
+            ):
                 result: "ChunkProcessingResult[TMessage]" = ChunkProcessingResult(
                     chunk_id=work_item.chunk_id,
                     chunk_count=work_item.chunk_count,
@@ -195,7 +201,7 @@ async def _dispatcher_task[TMessage: IMessage](
         await result_queue.put(result)
 
     async with asyncio.TaskGroup() as tg:
-        while True:
+        while not (shutdown_event is not None and shutdown_event.is_set()):
             item = await chunk_queue.get()
             if item is None:
                 break
@@ -631,6 +637,7 @@ async def add_messages_streaming[TMessage: IMessage](
                     embedding_model,
                     concurrency=sem_ref_settings.concurrency,
                     skip_failed_messages=skip_failed_messages,
+                    shutdown_event=shutdown_event,
                 )
             )
             reassembler_task = tg.create_task(
