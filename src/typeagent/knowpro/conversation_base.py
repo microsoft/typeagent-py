@@ -243,6 +243,16 @@ class ConversationBase(
         if not messages_batch:
             return AddMessagesResult()
 
+        # Chunk locations use source-stream ordinals. Those ordinals can have
+        # gaps when skip_failed_messages omits a message, so preserve their
+        # order for remapping to consecutive storage ordinals below.
+        source_message_ids: list[MessageOrdinal] = []
+        source_message_id: MessageOrdinal | None = None
+        for result in chunk_results:
+            if result.chunk_id.message_ordinal != source_message_id:
+                source_message_ids.append(result.chunk_id.message_ordinal)
+                source_message_id = result.chunk_id.message_ordinal
+
         # Process chunk results first to collect embeddings and knowledge items
         knowledge_items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]] = []
         fuzzy_terms: list[str] = []
@@ -290,7 +300,7 @@ class ConversationBase(
                 )
             fuzzy_terms.extend(result.related_terms)
             fuzzy_term_embeddings.extend(result.related_term_embeddings)
-            # Store embedding for later retrieval in correct message/chunk order
+            # Store embedding by source message/chunk location until commit remaps it.
             chunk_embedding_map[
                 (result.chunk_id.message_ordinal, result.chunk_id.chunk_ordinal)
             ] = result.chunk_embedding
@@ -301,19 +311,44 @@ class ConversationBase(
                 semref_count=await self.semantic_refs.size(),
             )
 
-            # Build chunk_embeddings in the correct order (matching message/chunk iteration)
+            source_to_storage_message_id: dict[MessageOrdinal, MessageOrdinal] = {}
             chunk_embeddings: list[NormalizedEmbedding] = []
-            for msg_ord, message in enumerate(
+            result_group_index = 0
+            for storage_message_id, message in enumerate(
                 messages_batch, start_points.message_count
             ):
-                for chunk_ord in range(len(message.text_chunks)):
-                    embedding = chunk_embedding_map.get((msg_ord, chunk_ord))
+                if not message.text_chunks:
+                    continue
+                if result_group_index >= len(source_message_ids):
+                    raise ValueError(
+                        "Missing chunk results for staged message: "
+                        f"message={storage_message_id}"
+                    )
+                source_message_id = source_message_ids[result_group_index]
+                result_group_index += 1
+                source_to_storage_message_id[source_message_id] = storage_message_id
+                for chunk_ordinal in range(len(message.text_chunks)):
+                    embedding = chunk_embedding_map.get(
+                        (source_message_id, chunk_ordinal)
+                    )
                     if embedding is None:
                         raise ValueError(
                             "Missing chunk embedding for staged message chunk: "
-                            f"message={msg_ord}, chunk={chunk_ord}"
+                            f"message={storage_message_id}, chunk={chunk_ordinal}"
                         )
                     chunk_embeddings.append(embedding)
+
+            if result_group_index != len(source_message_ids):
+                raise ValueError("Chunk results exceed staged messages with chunks")
+
+            knowledge_items = [
+                (
+                    source_to_storage_message_id[source_message_id],
+                    chunk_ordinal,
+                    knowledge,
+                )
+                for source_message_id, chunk_ordinal, knowledge in knowledge_items
+            ]
 
             # Use precomputed embeddings to avoid redundant embedding work
             await self.messages.extend(

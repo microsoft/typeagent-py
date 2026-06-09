@@ -446,6 +446,62 @@ async def test_dispatcher_stops_on_sentinel_and_emits_result_sentinel() -> None:
 
 
 @pytest.mark.asyncio
+async def test_shutdown_finishes_message_already_admitted_to_full_queue() -> None:
+    chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue(
+        maxsize=1
+    )
+    result_queue = asyncio.Queue()
+    stop_state = PipelineStopState()
+    producer_state = ProducerState(next_message_id=0)
+    shutdown_event = asyncio.Event()
+    first_message = _Message(["first chunk", "second chunk"])
+    second_message = _Message(["not admitted"])
+
+    async def _iter_messages() -> AsyncIterator[_Message]:
+        yield first_message
+        yield second_message
+
+    producer_task = asyncio.create_task(
+        _producer_task(
+            _iter_messages(),
+            chunk_queue,
+            stop_state,
+            producer_state,
+            result_queue,
+            shutdown_event,
+        )
+    )
+    await asyncio.sleep(0)
+    assert chunk_queue.full()
+    shutdown_event.set()
+
+    await _dispatcher_task(
+        chunk_queue,
+        result_queue,
+        stop_state,
+        _SequenceExtractor(
+            [
+                typechat.Success(_empty_knowledge()),
+                typechat.Success(_empty_knowledge()),
+            ]
+        ),
+        _StubEmbeddingModel(),
+        concurrency=1,
+        skip_failed_messages=False,
+    )
+    await asyncio.wait_for(producer_task, timeout=1)
+
+    items = await _drain_result_queue(result_queue)
+    results = [item for item in items if item is not None]
+    assert [result.chunk_id for result in results] == [
+        TextLocation(0, 0),
+        TextLocation(0, 1),
+    ]
+    assert producer_state.produced_messages == 1
+    assert producer_state.produced_chunks == 2
+
+
+@pytest.mark.asyncio
 async def test_dispatcher_extraction_failure_lowers_stop() -> None:
     """A Failure from the extractor sets error and lowers stop_at_message_id."""
     chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()

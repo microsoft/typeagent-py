@@ -201,6 +201,36 @@ async def test_streaming_extraction_failure_stops_at_failing_message() -> None:
 
 
 @pytest.mark.asyncio
+async def test_streaming_skips_failed_message_and_commits_next_message() -> None:
+    """Skipped messages do not leave gaps in persisted message ordinals."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor(fail_on={0})
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+        messages = [
+            _make_message("failed", source_id="failed-source"),
+            _make_message("succeeds", source_id="successful-source"),
+        ]
+
+        result = await add_messages_streaming(
+            transcript,
+            _async_iter(messages),
+            skip_failed_messages=True,
+        )
+
+        assert result.messages_added == 1
+        assert result.messages_skipped == 1
+        assert result.chunks_added == 1
+        assert await transcript.messages.get_slice(0, 1) == [messages[1]]
+        assert not await storage.is_source_ingested("failed-source")
+        assert await storage.is_source_ingested("successful-source")
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
 async def test_streaming_exception_stops_run() -> None:
     """A raised exception stops processing; committed batches survive."""
     with tempfile.TemporaryDirectory() as tmpdir:
