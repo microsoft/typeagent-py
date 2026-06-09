@@ -29,6 +29,10 @@ _EMPTY_KNOWLEDGE = kplib.KnowledgeResponse(
 )
 
 
+def _is_shutdown(event: asyncio.Event | None) -> bool:
+    return event is not None and event.is_set()
+
+
 class NoOpKnowledgeExtractor:
     """No-op extractor used when auto_extract_knowledge is False."""
 
@@ -112,7 +116,7 @@ async def _producer_task[TMessage: IMessage](
             for chunk_ordinal, chunk_text in enumerate(message.text_chunks):
                 if message_id >= stop_state.stop_at_message_id:
                     break
-                if shutdown_event is not None and shutdown_event.is_set():
+                if _is_shutdown(shutdown_event):
                     break
                 await chunk_queue.put(
                     ChunkWorkItem[TMessage](
@@ -124,8 +128,9 @@ async def _producer_task[TMessage: IMessage](
                 )
                 producer_state.produced_chunks += 1
 
-            producer_state.produced_messages += 1
-            producer_state.next_message_id += 1
+            if not _is_shutdown(shutdown_event):
+                producer_state.produced_messages += 1
+                producer_state.next_message_id += 1
     except Exception as exc:
         producer_state.exception = exc
     finally:
@@ -165,8 +170,7 @@ async def _dispatcher_task[TMessage: IMessage](
             stop_at = stop_state.stop_at_message_id
             if (
                 work_item.chunk_id.message_ordinal >= stop_at
-                or shutdown_event is not None
-                and shutdown_event.is_set()
+                or _is_shutdown(shutdown_event)
             ):
                 result: "ChunkProcessingResult[TMessage]" = ChunkProcessingResult(
                     chunk_id=work_item.chunk_id,
@@ -203,7 +207,7 @@ async def _dispatcher_task[TMessage: IMessage](
         await result_queue.put(result)
 
     async with asyncio.TaskGroup() as tg:
-        while not (shutdown_event is not None and shutdown_event.is_set()):
+        while not _is_shutdown(shutdown_event):
             item = await chunk_queue.get()
             if item is None:
                 break
@@ -357,7 +361,7 @@ class MessageAssembly[TMessage: IMessage]:
     message: TMessage
     chunks: dict[ChunkOrdinal, ChunkProcessingResult[TMessage]]
     has_error: bool = False
-    first_error_msg: str = "Unknown error"
+    first_error_msg: str | None = None
 
     def is_complete(self) -> bool:
         return len(self.chunks) == self.chunk_count
@@ -437,7 +441,7 @@ async def _reassembler_task[TMessage: IMessage](
                 if skip_failed_messages:
                     print(
                         f"Skipping message {state.first_uncommitted_ordinal} "
-                        f"due to chunk processing error: {assembly.first_error_msg}"
+                        f"due to chunk processing error: {assembly.first_error_msg or 'Unknown error'}"
                     )
                     del assemblies[state.first_uncommitted_ordinal]
                     state.first_uncommitted_ordinal += 1
