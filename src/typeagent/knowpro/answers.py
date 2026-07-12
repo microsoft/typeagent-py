@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -43,18 +44,34 @@ class AnswerContextOptions:
     debug: bool = False
 
 
+@dataclass
+class AnswerGeneratorSettings:
+    """Settings controlling how generate_answers() processes search results.
+
+    Mirrors (the relevant subset of) TypeAgent's AnswerGeneratorSettings
+    in answerGenerator.ts.
+    """
+
+    # How many search results to answer concurrently.
+    concurrency: int = 2
+    # Stop processing further search results once a good answer is found.
+    fast_stop: bool = True
+
+
 async def generate_answers(
     translator: typechat.TypeChatJsonTranslator[AnswerResponse],
     search_results: list[ConversationSearchResult],
     conversation: IConversation,
     orig_query_text: str,
     options: AnswerContextOptions | None = None,
+    settings: AnswerGeneratorSettings | None = None,
 ) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
-    all_answers: list[AnswerResponse] = []
+    settings = settings or AnswerGeneratorSettings()
+    all_answers = await _generate_answers_concurrently(
+        translator, search_results, conversation, options, settings
+    )
     good_answers: list[str] = []
-    for result in search_results:
-        answer = await generate_answer(translator, result, conversation, options)
-        all_answers.append(answer)
+    for answer in all_answers:
         match answer.type:
             case "Answered":
                 assert answer.answer is not None, "Answered answer must not be None"
@@ -79,6 +96,36 @@ async def generate_answers(
             type="NoAnswer", why_no_answer="No good answers found."
         )
     return all_answers, combined_answer
+
+
+async def _generate_answers_concurrently(
+    translator: typechat.TypeChatJsonTranslator[AnswerResponse],
+    search_results: list[ConversationSearchResult],
+    conversation: IConversation,
+    options: AnswerContextOptions | None,
+    settings: AnswerGeneratorSettings,
+) -> list[AnswerResponse]:
+    """Run generate_answer() over search_results, bounded by settings.concurrency.
+
+    If settings.fast_stop is set, search results that haven't started yet are
+    skipped as soon as a good answer has been found by another one -- results
+    already in flight are still allowed to finish.
+    """
+    semaphore = asyncio.Semaphore(max(1, settings.concurrency))
+    found_answer = asyncio.Event()
+
+    async def run_one(result: ConversationSearchResult) -> AnswerResponse | None:
+        async with semaphore:
+            if settings.fast_stop and found_answer.is_set():
+                return None
+            answer = await generate_answer(translator, result, conversation, options)
+            if settings.fast_stop and answer.type == "Answered" and answer.answer:
+                if answer.answer.strip():
+                    found_answer.set()
+            return answer
+
+    results = await asyncio.gather(*(run_one(result) for result in search_results))
+    return [answer for answer in results if answer is not None]
 
 
 async def generate_answer[TMessage: IMessage, TIndex: ITermToSemanticRefIndex](
