@@ -2,8 +2,9 @@
 # Licensed under the MIT License.
 
 import asyncio
+import os
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import typechat
@@ -44,18 +45,49 @@ class AnswerContextOptions:
     debug: bool = False
 
 
+# Environment variables that override the AnswerGeneratorSettings defaults
+# below, so callers that don't pass `settings` explicitly can still opt in to
+# concurrency/fast-stop without a code change.
+CONCURRENCY_ENVVAR = "TYPEAGENT_ANSWER_CONCURRENCY"
+FAST_STOP_ENVVAR = "TYPEAGENT_ANSWER_FAST_STOP"
+
+
+def _default_concurrency() -> int:
+    value = os.getenv(CONCURRENCY_ENVVAR)
+    if value is None:
+        return 1
+    try:
+        return int(value)
+    except ValueError:
+        return 1
+
+
+def _default_fast_stop() -> bool:
+    value = os.getenv(FAST_STOP_ENVVAR)
+    if value is None:
+        return False
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass
 class AnswerGeneratorSettings:
     """Settings controlling how generate_answers() processes search results.
 
     Mirrors (the relevant subset of) TypeAgent's AnswerGeneratorSettings
     in answerGenerator.ts.
+
+    Defaults preserve the pre-existing sequential, run-everything behavior
+    (concurrency=1, fast_stop=False) so that callers who don't pass
+    `settings` see no behavior change. Set the TYPEAGENT_ANSWER_CONCURRENCY
+    and/or TYPEAGENT_ANSWER_FAST_STOP environment variables to opt every
+    caller into concurrency/fast-stop without changing call sites, or pass
+    `settings` explicitly to override per call.
     """
 
     # How many search results to answer concurrently.
-    concurrency: int = 2
+    concurrency: int = field(default_factory=_default_concurrency)
     # Stop processing further search results once a good answer is found.
-    fast_stop: bool = True
+    fast_stop: bool = field(default_factory=_default_fast_stop)
 
 
 async def generate_answers(
@@ -65,7 +97,11 @@ async def generate_answers(
     orig_query_text: str,
     options: AnswerContextOptions | None = None,
     settings: AnswerGeneratorSettings | None = None,
-) -> tuple[list[AnswerResponse], AnswerResponse]:  # (all answers, combined answer)
+) -> tuple[list[AnswerResponse], AnswerResponse]:
+    # Returns (answers, combined_answer). `answers` holds one AnswerResponse
+    # per search result that was actually run -- with settings.fast_stop
+    # enabled, results not yet started when a good answer is found are
+    # skipped, so `answers` may be shorter than `search_results`.
     settings = settings or AnswerGeneratorSettings()
     all_answers = await _generate_answers_concurrently(
         translator, search_results, conversation, options, settings
