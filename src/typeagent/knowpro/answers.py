@@ -47,26 +47,9 @@ class AnswerContextOptions:
 
 # Environment variables that override the AnswerGeneratorSettings defaults
 # below, so callers that don't pass `settings` explicitly can still opt in to
-# concurrency/fast-stop without a code change.
+# concurrency/fast-stop without a code change. See .env-template.
 CONCURRENCY_ENVVAR = "TYPEAGENT_ANSWER_CONCURRENCY"
 FAST_STOP_ENVVAR = "TYPEAGENT_ANSWER_FAST_STOP"
-
-
-def _default_concurrency() -> int:
-    value = os.getenv(CONCURRENCY_ENVVAR)
-    if value is None:
-        return 1
-    try:
-        return int(value)
-    except ValueError:
-        return 1
-
-
-def _default_fast_stop() -> bool:
-    value = os.getenv(FAST_STOP_ENVVAR)
-    if value is None:
-        return False
-    return value.strip().lower() in ("1", "true", "yes", "on")
 
 
 @dataclass
@@ -85,9 +68,13 @@ class AnswerGeneratorSettings:
     """
 
     # How many search results to answer concurrently.
-    concurrency: int = field(default_factory=_default_concurrency)
+    concurrency: int = field(
+        default_factory=lambda: int(os.getenv(CONCURRENCY_ENVVAR, "1"))
+    )
     # Stop processing further search results once a good answer is found.
-    fast_stop: bool = field(default_factory=_default_fast_stop)
+    fast_stop: bool = field(
+        default_factory=lambda: os.getenv(FAST_STOP_ENVVAR, "false").lower() == "true"
+    )
 
 
 async def generate_answers(
