@@ -1,13 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+import asyncio
 from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
 
+import typechat
+
+from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.answers import (
+    AnswerGeneratorSettings,
     facets_to_merged_facets,
+    generate_answers,
     get_enclosing_date_range_for_text_range,
     get_enclosing_text_range,
     merged_facets_to_facets,
@@ -15,6 +21,7 @@ from typeagent.knowpro.answers import (
 )
 from typeagent.knowpro.interfaces import TextLocation, TextRange
 from typeagent.knowpro.knowledge_schema import Facet
+from typeagent.knowpro.search import ConversationSearchResult
 
 from conftest import FakeMessage, FakeMessageCollection
 
@@ -190,3 +197,110 @@ class TestTextRangeFromMessageRange:
     def test_invalid_raises(self) -> None:
         with pytest.raises(ValueError, match="Expect message ordinal range"):
             text_range_from_message_range(5, 2)
+
+
+# ---------------------------------------------------------------------------
+# generate_answers: concurrency and fast_stop
+# ---------------------------------------------------------------------------
+
+
+class FakeAnswerTranslator:
+    """Records concurrency/call info; returns canned responses in call order."""
+
+    def __init__(
+        self,
+        responses: list[AnswerResponse],
+        delay: float = 0.0,
+    ) -> None:
+        self._responses = responses
+        self._delay = delay
+        self.calls = 0
+        self.max_concurrent = 0
+        self._concurrent = 0
+
+    async def translate(self, request: str) -> typechat.Result[AnswerResponse]:
+        self._concurrent += 1
+        self.max_concurrent = max(self.max_concurrent, self._concurrent)
+        try:
+            if self._delay:
+                await asyncio.sleep(self._delay)
+            index = self.calls
+            self.calls += 1
+            return typechat.Success(self._responses[index])
+        finally:
+            self._concurrent -= 1
+
+
+def make_search_results(count: int) -> list[ConversationSearchResult]:
+    return [
+        ConversationSearchResult(
+            message_matches=[], knowledge_matches={}, raw_query_text=f"question {i}"
+        )
+        for i in range(count)
+    ]
+
+
+class TestGenerateAnswersConcurrency:
+    @pytest.mark.asyncio
+    async def test_respects_concurrency_limit(self) -> None:
+        translator = FakeAnswerTranslator(
+            responses=[
+                AnswerResponse(type="NoAnswer", why_no_answer="none") for _ in range(5)
+            ],
+            delay=0.01,
+        )
+        search_results = make_search_results(5)
+
+        all_answers, _combined = await generate_answers(
+            translator,  # type: ignore[arg-type]
+            search_results,
+            None,  # type: ignore[arg-type]  # conversation is unused: matches are empty
+            "orig question",
+            settings=AnswerGeneratorSettings(concurrency=2, fast_stop=False),
+        )
+
+        assert translator.calls == 5
+        assert len(all_answers) == 5
+        assert translator.max_concurrent <= 2
+
+    @pytest.mark.asyncio
+    async def test_fast_stop_skips_unstarted_results(self) -> None:
+        responses = [AnswerResponse(type="Answered", answer="the answer")] + [
+            AnswerResponse(type="NoAnswer", why_no_answer="none") for _ in range(4)
+        ]
+        translator = FakeAnswerTranslator(responses=responses)
+        search_results = make_search_results(5)
+
+        all_answers, combined = await generate_answers(
+            translator,  # type: ignore[arg-type]
+            search_results,
+            None,  # type: ignore[arg-type]
+            "orig question",
+            # concurrency=1 makes execution deterministically sequential, so
+            # the first result answers before any others are started.
+            settings=AnswerGeneratorSettings(concurrency=1, fast_stop=True),
+        )
+
+        assert translator.calls == 1
+        assert len(all_answers) == 1
+        assert combined.type == "Answered"
+        assert combined.answer == "the answer"
+
+    @pytest.mark.asyncio
+    async def test_fast_stop_false_processes_all_results(self) -> None:
+        responses = [AnswerResponse(type="Answered", answer="the answer")] + [
+            AnswerResponse(type="NoAnswer", why_no_answer="none") for _ in range(4)
+        ]
+        translator = FakeAnswerTranslator(responses=responses)
+        search_results = make_search_results(5)
+
+        all_answers, _combined = await generate_answers(
+            translator,  # type: ignore[arg-type]
+            search_results,
+            None,  # type: ignore[arg-type]
+            "orig question",
+            settings=AnswerGeneratorSettings(concurrency=1, fast_stop=False),
+        )
+
+        assert translator.calls == 5
+        assert len(all_answers) == 5
