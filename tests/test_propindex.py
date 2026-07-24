@@ -52,6 +52,27 @@ async def test_add_facet(property_index: PropertyIndex):
 
 
 @pytest.mark.asyncio
+async def test_add_facet_float_value(property_index: PropertyIndex):
+    """Float facet values use :g formatting, including 0.0 (stored as "0")."""
+    await add_facet(Facet(name="score", value=0.0), property_index, 1)
+    await add_facet(Facet(name="score", value=2.0), property_index, 2)
+
+    # 0.0 is a float like any other, so it should be stored as "0", not "0.0".
+    assert (
+        await property_index.lookup_property(PropertyNames.FacetValue.value, "0")
+        is not None
+    )
+    assert (
+        await property_index.lookup_property(PropertyNames.FacetValue.value, "0.0")
+        is None
+    )
+    assert (
+        await property_index.lookup_property(PropertyNames.FacetValue.value, "2")
+        is not None
+    )
+
+
+@pytest.mark.asyncio
 async def test_add_entity_properties_to_index(property_index: PropertyIndex):
     """Test adding entity properties to the property index."""
     entity = ConcreteEntity(
