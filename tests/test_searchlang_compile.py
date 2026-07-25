@@ -182,6 +182,33 @@ class TestDateRangeFromDatetimeRange:
         assert dr.end.month == 12
         assert dr.end.day == 31
 
+    def test_date_only_stop_covers_whole_day(self) -> None:
+        # A stop date with no time should cover the whole day (end-of-day),
+        # matching the TS toStopDate. Otherwise the inclusive range drops the
+        # final requested day.
+        dtr = DateTimeRange(
+            start_date=DateTime(date=DateVal(day=1, month=1, year=2023)),
+            stop_date=DateTime(date=DateVal(day=5, month=1, year=2023)),
+        )
+        dr = date_range_from_datetime_range(dtr)
+        assert dr.end is not None
+        assert (dr.end.hour, dr.end.minute, dr.end.second) == (23, 59, 59)
+        on_last_day = datetime.datetime(2023, 1, 5, 9, 30, tzinfo=datetime.timezone.utc)
+        assert on_last_day in dr
+
+    def test_stop_with_time_is_honored(self) -> None:
+        # An explicit time on the stop date must be kept, not pushed to end-of-day.
+        dtr = DateTimeRange(
+            start_date=DateTime(date=DateVal(day=1, month=1, year=2023)),
+            stop_date=DateTime(
+                date=DateVal(day=5, month=1, year=2023),
+                time=TimeVal(hour=10, minute=0, seconds=0),
+            ),
+        )
+        dr = date_range_from_datetime_range(dtr)
+        assert dr.end is not None
+        assert (dr.end.hour, dr.end.minute) == (10, 0)
+
 
 # ---------------------------------------------------------------------------
 # compile_search_query (standalone function)

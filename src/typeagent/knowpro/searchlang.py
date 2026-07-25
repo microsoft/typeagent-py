@@ -670,7 +670,7 @@ def date_range_from_datetime_range(date_time_range: DateTimeRange) -> DateRange:
     return DateRange(
         start=datetime_from_date_time(date_time_range.start_date),
         end=(
-            datetime_from_date_time(date_time_range.stop_date)
+            stop_datetime_from_date_time(date_time_range.stop_date)
             if date_time_range.stop_date
             else None
         ),
@@ -690,6 +690,24 @@ def datetime_from_date_time(date_time: DateTime) -> Datetime:
         tzinfo=datetime.timezone.utc,
     )
     return dt
+
+
+def stop_datetime_from_date_time(date_time: DateTime) -> Datetime:
+    # Mirror of the TypeScript `toStopDate`: a date given without a time spans
+    # the whole day, so the (inclusive) end of the range is the end of that day
+    # rather than its midnight start -- otherwise the final day is excluded.
+    if date_time.time is not None:
+        return datetime_from_date_time(date_time)
+    return Datetime(
+        year=date_time.date.year,
+        month=date_time.date.month,
+        day=date_time.date.day,
+        hour=23,
+        minute=59,
+        second=59,
+        microsecond=999999,
+        tzinfo=datetime.timezone.utc,
+    )
 
 
 # TODO: Move to searchquerytranslator.py?
