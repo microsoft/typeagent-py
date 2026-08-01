@@ -2,9 +2,9 @@
 # Licensed under the MIT License.
 
 import asyncio
-import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+import os
 from typing import Any
 
 import typechat
