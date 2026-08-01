@@ -13,7 +13,7 @@ import typechat
 
 from . import knowledge_schema as kplib
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
-from ..storage.memory.semrefindex import collect_action_terms, collect_entity_terms
+from ..storage.memory import semrefindex
 from .interfaces import AddMessagesResult
 from .interfaces_core import IKnowledgeExtractor, IMessage, MessageOrdinal, TextLocation
 
@@ -251,11 +251,11 @@ def _collect_related_terms_for_fuzzy_index(
             related_terms.append(canonical)
 
     for entity in knowledge.entities:
-        for term in collect_entity_terms(entity):
+        for term in semrefindex.collect_entity_terms(entity):
             _add_term(term)
 
     for action in chain(knowledge.actions, knowledge.inverse_actions):
-        for term in collect_action_terms(action):
+        for term in semrefindex.collect_action_terms(action):
             _add_term(term)
 
     for topic in knowledge.topics:
