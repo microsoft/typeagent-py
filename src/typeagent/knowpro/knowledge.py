@@ -7,14 +7,14 @@ from dataclasses import dataclass
 
 from typechat import Result
 
-from . import knowledge_schema as kplib
 from .interfaces import IKnowledgeExtractor
+from .knowledge_schema import ConcreteEntity, Facet, KnowledgeResponse
 
 
 async def extract_knowledge_from_text(
     knowledge_extractor: IKnowledgeExtractor,
     text: str,
-) -> Result[kplib.KnowledgeResponse]:
+) -> Result[KnowledgeResponse]:
     """Extract knowledge from a single text input."""
     return await knowledge_extractor.extract(text)
 
@@ -22,7 +22,7 @@ async def extract_knowledge_from_text(
 async def batch_worker(
     q: asyncio.Queue[tuple[int, str] | None],
     knowledge_extractor: IKnowledgeExtractor,
-    results: dict[int, Result[kplib.KnowledgeResponse]],
+    results: dict[int, Result[KnowledgeResponse]],
 ) -> None:
     while item := await q.get():
         index, text = item
@@ -34,7 +34,7 @@ async def extract_knowledge_from_text_batch(
     knowledge_extractor: IKnowledgeExtractor,
     text_batch: list[str],
     concurrency: int = 4,
-) -> list[Result[kplib.KnowledgeResponse]]:
+) -> list[Result[KnowledgeResponse]]:
     """Extract knowledge from a batch of text inputs concurrently."""
     if not text_batch:
         return []
@@ -42,7 +42,7 @@ async def extract_knowledge_from_text_batch(
     q: asyncio.Queue[tuple[int, str] | None] = asyncio.Queue(
         maxsize=2 * concurrency + 2
     )
-    results: dict[int, Result[kplib.KnowledgeResponse]] = {}
+    results: dict[int, Result[KnowledgeResponse]] = {}
 
     async with asyncio.TaskGroup() as tg:
         for _ in range(concurrency):
@@ -66,9 +66,9 @@ class _MergedEntity:
 
 
 def merge_concrete_entities(
-    entities: list[kplib.ConcreteEntity],
+    entities: list[ConcreteEntity],
     normalize: Callable[[str], str] = str.lower,
-) -> list[kplib.ConcreteEntity]:
+) -> list[ConcreteEntity]:
     """Merge a list of concrete entities by name, combining types and facets.
 
     Entities with the same name (after normalization) are merged:
@@ -119,7 +119,7 @@ def merge_concrete_entities(
     # Convert merged entities back to ConcreteEntity, sorted by name
     result = []
     for merged_entity in sorted(merged.values(), key=lambda e: e.name):
-        concrete = kplib.ConcreteEntity(
+        concrete = ConcreteEntity(
             name=merged_entity.name,
             type=sorted(merged_entity.types),
         )
@@ -132,7 +132,7 @@ def merge_concrete_entities(
 
 def _add_facet_to_merged(
     merged: dict[str, set[str]],
-    facet: kplib.Facet,
+    facet: Facet,
     normalize: Callable[[str], str],
 ) -> None:
     """Add a single facet to a merged facets dict."""
@@ -142,7 +142,7 @@ def _add_facet_to_merged(
 
 
 def _facets_to_merged(
-    facets: list[kplib.Facet],
+    facets: list[Facet],
     normalize: Callable[[str], str],
 ) -> dict[str, set[str]]:
     """Convert a list of Facets to a merged facets dict.
@@ -157,7 +157,7 @@ def _facets_to_merged(
 
 def _merge_facets(
     existing: dict[str, set[str]],
-    facets: list[kplib.Facet],
+    facets: list[Facet],
     normalize: Callable[[str], str],
 ) -> None:
     """Merge facets into an existing facets dict."""
@@ -165,12 +165,12 @@ def _merge_facets(
         _add_facet_to_merged(existing, facet, normalize)
 
 
-def _merged_to_facets(merged_facets: dict[str, set[str]]) -> list[kplib.Facet]:
+def _merged_to_facets(merged_facets: dict[str, set[str]]) -> list[Facet]:
     """Convert a merged facets dict back to a list of Facets."""
     facets = []
     for name, values in sorted(merged_facets.items()):
         if values:
-            facets.append(kplib.Facet(name=name, value="; ".join(sorted(values))))
+            facets.append(Facet(name=name, value="; ".join(sorted(values))))
     return facets
 
 

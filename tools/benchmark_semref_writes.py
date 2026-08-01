@@ -27,9 +27,14 @@ import tempfile
 import time
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces_core import SemanticRef, Topic
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage.memory.semrefindex import (
     add_knowledge_batch_to_semantic_ref_index,
     text_range_from_message_chunk,
@@ -132,20 +137,18 @@ async def _individual_add_knowledge(
 # ---------------------------------------------------------------------------
 
 
-def synthetic_knowledge(chunk_index: int) -> kplib.KnowledgeResponse:
-    return kplib.KnowledgeResponse(
+def synthetic_knowledge(chunk_index: int) -> KnowledgeResponse:
+    return KnowledgeResponse(
         entities=[
-            kplib.ConcreteEntity(
+            ConcreteEntity(
                 name=f"entity_{chunk_index}_{j}",
                 type=[f"type_{j}", f"category_{chunk_index % 5}"],
-                facets=[
-                    kplib.Facet(name=f"facet_{j}", value=f"value_{j}") for j in range(2)
-                ],
+                facets=[Facet(name=f"facet_{j}", value=f"value_{j}") for j in range(2)],
             )
             for j in range(3)
         ],
         actions=[
-            kplib.Action(
+            Action(
                 verbs=[f"verb_{chunk_index}"],
                 verb_tense="past",
                 subject_entity_name=f"entity_{chunk_index}_0",

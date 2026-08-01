@@ -5,8 +5,8 @@
 
 import pytest
 
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.interfaces import Topic
+from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet
 from typeagent.storage.memory import MemorySemanticRefCollection
 from typeagent.storage.memory.semrefindex import (
     add_action,
@@ -72,7 +72,7 @@ async def test_add_facet_none_does_nothing() -> None:
 @pytest.mark.asyncio
 async def test_add_facet_string_value() -> None:
     index = make_index()
-    facet = kplib.Facet(name="colour", value="red")
+    facet = Facet(name="colour", value="red")
     await add_facet(facet, 0, index)
     terms = await index.get_terms()
     assert "colour" in terms
@@ -82,7 +82,7 @@ async def test_add_facet_string_value() -> None:
 @pytest.mark.asyncio
 async def test_add_facet_numeric_value() -> None:
     index = make_index()
-    facet = kplib.Facet(name="count", value=42.0)
+    facet = Facet(name="count", value=42.0)
     await add_facet(facet, 0, index)
     terms = await index.get_terms()
     assert "count" in terms
@@ -98,7 +98,7 @@ async def test_add_facet_numeric_value() -> None:
 async def test_add_entity_registers_name_and_types() -> None:
     semrefs = make_semrefs()
     index = make_index()
-    entity = kplib.ConcreteEntity(name="Alice", type=["person", "employee"])
+    entity = ConcreteEntity(name="Alice", type=["person", "employee"])
     terms_added: set[str] = set()
     await add_entity(
         entity,
@@ -118,10 +118,10 @@ async def test_add_entity_registers_name_and_types() -> None:
 async def test_add_entity_with_facets() -> None:
     semrefs = make_semrefs()
     index = make_index()
-    entity = kplib.ConcreteEntity(
+    entity = ConcreteEntity(
         name="Book",
         type=["item"],
-        facets=[kplib.Facet(name="genre", value="fiction")],
+        facets=[Facet(name="genre", value="fiction")],
     )
     await add_entity(entity, semrefs, index, message_ordinal=1, chunk_ordinal=0)
     terms = await index.get_terms()
@@ -161,7 +161,7 @@ async def test_add_topic_registers_text() -> None:
 async def test_add_action_registers_verbs() -> None:
     semrefs = make_semrefs()
     index = make_index()
-    action = kplib.Action(
+    action = Action(
         verbs=["run", "execute"],
         verb_tense="present",
         subject_entity_name="Alice",
@@ -188,7 +188,7 @@ async def test_add_action_registers_verbs() -> None:
 async def test_add_action_none_entities_skipped() -> None:
     semrefs = make_semrefs()
     index = make_index()
-    action = kplib.Action(
+    action = Action(
         verbs=["go"],
         verb_tense="present",
         subject_entity_name="none",

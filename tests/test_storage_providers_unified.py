@@ -20,7 +20,6 @@ from pydantic.dataclasses import dataclass
 
 from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
@@ -36,7 +35,12 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from typeagent.knowpro.knowledge_schema import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
 
@@ -412,10 +416,10 @@ async def test_property_index_population_from_semantic_refs(
     entity_ref = SemanticRef(
         semantic_ref_ordinal=initial_sem_ref_count,
         range=text_range,
-        knowledge=kplib.ConcreteEntity(
+        knowledge=ConcreteEntity(
             name="Test Entity",
             type=["person", "speaker"],
-            facets=[kplib.Facet(name="role", value="host")],
+            facets=[Facet(name="role", value="host")],
         ),
     )
 
@@ -423,7 +427,7 @@ async def test_property_index_population_from_semantic_refs(
     action_ref = SemanticRef(
         semantic_ref_ordinal=initial_sem_ref_count + 1,
         range=text_range,
-        knowledge=kplib.Action(
+        knowledge=Action(
             verbs=["discuss", "explain"],
             verb_tense="present",
             subject_entity_name="Test Entity",
