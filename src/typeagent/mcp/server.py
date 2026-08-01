@@ -30,7 +30,7 @@ from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.search_query_schema import SearchQuery
 from typeagent.podcasts import podcast
-from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
+from typeagent.storage.memory import semrefindex
 from typeagent.storage.utils import create_storage_provider
 
 # Example podcast index path for documentation and error messages
@@ -104,7 +104,7 @@ class ProcessingContext:
     lang_search_options: searchlang.LanguageSearchOptions
     answer_context_options: answers.AnswerContextOptions
     query_context: query.QueryEvalContext[
-        podcast.PodcastMessage, TermToSemanticRefIndex
+        podcast.PodcastMessage, semrefindex.TermToSemanticRefIndex
     ]
     embedding_model: embeddings.IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery]
