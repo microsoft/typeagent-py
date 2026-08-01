@@ -14,8 +14,13 @@ import typechat
 from . import knowledge_schema as kplib
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from ..storage.memory.semrefindex import collect_action_terms, collect_entity_terms
-from .interfaces import AddMessagesResult
-from .interfaces_core import IKnowledgeExtractor, IMessage, MessageOrdinal, TextLocation
+from .interfaces import (
+    AddMessagesResult,
+    IKnowledgeExtractor,
+    IMessage,
+    MessageOrdinal,
+    TextLocation,
+)
 
 __all__ = ["add_messages_streaming"]
 
