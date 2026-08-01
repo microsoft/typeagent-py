@@ -1,8 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from ..storage.memory import propindex
 from ..storage.memory.messageindex import build_message_index
-from ..storage.memory.propindex import build_property_index
 from ..storage.memory.reltermsindex import build_related_terms_index
 from ..storage.memory.timestampindex import build_timestamp_index
 from .convsettings import ConversationSettings, RelatedTermIndexSettings
@@ -66,5 +66,5 @@ async def build_transient_secondary_indexes[
             await settings.get_storage_provider(),
             settings.related_term_index_settings,
         )
-    await build_property_index(conversation)
+    await propindex.build_property_index(conversation)
     await build_timestamp_index(conversation)
