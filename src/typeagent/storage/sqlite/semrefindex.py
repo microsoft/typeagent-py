@@ -8,11 +8,17 @@ import re
 import sqlite3
 import unicodedata
 
-from ...knowpro import interfaces
-from ...knowpro.interfaces import ScoredSemanticRefOrdinal
+from ...knowpro.interfaces import (
+    ITermToSemanticRefIndex,
+    ScoredSemanticRefOrdinal,
+    ScoredSemanticRefOrdinalData,
+    SemanticRefOrdinal,
+    TermToSemanticRefIndexData,
+    TermToSemanticRefIndexItemData,
+)
 
 
-class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
+class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
     """SQLite-backed implementation of term to semantic ref index."""
 
     def __init__(self, db: sqlite3.Connection):
@@ -31,9 +37,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
     async def add_term(
         self,
         term: str,
-        semantic_ref_ordinal: (
-            interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal
-        ),
+        semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> str:
         if not term:
             return term
@@ -41,7 +45,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
         term = self._prepare_term(term)
 
         # Extract semref_id from the ordinal
-        if isinstance(semantic_ref_ordinal, interfaces.ScoredSemanticRefOrdinal):
+        if isinstance(semantic_ref_ordinal, ScoredSemanticRefOrdinal):
             semref_id = semantic_ref_ordinal.semantic_ref_ordinal
         else:
             semref_id = semantic_ref_ordinal
@@ -59,11 +63,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
 
     async def add_terms_batch(
         self,
-        terms: Sequence[
-            tuple[
-                str, interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal
-            ]
-        ],
+        terms: Sequence[tuple[str, SemanticRefOrdinal | ScoredSemanticRefOrdinal]],
     ) -> None:
         if not terms:
             return
@@ -72,7 +72,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
             if not term:
                 continue
             term = self._prepare_term(term)
-            if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):
+            if isinstance(ordinal, ScoredSemanticRefOrdinal):
                 semref_id = ordinal.semantic_ref_ordinal
             else:
                 semref_id = ordinal
@@ -85,7 +85,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
             )
 
     async def remove_term(
-        self, term: str, semantic_ref_ordinal: interfaces.SemanticRefOrdinal
+        self, term: str, semantic_ref_ordinal: SemanticRefOrdinal
     ) -> None:
         term = self._prepare_term(term)
         cursor = self.db.cursor()
@@ -94,9 +94,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
             (term, semantic_ref_ordinal),
         )
 
-    async def lookup_term(
-        self, term: str
-    ) -> list[interfaces.ScoredSemanticRefOrdinal] | None:
+    async def lookup_term(self, term: str) -> list[ScoredSemanticRefOrdinal] | None:
         term = self._prepare_term(term)
         cursor = self.db.cursor()
         cursor.execute(
@@ -116,7 +114,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM SemanticRefIndex")
 
-    async def serialize(self) -> interfaces.TermToSemanticRefIndexData:
+    async def serialize(self) -> TermToSemanticRefIndexData:
         """Serialize the index data for compatibility with in-memory version."""
         cursor = self.db.cursor()
         cursor.execute(
@@ -124,7 +122,7 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
         )
 
         # Group by term
-        term_to_semrefs: dict[str, list[interfaces.ScoredSemanticRefOrdinalData]] = {}
+        term_to_semrefs: dict[str, list[ScoredSemanticRefOrdinalData]] = {}
         for term, semref_id in cursor.fetchall():
             if term not in term_to_semrefs:
                 term_to_semrefs[term] = []
@@ -135,14 +133,14 @@ class SqliteTermToSemanticRefIndex(interfaces.ITermToSemanticRefIndex):
         items = []
         for term, semref_ordinals in term_to_semrefs.items():
             items.append(
-                interfaces.TermToSemanticRefIndexItemData(
+                TermToSemanticRefIndexItemData(
                     term=term, semanticRefOrdinals=semref_ordinals
                 )
             )
 
-        return interfaces.TermToSemanticRefIndexData(items=items)
+        return TermToSemanticRefIndexData(items=items)
 
-    async def deserialize(self, data: interfaces.TermToSemanticRefIndexData) -> None:
+    async def deserialize(self, data: TermToSemanticRefIndexData) -> None:
         """Deserialize index data by populating the SQLite table."""
         cursor = self.db.cursor()
 

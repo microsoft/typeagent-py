@@ -8,27 +8,36 @@ import sqlite3
 import typing
 
 from ...aitools.embeddings import NormalizedEmbedding
-from ...knowpro import interfaces, serialization
+from ...knowpro import serialization
+from ...knowpro.interfaces import (
+    IMessage,
+    IMessageCollection,
+    IMessageTextIndex,
+    ISemanticRefCollection,
+    SemanticRef,
+    SemanticRefData,
+    SemanticRefMetadata,
+    TextLocation,
+    TextRange,
+)
 from .schema import ShreddedMessage, ShreddedSemanticRef
 
 
-class SqliteMessageCollection[TMessage: interfaces.IMessage](
-    interfaces.IMessageCollection[TMessage]
-):
+class SqliteMessageCollection[TMessage: IMessage](IMessageCollection[TMessage]):
     """SQLite-backed message collection."""
 
     def __init__(
         self,
         db: sqlite3.Connection,
         message_type: type[TMessage] | None = None,
-        message_text_index: "interfaces.IMessageTextIndex[TMessage] | None" = None,
+        message_text_index: "IMessageTextIndex[TMessage] | None" = None,
     ):
         self.db = db
         self.message_type = message_type
         self.message_text_index = message_text_index
 
     def set_message_text_index(
-        self, message_text_index: "interfaces.IMessageTextIndex[TMessage]"
+        self, message_text_index: "IMessageTextIndex[TMessage]"
     ) -> None:
         """Set the message text index for automatic indexing of new messages."""
         self.message_text_index = message_text_index
@@ -248,7 +257,7 @@ class SqliteMessageCollection[TMessage: interfaces.IMessage](
                 )
 
 
-class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
+class SqliteSemanticRefCollection(ISemanticRefCollection):
     """SQLite-backed semantic reference collection."""
 
     def __init__(self, db: sqlite3.Connection):
@@ -256,22 +265,22 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
 
     def _deserialize_semantic_ref_from_row(
         self, row: ShreddedSemanticRef
-    ) -> interfaces.SemanticRef:
+    ) -> SemanticRef:
         """Deserialize a semantic ref from database row columns."""
         semref_id, range_json, knowledge_type, knowledge_json = row
 
         # Build semantic ref data using camelCase (JSON format)
-        semantic_ref_data = interfaces.SemanticRefData(
+        semantic_ref_data = SemanticRefData(
             semanticRefOrdinal=semref_id,
             range=json.loads(range_json),
             knowledgeType=knowledge_type,  # type: ignore
             knowledge=json.loads(knowledge_json),
         )
 
-        return interfaces.SemanticRef.deserialize(semantic_ref_data)
+        return SemanticRef.deserialize(semantic_ref_data)
 
     def _serialize_semantic_ref_to_row(
-        self, semantic_ref: interfaces.SemanticRef
+        self, semantic_ref: SemanticRef
     ) -> ShreddedSemanticRef:
         """Serialize a semantic ref object into database columns."""
         # Serialize the semantic ref to JSON first (this uses camelCase)
@@ -297,7 +306,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         cursor.execute("SELECT COUNT(*) FROM SemanticRefs")
         return cursor.fetchone()[0]
 
-    async def __aiter__(self) -> typing.AsyncGenerator[interfaces.SemanticRef, None]:
+    async def __aiter__(self) -> typing.AsyncGenerator[SemanticRef, None]:
         cursor = self.db.cursor()
         cursor.execute("""
             SELECT semref_id, range_json, knowledge_type, knowledge_json
@@ -306,7 +315,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         for row in cursor:
             yield self._deserialize_semantic_ref_from_row(row)
 
-    async def get_item(self, arg: int) -> interfaces.SemanticRef:
+    async def get_item(self, arg: int) -> SemanticRef:
         if not isinstance(arg, int):
             raise TypeError(f"Index must be an int, not {type(arg).__name__}")
         cursor = self.db.cursor()
@@ -322,7 +331,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
             return self._deserialize_semantic_ref_from_row(row)
         raise IndexError("SemanticRef not found")
 
-    async def get_slice(self, start: int, stop: int) -> list[interfaces.SemanticRef]:
+    async def get_slice(self, start: int, stop: int) -> list[SemanticRef]:
         if stop <= start:
             return []
         cursor = self.db.cursor()
@@ -337,7 +346,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
         rows = cursor.fetchall()
         return [self._deserialize_semantic_ref_from_row(row) for row in rows]
 
-    async def get_multiple(self, arg: list[int]) -> list[interfaces.SemanticRef]:
+    async def get_multiple(self, arg: list[int]) -> list[SemanticRef]:
         size = await self.size()
         if not all((0 <= i < size) for i in arg):
             raise IndexError("One or more SemanticRef indices are out of bounds")
@@ -355,7 +364,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
 
     async def get_metadata_multiple(
         self, ordinals: list[int]
-    ) -> list[interfaces.SemanticRefMetadata]:
+    ) -> list[SemanticRefMetadata]:
         if not ordinals:
             return []
         cursor = self.db.cursor()
@@ -376,15 +385,15 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
             start = range_data["start"]
             end_data = range_data.get("end")
             result.append(
-                interfaces.SemanticRefMetadata(
+                SemanticRefMetadata(
                     ordinal=row[0],
-                    range=interfaces.TextRange(
-                        start=interfaces.TextLocation(
+                    range=TextRange(
+                        start=TextLocation(
                             start["messageOrdinal"],
                             start.get("chunkOrdinal", 0),
                         ),
                         end=(
-                            interfaces.TextLocation(
+                            TextLocation(
                                 end_data["messageOrdinal"],
                                 end_data.get("chunkOrdinal", 0),
                             )
@@ -397,7 +406,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
             )
         return result
 
-    async def append(self, item: interfaces.SemanticRef) -> None:
+    async def append(self, item: SemanticRef) -> None:
         cursor = self.db.cursor()
         semref_id, range_json, knowledge_type, knowledge_json = (
             self._serialize_semantic_ref_to_row(item)
@@ -410,7 +419,7 @@ class SqliteSemanticRefCollection(interfaces.ISemanticRefCollection):
             (semref_id, range_json, knowledge_type, knowledge_json),
         )
 
-    async def extend(self, items: typing.Iterable[interfaces.SemanticRef]) -> None:
+    async def extend(self, items: typing.Iterable[SemanticRef]) -> None:
         items_list = list(items)
         if not items_list:
             return
