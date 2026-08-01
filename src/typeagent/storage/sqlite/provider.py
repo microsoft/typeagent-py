@@ -10,8 +10,7 @@ from ...aitools.model_adapters import create_embedding_model
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
 from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
-from ...knowpro.interfaces import ConversationMetadata, STATUS_INGESTED
-from ...knowpro.interfaces_storage import ChunkFailure
+from ...knowpro.interfaces import ChunkFailure, ConversationMetadata, STATUS_INGESTED
 from ..memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
