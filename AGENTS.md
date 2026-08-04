@@ -45,6 +45,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - Avoid potential import cycles between conversation orchestration and pipeline modules by using neutral payload protocols/arguments instead of importing concrete pipeline result classes across modules.
 - Prefer ordinal type aliases (e.g., `MessageOrdinal`, `ChunkOrdinal`) over raw `int` in pipeline code for readability.
 - When the user asks to "fix the test only", update tests/mocks first and avoid adding production compatibility fallbacks unless explicitly requested.
+- For date/time range handling, use the half-open interval convention `[start, stop)` (stop is exclusive), as agreed in PR #198 — this avoids the ambiguity of an inclusive end (e.g. does "end of day" mean 00:00:00 or 23:59:59.999999?). Prefer this over inclusive-end ranges even when padding the end to end-of-day would also work.
 
 ## Package Management with uv
 
