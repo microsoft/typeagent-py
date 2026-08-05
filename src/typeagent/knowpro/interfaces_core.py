@@ -360,8 +360,16 @@ class SemanticRef:
 
 @dataclass
 class DateRange:
+    """A half-open interval `[start, end)`: the end is EXCLUSIVE.
+
+    So "the whole of Jan 5" is `[Jan 5 00:00, Jan 6 00:00)`, and a caller
+    holding an inclusive bound must pass something strictly greater as `end`.
+    NOTE: `end is None` means "unbounded" here, but the timestamp indexes treat
+    a missing end as a point query.
+    """
+
     start: Datetime
-    end: Datetime | None = None  # inclusive; None means unbounded
+    end: Datetime | None = None  # exclusive; None means unbounded
 
     def __repr__(self) -> str:
         if self.end is None:
@@ -372,7 +380,7 @@ class DateRange:
     def __contains__(self, datetime: Datetime) -> bool:
         if self.end is None:
             return self.start <= datetime
-        return self.start <= datetime <= self.end
+        return self.start <= datetime < self.end
 
 
 @dataclass(unsafe_hash=True)
