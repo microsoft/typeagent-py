@@ -24,6 +24,7 @@ from typeagent.knowpro.searchlang import (
     compile_search_query,
     date_range_from_datetime_range,
     datetime_from_date_time,
+    exclusive_stop_from_date_time,
     is_entity_term_list,
     LanguageQueryCompileOptions,
     LanguageSearchFilter,
@@ -134,7 +135,8 @@ class TestOptimizeOrMax:
 
 
 # ---------------------------------------------------------------------------
-# date_range_from_datetime_range / datetime_from_date_time
+# date_range_from_datetime_range / datetime_from_date_time /
+# exclusive_stop_from_date_time
 # ---------------------------------------------------------------------------
 
 
@@ -161,6 +163,31 @@ class TestDatetimeFromDateTime:
         assert dt.second == 45
 
 
+class TestExclusiveStopFromDateTime:
+    def test_date_only_rolls_to_next_midnight(self) -> None:
+        stop = exclusive_stop_from_date_time(
+            DateTime(date=DateVal(day=15, month=6, year=2024))
+        )
+        assert stop == datetime.datetime(2024, 6, 16, tzinfo=datetime.timezone.utc)
+
+    def test_month_end_rolls_over(self) -> None:
+        stop = exclusive_stop_from_date_time(
+            DateTime(date=DateVal(day=29, month=2, year=2024))  # leap day
+        )
+        assert stop == datetime.datetime(2024, 3, 1, tzinfo=datetime.timezone.utc)
+
+    def test_explicit_time_is_kept(self) -> None:
+        stop = exclusive_stop_from_date_time(
+            DateTime(
+                date=DateVal(day=15, month=6, year=2024),
+                time=TimeVal(hour=14, minute=30, seconds=45),
+            )
+        )
+        assert stop == datetime.datetime(
+            2024, 6, 15, 14, 30, 45, tzinfo=datetime.timezone.utc
+        )
+
+
 class TestDateRangeFromDatetimeRange:
     def test_start_only(self) -> None:
         dtr = DateTimeRange(
@@ -178,9 +205,45 @@ class TestDateRangeFromDatetimeRange:
         dr = date_range_from_datetime_range(dtr)
         assert dr.start.year == 2023
         assert dr.end is not None
-        assert dr.end.year == 2023
-        assert dr.end.month == 12
-        assert dr.end.day == 31
+        # DateRange is half-open, so a date-only stop of Dec 31 becomes
+        # midnight of Jan 1 -- that is how Dec 31 itself gets included.
+        assert (dr.end.year, dr.end.month, dr.end.day) == (2024, 1, 1)
+
+    def test_date_only_stop_covers_whole_day(self) -> None:
+        # Regression test: a stop date with no time used to compile to that
+        # day's midnight, so the whole final day fell outside the range.
+        dtr = DateTimeRange(
+            start_date=DateTime(date=DateVal(day=1, month=1, year=2023)),
+            stop_date=DateTime(date=DateVal(day=5, month=1, year=2023)),
+        )
+        dr = date_range_from_datetime_range(dtr)
+        assert dr.end is not None
+        assert dr.end == datetime.datetime(2023, 1, 6, tzinfo=datetime.timezone.utc)
+        for hour, minute in ((0, 0), (9, 30), (23, 59)):
+            assert (
+                datetime.datetime(
+                    2023, 1, 5, hour, minute, tzinfo=datetime.timezone.utc
+                )
+                in dr
+            )
+        # ... and the exclusive bound itself is out.
+        assert dr.end not in dr
+
+    def test_stop_with_time_is_exclusive_bound(self) -> None:
+        # An explicit time is already the exclusive bound: keep it as-is.
+        dtr = DateTimeRange(
+            start_date=DateTime(date=DateVal(day=1, month=1, year=2023)),
+            stop_date=DateTime(
+                date=DateVal(day=5, month=1, year=2023),
+                time=TimeVal(hour=10, minute=0, seconds=0),
+            ),
+        )
+        dr = date_range_from_datetime_range(dtr)
+        assert dr.end is not None
+        assert dr.end == datetime.datetime(
+            2023, 1, 5, 10, 0, tzinfo=datetime.timezone.utc
+        )
+        assert dr.end not in dr
 
 
 # ---------------------------------------------------------------------------
