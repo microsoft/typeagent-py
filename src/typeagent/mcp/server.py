@@ -24,12 +24,14 @@ import typechat
 if coverage is not None:
     coverage.process_startup()
 
-from typeagent.aitools import embeddings, utils
-from typeagent.knowpro import answers, query, searchlang
+from typeagent.aitools import utils
+from typeagent.aitools.embeddings import IEmbeddingModel
+from typeagent.knowpro import answers, searchlang
 from typeagent.knowpro.answer_response_schema import AnswerResponse
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.query import QueryEvalContext
 from typeagent.knowpro.search_query_schema import SearchQuery
-from typeagent.podcasts import podcast
+from typeagent.podcasts.podcast import Podcast, PodcastMessage
 from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
 from typeagent.storage.utils import create_storage_provider
 
@@ -103,10 +105,8 @@ class MCPTypeChatModel(typechat.TypeChatLanguageModel):
 class ProcessingContext:
     lang_search_options: searchlang.LanguageSearchOptions
     answer_context_options: answers.AnswerContextOptions
-    query_context: query.QueryEvalContext[
-        podcast.PodcastMessage, TermToSemanticRefIndex
-    ]
-    embedding_model: embeddings.IEmbeddingModel
+    query_context: QueryEvalContext[PodcastMessage, TermToSemanticRefIndex]
+    embedding_model: IEmbeddingModel
     query_translator: typechat.TypeChatJsonTranslator[SearchQuery]
     answer_translator: typechat.TypeChatJsonTranslator[AnswerResponse]
 
@@ -136,7 +136,7 @@ async def make_context(
         settings.message_text_index_settings,
         settings.related_term_index_settings,
         dbname,
-        podcast.PodcastMessage,
+        PodcastMessage,
     )
 
     lang_search_options = searchlang.LanguageSearchOptions(
@@ -175,20 +175,20 @@ async def load_podcast_database_or_index(
     settings: ConversationSettings,
     dbname: str | None = None,
     podcast_index: str | None = None,
-) -> query.QueryEvalContext[podcast.PodcastMessage, Any]:
+) -> QueryEvalContext[PodcastMessage, Any]:
     if dbname is not None:
         # Load from SQLite database
-        conversation = await podcast.Podcast.create(settings)
+        conversation = await Podcast.create(settings)
     elif podcast_index is not None:
         # Load from JSON index files
-        conversation = await podcast.Podcast.read_from_file(podcast_index, settings)
+        conversation = await Podcast.read_from_file(podcast_index, settings)
     else:
         raise ValueError(
             "Either --database or --podcast-index must be specified. "
             "Use --podcast-index to specify the path to podcast index files "
             f"(e.g., '{_EXAMPLE_PODCAST_INDEX}')."
         )
-    return query.QueryEvalContext(conversation)
+    return QueryEvalContext(conversation)
 
 
 # Create an MCP server
