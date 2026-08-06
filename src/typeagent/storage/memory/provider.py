@@ -5,6 +5,7 @@
 
 from datetime import datetime, timezone
 
+from . import reltermsindex
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ChunkFailure,
@@ -23,7 +24,6 @@ from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .convthreads import ConversationThreads
 from .messageindex import MessageTextIndex
 from .propindex import PropertyIndex
-from .reltermsindex import RelatedTermsIndex
 from .semrefindex import TermToSemanticRefIndex
 from .timestampindex import TimestampToTextRangeIndex
 
@@ -38,7 +38,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     _property_index: PropertyIndex
     _timestamp_index: TimestampToTextRangeIndex
     _message_text_index: MessageTextIndex
-    _related_terms_index: RelatedTermsIndex
+    _related_terms_index: reltermsindex.RelatedTermsIndex
     _conversation_threads: ConversationThreads
     _ingested_sources: set[str]
     _chunk_failures: dict[tuple[int, int], ChunkFailure]
@@ -60,7 +60,9 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         self._conversation_index = TermToSemanticRefIndex()
         self._property_index = PropertyIndex()
         self._timestamp_index = TimestampToTextRangeIndex()
-        self._related_terms_index = RelatedTermsIndex(related_terms_settings)
+        self._related_terms_index = reltermsindex.RelatedTermsIndex(
+            related_terms_settings
+        )
         thread_settings = message_text_settings.embedding_index_settings
         self._conversation_threads = ConversationThreads(thread_settings)
         self._ingested_sources = set()
