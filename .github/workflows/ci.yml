@@ -50,12 +50,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14']
+        python-version: ['3.12', '3.13', '3.14', '3.15.0rc1']
         exclude:
         - os: windows-latest
           python-version: '3.13'
         - os: windows-latest
-          python-version: '3.14'
+          python-version: '3.15.0rc1'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} check (py ${{ matrix.python-version }})
 
@@ -73,7 +73,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.11.14"
+          version: "0.12.1"
 
       - name: Run Check (Linux)
         if: runner.os == 'Linux'
@@ -91,12 +91,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14']
+        python-version: ['3.12', '3.13', '3.14', '3.15.0rc1']
         exclude:
         - os: windows-latest
           python-version: '3.13'
         - os: windows-latest
           python-version: '3.14'
+        - os: windows-latest
+          python-version: '3.15.0rc1'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} format (py ${{ matrix.python-version }})
 
@@ -114,7 +116,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.11.14"
+          version: "0.12.1"
 
       - name: Run Format (Linux)
         if: runner.os == 'Linux'
@@ -132,10 +134,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14']
+        python-version: ['3.12', '3.13', '3.14', '3.15.0rc1']
         exclude:
         - os: windows-latest
           python-version: '3.13'
+        - os: windows-latest
+          python-version: '3.14'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} (py ${{ matrix.python-version }})
 
@@ -153,7 +157,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.11.14"
+          version: "0.12.1"
 
       - name: Run Test (Linux)
         if: runner.os == 'Linux'
@@ -191,7 +195,7 @@ jobs:
   #     - name: Install uv
   #       uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
   #       with:
-  #         version: "0.11.14"
+  #         version: "0.12.1"
 
   #     - name: Install Dependencies (Linux)
   #       if: runner.os == 'Linux'
