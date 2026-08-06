@@ -25,17 +25,22 @@ if /I "%~1"=="help" goto help
 echo Unknown command: %~1
 goto help
 
+:: Extra arguments are passed on to the tools, e.g. '.\make format --check'.
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
-uv run isort src tests tools examples
-uv run black -tpy312 src tests tools examples
+uv run isort src tests tools examples %2 %3 || exit /b 1
+uv run black -tpy312 src tests tools examples %2 %3 || exit /b 1
 goto end
 
+:: Keep the checked versions in sync with the 'check' target in the Makefile.
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-uv run pyright src tests tools examples
+uv run pyright --pythonversion 3.12 src tests tools examples || exit /b 1
+uv run pyright --pythonversion 3.13 src tests tools examples || exit /b 1
+uv run pyright --pythonversion 3.14 src tests tools examples || exit /b 1
+uv run pyright --pythonversion 3.15 src tests tools examples || exit /b 1
 goto end
 
 :test
