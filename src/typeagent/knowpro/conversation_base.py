@@ -37,9 +37,9 @@ from .interfaces import (
     IStorageProvider,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    TextLocation,
     Topic,
 )
-from .interfaces_core import TextLocation
 from .messageutils import get_all_message_chunk_locations
 
 TMessage = TypeVar("TMessage", bound=IMessage)

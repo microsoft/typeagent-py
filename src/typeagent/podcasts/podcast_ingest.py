@@ -8,8 +8,7 @@ import re
 import time
 
 from ..knowpro.convsettings import ConversationSettings
-from ..knowpro.interfaces import Datetime
-from ..knowpro.interfaces_core import AddMessagesResult
+from ..knowpro.interfaces import AddMessagesResult, Datetime
 from ..knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from ..storage.utils import create_storage_provider
 from .podcast import Podcast, PodcastMessage, PodcastMessageMeta
