@@ -24,32 +24,35 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
-  "Programming Language :: Python :: 3.15.0rc1",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Typing :: Typed",
 ]
 dependencies = [
-  "azure-identity>=1.22.0",
+  "azure-identity>=1.25.3",
   "colorama>=0.4.6",
-  "mcp[cli]>=1.12.1",
-  "numpy>=2.2.6",
-  "openai>=1.81.0",
-  "pydantic>=2.13.4; python_version >= '3.15'",
-  "pydantic>=2.10.0; python_version < '3.15'",
+  # mcp 2.0 dropped mcp.server.fastmcp; src/typeagent/mcp/server.py needs
+  # porting to the new MCPServer API before the cap can be lifted.
+  "mcp[cli]>=1.29.0,<2",
+  "numpy>=2.5.1",
+  "openai>=2.53.0",
+  # Only pydantic-core 2.48+ (pydantic 2.14) ships cp315 wheels.
+  "pydantic>=2.14.0b1; python_version >= '3.15'",
+  "pydantic>=2.13.4; python_version < '3.15'",
   "pydantic-ai-slim[openai]>=2.25.0",
-  "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
-  "python-dotenv>=1.1.0",
+  "pyreadline3>=3.5.6 ; sys_platform == 'win32'",
+  "python-dotenv>=1.2.2",
   "stamina>=26.1.0",
   "tiktoken>=0.13.0",
-  "typechat>=0.0.4",
+  "typechat>=0.0.5",
   "webvtt-py>=0.5.1",
 ]
 
 [project.optional-dependencies]
 # Needed to enable --logfire flag to tools/query.py
 logfire = [
-  "logfire>=4.1.0",
-  "opentelemetry-instrumentation-httpx>=0.57b0",
+  "logfire>=4.40.0",
+  "opentelemetry-instrumentation-httpx>=0.65b0",
 ]
 
 [project.urls]
@@ -58,7 +61,7 @@ Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README
 
 [tool.uv]
 constraint-dependencies = [
-    "python-multipart>=0.0.27",
+    "python-multipart>=0.0.32",
 ]
 
 [tool.uv.build-backend]
@@ -88,17 +91,17 @@ known_local_folder = ["conftest"]
 dev = [
   "azure-mgmt-authorization>=4.0.0",
   "azure-mgmt-keyvault>=14.0.1",
-  "black>=24.4.2",
-  "coverage[toml]>=7.6.0",
-  "google-api-python-client>=2.140.0",
-  "google-auth-httplib2>=0.2.0",
-  "google-auth-oauthlib>=1.2.1",
-  "isort>=5.13.2",
-  "logfire>=4.32.1",  # So 'make check' passes
-  "msgraph-sdk>=1.56.0",
-  "opentelemetry-instrumentation-httpx>=0.61b0",
-  "pyright>=1.1.390",
-  "pytest>=8.3.3",
-  "pytest-asyncio>=0.24.0",
+  "black>=26.5.1",
+  "coverage[toml]>=7.15.4",
+  "google-api-python-client>=2.198.0",
+  "google-auth-httplib2>=0.4.1",
+  "google-auth-oauthlib>=1.4.0",
+  "isort>=8.0.1",
+  "logfire>=4.40.0",  # So 'make check' passes
+  "msgraph-sdk>=1.61.0",
+  "opentelemetry-instrumentation-httpx>=0.65b0",
+  "pyright>=1.1.411",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
   "pytest-mock>=3.15.1",
 ]
