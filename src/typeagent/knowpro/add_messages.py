@@ -29,6 +29,10 @@ _EMPTY_KNOWLEDGE = kplib.KnowledgeResponse(
 )
 
 
+def _is_shutdown(event: asyncio.Event | None) -> bool:
+    return event is not None and event.is_set()
+
+
 class NoOpKnowledgeExtractor:
     """No-op extractor used when auto_extract_knowledge is False."""
 
@@ -112,6 +116,8 @@ async def _producer_task[TMessage: IMessage](
             for chunk_ordinal, chunk_text in enumerate(message.text_chunks):
                 if message_id >= stop_state.stop_at_message_id:
                     break
+                if _is_shutdown(shutdown_event):
+                    break
                 await chunk_queue.put(
                     ChunkWorkItem[TMessage](
                         chunk_id=TextLocation(message_id, chunk_ordinal),
@@ -122,8 +128,9 @@ async def _producer_task[TMessage: IMessage](
                 )
                 producer_state.produced_chunks += 1
 
-            producer_state.produced_messages += 1
-            producer_state.next_message_id += 1
+            if not _is_shutdown(shutdown_event):
+                producer_state.produced_messages += 1
+                producer_state.next_message_id += 1
     except Exception as exc:
         producer_state.exception = exc
     finally:
@@ -138,6 +145,7 @@ async def _dispatcher_task[TMessage: IMessage](
     embedding_model: IEmbeddingModel,
     concurrency: int,
     skip_failed_messages: bool,
+    shutdown_event: asyncio.Event | None = None,
 ) -> None:
     """Dispatch chunk work items to bounded per-item worker tasks.
 
@@ -153,13 +161,17 @@ async def _dispatcher_task[TMessage: IMessage](
     Args:
         skip_failed_messages: If True, don't halt producer on extraction/embedding
             failures; continue processing. If False, halt on first failure.
+        shutdown_event: If set, stop processing new chunks and let the pipeline drain.
     """
     sem = asyncio.Semaphore(concurrency)
 
     async def _process_one(work_item: ChunkWorkItem[TMessage]) -> None:
         try:
             stop_at = stop_state.stop_at_message_id
-            if work_item.chunk_id.message_ordinal >= stop_at:
+            if (
+                work_item.chunk_id.message_ordinal >= stop_at
+                or _is_shutdown(shutdown_event)
+            ):
                 result: "ChunkProcessingResult[TMessage]" = ChunkProcessingResult(
                     chunk_id=work_item.chunk_id,
                     chunk_count=work_item.chunk_count,
@@ -195,12 +207,19 @@ async def _dispatcher_task[TMessage: IMessage](
         await result_queue.put(result)
 
     async with asyncio.TaskGroup() as tg:
-        while True:
+        while not _is_shutdown(shutdown_event):
             item = await chunk_queue.get()
             if item is None:
                 break
             await sem.acquire()
             tg.create_task(_process_one(item))
+        else:
+            # Shutdown was set: drain remaining items so the producer's put()
+            # calls can unblock and it can send the None sentinel.
+            while True:
+                item = await chunk_queue.get()
+                if item is None:
+                    break
 
     await result_queue.put(None)
 
@@ -218,9 +237,6 @@ class ChunkProcessingResult[TMessage: IMessage]:
         related_terms: Lowercased, deduplicated related-term texts extracted from knowledge.
         related_term_embeddings: Embeddings for related_terms in the same order, or [] when there are no related terms.
         error: Exception from the first failing operation, or None if extraction and embedding succeeded.
-
-        The ``success`` property is True only when extraction succeeded, chunk embedding was
-        generated, related-term embeddings were generated, and no error occurred.
     """
 
     chunk_id: TextLocation
@@ -345,6 +361,7 @@ class MessageAssembly[TMessage: IMessage]:
     message: TMessage
     chunks: dict[ChunkOrdinal, ChunkProcessingResult[TMessage]]
     has_error: bool = False
+    first_error_msg: str | None = None
 
     def is_complete(self) -> bool:
         return len(self.chunks) == self.chunk_count
@@ -422,16 +439,9 @@ async def _reassembler_task[TMessage: IMessage](
                 return
             if assembly.has_error:
                 if skip_failed_messages:
-                    # Skip this failed message and continue
-                    # Find the error from one of the chunks for logging
-                    error_msg = "Unknown error"
-                    for chunk_result in assembly.chunks.values():
-                        if chunk_result.error is not None:
-                            error_msg = str(chunk_result.error)
-                            break
                     print(
                         f"Skipping message {state.first_uncommitted_ordinal} "
-                        f"due to chunk processing error: {error_msg}"
+                        f"due to chunk processing error: {assembly.first_error_msg or 'Unknown error'}"
                     )
                     del assemblies[state.first_uncommitted_ordinal]
                     state.first_uncommitted_ordinal += 1
@@ -518,6 +528,8 @@ async def _reassembler_task[TMessage: IMessage](
                 assembly.chunks[chunk_ordinal] = item
 
             if item.error is not None:
+                if not assembly.has_error:
+                    assembly.first_error_msg = str(item.error)
                 assembly.has_error = True
                 state.chunk_failures += 1
                 if not skip_failed_messages:
@@ -634,6 +646,7 @@ async def add_messages_streaming[TMessage: IMessage](
                     embedding_model,
                     concurrency=sem_ref_settings.concurrency,
                     skip_failed_messages=skip_failed_messages,
+                    shutdown_event=shutdown_event,
                 )
             )
             reassembler_task = tg.create_task(
