@@ -12,12 +12,12 @@ import pytest
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import SemanticRef, Tag, TextLocation, TextRange
+from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet
 from typeagent.podcasts.podcast import PodcastMessage
 from typeagent.storage import SqliteStorageProvider
 
@@ -53,17 +53,17 @@ async def test_property_index_population_from_database(really_needs_auth):
             SemanticRef(
                 semantic_ref_ordinal=0,
                 range=text_range,
-                knowledge=kplib.ConcreteEntity(
+                knowledge=ConcreteEntity(
                     name="John Doe",
                     type=["person", "speaker"],
-                    facets=[kplib.Facet(name="role", value="host")],
+                    facets=[Facet(name="role", value="host")],
                 ),
             ),
             # Action
             SemanticRef(
                 semantic_ref_ordinal=1,
                 range=text_range,
-                knowledge=kplib.Action(
+                knowledge=Action(
                     verbs=["discuss", "explain"],
                     verb_tense="present",
                     subject_entity_name="John Doe",

@@ -5,7 +5,6 @@ from collections.abc import Sequence
 import enum
 from typing import assert_never
 
-from ...knowpro import knowledge_schema as kplib
 from ...knowpro.collections import TextRangesInScope
 from ...knowpro.interfaces import (
     IConversation,
@@ -16,6 +15,7 @@ from ...knowpro.interfaces import (
     Tag,
     Topic,
 )
+from ...knowpro.knowledge_schema import Action, ConcreteEntity, Facet
 
 
 class PropertyNames(enum.Enum):
@@ -32,7 +32,7 @@ class PropertyNames(enum.Enum):
 
 
 async def add_facet(
-    facet: kplib.Facet | None,
+    facet: Facet | None,
     property_index: IPropertyToSemanticRefIndex,
     semantic_ref_ordinal: SemanticRefOrdinal,
 ) -> None:
@@ -55,7 +55,7 @@ async def add_facet(
 
 
 async def add_entity_properties_to_index(
-    entity: kplib.ConcreteEntity,
+    entity: ConcreteEntity,
     property_index: IPropertyToSemanticRefIndex,
     semantic_ref_ordinal: SemanticRefOrdinal,
 ) -> None:
@@ -77,7 +77,7 @@ async def add_entity_properties_to_index(
 
 
 async def add_action_properties_to_index(
-    action: kplib.Action,
+    action: Action,
     property_index: IPropertyToSemanticRefIndex,
     semantic_ref_ordinal: SemanticRefOrdinal,
 ) -> None:
@@ -111,7 +111,7 @@ async def build_property_index(conversation: IConversation) -> None:
 
 
 def collect_facet_properties(
-    facet: kplib.Facet | None,
+    facet: Facet | None,
     ordinal: SemanticRefOrdinal,
 ) -> list[tuple[str, str, SemanticRefOrdinal]]:
     """Collect property tuples from a facet without touching any index."""
@@ -129,7 +129,7 @@ def collect_facet_properties(
 
 
 def collect_entity_properties(
-    entity: kplib.ConcreteEntity,
+    entity: ConcreteEntity,
     ordinal: SemanticRefOrdinal,
 ) -> list[tuple[str, str, SemanticRefOrdinal]]:
     """Collect all property tuples for an entity."""
@@ -145,7 +145,7 @@ def collect_entity_properties(
 
 
 def collect_action_properties(
-    action: kplib.Action,
+    action: Action,
     ordinal: SemanticRefOrdinal,
 ) -> list[tuple[str, str, SemanticRefOrdinal]]:
     """Collect all property tuples for an action."""
@@ -191,13 +191,13 @@ async def add_to_property_index(
             start_at_ordinal,
         ):
             assert semantic_ref.semantic_ref_ordinal == semantic_ref_ordinal
-            if isinstance(semantic_ref.knowledge, kplib.Action):
+            if isinstance(semantic_ref.knowledge, Action):
                 collected.extend(
                     collect_action_properties(
                         semantic_ref.knowledge, semantic_ref_ordinal
                     )
                 )
-            elif isinstance(semantic_ref.knowledge, kplib.ConcreteEntity):
+            elif isinstance(semantic_ref.knowledge, ConcreteEntity):
                 collected.extend(
                     collect_entity_properties(
                         semantic_ref.knowledge, semantic_ref_ordinal

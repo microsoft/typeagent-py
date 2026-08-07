@@ -15,13 +15,10 @@ from . import (
     answer_response_schema,
     answers,
     convknowledge,
-)
-from . import (
     search_query_schema,
     searchlang,
     secindex,
 )
-from . import knowledge_schema as kplib
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import semrefindex
@@ -40,6 +37,7 @@ from .interfaces import (
     Topic,
 )
 from .interfaces_core import TextLocation
+from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 from .messageutils import get_all_message_chunk_locations
 
 TMessage = TypeVar("TMessage", bound=IMessage)
@@ -50,7 +48,7 @@ class _ChunkCommitResult(Protocol):
 
     chunk_id: TextLocation
     chunk_count: int
-    extracted_knowledge: kplib.KnowledgeResponse | None
+    extracted_knowledge: KnowledgeResponse | None
     chunk_embedding: NormalizedEmbedding | None
     related_terms: list[str] | None
     related_term_embeddings: list[NormalizedEmbedding] | None
@@ -244,7 +242,7 @@ class ConversationBase(
             return AddMessagesResult()
 
         # Process chunk results first to collect embeddings and knowledge items
-        knowledge_items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]] = []
+        knowledge_items: list[tuple[MessageOrdinal, int, KnowledgeResponse]] = []
         fuzzy_terms: list[str] = []
         fuzzy_term_embeddings: list[NormalizedEmbedding] = []
         chunk_embedding_map: dict[tuple[int, int], NormalizedEmbedding] = {}
@@ -495,11 +493,11 @@ class ConversationBase(
             new_terms = set()
             for semref in new_semrefs:
                 knowledge = semref.knowledge
-                if isinstance(knowledge, kplib.ConcreteEntity):
+                if isinstance(knowledge, ConcreteEntity):
                     new_terms.add(knowledge.name.lower())
                 elif isinstance(knowledge, Topic):
                     new_terms.add(knowledge.text.lower())
-                elif isinstance(knowledge, kplib.Action):
+                elif isinstance(knowledge, Action):
                     for verb in knowledge.verbs:
                         new_terms.add(verb.lower())
 

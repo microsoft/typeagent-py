@@ -24,9 +24,9 @@ import numpy as np
 
 from pydantic.alias_generators import to_camel
 
-from . import knowledge_schema as kplib
 from ..aitools.embeddings import NormalizedEmbeddings
 from .interfaces import ConversationDataWithIndexes, SearchTermGroupTypes, Tag, Topic
+from .knowledge_schema import Action, ConcreteEntity
 
 # -------------------
 # Shared definitions
@@ -251,8 +251,8 @@ def get_embeddings_from_binary_data(
 
 
 TYPE_MAP = {
-    "entity": kplib.ConcreteEntity,
-    "action": kplib.Action,
+    "entity": ConcreteEntity,
+    "action": Action,
     "topic": Topic,
     "tag": Tag,
 }

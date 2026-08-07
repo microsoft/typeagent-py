@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 
 import typechat
 
-from . import knowledge_schema as kplib
 from ..aitools.model_adapters import create_chat_model
+from .knowledge_schema import KnowledgeResponse
 
 
 @dataclass
@@ -17,16 +17,14 @@ class KnowledgeExtractor:
         False  # TODO: Implement merge_action_knowledge_into_response
     )
     # Not in the signature:
-    translator: typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse] = field(
-        init=False
-    )
+    translator: typechat.TypeChatJsonTranslator[KnowledgeResponse] = field(init=False)
 
     def __post_init__(self):
         self.translator = self.create_translator(self.model)
 
     # TODO: Use max_chars_per_chunk and merge_action_knowledge.
 
-    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
         result = await self.translator.translate(message)
         if isinstance(result, typechat.Success):
             if self.merge_action_knowledge:
@@ -37,12 +35,12 @@ class KnowledgeExtractor:
 
     def create_translator(
         self, model: typechat.TypeChatLanguageModel
-    ) -> typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse]:
-        schema = kplib.KnowledgeResponse
+    ) -> typechat.TypeChatJsonTranslator[KnowledgeResponse]:
+        schema = KnowledgeResponse
         type_name = "KnowledgeResponse"
-        validator = typechat.TypeChatValidator[kplib.KnowledgeResponse](schema)
-        translator = typechat.TypeChatJsonTranslator[kplib.KnowledgeResponse](
-            model, validator, kplib.KnowledgeResponse
+        validator = typechat.TypeChatValidator[KnowledgeResponse](schema)
+        translator = typechat.TypeChatJsonTranslator[KnowledgeResponse](
+            model, validator, KnowledgeResponse
         )
         schema_text = translator.schema_str.rstrip()
 
@@ -66,7 +64,7 @@ class KnowledgeExtractor:
         return translator
 
     def merge_action_knowledge_into_response(
-        self, knowledge: kplib.KnowledgeResponse
+        self, knowledge: KnowledgeResponse
     ) -> None:
         """Merge action knowledge into a single knowledge object."""
         raise NotImplementedError("TODO")

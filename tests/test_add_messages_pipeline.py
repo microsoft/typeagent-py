@@ -13,7 +13,6 @@ import pytest
 import typechat
 
 from typeagent.aitools.embeddings import NormalizedEmbedding, NormalizedEmbeddings
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.add_messages import (
     _collect_related_terms_for_fuzzy_index,
     _dispatcher_task,
@@ -30,6 +29,12 @@ from typeagent.knowpro.interfaces_core import (
     IMessageMetadata,
     TextLocation,
 )
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 
 
 @dataclass
@@ -41,18 +46,18 @@ class _Message:
     metadata: IMessageMetadata | None = None
     source_id: str | None = None
 
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
+    def get_knowledge(self) -> KnowledgeResponse:
         return _empty_knowledge()
 
 
 class _SequenceExtractor:
     def __init__(
-        self, outputs: list[typechat.Result[kplib.KnowledgeResponse] | Exception]
+        self, outputs: list[typechat.Result[KnowledgeResponse] | Exception]
     ) -> None:
         self._outputs = outputs
         self.calls: list[str] = []
 
-    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
         self.calls.append(message)
         output = self._outputs[len(self.calls) - 1]
         if isinstance(output, Exception):
@@ -150,25 +155,23 @@ def _embedding(values: list[float]) -> NormalizedEmbedding:
     return np.array(values, dtype=np.float32)
 
 
-def _empty_knowledge() -> kplib.KnowledgeResponse:
-    return kplib.KnowledgeResponse(
-        entities=[], actions=[], inverse_actions=[], topics=[]
-    )
+def _empty_knowledge() -> KnowledgeResponse:
+    return KnowledgeResponse(entities=[], actions=[], inverse_actions=[], topics=[])
 
 
-def _knowledge_with_terms() -> kplib.KnowledgeResponse:
-    entity = kplib.ConcreteEntity(
+def _knowledge_with_terms() -> KnowledgeResponse:
+    entity = ConcreteEntity(
         name=" Alice ",
         type=["Person"],
-        facets=[kplib.Facet(name="Role", value="Engineer")],
+        facets=[Facet(name="Role", value="Engineer")],
     )
-    action = kplib.Action(
+    action = Action(
         verbs=["Mentors"],
         verb_tense="present",
         subject_entity_name="Alice",
         object_entity_name="Bob",
     )
-    return kplib.KnowledgeResponse(
+    return KnowledgeResponse(
         entities=[entity],
         actions=[action],
         inverse_actions=[],

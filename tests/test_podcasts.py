@@ -10,9 +10,9 @@ import pytest
 from typechat import Result, Success
 
 from typeagent.aitools.embeddings import IEmbeddingModel
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import Datetime
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.serialization import DATA_FILE_SUFFIX, EMBEDDING_FILE_SUFFIX
 from typeagent.podcasts import podcast_ingest
 from typeagent.podcasts.podcast import Podcast
@@ -27,14 +27,14 @@ class TrackingKnowledgeExtractor:
         self.max_concurrency = 0
         self.started_texts: list[str] = []
 
-    async def extract(self, message: str) -> Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> Result[KnowledgeResponse]:
         self.started_texts.append(message)
         self.current_concurrency += 1
         self.max_concurrency = max(self.max_concurrency, self.current_concurrency)
         try:
             await asyncio.sleep(self.delay)
             return Success(
-                kplib.KnowledgeResponse(
+                KnowledgeResponse(
                     entities=[],
                     actions=[],
                     inverse_actions=[],

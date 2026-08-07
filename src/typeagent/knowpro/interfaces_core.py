@@ -20,8 +20,8 @@ from typing import (
 from pydantic.dataclasses import dataclass
 import typechat
 
-from . import knowledge_schema as kplib
 from .field_helpers import CamelCaseField
+from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 
 __all__ = [
     "AddMessagesResult",
@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 class IKnowledgeSource(Protocol):
     """A Knowledge Source is any object that returns knowledge."""
 
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
+    def get_knowledge(self) -> KnowledgeResponse:
         """Retrieves knowledge from the source."""
         ...
 
@@ -67,7 +67,7 @@ class IKnowledgeSource(Protocol):
 class IKnowledgeExtractor(Protocol):
     """Interface for extracting knowledge from messages."""
 
-    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
         """Extract knowledge from a message."""
         ...
 
@@ -212,7 +212,7 @@ class Tag:
     text: str
 
 
-type Knowledge = kplib.ConcreteEntity | kplib.Action | Topic | Tag
+type Knowledge = ConcreteEntity | Action | Topic | Tag
 
 
 class TextLocationData(TypedDict):
@@ -306,7 +306,7 @@ class TextRange:
         return TextRange.__pydantic_validator__.validate_python(data)  # type: ignore
 
 
-# TODO: Implement serializing KnowledgeData (or import from kplib).
+# TODO: Implement serializing KnowledgeData (or import from knowledge_schema).
 class KnowledgeData(TypedDict):
     pass
 
