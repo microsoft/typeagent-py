@@ -8,40 +8,61 @@
 :: use `set-alias make ".\make.bat"` in PowerShell.
 
 @echo off
+setlocal
 if "%~1"=="" goto help
 
-if /I "%~1"=="format" goto format
-if /I "%~1"=="check" goto check
-if /I "%~1"=="test" goto test
-if /I "%~1"=="coverage" goto coverage
-if /I "%~1"=="demo" goto demo
-if /I "%~1"=="build" goto build
-if /I "%~1"=="venv" goto venv
-if /I "%~1"=="sync" goto sync
-if /I "%~1"=="install-uv" goto install-uv
-if /I "%~1"=="clean" goto clean
-if /I "%~1"=="help" goto help
+:: Remember the command, then collect every remaining argument into ARGS.
+:: (The all-args variable can't be used here: 'shift' doesn't affect it.)
+set "CMD=%~1"
+set "ARGS="
+:collect
+shift
+if "%~1"=="" goto collected
+set "ARGS=%ARGS% %1"
+goto collect
 
-echo Unknown command: %~1
+:collected
+:: Drop the leading space left by the loop above.
+if defined ARGS set "ARGS=%ARGS:~1%"
+
+:dispatch
+if /I "%CMD%"=="format" goto format
+if /I "%CMD%"=="check" goto check
+if /I "%CMD%"=="test" goto test
+if /I "%CMD%"=="coverage" goto coverage
+if /I "%CMD%"=="demo" goto demo
+if /I "%CMD%"=="build" goto build
+if /I "%CMD%"=="venv" goto venv
+if /I "%CMD%"=="sync" goto sync
+if /I "%CMD%"=="install-uv" goto install-uv
+if /I "%CMD%"=="clean" goto clean
+if /I "%CMD%"=="help" goto help
+
+echo Unknown command: %CMD%
 goto help
 
+:: Extra arguments are passed on to the tools, e.g. '.\make format --check --diff'.
 :format
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
-uv run isort src tests tools examples
-uv run black -tpy312 src tests tools examples
+uv run isort src tests tools examples %ARGS% || exit /b 1
+uv run black -tpy312 src tests tools examples %ARGS% || exit /b 1
 goto end
 
+:: intentionally running pyright only for the lowest and the highest version 
+:: running it for all versions takes too much time and doesn't add enough diagnostic power
+:: Keep the checked versions in sync with the 'check' target in the Makefile.
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-uv run pyright src tests tools examples
+uv run pyright --pythonversion 3.12 src tests tools examples || exit /b 1
+uv run pyright --pythonversion 3.15 src tests tools examples || exit /b 1
 goto end
 
 :test
 if not exist ".venv\" call make.bat venv
 echo Running unit tests...
-uv run pytest
+uv run pytest %ARGS%
 goto end
 
 :coverage
@@ -50,7 +71,7 @@ if not exist ".venv\" call make.bat venv
 echo Running test coverage...
 uv run coverage erase
 set "COVERAGE_PROCESS_START=.coveragerc"
-uv run coverage run -m pytest
+uv run coverage run -m pytest %ARGS%
 uv run coverage combine
 uv run coverage report
 endlocal
@@ -60,7 +81,7 @@ goto end
 :demo
 if not exist ".venv\" call make.bat venv
 echo Running query tool...
-uv run python -m tools.query
+uv run python -m tools.query %ARGS%
 goto end
 
 :build
@@ -79,7 +100,7 @@ uv run pytest --version
 goto end
 
 :sync
-uv sync
+uv sync %ARGS%
 goto end
 
 :install-uv

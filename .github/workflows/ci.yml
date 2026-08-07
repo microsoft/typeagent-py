@@ -50,12 +50,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14', '3.15.0rc1']
+        python-version: ['3.12', '3.13', '3.14', '3.15']
         exclude:
         - os: windows-latest
           python-version: '3.13'
         - os: windows-latest
-          python-version: '3.15.0rc1'
+          python-version: '3.15'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} check (py ${{ matrix.python-version }})
 
@@ -66,14 +66,24 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.12.1"
+          version: "0.12.2"
+
+      # Without this, 'uv sync' downloads a managed Python of its own choosing
+      # and the python-version matrix has no effect at all.
+      - name: Point uv at the matrix interpreter
+        shell: bash
+        env:
+          PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
+        run: echo "UV_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
 
       - name: Run Check (Linux)
         if: runner.os == 'Linux'
@@ -91,14 +101,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14', '3.15.0rc1']
+        python-version: ['3.12', '3.13', '3.14', '3.15']
         exclude:
         - os: windows-latest
           python-version: '3.13'
         - os: windows-latest
           python-version: '3.14'
         - os: windows-latest
-          python-version: '3.15.0rc1'
+          python-version: '3.15'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} format (py ${{ matrix.python-version }})
 
@@ -109,37 +119,51 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.12.1"
+          version: "0.12.2"
 
+      # Without this, 'uv sync' downloads a managed Python of its own choosing
+      # and the python-version matrix has no effect at all.
+      - name: Point uv at the matrix interpreter
+        shell: bash
+        env:
+          PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
+        run: echo "UV_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+
+      # --check makes this fail on unformatted code instead of silently
+      # reformatting the checkout and passing.
       - name: Run Format (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
-            make format
+            make format FLAGS=--check
 
       - name: Run Format (Windows)
         if: runner.os == 'Windows'
         run: |
-            ./make.bat format
+            ./make.bat format --check
 
   offline-test:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.12', '3.13', '3.14', '3.15.0rc1']
+        python-version: ['3.12', '3.13', '3.14', '3.15']
+        # Same reduced Windows coverage as the 'check' job: oldest and newest
+        # stable, no 3.13 and no pre-release.
         exclude:
         - os: windows-latest
           python-version: '3.13'
         - os: windows-latest
-          python-version: '3.14'
+          python-version: '3.15'
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} (py ${{ matrix.python-version }})
 
@@ -150,14 +174,24 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
+        id: setup-python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
-          version: "0.12.1"
+          version: "0.12.2"
+
+      # Without this, 'uv sync' downloads a managed Python of its own choosing
+      # and the python-version matrix has no effect at all.
+      - name: Point uv at the matrix interpreter
+        shell: bash
+        env:
+          PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
+        run: echo "UV_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
 
       - name: Run Test (Linux)
         if: runner.os == 'Linux'
@@ -169,6 +203,40 @@ jobs:
         if: runner.os == 'Windows'
         run: |
             ./make.bat test
+
+  # 'make all' ends in 'make build'; without this the packaging step is
+  # never exercised in CI.
+  build:
+    runs-on: ubuntu-latest
+    name: build (py 3.14)
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+          persist-credentials: false
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.12.2"
+
+      - name: Point uv at the matrix interpreter
+        shell: bash
+        env:
+          PYTHON_PATH: ${{ steps.setup-python.outputs.python-path }}
+        run: echo "UV_PYTHON=$PYTHON_PATH" >> "$GITHUB_ENV"
+
+      - name: Run Build
+        shell: bash
+        run: |
+            make build
 
   # online-test:
   #   needs: permissions-check

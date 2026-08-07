@@ -55,6 +55,15 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - **Do NOT** manually edit `pyproject.toml` dependency versions after running uv commands
 - uv maintains consistency between `pyproject.toml`, `uv.lock`, and installed packages
 - Trust uv's automatic version resolution and file management
+- **Never raise the lower bounds in `[project.dependencies]` or `[project.optional-dependencies]`
+  as part of a dependency update.** Those bounds ship in the wheel metadata and constrain every
+  project that depends on typeagent; a high floor on a shared dependency is a common cause of
+  unsolvable resolutions for downstream users. Raise a floor only when our code actually needs
+  the newer version, and add an upper bound only for a known incompatibility (with a comment
+  saying what breaks and what it would take to lift the cap).
+- Bumping versions in `[dependency-groups] dev` is fine -- that only selects which versions the
+  dev tools run with here and in CI, and never reaches the published wheel. Same for `uv.lock`,
+  which is where routine "get the latest versions" updates belong.
 
 **IMPORTANT! YOU ARE NOT DONE UNTIL `make format check test` PASSES**
 
