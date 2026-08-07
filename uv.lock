@@ -2689,21 +2689,21 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "azure-identity", specifier = ">=1.25.3" },
+    { name = "azure-identity", specifier = ">=1.22.0" },
     { name = "colorama", specifier = ">=0.4.6" },
-    { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.40.0" },
-    { name = "mcp", extras = ["cli"], specifier = ">=1.29.0,<2" },
-    { name = "numpy", specifier = ">=2.5.1" },
-    { name = "openai", specifier = ">=2.53.0" },
-    { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'logfire'", specifier = ">=0.65b0" },
-    { name = "pydantic", marker = "python_full_version < '3.15'", specifier = ">=2.13.4" },
-    { name = "pydantic", marker = "python_full_version >= '3.15'", specifier = ">=2.14.0b1" },
+    { name = "logfire", marker = "extra == 'logfire'", specifier = ">=4.1.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.12.1,<2" },
+    { name = "numpy", specifier = ">=2.2.6" },
+    { name = "openai", specifier = ">=1.81.0" },
+    { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'logfire'", specifier = ">=0.57b0" },
+    { name = "pydantic", marker = "python_full_version < '3.15'", specifier = ">=2.10.0" },
+    { name = "pydantic", marker = "python_full_version >= '3.15'", specifier = ">=2.13.4" },
     { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=2.25.0" },
-    { name = "pyreadline3", marker = "sys_platform == 'win32'", specifier = ">=3.5.6" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "pyreadline3", marker = "sys_platform == 'win32'", specifier = ">=3.5.4" },
+    { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "stamina", specifier = ">=26.1.0" },
     { name = "tiktoken", specifier = ">=0.13.0" },
-    { name = "typechat", specifier = ">=0.0.5" },
+    { name = "typechat", specifier = ">=0.0.4" },
     { name = "webvtt-py", specifier = ">=0.5.1" },
 ]
 provides-extras = ["logfire"]
