@@ -45,7 +45,7 @@ async def add_facet(
         value = facet.value
         if value is not None:
             # If the value is a float, we use .g format store it as a string.
-            if isinstance(value, float) and value:
+            if isinstance(value, float):
                 value = f"{value:g}"
             await property_index.add_property(
                 PropertyNames.FacetValue.value,
@@ -122,7 +122,7 @@ def collect_facet_properties(
     ]
     value = facet.value
     if value is not None:
-        if isinstance(value, float) and value:
+        if isinstance(value, float):
             value = f"{value:g}"
         props.append((PropertyNames.FacetValue.value, str(value), ordinal))
     return props
