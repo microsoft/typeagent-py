@@ -127,6 +127,7 @@ please follow these guidelines:
   * Importing classes, exceptions, or constants (e.g., `from my_project.models import User`).
   * Avoiding severe, repetitive visual clutter in heavy mathematical or algorithmic code.
   * Standard library patterns (e.g., `from collections import defaultdict, Counter`).
+  * **Exception**: In `tests/`, importing functions directly to call them in assertions is idiomatic pytest style and is not held to this restriction (see #298).
 * **Prohibit Wildcard Imports:** Never use wildcard imports (`from module import *`) in normal code. **Exception**: the same explicit re-export aggregator pattern allowed by the Import Architecture Rules above (e.g. `interfaces.py` re-exporting `interfaces_core`, `interfaces_indexes`, etc. with `__all__`) — enforced by `make ruff` (see Makefile), with that file listed in `[tool.ruff.lint.per-file-ignores]`.
 
 * Order imports alphabetically after lowercasing; group them as follows
