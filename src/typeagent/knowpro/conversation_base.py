@@ -341,14 +341,22 @@ class ConversationBase(
             if result_group_index != len(source_message_ids):
                 raise ValueError("Chunk results exceed staged messages with chunks")
 
-            knowledge_items = [
-                (
-                    source_to_storage_message_id[source_message_id],
-                    chunk_ordinal,
-                    knowledge,
+            remapped_knowledge_items: list[
+                tuple[MessageOrdinal, int, kplib.KnowledgeResponse]
+            ] = []
+            for source_message_id, chunk_ordinal, knowledge in knowledge_items:
+                storage_message_id = source_to_storage_message_id.get(
+                    source_message_id
                 )
-                for source_message_id, chunk_ordinal, knowledge in knowledge_items
-            ]
+                if storage_message_id is None:
+                    raise ValueError(
+                        "No storage message id for chunk result: "
+                        f"source_message={source_message_id}, chunk={chunk_ordinal}"
+                    )
+                remapped_knowledge_items.append(
+                    (storage_message_id, chunk_ordinal, knowledge)
+                )
+            knowledge_items = remapped_knowledge_items
 
             # Use precomputed embeddings to avoid redundant embedding work
             await self.messages.extend(
