@@ -8,10 +8,10 @@ from typing import TypedDict
 
 from pydantic import AliasChoices, Field
 
-from . import knowledge_schema as kplib
 from .dataclasses import dataclass as pydantic_dataclass
 from .field_helpers import CamelCaseField
 from .interfaces import IKnowledgeSource, IMessage, IMessageMetadata
+from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 
 # Unix epoch sentinel for unknown dates (Easter egg!)
 UNIX_EPOCH = datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
@@ -94,7 +94,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
         """IMessageMetadata.dest property - returns recipients if any."""
         return self.recipients if self.recipients else None
 
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
+    def get_knowledge(self) -> KnowledgeResponse:
         """
         Extract structured knowledge from metadata.
 
@@ -103,7 +103,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
         - "Say/speak" actions linking speaker to each recipient
         """
         if not self.speaker:
-            return kplib.KnowledgeResponse(
+            return KnowledgeResponse(
                 entities=[],
                 actions=[],
                 inverse_actions=[],
@@ -111,8 +111,8 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
             )
 
         # Create speaker entity
-        entities: list[kplib.ConcreteEntity] = [
-            kplib.ConcreteEntity(
+        entities: list[ConcreteEntity] = [
+            ConcreteEntity(
                 name=self.speaker,
                 type=["person"],
             )
@@ -121,7 +121,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
         # Create recipient entities
         entities.extend(
             [
-                kplib.ConcreteEntity(
+                ConcreteEntity(
                     name=recipient,
                     type=["person"],
                 )
@@ -133,7 +133,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
         if self.recipients:
             # Podcast style: speaker says to each recipient
             actions = [
-                kplib.Action(
+                Action(
                     verbs=["say"],
                     verb_tense="past",
                     subject_entity_name=self.speaker,
@@ -145,7 +145,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
         else:
             # Transcript style: speaker speaks (no specific audience)
             actions = [
-                kplib.Action(
+                Action(
                     verbs=["say", "speak"],
                     verb_tense="past",
                     subject_entity_name=self.speaker,
@@ -154,7 +154,7 @@ class ConversationMessageMeta(IKnowledgeSource, IMessageMetadata):
                 )
             ]
 
-        return kplib.KnowledgeResponse(
+        return KnowledgeResponse(
             entities=entities,
             actions=actions,
             inverse_actions=[],
@@ -210,7 +210,7 @@ class ConversationMessage(IMessage):
     (e.g., a transcript file path or podcast episode id). See ``IMessage.source_id``.
     """
 
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
+    def get_knowledge(self) -> KnowledgeResponse:
         return self.metadata.get_knowledge()
 
     def add_timestamp(self, timestamp: str) -> None:

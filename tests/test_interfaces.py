@@ -152,6 +152,26 @@ def test_text_range_contains_with_none_end():
     assert same_point in point_range
 
 
+def test_date_range_contains_is_half_open():
+    """DateRange is [start, end): start is in, end is out."""
+    date_range = DateRange(start=Datetime(2025, 1, 1), end=Datetime(2025, 1, 10))
+
+    assert Datetime(2025, 1, 1) in date_range
+    assert Datetime(2025, 1, 5, 12, 30) in date_range
+    assert Datetime(2025, 1, 9, 23, 59, 59, 999999) in date_range
+    assert Datetime(2025, 1, 10) not in date_range  # exclusive end
+    assert Datetime(2024, 12, 31, 23, 59, 59) not in date_range
+
+
+def test_date_range_contains_with_none_end():
+    """A DateRange with no end is unbounded above."""
+    date_range = DateRange(start=Datetime(2025, 1, 1))
+
+    assert Datetime(2025, 1, 1) in date_range
+    assert Datetime(2099, 12, 31) in date_range
+    assert Datetime(2024, 12, 31) not in date_range
+
+
 def test_text_range_contains_both_none_end():
     """Test __contains__ when both ranges have None end."""
     # Both ranges are point ranges

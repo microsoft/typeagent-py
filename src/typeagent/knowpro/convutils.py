@@ -35,6 +35,13 @@ async def get_time_range_for_conversation[
 ](
     conversation: IConversation[TMessage, TIndex],
 ) -> DateRange | None:
+    """The conversation's span, for display in a prompt.
+
+    The end is the last message's own timestamp, or None if it has none (the
+    prompt renders that as "now"). It is an inclusive-looking bound, so do NOT
+    pass this range to a timestamp index lookup: `DateRange` is half-open and
+    the last message would fall outside it.
+    """
     messages = conversation.messages
     size = await messages.size()
     if size > 0:

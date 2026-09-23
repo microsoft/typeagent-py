@@ -38,15 +38,12 @@ from typeagent.aitools import embeddings, model_adapters, utils
 from typeagent.knowpro import (
     answer_response_schema,
     answers,
-)
-from typeagent.knowpro import (
     query,
     search,
     search_query_schema,
     searchlang,
     serialization,
 )
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -57,6 +54,12 @@ from typeagent.knowpro.interfaces import (
     SemanticRef,
     Tag,
     Topic,
+)
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ActionParam,
+    ConcreteEntity,
+    Quantity,
 )
 from typeagent.podcasts import podcast
 from typeagent.storage.utils import create_storage_provider
@@ -1229,19 +1232,19 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
     if knowledge is None:
         return f"{sem_ref.semantic_ref_ordinal}: <No knowledge>"
 
-    if isinstance(knowledge, kplib.ConcreteEntity):
+    if isinstance(knowledge, ConcreteEntity):
         entity = knowledge
         res = [f"{entity.name} [{', '.join(entity.type)}]"]
         if entity.facets:
             for facet in entity.facets:
                 value = facet.value
-                if isinstance(value, kplib.Quantity):
+                if isinstance(value, Quantity):
                     value = f"{value.amount} {value.units}"
                 elif isinstance(value, float) and value.is_integer():
                     value = int(value)
                 res.append(f"<{facet.name}:{value}>")
         return f"{sem_ref.semantic_ref_ordinal}: {' '.join(res)}"
-    elif isinstance(knowledge, kplib.Action):
+    elif isinstance(knowledge, Action):
         action = knowledge
         res = []
         res.append("/".join(repr(verb) for verb in action.verbs))
@@ -1255,7 +1258,7 @@ def summarize_knowledge(sem_ref: SemanticRef) -> str:
             res.append(f"ind_obj={action.indirect_object_entity_name}")
         if action.params:
             for param in action.params:
-                if isinstance(param, kplib.ActionParam):
+                if isinstance(param, ActionParam):
                     res.append(f"<{param.name}:{param.value}>")
                 else:
                     res.append(f"<{param}>")

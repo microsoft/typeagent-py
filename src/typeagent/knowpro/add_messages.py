@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING
 
 import typechat
 
-from . import knowledge_schema as kplib
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from ..storage.memory.semrefindex import collect_action_terms, collect_entity_terms
 from .interfaces import AddMessagesResult
 from .interfaces_core import IKnowledgeExtractor, IMessage, MessageOrdinal, TextLocation
+from .knowledge_schema import KnowledgeResponse
 
 __all__ = ["add_messages_streaming"]
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 type ChunkOrdinal = int
 
-_EMPTY_KNOWLEDGE = kplib.KnowledgeResponse(
+_EMPTY_KNOWLEDGE = KnowledgeResponse(
     entities=[], actions=[], inverse_actions=[], topics=[]
 )
 
@@ -32,7 +32,7 @@ _EMPTY_KNOWLEDGE = kplib.KnowledgeResponse(
 class NoOpKnowledgeExtractor:
     """No-op extractor used when auto_extract_knowledge is False."""
 
-    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
         return typechat.Success(_EMPTY_KNOWLEDGE)
 
 
@@ -226,7 +226,7 @@ class ChunkProcessingResult[TMessage: IMessage]:
     chunk_id: TextLocation
     chunk_count: int
     message: TMessage
-    extracted_knowledge: kplib.KnowledgeResponse | None = None
+    extracted_knowledge: KnowledgeResponse | None = None
     chunk_embedding: NormalizedEmbedding | None = None
     related_terms: list[str] | None = None
     related_term_embeddings: list[NormalizedEmbedding] | None = None
@@ -234,7 +234,7 @@ class ChunkProcessingResult[TMessage: IMessage]:
 
 
 def _collect_related_terms_for_fuzzy_index(
-    knowledge: kplib.KnowledgeResponse,
+    knowledge: KnowledgeResponse,
 ) -> list[str]:
     """Collect canonical related-term texts for the fuzzy related-terms index.
 

@@ -11,10 +11,12 @@ format: venv
 	uv run isort src tests tools examples $(FLAGS)
 	uv run black -tpy312 src tests tools examples $(FLAGS)
 
+# intentionally running pyright only for the lowest and the highest version 
+# running it for all versions takes too much time and doesn't add enough diagnostic power
 .PHONY: check
 check: venv
 	uv run pyright --pythonversion 3.12 src tests tools examples
-	uv run pyright --pythonversion 3.14 src tests tools examples
+	uv run pyright --pythonversion 3.15 src tests tools examples
 
 .PHONY: test
 test: venv
@@ -64,13 +66,17 @@ release: venv
 .PHONY: venv
 venv: .venv
 
-.venv:
+# Re-sync when the dependencies change, not just when .venv/ is missing.
+# The final 'touch' is needed because 'uv sync' leaves .venv/'s own timestamp
+# alone, which would make this target look perpetually out of date.
+.venv: pyproject.toml uv.lock
 	@echo "(If 'uv' fails with 'No such file or directory', try 'make install-uv')"
-	uv sync -q $(FLAGS)
+	uv sync -q
 	uv run black --version
 	@echo "(If 'pyright' fails with 'error while loading shared libraries: libatomic.so.1:', try 'make install-libatomic')"
 	uv run pyright --version
 	uv run pytest --version
+	@touch .venv
 
 .PHONY: sync
 sync:

@@ -45,6 +45,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - Avoid potential import cycles between conversation orchestration and pipeline modules by using neutral payload protocols/arguments instead of importing concrete pipeline result classes across modules.
 - Prefer ordinal type aliases (e.g., `MessageOrdinal`, `ChunkOrdinal`) over raw `int` in pipeline code for readability.
 - When the user asks to "fix the test only", update tests/mocks first and avoid adding production compatibility fallbacks unless explicitly requested.
+- For date/time range handling, use the half-open interval convention `[start, stop)` (stop is exclusive), as agreed in PR #198 — this avoids the ambiguity of an inclusive end (e.g. does "end of day" mean 00:00:00 or 23:59:59.999999?). Prefer this over inclusive-end ranges even when padding the end to end-of-day would also work.
 
 ## Package Management with uv
 
@@ -54,6 +55,15 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - **Do NOT** manually edit `pyproject.toml` dependency versions after running uv commands
 - uv maintains consistency between `pyproject.toml`, `uv.lock`, and installed packages
 - Trust uv's automatic version resolution and file management
+- **Never raise the lower bounds in `[project.dependencies]` or `[project.optional-dependencies]`
+  as part of a dependency update.** Those bounds ship in the wheel metadata and constrain every
+  project that depends on typeagent; a high floor on a shared dependency is a common cause of
+  unsolvable resolutions for downstream users. Raise a floor only when our code actually needs
+  the newer version, and add an upper bound only for a known incompatibility (with a comment
+  saying what breaks and what it would take to lift the cap).
+- Bumping versions in `[dependency-groups] dev` is fine -- that only selects which versions the
+  dev tools run with here and in CI, and never reaches the published wheel. Same for `uv.lock`,
+  which is where routine "get the latest versions" updates belong.
 
 **IMPORTANT! YOU ARE NOT DONE UNTIL `make format check test` PASSES**
 

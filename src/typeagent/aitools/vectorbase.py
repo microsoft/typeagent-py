@@ -118,7 +118,7 @@ class VectorBase:
         embedding_array = np.asarray(embedding, dtype=np.float32)
         if self._embedding_size == 0:
             self._set_embedding_size(len(embedding_array))
-            self._vectors.shape = (0, self._embedding_size)
+            self._vectors = self._vectors.reshape(0, self._embedding_size)
         if len(embedding_array) != self._embedding_size:
             raise ValueError(
                 f"Embedding size mismatch: expected {self._embedding_size}, "
@@ -136,7 +136,7 @@ class VectorBase:
             raise ValueError(f"Expected 2D embeddings array, got {embeddings.ndim}D")
         if self._embedding_size == 0:
             self._set_embedding_size(embeddings.shape[1])
-            self._vectors.shape = (0, self._embedding_size)
+            self._vectors = self._vectors.reshape(0, self._embedding_size)
         if embeddings.shape[1] != self._embedding_size:
             raise ValueError(
                 f"Embedding size mismatch: expected {self._embedding_size}, "
@@ -253,7 +253,7 @@ class VectorBase:
     def clear(self) -> None:
         self._vectors = np.array([], dtype=np.float32)
         if self._embedding_size > 0:
-            self._vectors.shape = (0, self._embedding_size)
+            self._vectors = self._vectors.reshape(0, self._embedding_size)
 
     def get_embedding_at(self, pos: int) -> NormalizedEmbedding:
         if 0 <= pos < len(self._vectors):

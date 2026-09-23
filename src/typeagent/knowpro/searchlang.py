@@ -670,7 +670,7 @@ def date_range_from_datetime_range(date_time_range: DateTimeRange) -> DateRange:
     return DateRange(
         start=datetime_from_date_time(date_time_range.start_date),
         end=(
-            datetime_from_date_time(date_time_range.stop_date)
+            exclusive_stop_from_date_time(date_time_range.stop_date)
             if date_time_range.stop_date
             else None
         ),
@@ -678,6 +678,8 @@ def date_range_from_datetime_range(date_time_range: DateTimeRange) -> DateRange:
 
 
 def datetime_from_date_time(date_time: DateTime) -> Datetime:
+    # A missing time means midnight, i.e. the START of a range;
+    # for the stop use exclusive_stop_from_date_time().
     # We ASSUME that the LLM gave the DateTime in UTC.
     # If it didn't, well, how would we know???
     dt = Datetime(
@@ -690,6 +692,18 @@ def datetime_from_date_time(date_time: DateTime) -> Datetime:
         tzinfo=datetime.timezone.utc,
     )
     return dt
+
+
+def exclusive_stop_from_date_time(date_time: DateTime) -> Datetime:
+    """The exclusive end of a half-open DateRange.
+
+    A bare date names a whole day, so roll to the next midnight -- otherwise
+    "Jan 1 to Jan 5" drops all of Jan 5. An explicit time is already exclusive.
+    """
+    stop = datetime_from_date_time(date_time)
+    if date_time.time is None:
+        stop += datetime.timedelta(days=1)
+    return stop
 
 
 # TODO: Move to searchquerytranslator.py?

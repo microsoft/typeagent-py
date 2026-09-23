@@ -7,9 +7,7 @@ from collections.abc import AsyncIterable, Callable, Sequence
 
 from typechat import Failure
 
-from ...knowpro import convknowledge
-from ...knowpro import knowledge_schema as kplib
-from ...knowpro import secindex
+from ...knowpro import convknowledge, secindex
 from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
 from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
@@ -29,6 +27,7 @@ from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     Topic,
 )
 from ...knowpro.knowledge import extract_knowledge_from_text_batch
+from ...knowpro.knowledge_schema import Action, ConcreteEntity, Facet, KnowledgeResponse
 from ...knowpro.messageutils import (
     text_range_from_message_chunk,
 )
@@ -65,7 +64,7 @@ async def add_batch_to_semantic_ref_index[
         text_batch,
         concurrency,
     )
-    bulk_items: list[tuple[int, int, kplib.KnowledgeResponse]] = []
+    bulk_items: list[tuple[int, int, KnowledgeResponse]] = []
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
             raise RuntimeError(
@@ -108,7 +107,7 @@ async def add_batch_to_semantic_ref_index_from_list[
         text_batch,
         concurrency,
     )
-    bulk_items: list[tuple[int, int, kplib.KnowledgeResponse]] = []
+    bulk_items: list[tuple[int, int, KnowledgeResponse]] = []
     for i, knowledge_result in enumerate(knowledge_results):
         if isinstance(knowledge_result, Failure):
             raise RuntimeError(
@@ -142,7 +141,7 @@ async def add_term_to_index(
 
 
 async def add_entity(
-    entity: kplib.ConcreteEntity,
+    entity: ConcreteEntity,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
@@ -187,7 +186,7 @@ async def add_entity(
 
 
 async def add_facet(
-    facet: kplib.Facet | None,
+    facet: Facet | None,
     semantic_ref_ordinal: SemanticRefOrdinal,
     semantic_ref_index: ITermToSemanticRefIndex,
     terms_added: set[str] | None = None,
@@ -246,7 +245,7 @@ async def add_topic(
 
 
 async def add_action(
-    action: kplib.Action,
+    action: Action,
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
@@ -343,7 +342,7 @@ def _collect_knowledge_refs_and_terms(
     base_ordinal: SemanticRefOrdinal,
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int,
-    knowledge: kplib.KnowledgeResponse,
+    knowledge: KnowledgeResponse,
 ) -> tuple[list[SemanticRef], list[tuple[str, SemanticRefOrdinal]]]:
     """Collect SemanticRefs and index terms without writing to storage."""
     refs: list[SemanticRef] = []
@@ -419,7 +418,7 @@ async def add_knowledge_to_semantic_ref_index(
     conversation: IConversation,
     message_ordinal: MessageOrdinal,
     chunk_ordinal: int,
-    knowledge: kplib.KnowledgeResponse,
+    knowledge: KnowledgeResponse,
 ) -> None:
     """Add knowledge to the semantic reference index of a conversation."""
     verify_has_semantic_ref_index(conversation)
@@ -445,7 +444,7 @@ async def add_knowledge_to_semantic_ref_index(
 
 async def add_knowledge_batch_to_semantic_ref_index(
     conversation: IConversation,
-    items: list[tuple[MessageOrdinal, int, kplib.KnowledgeResponse]],
+    items: list[tuple[MessageOrdinal, int, KnowledgeResponse]],
 ) -> None:
     """Bulk-add knowledge from multiple chunks in two DB round-trips."""
     if not items:
@@ -477,7 +476,7 @@ async def add_knowledge_batch_to_semantic_ref_index(
         await semantic_ref_index.add_terms_batch(all_terms)
 
 
-def validate_entity(entity: kplib.ConcreteEntity) -> bool:
+def validate_entity(entity: ConcreteEntity) -> bool:
     return bool(entity.name)
 
 
@@ -485,7 +484,7 @@ async def add_knowledge_to_index(
     semantic_refs: ISemanticRefCollection,
     semantic_ref_index: ITermToSemanticRefIndex,
     message_ordinal: MessageOrdinal,
-    knowledge: kplib.KnowledgeResponse,
+    knowledge: KnowledgeResponse,
 ) -> None:
     for entity in knowledge.entities:
         await add_entity(entity, semantic_refs, semantic_ref_index, message_ordinal)
@@ -543,7 +542,7 @@ async def add_metadata_to_index[TMessage: IMessage](
         i += 1
 
 
-def collect_facet_terms(facet: kplib.Facet | None) -> list[str]:
+def collect_facet_terms(facet: Facet | None) -> list[str]:
     """Collect terms from a facet without touching any index."""
     if facet is None:
         return []
@@ -553,7 +552,7 @@ def collect_facet_terms(facet: kplib.Facet | None) -> list[str]:
     return terms
 
 
-def collect_entity_terms(entity: kplib.ConcreteEntity) -> list[str]:
+def collect_entity_terms(entity: ConcreteEntity) -> list[str]:
     """Collect all terms an entity would add to the semantic ref index."""
     terms = [entity.name]
     for t in entity.type:
@@ -564,7 +563,7 @@ def collect_entity_terms(entity: kplib.ConcreteEntity) -> list[str]:
     return terms
 
 
-def collect_action_terms(action: kplib.Action) -> list[str]:
+def collect_action_terms(action: Action) -> list[str]:
     """Collect all terms an action would add to the semantic ref index."""
     terms = [" ".join(action.verbs)]
     if action.subject_entity_name != "none":

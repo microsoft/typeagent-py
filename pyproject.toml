@@ -1,5 +1,5 @@
 [build-system]
-requires = ["uv_build>=0.9.10,<0.11.0"]
+requires = ["uv_build>=0.9.10,<0.13"]
 build-backend = "uv_build"
 
 [project]
@@ -13,7 +13,6 @@ authors = [
   { name = "Guido van Rossum", email = "gvanrossum@microsoft.com" },
   { name = "Steven Lucco" },
   { name = "Umesh Madan" },
-  { name = "Guido van Rossum" },
 ]
 requires-python = ">=3.12"
 classifiers = [
@@ -25,25 +24,40 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Typing :: Typed",
 ]
+
+# These bounds ship in the wheel metadata, so they constrain every project that
+# depends on typeagent. Keep the lower bounds as low as they still work: when
+# two packages demand different minimums of a shared dependency, the result is
+# an unsolvable resolution for the user in the middle. So don't raise a floor
+# just because a newer release exists -- only when our code actually requires
+# it, and add an upper bound only for a known incompatibility (see mcp below).
+# Routine "update the dependencies" work belongs in uv.lock and the dev group.
 dependencies = [
   "azure-identity>=1.22.0",
   "colorama>=0.4.6",
-  "mcp[cli]>=1.12.1",
-  "numpy>=2.2.6",
+  # mcp 2.0 dropped mcp.server.fastmcp; src/typeagent/mcp/server.py needs
+  # porting to the new MCPServer API before the cap can be lifted.
+  "mcp[cli]>=1.12.1,<2",
+  "numpy>=2.5.2; python_version >= '3.15'",
+  "numpy>=2.2.6; python_version < '3.15'",
   "openai>=1.81.0",
-  "pydantic>=2.11.4",
-  "pydantic-ai-slim[openai]>=1.39.0",
+  "pydantic>=2.13.4; python_version >= '3.15'",
+  "pydantic>=2.10.0; python_version < '3.15'",
+  "pydantic-ai-slim[openai]>=2.25.0",
   "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
   "python-dotenv>=1.1.0",
   "stamina>=26.1.0",
-  "tiktoken>=0.12.0",
+  "tiktoken>=0.14.0; python_version >= '3.15'",
+  "tiktoken>=0.13.0; python_version < '3.15'",
   "typechat>=0.0.4",
   "webvtt-py>=0.5.1",
 ]
 
+# Also published in the wheel metadata -- same low-floor rule as above.
 [project.optional-dependencies]
 # Needed to enable --logfire flag to tools/query.py
 logfire = [
@@ -57,7 +71,7 @@ Documentation = "https://github.com/microsoft/typeagent-py/tree/main/docs/README
 
 [tool.uv]
 constraint-dependencies = [
-    "python-multipart>=0.0.27",
+    "python-multipart>=0.0.32",
 ]
 
 [tool.uv.build-backend]
@@ -84,20 +98,24 @@ known_first_party = ["typeagent", "tests", "tools", "gmail", "demo"]
 known_local_folder = ["conftest"]
 
 [dependency-groups]
+
+# Dev tooling never reaches the wheel metadata -- these bounds only pick which
+# versions the tools run with here and in CI, so keeping them current is fine
+# (and keeps everyone on the same formatter, type checker and test runner).
 dev = [
   "azure-mgmt-authorization>=4.0.0",
   "azure-mgmt-keyvault>=14.0.1",
-  "black>=26.3.1",
-  "coverage[toml]>=7.13.5",
-  "google-api-python-client>=2.194.0",
-  "google-auth-httplib2>=0.3.1",
-  "google-auth-oauthlib>=1.3.1",
+  "black>=26.5.1",
+  "coverage[toml]>=7.15.4",
+  "google-api-python-client>=2.198.0",
+  "google-auth-httplib2>=0.4.1",
+  "google-auth-oauthlib>=1.4.0",
   "isort>=8.0.1",
-  "logfire>=4.32.1",  # So 'make check' passes
-  "msgraph-sdk>=1.56.0",
-  "opentelemetry-instrumentation-httpx>=0.61b0",
-  "pyright>=1.1.409",
-  "pytest>=9.0.3",
-  "pytest-asyncio>=1.3.0",
+  "logfire>=4.40.0",  # So 'make check' passes
+  "msgraph-sdk>=1.61.0",
+  "opentelemetry-instrumentation-httpx>=0.65b0",
+  "pyright>=1.1.411",
+  "pytest>=9.1.1",
+  "pytest-asyncio>=1.4.0",
   "pytest-mock>=3.15.1",
 ]
