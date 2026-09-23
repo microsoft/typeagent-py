@@ -12,10 +12,10 @@ import pytest
 import typechat
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.add_messages import add_messages_streaming
 from typeagent.knowpro.convsettings import ConversationSettings
 from typeagent.knowpro.interfaces_core import IKnowledgeExtractor
+from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
     Transcript,
@@ -86,7 +86,7 @@ def _failure_count(storage: SqliteStorageProvider) -> int:
 # A test IKnowledgeExtractor that lets us control per-call results
 # ---------------------------------------------------------------------------
 
-_EMPTY_RESPONSE = kplib.KnowledgeResponse(
+_EMPTY_RESPONSE = KnowledgeResponse(
     entities=[], actions=[], inverse_actions=[], topics=[]
 )
 
@@ -109,7 +109,7 @@ class ControlledExtractor:
         self.raise_on = raise_on or set()
         self.call_count = 0
 
-    async def extract(self, message: str) -> typechat.Result[kplib.KnowledgeResponse]:
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
         idx = self.call_count
         self.call_count += 1
         if idx in self.raise_on:

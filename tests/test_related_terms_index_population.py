@@ -12,12 +12,12 @@ import pytest
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
 from typeagent.knowpro.interfaces import SemanticRef, TextLocation, TextRange
+from typeagent.knowpro.knowledge_schema import ConcreteEntity
 from typeagent.podcasts.podcast import PodcastMessage, PodcastMessageMeta
 from typeagent.storage import SqliteStorageProvider
 
@@ -73,23 +73,21 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
             SemanticRef(
                 semantic_ref_ordinal=0,
                 range=TextRange(start=TextLocation(message_ordinal=0, chunk_ordinal=0)),
-                knowledge=kplib.ConcreteEntity(
+                knowledge=ConcreteEntity(
                     name="artificial intelligence", type=["technology", "concept"]
                 ),
             ),
             SemanticRef(
                 semantic_ref_ordinal=1,
                 range=TextRange(start=TextLocation(message_ordinal=1, chunk_ordinal=0)),
-                knowledge=kplib.ConcreteEntity(
+                knowledge=ConcreteEntity(
                     name="machine learning", type=["technology", "subset of AI"]
                 ),
             ),
             SemanticRef(
                 semantic_ref_ordinal=2,
                 range=TextRange(start=TextLocation(message_ordinal=2, chunk_ordinal=0)),
-                knowledge=kplib.ConcreteEntity(
-                    name="Python", type=["programming language"]
-                ),
+                knowledge=ConcreteEntity(name="Python", type=["programming language"]),
             ),
         ]
 
@@ -103,7 +101,7 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
             knowledge = sem_ref.knowledge
             ref_ordinal = sem_ref.semantic_ref_ordinal
 
-            if isinstance(knowledge, kplib.ConcreteEntity):
+            if isinstance(knowledge, ConcreteEntity):
                 await semantic_ref_index.add_term(knowledge.name, ref_ordinal)
                 for type_name in knowledge.type:
                     await semantic_ref_index.add_term(type_name, ref_ordinal)
