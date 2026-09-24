@@ -11,12 +11,18 @@ format: venv
 	uv run isort src tests tools examples $(FLAGS)
 	uv run black -tpy312 src tests tools examples $(FLAGS)
 
-# intentionally running pyright only for the lowest and the highest version 
+# intentionally running pyright only for the lowest and the highest version
 # running it for all versions takes too much time and doesn't add enough diagnostic power
 .PHONY: check
 check: venv
 	uv run pyright --pythonversion 3.12 src tests tools examples
 	uv run pyright --pythonversion 3.15 src tests tools examples
+
+# Not wired into 'all'/CI yet -- see #116. Narrowly scoped for now to
+# deterministically banning wildcard imports (AGENTS.md's import guidelines).
+.PHONY: ruff
+ruff: venv
+	uv run ruff check src tests tools examples
 
 .PHONY: test
 test: venv
@@ -105,6 +111,7 @@ help:
 	@echo "make all         # venv, format, check, test, build"
 	@echo "make format      # Run isort and black"
 	@echo "make check       # Run pyright"
+	@echo "make ruff        # Run ruff (wildcard-import checks only, not part of 'all' yet)"
 	@echo "make test        # Run pytest (tests are in tests/)"
 	@echo "make coverage    # Run tests with coverage"
 	@echo "make build       # Build the wheel (under dist/)"
