@@ -7,9 +7,9 @@ from typing import Any
 from pydantic import Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-from ..knowpro import knowledge_schema as kplib
 from ..knowpro.field_helpers import CamelCaseField
 from ..knowpro.interfaces import IKnowledgeSource, IMessage, IMessageMetadata
+from ..knowpro.knowledge_schema import Action, ConcreteEntity, Facet, KnowledgeResponse
 
 
 @pydantic_dataclass
@@ -31,16 +31,16 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
     def dest(self) -> str | list[str] | None:  # type: ignore[reportIncompatibleVariableOverride]
         return self.recipients
 
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
-        return kplib.KnowledgeResponse(
+    def get_knowledge(self) -> KnowledgeResponse:
+        return KnowledgeResponse(
             entities=self.to_entities(),
             actions=self.to_actions(),
             inverse_actions=[],
             topics=self.to_topics(),
         )
 
-    def to_entities(self) -> list[kplib.ConcreteEntity]:
-        entities: list[kplib.ConcreteEntity] = []
+    def to_entities(self) -> list[ConcreteEntity]:
+        entities: list[ConcreteEntity] = []
 
         if self.sender:
             entities.extend(self._email_address_to_entities(self.sender))
@@ -57,7 +57,7 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
             for bcc in self.bcc:
                 entities.extend(self._email_address_to_entities(bcc))
 
-        entities.append(kplib.ConcreteEntity(name="email", type=["message"]))
+        entities.append(ConcreteEntity(name="email", type=["message"]))
         return entities
 
     def to_topics(self) -> list[str]:
@@ -66,8 +66,8 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
             topics.append(self.subject)
         return topics
 
-    def to_actions(self) -> list[kplib.Action]:
-        actions: list[kplib.Action] = []
+    def to_actions(self) -> list[Action]:
+        actions: list[Action] = []
         if self.sender and self.recipients:
             for recipient in self.recipients:
                 actions.extend(self._create_actions("sent", self.sender, recipient))
@@ -75,19 +75,17 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
         return actions
 
     # Returns the knowledge entities for a given email address string
-    def _email_address_to_entities(
-        self, email_address: str
-    ) -> list[kplib.ConcreteEntity]:
-        entities: list[kplib.ConcreteEntity] = []
+    def _email_address_to_entities(self, email_address: str) -> list[ConcreteEntity]:
+        entities: list[ConcreteEntity] = []
         display_name, address = parseaddr(email_address)
         if display_name:
-            entity = kplib.ConcreteEntity(
+            entity = ConcreteEntity(
                 name=display_name,
                 type=["person"],
             )
             if address:
                 entity.facets = [
-                    kplib.Facet(
+                    Facet(
                         name="email_address",
                         value=address,
                     )
@@ -96,18 +94,16 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
 
         if address:
             entities.append(
-                kplib.ConcreteEntity(
+                ConcreteEntity(
                     name=address,
                     type=["email_address", "alias"],
                 )
             )
         return entities
 
-    def _create_actions(
-        self, verb: str, sender: str, recipient: str
-    ) -> list[kplib.Action]:
+    def _create_actions(self, verb: str, sender: str, recipient: str) -> list[Action]:
         sender_display_name, sender_address = parseaddr(sender)
-        actions: list[kplib.Action] = []
+        actions: list[Action] = []
         if sender_display_name:
             self._add_actions_for_sender(actions, verb, sender_display_name, recipient)
 
@@ -117,7 +113,7 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
         return actions
 
     def _add_actions_for_sender(
-        self, actions: list[kplib.Action], verb: str, sender: str, recipient: str
+        self, actions: list[Action], verb: str, sender: str, recipient: str
     ) -> None:
         recipient_display_name, recipient_address = parseaddr(recipient)
         if recipient_display_name:
@@ -128,9 +124,9 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
 
     def _create_action(
         self, verb: str, sender: str, recipient: str, use_indirect: bool = True
-    ) -> kplib.Action:
+    ) -> Action:
         if use_indirect:
-            return kplib.Action(
+            return Action(
                 verbs=[verb],
                 verb_tense="past",
                 subject_entity_name=sender,
@@ -138,7 +134,7 @@ class EmailMessageMeta(IKnowledgeSource, IMessageMetadata):
                 indirect_object_entity_name=recipient,
             )
         else:
-            return kplib.Action(
+            return Action(
                 verbs=[verb],
                 verb_tense="past",
                 subject_entity_name=sender,
@@ -163,7 +159,7 @@ class EmailMessage(IMessage):
     src_url: str | None = None  # Source file or uri for this email
     source_id: str | None = None  # External source id (see IMessage.source_id)
 
-    def get_knowledge(self) -> kplib.KnowledgeResponse:
+    def get_knowledge(self) -> KnowledgeResponse:
         return self.metadata.get_knowledge()
 
     def add_timestamp(self, timestamp: str) -> None:

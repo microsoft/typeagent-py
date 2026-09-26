@@ -6,22 +6,21 @@ import pytest
 from typechat import Failure, Result, Success
 
 from typeagent.knowpro import convknowledge
-from typeagent.knowpro import knowledge_schema as kplib
 from typeagent.knowpro.knowledge import (
     extract_knowledge_from_text,
     extract_knowledge_from_text_batch,
     merge_concrete_entities,
     merge_topics,
 )
-from typeagent.knowpro.knowledge_schema import ConcreteEntity, Facet
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, Facet, KnowledgeResponse
 
 
 class MockKnowledgeExtractor:
-    async def extract(self, text: str) -> Result[kplib.KnowledgeResponse]:
+    async def extract(self, text: str) -> Result[KnowledgeResponse]:
         if text == "error":
             return Failure("Extraction failed")
         return Success(
-            kplib.KnowledgeResponse(
+            KnowledgeResponse(
                 entities=[], actions=[], inverse_actions=[], topics=[text]
             )
         )

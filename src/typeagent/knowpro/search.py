@@ -4,8 +4,8 @@
 from collections.abc import Callable
 from typing import cast, TypeGuard
 
+from ..storage.memory import reltermsindex
 from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
-from ..storage.memory.reltermsindex import resolve_related_terms
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .dataclasses import dataclass
 from .field_helpers import CamelCaseField
@@ -507,7 +507,7 @@ class QueryCompiler:
             self.secondary_indexes is not None
             and self.secondary_indexes.term_to_related_terms_index is not None
         ):
-            await resolve_related_terms(
+            await reltermsindex.resolve_related_terms(
                 self.secondary_indexes.term_to_related_terms_index,
                 compiled_terms,
                 dedupe,
