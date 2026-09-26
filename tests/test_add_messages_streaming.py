@@ -14,7 +14,7 @@ import typechat
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.add_messages import add_messages_streaming
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import IKnowledgeExtractor
+from typeagent.knowpro.interfaces_core import AddMessagesResult, IKnowledgeExtractor
 from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
@@ -97,6 +97,10 @@ class ControlledExtractor:
     ``fail_on`` is a set of 0-based call indices for which the extractor
     returns a Failure instead of a Success.
     ``raise_on`` is a set of call indices that raise an exception.
+    ``fail_on_text`` is a set of chunk texts that always fail, regardless of
+    call order -- chunks are extracted concurrently, so call indices are not
+    deterministic when the failing chunk must be a specific one.  It is a
+    mutable set so a test can "repair" the extractor between runs.
     """
 
     def __init__(
@@ -104,9 +108,11 @@ class ControlledExtractor:
         *,
         fail_on: set[int] | None = None,
         raise_on: set[int] | None = None,
+        fail_on_text: set[str] | None = None,
     ) -> None:
         self.fail_on = fail_on or set()
         self.raise_on = raise_on or set()
+        self.fail_on_text = fail_on_text or set()
         self.call_count = 0
 
     async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
@@ -116,6 +122,8 @@ class ControlledExtractor:
             raise RuntimeError(f"Systemic failure at call {idx}")
         if idx in self.fail_on:
             return typechat.Failure(f"Extraction failed for call {idx}")
+        if message in self.fail_on_text:
+            return typechat.Failure(f"Extraction failed for chunk {message!r}")
         return typechat.Success(_EMPTY_RESPONSE)
 
 
@@ -196,6 +204,36 @@ async def test_streaming_extraction_failure_stops_at_failing_message() -> None:
             await add_messages_streaming(transcript, _async_iter(msgs))
 
         assert await transcript.messages.size() == 1
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_skips_failed_message_and_commits_next_message() -> None:
+    """Skipped messages do not leave gaps in persisted message ordinals."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor(fail_on={0})
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+        messages = [
+            _make_message("failed", source_id="failed-source"),
+            _make_message("succeeds", source_id="successful-source"),
+        ]
+
+        result = await add_messages_streaming(
+            transcript,
+            _async_iter(messages),
+            skip_failed_messages=True,
+        )
+
+        assert result.messages_added == 1
+        assert result.messages_skipped == 1
+        assert result.chunks_added == 1
+        assert await transcript.messages.get_slice(0, 1) == [messages[1]]
+        assert not await storage.is_source_ingested("failed-source")
+        assert await storage.is_source_ingested("successful-source")
 
         await storage.close()
 
@@ -704,5 +742,114 @@ async def test_streaming_extraction_returns_none_for_empty_chunks() -> None:
         assert result.chunks_added == 0
         # No extraction calls since there are no chunks
         assert extractor.call_count == 0
+
+        await storage.close()
+
+
+# ---------------------------------------------------------------------------
+# Repair-and-reimport (replay) behavior
+# ---------------------------------------------------------------------------
+
+
+async def _message_texts(transcript: Transcript) -> list[str]:
+    """Return every stored chunk text, in storage order."""
+    size = await transcript.messages.size()
+    messages = await transcript.messages.get_slice(0, size)
+    return [chunk for message in messages for chunk in message.text_chunks]
+
+
+async def _replay(
+    transcript: Transcript,
+    storage: SqliteStorageProvider,
+    messages: list[TranscriptMessage],
+) -> AddMessagesResult:
+    """Re-submit ``messages``, pre-filtering sources the DB already has.
+
+    This mirrors what importers do (see ``tools/ingest_email.py``): ask the
+    storage provider which source IDs are already ingested and only stream the
+    remainder.  Re-running it must be idempotent.
+    """
+    source_ids = [m.source_id for m in messages if m.source_id is not None]
+    already_ingested = await storage.are_sources_ingested(source_ids)
+    pending = [m for m in messages if m.source_id not in already_ingested]
+    return await add_messages_streaming(
+        transcript,
+        _async_iter(pending),
+        skip_failed_messages=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_streaming_replay_after_repair_ingests_each_source_once() -> None:
+    """fail -> repair -> replay -> replay stores each source exactly once.
+
+    The first run skips a message whose extraction fails, so its source is
+    never marked ingested.  After the extractor is repaired, a replay picks up
+    only that message, and a second replay is a no-op -- no duplicates.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor(fail_on_text={"msg-1"})
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+        messages = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
+
+        # 1. Fail: msg-1 fails extraction and is skipped; the others commit.
+        first = await _replay(transcript, storage, messages)
+        assert first.messages_added == 2
+        assert first.messages_skipped == 1
+        assert await _message_texts(transcript) == ["msg-0", "msg-2"]
+        assert not await storage.is_source_ingested("s-1")
+        assert _ingested_count(storage) == 2
+
+        # 2. Repair: the extractor no longer fails on that chunk.
+        extractor.fail_on_text.clear()
+
+        # 3. Replay: only the previously failed source is re-submitted.
+        second = await _replay(transcript, storage, messages)
+        assert second.messages_added == 1
+        assert second.messages_skipped == 0
+        assert await storage.is_source_ingested("s-1")
+
+        # 4. Replay again: everything is ingested, so nothing is streamed.
+        third = await _replay(transcript, storage, messages)
+        assert third.messages_added == 0
+        assert third.messages_skipped == 0
+        assert third.chunks_added == 0
+
+        texts = await _message_texts(transcript)
+        assert len(texts) == len(set(texts))  # no duplicated messages
+        assert sorted(texts) == ["msg-0", "msg-1", "msg-2"]
+        assert await transcript.messages.size() == 3
+        assert _ingested_count(storage) == 3
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_replay_without_repair_does_not_duplicate() -> None:
+    """Replaying while the failure persists re-skips instead of duplicating."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        extractor = ControlledExtractor(fail_on_text={"msg-1"})
+        transcript, storage = await _create_transcript(
+            db_path, auto_extract=True, knowledge_extractor=extractor
+        )
+        messages = [_make_message(f"msg-{i}", source_id=f"s-{i}") for i in range(3)]
+
+        first = await _replay(transcript, storage, messages)
+        assert first.messages_added == 2
+        assert first.messages_skipped == 1
+
+        # Replay with the failure still in place: the two good sources are
+        # filtered out, and msg-1 fails and is skipped again.
+        second = await _replay(transcript, storage, messages)
+        assert second.messages_added == 0
+        assert second.messages_skipped == 1
+
+        texts = await _message_texts(transcript)
+        assert texts == ["msg-0", "msg-2"]
+        assert _ingested_count(storage) == 2
 
         await storage.close()
