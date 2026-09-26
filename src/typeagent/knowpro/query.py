@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from typing import cast, Literal, Protocol
 
 from ..aitools.embeddings import NormalizedEmbedding
+from ..storage.memory import propindex
 from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
-from ..storage.memory.propindex import lookup_property_in_property_index, PropertyNames
+from ..storage.memory.propindex import PropertyNames
 from .collections import (
     Match,
     MatchAccumulator,
@@ -600,7 +601,7 @@ class MatchPropertySearchTermExpr(MatchTermExpr):
         property_value: str,
     ) -> list[ScoredSemanticRefOrdinal] | None:
         if context.property_index is not None:
-            return await lookup_property_in_property_index(
+            return await propindex.lookup_property_in_property_index(
                 context.property_index,
                 property_name,
                 property_value,

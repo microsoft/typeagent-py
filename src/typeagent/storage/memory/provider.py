@@ -5,7 +5,7 @@
 
 from datetime import datetime, timezone
 
-from . import reltermsindex
+from . import propindex, reltermsindex
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ChunkFailure,
@@ -23,7 +23,6 @@ from ...knowpro.interfaces import (
 from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .convthreads import ConversationThreads
 from .messageindex import MessageTextIndex
-from .propindex import PropertyIndex
 from .semrefindex import TermToSemanticRefIndex
 from .timestampindex import TimestampToTextRangeIndex
 
@@ -35,7 +34,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     _semantic_ref_collection: MemorySemanticRefCollection
 
     _conversation_index: TermToSemanticRefIndex
-    _property_index: PropertyIndex
+    _property_index: propindex.PropertyIndex
     _timestamp_index: TimestampToTextRangeIndex
     _message_text_index: MessageTextIndex
     _related_terms_index: reltermsindex.RelatedTermsIndex
@@ -58,7 +57,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         self._semantic_ref_collection = MemorySemanticRefCollection()
 
         self._conversation_index = TermToSemanticRefIndex()
-        self._property_index = PropertyIndex()
+        self._property_index = propindex.PropertyIndex()
         self._timestamp_index = TimestampToTextRangeIndex()
         self._related_terms_index = reltermsindex.RelatedTermsIndex(
             related_terms_settings
