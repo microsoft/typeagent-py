@@ -34,9 +34,9 @@ from .interfaces import (
     IStorageProvider,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    TextLocation,
     Topic,
 )
-from .interfaces_core import TextLocation
 from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 from .messageutils import get_all_message_chunk_locations
 
