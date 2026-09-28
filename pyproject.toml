@@ -97,6 +97,19 @@ known_ai = ["mcp", "openai", "pydantic", "pydantic_ai", "tiktoken", "typechat"]
 known_first_party = ["typeagent", "tests", "tools", "gmail", "demo"]
 known_local_folder = ["conftest"]
 
+# isort/black/pyright already cover ordering, formatting and unused/duplicate
+# imports (see above). Ruff is scoped narrowly to the one gap those don't
+# fill: deterministically banning wildcard imports, per AGENTS.md's "Python
+# Import Style Guidelines". Broader adoption of ruff as an isort/black
+# replacement was considered and deferred in #116.
+[tool.ruff.lint]
+select = ["F403", "F405"]
+
+[tool.ruff.lint.per-file-ignores]
+# Explicit re-export aggregator (see AGENTS.md's "Import Architecture Rules"
+# and "Prohibit Wildcard Imports" exceptions).
+"src/typeagent/knowpro/interfaces.py" = ["F403", "F405"]
+
 [dependency-groups]
 
 # Dev tooling never reaches the wheel metadata -- these bounds only pick which
@@ -118,4 +131,5 @@ dev = [
   "pytest>=9.1.1",
   "pytest-asyncio>=1.4.0",
   "pytest-mock>=3.15.1",
+  "ruff>=0.16.4",
 ]
