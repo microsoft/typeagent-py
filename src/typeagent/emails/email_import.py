@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from datetime import datetime
+from datetime import datetime, timezone
 from email import message_from_string
 from email.header import decode_header, Header, make_header
 from email.message import Message
@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 from typing import Iterable, overload
 
+from ..knowpro.universal_message import format_timestamp_utc
 from .email_message import EmailMessage, EmailMessageMeta
 
 
@@ -100,7 +101,12 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     timestamp: str | None = None
     timestamp_date = msg.get("Date", None)
     if timestamp_date is not None:
-        timestamp = parsedate_to_datetime(timestamp_date).isoformat()
+        parsed_date = parsedate_to_datetime(timestamp_date)
+        if parsed_date.tzinfo is None:
+            # RFC 5322 "-0000": time is UTC but the origin zone is unknown.
+            parsed_date = parsed_date.replace(tzinfo=timezone.utc)
+        # Normalize to UTC so timestamps sort lexicographically across senders.
+        timestamp = format_timestamp_utc(parsed_date)
 
     # Get email body.
     # If the email was a reply, then ensure we only pick up the latest response
