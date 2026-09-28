@@ -8,9 +8,15 @@ import sqlite3
 
 from ...aitools.model_adapters import create_embedding_model
 from ...aitools.vectorbase import TextEmbeddingIndexSettings
-from ...knowpro import interfaces
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
-from ...knowpro.interfaces import ChunkFailure, ConversationMetadata, STATUS_INGESTED
+from ...knowpro.interfaces import (
+    ChunkFailure,
+    ConversationMetadata,
+    IMessage,
+    IStorageProvider,
+    SemanticRef,
+    STATUS_INGESTED,
+)
 from ..memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
@@ -26,9 +32,7 @@ from .semrefindex import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex
 
 
-class SqliteStorageProvider[TMessage: interfaces.IMessage](
-    interfaces.IStorageProvider[TMessage]
-):
+class SqliteStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     """SQLite-backed storage provider implementation.
 
     This provider performs consistency checks on database initialization to ensure
@@ -40,7 +44,7 @@ class SqliteStorageProvider[TMessage: interfaces.IMessage](
         self,
         db_path: str = ":memory:",
         message_type: type[TMessage] = None,  # type: ignore
-        semantic_ref_type: type[interfaces.SemanticRef] = None,  # type: ignore
+        semantic_ref_type: type[SemanticRef] = None,  # type: ignore
         message_text_index_settings: MessageTextIndexSettings | None = None,
         related_term_index_settings: RelatedTermIndexSettings | None = None,
         metadata: ConversationMetadata | None = None,

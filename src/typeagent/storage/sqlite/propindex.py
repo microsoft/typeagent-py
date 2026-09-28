@@ -6,12 +6,15 @@
 from collections.abc import Sequence
 import sqlite3
 
-from ...knowpro import interfaces
-from ...knowpro.interfaces import ScoredSemanticRefOrdinal
+from ...knowpro.interfaces import (
+    IPropertyToSemanticRefIndex,
+    ScoredSemanticRefOrdinal,
+    SemanticRefOrdinal,
+)
 from ...storage.memory import propindex
 
 
-class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
+class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
     """SQLite-backed implementation of property to semantic ref index."""
 
     def __init__(self, db: sqlite3.Connection):
@@ -35,12 +38,10 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
         self,
         property_name: str,
         value: str,
-        semantic_ref_ordinal: (
-            interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal
-        ),
+        semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> None:
         # Extract semref_id and score from the ordinal
-        if isinstance(semantic_ref_ordinal, interfaces.ScoredSemanticRefOrdinal):
+        if isinstance(semantic_ref_ordinal, ScoredSemanticRefOrdinal):
             semref_id = semantic_ref_ordinal.semantic_ref_ordinal
             score = semantic_ref_ordinal.score
         else:
@@ -70,7 +71,7 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             tuple[
                 str,
                 str,
-                interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal,
+                SemanticRefOrdinal | ScoredSemanticRefOrdinal,
             ]
         ],
     ) -> None:
@@ -78,7 +79,7 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             return
         rows = []
         for property_name, value, ordinal in properties:
-            if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):
+            if isinstance(ordinal, ScoredSemanticRefOrdinal):
                 semref_id = ordinal.semantic_ref_ordinal
                 score = ordinal.score
             else:
@@ -104,7 +105,7 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
         self,
         property_name: str,
         value: str,
-    ) -> list[interfaces.ScoredSemanticRefOrdinal] | None:
+    ) -> list[ScoredSemanticRefOrdinal] | None:
         # Normalize property name and value (to match in-memory implementation)
         term_text = propindex.make_property_term_text(property_name, value)
         term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
