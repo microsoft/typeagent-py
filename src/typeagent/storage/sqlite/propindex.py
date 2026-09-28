@@ -6,12 +6,12 @@
 from collections.abc import Sequence
 import sqlite3
 
+from ...knowpro.common import normalize_term
 from ...knowpro.interfaces import (
     IPropertyToSemanticRefIndex,
     ScoredSemanticRefOrdinal,
     SemanticRefOrdinal,
 )
-from ...storage.memory import propindex
 
 
 class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
@@ -49,12 +49,8 @@ class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
             score = 1.0
 
         # Normalize property name and value (to match in-memory implementation)
-        term_text = propindex.make_property_term_text(property_name, value)
-        term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
-        property_name, value = propindex.split_property_term_text(term_text)
-        # Remove "prop." prefix that was added by make_property_term_text
-        if property_name.startswith("prop."):
-            property_name = property_name[5:]
+        property_name = normalize_term(property_name)
+        value = normalize_term(value)
 
         cursor = self.db.cursor()
         cursor.execute(
@@ -85,12 +81,9 @@ class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
             else:
                 semref_id = ordinal
                 score = 1.0
-            term_text = propindex.make_property_term_text(property_name, value)
-            term_text = term_text.lower()
-            property_name, value = propindex.split_property_term_text(term_text)
-            if property_name.startswith("prop."):
-                property_name = property_name[5:]
-            rows.append((property_name, value, score, semref_id))
+            rows.append(
+                (normalize_term(property_name), normalize_term(value), score, semref_id)
+            )
         cursor = self.db.cursor()
         cursor.executemany(
             "INSERT INTO PropertyIndex (prop_name, value_str, score, semref_id) VALUES (?, ?, ?, ?)",
@@ -107,12 +100,8 @@ class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
         value: str,
     ) -> list[ScoredSemanticRefOrdinal] | None:
         # Normalize property name and value (to match in-memory implementation)
-        term_text = propindex.make_property_term_text(property_name, value)
-        term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
-        property_name, value = propindex.split_property_term_text(term_text)
-        # Remove "prop." prefix that was added by make_property_term_text
-        if property_name.startswith("prop."):
-            property_name = property_name[5:]
+        property_name = normalize_term(property_name)
+        value = normalize_term(value)
 
         cursor = self.db.cursor()
         cursor.execute(

@@ -6,6 +6,7 @@ import enum
 from typing import assert_never
 
 from ...knowpro.collections import TextRangesInScope
+from ...knowpro.common import normalize_term
 from ...knowpro.interfaces import (
     IConversation,
     IPropertyToSemanticRefIndex,
@@ -240,13 +241,12 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
         value: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> None:
-        term_text = make_property_term_text(property_name, value)
+        term_text = self._make_term_text(property_name, value)
         if isinstance(semantic_ref_ordinal, int):
             semantic_ref_ordinal = ScoredSemanticRefOrdinal(
                 semantic_ref_ordinal,
                 1.0,
             )
-        term_text = self._prepare_term_text(term_text)
         if term_text in self._map:
             self._map[term_text].append(semantic_ref_ordinal)
         else:
@@ -269,8 +269,7 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
         property_name: str,
         value: str,
     ) -> list[ScoredSemanticRefOrdinal] | None:
-        term_text = make_property_term_text(property_name, value)
-        return self._map.get(self._prepare_term_text(term_text))
+        return self._map.get(self._make_term_text(property_name, value))
 
     async def remove_property(self, prop_name: str, semref_id: int) -> None:
         """Remove all properties for a specific property name and semantic ref."""
@@ -315,7 +314,13 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
 
     def _prepare_term_text(self, term_text: str) -> str:
         """Do any pre-processing of the term."""
-        return term_text.lower()
+        return normalize_term(term_text)
+
+    def _make_term_text(self, property_name: str, value: str) -> str:
+        """Build the normalized key; must match the SQLite property index."""
+        return make_property_term_text(
+            normalize_term(property_name), normalize_term(value)
+        )
 
 
 async def lookup_property_in_property_index(

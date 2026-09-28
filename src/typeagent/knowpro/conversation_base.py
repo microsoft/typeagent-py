@@ -22,6 +22,7 @@ from . import (
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import semrefindex
+from .common import normalize_term
 from .convsettings import ConversationSettings
 from .interfaces import (
     AddMessagesResult,
@@ -494,12 +495,12 @@ class ConversationBase(
             for semref in new_semrefs:
                 knowledge = semref.knowledge
                 if isinstance(knowledge, ConcreteEntity):
-                    new_terms.add(knowledge.name.lower())
+                    new_terms.add(normalize_term(knowledge.name))
                 elif isinstance(knowledge, Topic):
-                    new_terms.add(knowledge.text.lower())
+                    new_terms.add(normalize_term(knowledge.text))
                 elif isinstance(knowledge, Action):
                     for verb in knowledge.verbs:
-                        new_terms.add(verb.lower())
+                        new_terms.add(normalize_term(verb))
 
             if new_terms:
                 await fuzzy_index.add_terms(list(new_terms))
