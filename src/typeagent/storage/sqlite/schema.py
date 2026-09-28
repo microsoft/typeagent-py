@@ -33,8 +33,17 @@ CREATE TABLE IF NOT EXISTS Messages (
 );
 """
 
+# Normalizes an ISO timestamp (any UTC offset, any fractional precision) to a
+# fixed-width UTC string that sorts chronologically. Millisecond precision.
+NORMALIZED_TIMESTAMP_SQL = "strftime('%Y-%m-%dT%H:%M:%f', {value})"
+
 TIMESTAMP_INDEX_SCHEMA = """
 CREATE INDEX IF NOT EXISTS idx_messages_start_timestamp ON Messages(start_timestamp);
+"""
+
+NORMALIZED_TIMESTAMP_INDEX_SCHEMA = f"""
+CREATE INDEX IF NOT EXISTS idx_messages_start_timestamp_utc
+    ON Messages({NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")});
 """
 
 # Conversation metadata table (key-value pairs)
@@ -292,6 +301,7 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(RELATED_TERMS_ALIASES_SCHEMA)
     cursor.execute(RELATED_TERMS_FUZZY_SCHEMA)
     cursor.execute(TIMESTAMP_INDEX_SCHEMA)
+    cursor.execute(NORMALIZED_TIMESTAMP_INDEX_SCHEMA)
     cursor.execute(INGESTED_SOURCES_SCHEMA)
     cursor.execute(CHUNK_FAILURES_SCHEMA)
 
