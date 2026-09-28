@@ -74,9 +74,7 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
         for msg_id, timestamp in cursor.fetchall():
             # Create text range for message
             text_range = interfaces.TextRange(
-                start=interfaces.TextLocation(
-                    message_ordinal=msg_id, chunk_ordinal=0
-                )
+                start=interfaces.TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
             )
             results.append(
                 interfaces.TimestampedTextRange(range=text_range, timestamp=timestamp)
