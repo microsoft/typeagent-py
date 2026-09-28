@@ -3,6 +3,7 @@
 
 """Memory and SQLite term indexes must normalize terms identically (#322)."""
 
+from collections.abc import Generator
 import sqlite3
 
 import pytest
@@ -35,7 +36,9 @@ def test_normalize_term(raw: str, expected: str) -> None:
 
 
 @pytest.fixture(params=["memory", "sqlite"])
-def term_index(request: pytest.FixtureRequest):
+def term_index(
+    request: pytest.FixtureRequest,
+) -> Generator[ITermToSemanticRefIndex, None, None]:
     if request.param == "memory":
         yield TermToSemanticRefIndex()
     else:
@@ -46,7 +49,9 @@ def term_index(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(params=["memory", "sqlite"])
-def prop_index(request: pytest.FixtureRequest):
+def prop_index(
+    request: pytest.FixtureRequest,
+) -> Generator[IPropertyToSemanticRefIndex, None, None]:
     if request.param == "memory":
         yield PropertyIndex()
     else:
@@ -118,3 +123,24 @@ async def test_property_index_normalizes_values(
     assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
     found = await prop_index.lookup_property("NAME", " Space\tNeedle")
     assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
+
+
+@pytest.mark.asyncio
+async def test_property_index_remove_property_normalizes_name(
+    prop_index: IPropertyToSemanticRefIndex,
+) -> None:
+    await prop_index.add_property(" Name ", "x", 1)
+    await prop_index.remove_property(" NAME", 1)
+    assert not await prop_index.lookup_property("name", "x")
+
+
+@pytest.mark.asyncio
+async def test_term_index_roundtrips_empty_normalized_term(
+    term_index: ITermToSemanticRefIndex,
+) -> None:
+    await term_index.add_term(" ", 3)
+    data = await term_index.serialize()
+    await term_index.clear()
+    await term_index.deserialize(data)
+    found = await term_index.lookup_term("")
+    assert found is not None and [r.semantic_ref_ordinal for r in found] == [3]

@@ -491,7 +491,7 @@ class ConversationBase(
 
         fuzzy_index = self.secondary_indexes.term_to_related_terms_index.fuzzy_index
         if fuzzy_index is not None and new_semrefs:
-            new_terms = set()
+            new_terms: set[str] = set()
             for semref in new_semrefs:
                 knowledge = semref.knowledge
                 if isinstance(knowledge, ConcreteEntity):
@@ -501,6 +501,7 @@ class ConversationBase(
                 elif isinstance(knowledge, Action):
                     for verb in knowledge.verbs:
                         new_terms.add(normalize_term(verb))
+            new_terms.discard("")  # Whitespace-only terms must not be embedded
 
             if new_terms:
                 await fuzzy_index.add_terms(list(new_terms))
