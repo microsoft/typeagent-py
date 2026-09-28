@@ -28,6 +28,7 @@ if defined ARGS set "ARGS=%ARGS:~1%"
 :dispatch
 if /I "%CMD%"=="format" goto format
 if /I "%CMD%"=="check" goto check
+if /I "%CMD%"=="ruff" goto ruff
 if /I "%CMD%"=="test" goto test
 if /I "%CMD%"=="coverage" goto coverage
 if /I "%CMD%"=="demo" goto demo
@@ -57,6 +58,14 @@ if not exist ".venv\" call make.bat venv
 echo Running type checks...
 uv run pyright --pythonversion 3.12 src tests tools examples || exit /b 1
 uv run pyright --pythonversion 3.15 src tests tools examples || exit /b 1
+goto end
+
+:: Not wired into CI yet -- see #116. Narrowly scoped for now to
+:: deterministically banning wildcard imports (AGENTS.md's import guidelines).
+:ruff
+if not exist ".venv\" call make.bat venv
+echo Running ruff...
+uv run ruff check src tests tools examples || exit /b 1
 goto end
 
 :test
@@ -123,7 +132,7 @@ if exist .pytest_cache rmdir /s /q .pytest_cache
 goto end
 
 :help
-echo Usage: .\make [format^|check^|test^|coverage^|demo^|build^|venv^|sync^|install-uv^|clean^|help]
+echo Usage: .\make [format^|check^|ruff^|test^|coverage^|demo^|build^|venv^|sync^|install-uv^|clean^|help]
 goto end
 
 :end

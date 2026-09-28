@@ -120,6 +120,16 @@ please follow these guidelines:
   - **Exception**: Explicit re-export patterns like `from ... import X as X` or marked with "# For export"
   - This prevents circular imports and makes dependencies clear
 
+## Python Import Style Guidelines
+
+* **Default to Module-Qualified Imports:** Prefer importing whole modules and using qualified calls (e.g., `import math; math.sqrt(16)` or `import pandas as pd; pd.DataFrame()`) to prevent namespace pollution, avoid name clashes, and provide immediate context for where functions or objects originate.
+* **Use Direct Symbol Imports Cautiously:** Restrict direct imports (`from module import symbol`) to specific scenarios where they genuinely improve readability or adhere to standard conventions:
+  * Importing classes, exceptions, or constants (e.g., `from my_project.models import User`).
+  * Avoiding severe, repetitive visual clutter in heavy mathematical or algorithmic code.
+  * Standard library patterns (e.g., `from collections import defaultdict, Counter`).
+  * **Exception**: In `tests/`, importing functions directly to call them in assertions is idiomatic pytest style and is not held to this restriction (see #298).
+* **Prohibit Wildcard Imports:** Never use wildcard imports (`from module import *`) in normal code. **Exception**: the same explicit re-export aggregator pattern allowed by the Import Architecture Rules above (e.g. `interfaces.py` re-exporting `interfaces_core`, `interfaces_indexes`, etc. with `__all__`) — enforced by `make ruff` (see Makefile), with that file listed in `[tool.ruff.lint.per-file-ignores]`.
+
 * Order imports alphabetically after lowercasing; group them as follows
   (with a blank line between groups):
   1. standard library imports
