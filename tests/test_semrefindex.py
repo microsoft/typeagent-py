@@ -18,6 +18,7 @@ from typeagent.knowpro.interfaces import (
     IMessage,
     ISemanticRefCollection,
     ITermToSemanticRefIndex,
+    ScoredSemanticRefOrdinal,
     Topic,
 )
 from typeagent.knowpro.knowledge_schema import (
@@ -414,3 +415,75 @@ async def test_semantic_ref_index_serialize_empty(
     serialized = await legacy_semantic_ref_index.serialize()
     assert "items" in serialized
     assert serialized["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_semantic_ref_index_preserves_scores(
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
+    """Scores must round-trip identically on both backends (issue #321)."""
+    await semantic_ref_index.add_term("cat", ScoredSemanticRefOrdinal(1, 0.25))
+    await semantic_ref_index.add_term("cat", 2)  # bare ordinal -> 1.0
+    await semantic_ref_index.add_terms_batch(
+        [("dog", ScoredSemanticRefOrdinal(3, 0.5)), ("dog", 1)]
+    )
+
+    cat = await semantic_ref_index.lookup_term("cat")
+    assert cat is not None
+    assert [(r.semantic_ref_ordinal, r.score) for r in cat] == [(1, 0.25), (2, 1.0)]
+    dog = await semantic_ref_index.lookup_term("dog")
+    assert dog is not None
+    assert [(r.semantic_ref_ordinal, r.score) for r in dog] == [(3, 0.5), (1, 1.0)]
+
+    data = await semantic_ref_index.serialize()
+    scores = {
+        item["term"]: {
+            o["semanticRefOrdinal"]: o["score"] for o in item["semanticRefOrdinals"]
+        }
+        for item in data["items"]
+    }
+    assert scores == {"cat": {1: 0.25, 2: 1.0}, "dog": {3: 0.5, 1: 1.0}}
+
+
+@pytest.mark.asyncio
+async def test_semantic_ref_index_deserialize_preserves_scores(
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
+    source = TermToSemanticRefIndex()
+    await source.add_term("cat", ScoredSemanticRefOrdinal(1, 0.25))
+    await semantic_ref_index.deserialize(await source.serialize())
+
+    cat = await semantic_ref_index.lookup_term("cat")
+    assert cat is not None
+    assert [(r.semantic_ref_ordinal, r.score) for r in cat] == [(1, 0.25)]
+
+
+@pytest.mark.asyncio
+async def test_semantic_ref_index_duplicate_pairs_match_across_backends(
+    semantic_ref_index: ITermToSemanticRefIndex, needs_auth: None
+) -> None:
+    """Repeated (term, semref) pairs behave the same on both backends."""
+    await semantic_ref_index.add_term("cat", 1)
+    await semantic_ref_index.add_term("cat", 1)
+    cat = await semantic_ref_index.lookup_term("cat")
+    assert cat is not None
+    assert len(cat) == 2
+
+
+def test_init_db_schema_adds_score_column_to_legacy_semref_index() -> None:
+    """DBs created before the score column existed are migrated in place."""
+    import sqlite3
+
+    from typeagent.storage.sqlite.schema import init_db_schema
+
+    db = sqlite3.connect(":memory:")
+    db.execute(
+        "CREATE TABLE SemanticRefIndex (term TEXT NOT NULL, semref_id INTEGER NOT NULL)"
+    )
+    db.execute("INSERT INTO SemanticRefIndex VALUES ('cat', 1)")
+    init_db_schema(db)
+    assert db.execute(
+        "SELECT term, semref_id, score FROM SemanticRefIndex"
+    ).fetchall() == [("cat", 1, 1.0)]
+    init_db_schema(db)  # idempotent
+    db.close()

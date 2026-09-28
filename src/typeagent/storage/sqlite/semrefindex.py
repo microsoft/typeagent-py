@@ -18,6 +18,14 @@ from ...knowpro.interfaces import (
 )
 
 
+def _split_ordinal(
+    ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
+) -> tuple[SemanticRefOrdinal, float]:
+    if isinstance(ordinal, ScoredSemanticRefOrdinal):
+        return ordinal.semantic_ref_ordinal, ordinal.score
+    return ordinal, 1.0
+
+
 class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
     """SQLite-backed implementation of term to semantic ref index."""
 
@@ -44,19 +52,15 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
 
         term = self._prepare_term(term)
 
-        # Extract semref_id from the ordinal
-        if isinstance(semantic_ref_ordinal, ScoredSemanticRefOrdinal):
-            semref_id = semantic_ref_ordinal.semantic_ref_ordinal
-        else:
-            semref_id = semantic_ref_ordinal
+        semref_id, score = _split_ordinal(semantic_ref_ordinal)
 
         cursor = self.db.cursor()
         cursor.execute(
             """
-            INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id)
-            VALUES (?, ?)
+            INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id, score)
+            VALUES (?, ?, ?)
             """,
-            (term, semref_id),
+            (term, semref_id, score),
         )
 
         return term
@@ -72,15 +76,12 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
             if not term:
                 continue
             term = self._prepare_term(term)
-            if isinstance(ordinal, ScoredSemanticRefOrdinal):
-                semref_id = ordinal.semantic_ref_ordinal
-            else:
-                semref_id = ordinal
-            rows.append((term, semref_id))
+            semref_id, score = _split_ordinal(ordinal)
+            rows.append((term, semref_id, score))
         if rows:
             cursor = self.db.cursor()
             cursor.executemany(
-                "INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id, score) VALUES (?, ?, ?)",
                 rows,
             )
 
@@ -98,16 +99,13 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
         term = self._prepare_term(term)
         cursor = self.db.cursor()
         cursor.execute(
-            "SELECT semref_id FROM SemanticRefIndex WHERE term = ?",
+            "SELECT semref_id, score FROM SemanticRefIndex WHERE term = ? ORDER BY rowid",
             (term,),
         )
-
-        # Return as ScoredSemanticRefOrdinal with default score of 1.0
-        results = []
-        for row in cursor.fetchall():
-            semref_id = row[0]
-            results.append(ScoredSemanticRefOrdinal(semref_id, 1.0))
-        return results
+        return [
+            ScoredSemanticRefOrdinal(semref_id, score)
+            for semref_id, score in cursor.fetchall()
+        ]
 
     async def clear(self) -> None:
         """Clear all terms from the semantic ref index."""
@@ -118,15 +116,16 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
         """Serialize the index data for compatibility with in-memory version."""
         cursor = self.db.cursor()
         cursor.execute(
-            "SELECT term, semref_id FROM SemanticRefIndex ORDER BY term, semref_id"
+            "SELECT term, semref_id, score FROM SemanticRefIndex "
+            "ORDER BY term, semref_id, rowid"
         )
 
         # Group by term
         term_to_semrefs: dict[str, list[ScoredSemanticRefOrdinalData]] = {}
-        for term, semref_id in cursor.fetchall():
+        for term, semref_id, score in cursor.fetchall():
             if term not in term_to_semrefs:
                 term_to_semrefs[term] = []
-            scored_ref = ScoredSemanticRefOrdinal(semref_id, 1.0)
+            scored_ref = ScoredSemanticRefOrdinal(semref_id, score)
             term_to_semrefs[term].append(scored_ref.serialize())
 
         # Convert to the expected format
@@ -155,15 +154,17 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
                 for semref_ordinal_data in item["semanticRefOrdinals"]:
                     if isinstance(semref_ordinal_data, dict):
                         semref_id = semref_ordinal_data["semanticRefOrdinal"]
+                        score = semref_ordinal_data.get("score", 1.0)
                     else:
                         # Fallback for direct integer
                         semref_id = semref_ordinal_data
-                    insertion_data.append((term, semref_id))
+                        score = 1.0
+                    insertion_data.append((term, semref_id, score))
 
         # Bulk insert all the data
         if insertion_data:
             cursor.executemany(
-                "INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO SemanticRefIndex (term, semref_id, score) VALUES (?, ?, ?)",
                 insertion_data,
             )
 
