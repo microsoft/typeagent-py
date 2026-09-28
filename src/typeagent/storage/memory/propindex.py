@@ -274,6 +274,7 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
     async def remove_property(self, prop_name: str, semref_id: int) -> None:
         """Remove all properties for a specific property name and semantic ref."""
         # Find and remove entries matching both property name and semref_id
+        prop_name = normalize_term(prop_name)
         keys_to_remove = []
         for term_text, scored_refs in self._map.items():
             prop_name_from_term, _ = split_property_term_text(term_text)

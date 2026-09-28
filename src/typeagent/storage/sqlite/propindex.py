@@ -121,7 +121,7 @@ class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
         cursor = self.db.cursor()
         cursor.execute(
             "DELETE FROM PropertyIndex WHERE prop_name = ? AND semref_id = ?",
-            (prop_name, semref_id),
+            (normalize_term(prop_name), semref_id),
         )
 
     async def remove_all_for_semref(self, semref_id: int) -> None:

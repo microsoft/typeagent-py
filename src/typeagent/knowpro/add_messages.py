@@ -245,7 +245,9 @@ def _collect_related_terms_for_fuzzy_index(
     """Collect canonical related-term texts for the fuzzy related-terms index.
 
     These terms are derived from the same knowledge that feeds semantic refs.
-    We lowercase and deduplicate while preserving order to match index behavior.
+    We normalize each term with `normalize_term` (strip, NFC, collapse
+    whitespace, lowercase), drop empty results, and deduplicate while
+    preserving order to match index behavior.
     """
     seen: set[str] = set()
     related_terms: list[str] = []

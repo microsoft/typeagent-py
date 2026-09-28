@@ -149,7 +149,7 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
         # Prepare all insertion data for bulk operation
         insertion_data = []
         for item in data["items"]:
-            if item and item["term"]:
+            if item and item.get("term") is not None:
                 term = self._prepare_term(item["term"])
                 for semref_ordinal_data in item["semanticRefOrdinals"]:
                     if isinstance(semref_ordinal_data, dict):
