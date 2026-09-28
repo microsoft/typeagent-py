@@ -4,8 +4,9 @@
 # Timestamp-to-text-range in-memory index (pre-SQLite prep).
 #
 # Contract (stable regardless of backing store):
-# - add_timestamp(s) accepts ISO 8601 timestamps that are lexicographically sortable
-#   (Datetime.isoformat). Missing/None timestamps are ignored.
+# - add_timestamp(s) accepts ISO 8601 timestamps with any UTC offset (naive
+#   timestamps are assumed to be UTC). They are normalized to UTC ("...Z") so that
+#   lexicographic order equals chronological order. Missing/None timestamps are ignored.
 # - lookup_range(DateRange) returns items whose ISO timestamp t satisfies
 #   start <= t < end (end is exclusive). If end is None, treat as a point
 #   query with end = start + epsilon.
@@ -20,6 +21,7 @@
 
 import bisect
 from collections.abc import AsyncIterable, Callable
+from datetime import timezone
 from typing import Any
 
 from ...knowpro.interfaces import (
@@ -56,8 +58,10 @@ class TimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         return self._lookup_range(date_range)
 
     def _lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]:
-        start_at = date_range.start.isoformat()
-        stop_at = None if date_range.end is None else date_range.end.isoformat()
+        start_at = _normalize_datetime(date_range.start)
+        stop_at = (
+            None if date_range.end is None else _normalize_datetime(date_range.end)
+        )
         return get_in_range(
             self._ranges,
             start_at,
@@ -101,11 +105,10 @@ class TimestampToTextRangeIndex(ITimestampToTextRangeIndex):
     ) -> bool:
         if not timestamp:
             return False
-        timestamp_datetime = Datetime.fromisoformat(timestamp)
         entry: TimestampedTextRange = TimestampedTextRange(
             range=text_range_from_message_chunk(message_ordinal),
-            # This string is formatted to be lexically sortable.
-            timestamp=timestamp_datetime.isoformat(),
+            # Normalized to UTC so that the string is lexically sortable.
+            timestamp=_normalize_datetime(Datetime.fromisoformat(timestamp)),
         )
         if in_order:
             where = bisect.bisect_left(
@@ -115,6 +118,14 @@ class TimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         else:
             self._ranges.append(entry)
         return True
+
+
+def _normalize_datetime(dt: Datetime) -> str:
+    # Render as UTC with a fixed format ("Z" suffix, always microseconds) so that
+    # lexicographic order equals chronological order. Naive datetimes are UTC.
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat(timespec="microseconds")[:-6] + "Z"
 
 
 def get_in_range[T, S: Any](

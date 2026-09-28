@@ -5,6 +5,7 @@ from typeagent.emails.email_import import (
     _merge_chunks,
     _split_into_paragraphs,
     _text_to_chunks,
+    import_email_string,
 )
 
 
@@ -100,3 +101,30 @@ class TestTextToChunks:
             assert not chunk.startswith(
                 "\n\n"
             ), f"chunk {chunk!r} has leading separator"
+
+
+class TestEmailTimestampNormalization:
+    """Email Date headers with different offsets must yield comparable timestamps."""
+
+    @staticmethod
+    def _timestamp(date_header: str) -> str | None:
+        raw = f"From: a@example.com\nTo: b@example.com\nDate: {date_header}\nSubject: s\n\nbody\n"
+        return import_email_string(raw, 1000).timestamp
+
+    def test_offsets_normalized_to_utc(self) -> None:
+        assert (
+            self._timestamp("Mon, 1 Jan 2024 12:00:00 +0500") == "2024-01-01T07:00:00Z"
+        )
+        assert (
+            self._timestamp("Mon, 1 Jan 2024 10:00:00 -0800") == "2024-01-01T18:00:00Z"
+        )
+
+    def test_lexicographic_order_is_chronological(self) -> None:
+        a = self._timestamp("Mon, 1 Jan 2024 12:00:00 +0500")  # 07:00Z
+        b = self._timestamp("Mon, 1 Jan 2024 08:00:00 +0000")  # 08:00Z
+        assert a is not None and b is not None and a < b
+
+    def test_unknown_zone_treated_as_utc(self) -> None:
+        assert (
+            self._timestamp("Mon, 1 Jan 2024 12:00:00 -0000") == "2024-01-01T12:00:00Z"
+        )
