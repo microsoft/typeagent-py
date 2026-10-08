@@ -14,6 +14,7 @@ from ...knowpro.interfaces import (
     TimestampedTextRange,
 )
 from ...knowpro.universal_message import format_timestamp_utc
+from .schema import NORMALIZED_TIMESTAMP_SQL
 
 
 class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
@@ -52,24 +53,26 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         """Get timestamp ranges from Messages table."""
         cursor = self.db.cursor()
 
+        norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
+        norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
         if end_timestamp is None:
             # Single timestamp query
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp
                 FROM Messages
-                WHERE start_timestamp = ?
+                WHERE {norm_col} = {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp,),
             )
         else:
-            # Range query
+            # Range query (inclusive)
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp
                 FROM Messages
-                WHERE start_timestamp >= ? AND start_timestamp <= ?
+                WHERE {norm_col} >= {norm_arg} AND {norm_col} <= {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp, end_timestamp),
@@ -103,17 +106,21 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         """Lookup messages in a date range."""
         cursor = self.db.cursor()
 
-        # Convert datetime objects to ISO format strings with Z suffix
+        # Stored timestamps may have any UTC offset and any fractional precision,
+        # so raw strings don't sort chronologically. Compare via strftime(), which
+        # converts to UTC and renders a fixed-width value (also for existing rows).
         start_timestamp = format_timestamp_utc(date_range.start)
         end_timestamp = format_timestamp_utc(date_range.end) if date_range.end else None
 
+        norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
+        norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
         if date_range.end is None:
             # Point query
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp, chunks
                 FROM Messages
-                WHERE start_timestamp = ?
+                WHERE {norm_col} = {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp,),
@@ -121,10 +128,10 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         else:
             # Range query
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp, chunks
                 FROM Messages
-                WHERE start_timestamp >= ? AND start_timestamp < ?
+                WHERE {norm_col} >= {norm_arg} AND {norm_col} < {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp, end_timestamp),
