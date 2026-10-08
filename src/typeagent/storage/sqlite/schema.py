@@ -68,6 +68,7 @@ SEMANTIC_REF_INDEX_SCHEMA = """
 CREATE TABLE IF NOT EXISTS SemanticRefIndex (
     term TEXT NOT NULL,             -- lowercased, not-unique/normalized
     semref_id INTEGER NOT NULL,
+    score REAL NOT NULL DEFAULT 1.0,
 
     FOREIGN KEY (semref_id) REFERENCES SemanticRefs(semref_id) ON DELETE CASCADE
 );
@@ -287,6 +288,15 @@ def _set_conversation_metadata(
             )
 
 
+def _migrate_semantic_ref_index_score(cursor: sqlite3.Cursor) -> None:
+    """Add the score column to SemanticRefIndex tables created before it existed."""
+    columns = [row[1] for row in cursor.execute("PRAGMA table_info(SemanticRefIndex)")]
+    if "score" not in columns:
+        cursor.execute(
+            "ALTER TABLE SemanticRefIndex ADD COLUMN score REAL NOT NULL DEFAULT 1.0"
+        )
+
+
 def init_db_schema(db: sqlite3.Connection) -> None:
     """Initialize the database schema with all required tables."""
     cursor = db.cursor()
@@ -296,6 +306,7 @@ def init_db_schema(db: sqlite3.Connection) -> None:
     cursor.execute(MESSAGES_SCHEMA)
     cursor.execute(SEMANTIC_REFS_SCHEMA)
     cursor.execute(SEMANTIC_REF_INDEX_SCHEMA)
+    _migrate_semantic_ref_index_score(cursor)
     cursor.execute(MESSAGE_TEXT_INDEX_SCHEMA)
     cursor.execute(PROPERTY_INDEX_SCHEMA)
     cursor.execute(RELATED_TERMS_ALIASES_SCHEMA)
