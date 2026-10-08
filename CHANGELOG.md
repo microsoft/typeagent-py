@@ -13,6 +13,12 @@
     `ingest_email_from_file`, `import_email_string` → `ingest_email_string`,
     `import_forwarded_email_string` → `ingest_forwarded_email_string`,
     `import_email_message` → `ingest_email_message`).
+  - `typeagent.knowpro.interfaces_search` → `typeagent.knowpro.search_terms`
+  - `typeagent.knowpro.interfaces_serialization` →
+    `typeagent.knowpro.serialization_data`
+
+  Code importing the renamed `knowpro.interfaces_*` names from the
+  `typeagent.knowpro.interfaces` aggregator is unaffected.
 
 ### 0.5.0 (May 26)
 

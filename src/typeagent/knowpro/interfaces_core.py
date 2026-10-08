@@ -53,7 +53,7 @@ __all__ = [
 ]
 
 if TYPE_CHECKING:
-    from .interfaces_serialization import ScoredSemanticRefOrdinalData, TermData
+    from .serialization_data import ScoredSemanticRefOrdinalData, TermData
 
 
 class IKnowledgeSource(Protocol):

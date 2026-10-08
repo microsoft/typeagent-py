@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-"""Search-related interfaces for knowpro."""
+"""Search term and query data types for knowpro."""
 
 from __future__ import annotations
 
