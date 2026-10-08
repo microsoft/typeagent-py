@@ -96,6 +96,9 @@ jobs:
         run: |
             ./make.bat check
 
+      - name: Run Ruff
+        run: uv run ruff check src tests tools examples
+
   format:
     strategy:
       fail-fast: false
