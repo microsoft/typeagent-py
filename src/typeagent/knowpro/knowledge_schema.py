@@ -120,8 +120,8 @@ class Action:
             "If the action implies this additional facet or property of the subject entity, "
             "such as hobbies, activities, interests, personality"
         ),
-    ] = CamelCaseField(default=None)
-
+        CamelCaseField(field_name="subject_entity_facet"),
+    ] = None
 
 @dataclass
 class KnowledgeResponse:
