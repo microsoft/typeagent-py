@@ -123,6 +123,7 @@ class Action:
         CamelCaseField(field_name="subject_entity_facet"),
     ] = None
 
+
 @dataclass
 class KnowledgeResponse:
     """Detailed and comprehensive knowledge response."""
