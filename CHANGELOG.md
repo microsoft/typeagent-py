@@ -2,6 +2,18 @@
 
 ## 2026
 
+### 0.6.0 (unreleased)
+
+#### Breaking changes
+- Rename modules and functions for clearer, more consistent naming (#307).
+  There are no compatibility aliases; update imports as follows:
+  - `typeagent.emails.email_import` → `typeagent.emails.email_ingest`, and its
+    public `import_*` functions → `ingest_*` (`import_emails_from_dir` →
+    `ingest_emails_from_dir`, `import_email_from_file` →
+    `ingest_email_from_file`, `import_email_string` → `ingest_email_string`,
+    `import_forwarded_email_string` → `ingest_forwarded_email_string`,
+    `import_email_message` → `ingest_email_message`).
+
 ### 0.5.0 (May 26)
 
 This release focuses on ingestion throughput, robustness, and developer tooling,
