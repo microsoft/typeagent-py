@@ -60,8 +60,8 @@ uv run pyright --pythonversion 3.12 src tests tools examples || exit /b 1
 uv run pyright --pythonversion 3.15 src tests tools examples || exit /b 1
 goto end
 
-:: Not wired into CI yet -- see #116. Narrowly scoped for now to
-:: deterministically banning wildcard imports (AGENTS.md's import guidelines).
+:: Narrowly scoped to deterministically banning wildcard imports
+:: (AGENTS.md's import guidelines).
 :ruff
 if not exist ".venv\" call make.bat venv
 echo Running ruff...

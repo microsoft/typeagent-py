@@ -4,7 +4,7 @@
 # This is Guido's Makefile. Please don't make it complicated.
 
 .PHONY: all
-all: venv format check test build
+all: venv format ruff check test build
 
 .PHONY: format
 format: venv
@@ -18,8 +18,8 @@ check: venv
 	uv run pyright --pythonversion 3.12 src tests tools examples
 	uv run pyright --pythonversion 3.15 src tests tools examples
 
-# Not wired into 'all'/CI yet -- see #116. Narrowly scoped for now to
-# deterministically banning wildcard imports (AGENTS.md's import guidelines).
+# Narrowly scoped to deterministically banning wildcard imports
+# (AGENTS.md's import guidelines).
 .PHONY: ruff
 ruff: venv
 	uv run ruff check src tests tools examples
@@ -108,10 +108,10 @@ help:
 	@echo "Usage: make [target]"
 	@echo "make help        # Help (this message)"
 	@echo "make             # Same as 'make all'"
-	@echo "make all         # venv, format, check, test, build"
+	@echo "make all         # venv, format, ruff, check, test, build"
 	@echo "make format      # Run isort and black"
 	@echo "make check       # Run pyright"
-	@echo "make ruff        # Run ruff (wildcard-import checks only, not part of 'all' yet)"
+	@echo "make ruff        # Run ruff (wildcard-import checks only)"
 	@echo "make test        # Run pytest (tests are in tests/)"
 	@echo "make coverage    # Run tests with coverage"
 	@echo "make build       # Build the wheel (under dist/)"
