@@ -31,10 +31,10 @@ from typing import Iterable
 from dotenv import load_dotenv
 
 from typeagent.aitools import utils
-from typeagent.emails.email_import import (
+from typeagent.emails.email_ingest import (
     decode_encoded_words,
     email_matches_date_filter,
-    import_email_from_file,
+    ingest_email_from_file,
 )
 from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
@@ -336,7 +336,7 @@ async def _email_generator(
             continue
 
         try:
-            email = import_email_from_file(str(email_file))
+            email = ingest_email_from_file(str(email_file))
         except Exception as e:
             counters["failed"] += 1
             print(

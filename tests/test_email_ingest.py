@@ -1,11 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from typeagent.emails.email_import import (
+from typeagent.emails.email_ingest import (
     _merge_chunks,
     _split_into_paragraphs,
     _text_to_chunks,
-    import_email_string,
+    ingest_email_string,
 )
 
 
@@ -109,7 +109,7 @@ class TestEmailTimestampNormalization:
     @staticmethod
     def _timestamp(date_header: str) -> str | None:
         raw = f"From: a@example.com\nTo: b@example.com\nDate: {date_header}\nSubject: s\n\nbody\n"
-        return import_email_string(raw, 1000).timestamp
+        return ingest_email_string(raw, 1000).timestamp
 
     def test_offsets_normalized_to_utc(self) -> None:
         assert (
