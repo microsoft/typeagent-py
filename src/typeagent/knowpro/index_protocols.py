@@ -10,7 +10,7 @@ from typing import Protocol, runtime_checkable
 from pydantic.dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbedding
-from .interfaces_core import (
+from .core_types import (
     DateRange,
     IMessage,
     MessageOrdinal,
