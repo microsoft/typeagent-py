@@ -39,7 +39,7 @@ from typeagent.emails.email_ingest import (
 from typeagent.emails.email_memory import EmailMemory
 from typeagent.emails.email_message import EmailMessage
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import AddMessagesResult
+from typeagent.knowpro.core_types import AddMessagesResult
 from typeagent.storage.utils import create_storage_provider
 
 

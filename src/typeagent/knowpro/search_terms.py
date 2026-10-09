@@ -8,14 +8,14 @@ from typing import Literal
 
 from pydantic.dataclasses import dataclass
 
-from .field_helpers import CamelCaseField
-from .interfaces_core import (
+from .core_types import (
     DateRange,
     KnowledgeType,
     ScoredSemanticRefOrdinal,
     Term,
     TextRange,
 )
+from .field_helpers import CamelCaseField
 
 __all__ = [
     "KnowledgePropertyName",

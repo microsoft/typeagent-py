@@ -28,7 +28,7 @@ import time
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import SemanticRef, Topic
+from typeagent.knowpro.core_types import SemanticRef, Topic
 from typeagent.knowpro.knowledge_schema import (
     Action,
     ConcreteEntity,

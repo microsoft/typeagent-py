@@ -18,6 +18,7 @@
     `typeagent.knowpro.serialization_data`
   - `typeagent.knowpro.interfaces_indexes` → `typeagent.knowpro.index_protocols`
   - `typeagent.knowpro.interfaces_storage` → `typeagent.knowpro.storage_protocols`
+  - `typeagent.knowpro.interfaces_core` → `typeagent.knowpro.core_types`
 
   Code importing the renamed `knowpro.interfaces_*` names from the
   `typeagent.knowpro.interfaces` aggregator is unaffected.

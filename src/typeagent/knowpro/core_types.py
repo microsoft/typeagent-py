@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-"""Core conversation and knowledge interfaces for knowpro."""
+"""Core conversation and knowledge types and protocols for knowpro."""
 
 from __future__ import annotations
 

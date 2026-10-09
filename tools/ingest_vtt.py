@@ -27,8 +27,8 @@ import webvtt
 
 from typeagent.aitools.model_adapters import create_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.core_types import AddMessagesResult
 from typeagent.knowpro.interfaces import ConversationMetadata
-from typeagent.knowpro.interfaces_core import AddMessagesResult
 from typeagent.knowpro.universal_message import format_timestamp_utc, UNIX_EPOCH
 from typeagent.storage.utils import create_storage_provider
 from typeagent.transcripts.transcript import (

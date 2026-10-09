@@ -14,7 +14,7 @@ import typechat
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.add_messages import add_messages_streaming
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import IKnowledgeExtractor
+from typeagent.knowpro.core_types import IKnowledgeExtractor
 from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (

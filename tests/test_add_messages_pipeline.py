@@ -24,7 +24,7 @@ from typeagent.knowpro.add_messages import (
     process_chunk_with_extraction_and_embeddings,
     ProducerState,
 )
-from typeagent.knowpro.interfaces_core import (
+from typeagent.knowpro.core_types import (
     DeletionInfo,
     IMessageMetadata,
     TextLocation,
