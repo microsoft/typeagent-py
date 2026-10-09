@@ -11,6 +11,14 @@ from typing import Any, NamedTuple, Protocol, Self
 from pydantic.dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbedding
+from .index_protocols import (
+    IConversationSecondaryIndexes,
+    IConversationThreads,
+    IMessageTextIndex,
+    IPropertyToSemanticRefIndex,
+    ITermToRelatedTermsIndex,
+    ITimestampToTextRangeIndex,
+)
 from .interfaces_core import (
     IMessage,
     ITermToSemanticRefIndex,
@@ -19,14 +27,6 @@ from .interfaces_core import (
     SemanticRef,
     SemanticRefOrdinal,
     TextRange,
-)
-from .interfaces_indexes import (
-    IConversationSecondaryIndexes,
-    IConversationThreads,
-    IMessageTextIndex,
-    IPropertyToSemanticRefIndex,
-    ITermToRelatedTermsIndex,
-    ITimestampToTextRangeIndex,
 )
 
 STATUS_INGESTED = "ingested"
