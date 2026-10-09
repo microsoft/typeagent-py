@@ -9,7 +9,7 @@ from typing import Any, TypedDict
 import numpy as np
 
 from ..aitools.embeddings import NormalizedEmbeddings
-from ..knowpro import secindex, serialization
+from ..knowpro import secondary_index, serialization
 from ..knowpro.conversation_base import ConversationBase
 from ..knowpro.convsettings import ConversationSettings
 from ..knowpro.interfaces import ConversationDataWithIndexes, SemanticRef, Term
@@ -133,7 +133,7 @@ class Podcast(ConversationBase[PodcastMessage]):
             await self._add_synonyms()
 
         # Always build other transient indexes
-        await secindex.build_transient_secondary_indexes(self, self.settings)
+        await secondary_index.build_transient_secondary_indexes(self, self.settings)
 
     @staticmethod
     def _read_conversation_data_from_file(
@@ -194,7 +194,7 @@ class Podcast(ConversationBase[PodcastMessage]):
     async def _build_transient_secondary_indexes(self, build_all: bool) -> None:
         # Secondary indexes are already initialized via create() factory method
         if build_all:
-            await secindex.build_transient_secondary_indexes(self, self.settings)
+            await secondary_index.build_transient_secondary_indexes(self, self.settings)
         await self._build_participant_aliases()
         await self._add_synonyms()
 

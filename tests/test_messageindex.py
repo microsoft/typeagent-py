@@ -13,7 +13,7 @@ from typeagent.knowpro.interfaces import (
     TextLocation,
     TextToTextLocationIndexData,
 )
-from typeagent.knowpro.textlocindex import TextToTextLocationIndex
+from typeagent.knowpro.text_location_index import TextToTextLocationIndex
 from typeagent.storage.memory import MemoryStorageProvider
 from typeagent.storage.memory.messageindex import (
     build_message_index,

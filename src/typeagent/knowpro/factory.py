@@ -3,7 +3,7 @@
 
 """Factory functions for creating conversation objects."""
 
-from . import secindex
+from . import secondary_index
 from ..storage.utils import create_storage_provider
 from .conversation_base import ConversationBase
 from .convsettings import ConversationSettings
@@ -63,7 +63,7 @@ async def create_conversation[TMessage: IMessage](
     conversation.messages = storage_provider.messages
     conversation.semantic_refs = storage_provider.semantic_refs
     conversation.semantic_ref_index = storage_provider.semantic_ref_index
-    conversation.secondary_indexes = secindex.ConversationSecondaryIndexes(
+    conversation.secondary_indexes = secondary_index.ConversationSecondaryIndexes(
         storage_provider, settings.related_term_index_settings
     )
     return conversation

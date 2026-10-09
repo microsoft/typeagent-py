@@ -19,6 +19,9 @@
   - `typeagent.knowpro.interfaces_indexes` → `typeagent.knowpro.index_protocols`
   - `typeagent.knowpro.interfaces_storage` → `typeagent.knowpro.storage_protocols`
   - `typeagent.knowpro.interfaces_core` → `typeagent.knowpro.core_types`
+  - `typeagent.knowpro.secindex` → `typeagent.knowpro.secondary_index`
+  - `typeagent.knowpro.textlocindex` → `typeagent.knowpro.text_location_index`
+  - `typeagent.knowpro.fuzzyindex` → `typeagent.knowpro.embedding_index`
 
   Code importing the renamed `knowpro.interfaces_*` names from the
   `typeagent.knowpro.interfaces` aggregator is unaffected.

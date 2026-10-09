@@ -7,7 +7,7 @@ from collections.abc import AsyncIterable, Callable, Sequence
 
 from typechat import Failure
 
-from ...knowpro import convknowledge, secindex
+from ...knowpro import convknowledge, secondary_index
 from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
 from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
@@ -753,7 +753,7 @@ async def build_semantic_ref[TMessage: IMessage](
         conversation_settings.semantic_ref_index_settings,
     )
     if conversation.semantic_ref_index is not None:
-        await secindex.build_secondary_indexes(
+        await secondary_index.build_secondary_indexes(
             conversation,
             conversation_settings,
         )

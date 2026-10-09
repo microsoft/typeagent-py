@@ -48,7 +48,7 @@ from typeagent.aitools.vectorbase import (
     TextEmbeddingIndexSettings,
     VectorBase,
 )
-from typeagent.knowpro import search, secindex, serialization
+from typeagent.knowpro import search, secondary_index, serialization
 from typeagent.knowpro.convsettings import (
     ConversationSettings,
     MessageTextIndexSettings,
@@ -498,7 +498,7 @@ async def build_pipeline_conversation(
     data.pop("messageIndexData", None)
     conversation = await podcast.Podcast.create(settings)
     await conversation.deserialize(data)
-    await secindex.build_secondary_indexes(conversation, settings)
+    await secondary_index.build_secondary_indexes(conversation, settings)
     return conversation
 
 

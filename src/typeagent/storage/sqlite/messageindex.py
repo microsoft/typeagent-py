@@ -21,7 +21,7 @@ from ...knowpro.interfaces import (
     TextLocationData,
     TextToTextLocationIndexData,
 )
-from ...knowpro.textlocindex import ScoredTextLocation
+from ...knowpro.text_location_index import ScoredTextLocation
 from ...storage.memory.messageindex import IMessageTextEmbeddingIndex
 from .schema import deserialize_embedding, serialize_embedding
 
