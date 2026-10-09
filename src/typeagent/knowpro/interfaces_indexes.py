@@ -20,7 +20,7 @@ from .interfaces_core import (
     Term,
     TextRange,
 )
-from .interfaces_serialization import (
+from .serialization_data import (
     ConversationThreadData,
     MessageTextIndexData,
     TermsToRelatedTermsIndexData,
