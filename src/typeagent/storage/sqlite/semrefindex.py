@@ -4,10 +4,9 @@
 """SQLite-based semantic reference index implementation."""
 
 from collections.abc import Sequence
-import re
 import sqlite3
-import unicodedata
 
+from ...knowpro.common import normalize_term
 from ...knowpro.interfaces import (
     ITermToSemanticRefIndex,
     ScoredSemanticRefOrdinal,
@@ -149,7 +148,7 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
         # Prepare all insertion data for bulk operation
         insertion_data = []
         for item in data["items"]:
-            if item and item["term"]:
+            if item and item.get("term") is not None:
                 term = self._prepare_term(item["term"])
                 for semref_ordinal_data in item["semanticRefOrdinals"]:
                     if isinstance(semref_ordinal_data, dict):
@@ -169,15 +168,4 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
             )
 
     def _prepare_term(self, term: str) -> str:
-        """Normalize term by converting to lowercase, stripping whitespace, and normalizing Unicode."""
-        # Strip leading/trailing whitespace
-        term = term.strip()
-
-        # Normalize Unicode to NFC form (canonical composition)
-        term = unicodedata.normalize("NFC", term)
-
-        # Collapse multiple whitespace characters to single space
-        term = re.sub(r"\s+", " ", term)
-
-        # Convert to lowercase
-        return term.lower()
+        return normalize_term(term)

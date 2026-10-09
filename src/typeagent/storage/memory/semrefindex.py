@@ -8,6 +8,7 @@ from collections.abc import AsyncIterable, Callable, Sequence
 from typechat import Failure
 
 from ...knowpro import convknowledge, secindex
+from ...knowpro.common import normalize_term
 from ...knowpro.convsettings import ConversationSettings, SemanticRefIndexSettings
 from ...knowpro.interfaces import (  # Interfaces.; Other imports.
     IConversation,
@@ -735,10 +736,10 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
             scored_refs = [
                 ScoredSemanticRefOrdinal.deserialize(s) for s in scored_refs_data
             ]
-            self._map[term] = scored_refs
+            self._map.setdefault(term, []).extend(scored_refs)
 
     def _prepare_term(self, term: str) -> str:
-        return term.lower()
+        return normalize_term(term)
 
 
 # ...
