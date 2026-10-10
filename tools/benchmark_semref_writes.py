@@ -35,7 +35,7 @@ from typeagent.knowpro.knowledge_schema import (
     Facet,
     KnowledgeResponse,
 )
-from typeagent.storage.memory.semrefindex import (
+from typeagent.storage.memory.semantic_ref_index import (
     add_knowledge_batch_to_semantic_ref_index,
     text_range_from_message_chunk,
     validate_entity,

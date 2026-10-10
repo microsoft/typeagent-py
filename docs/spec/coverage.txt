@@ -1,8 +1,8 @@
 
 ## Test coverage
 
-## Analysis of Uncovered Code in semrefindex.py
-Based on the coverage report, here are the main areas of semrefindex.py that are currently uncovered:
+## Analysis of Uncovered Code in semantic_ref_index.py
+Based on the coverage report, here are the main areas of semantic_ref_index.py that are currently uncovered:
 
 🔍 Major Uncovered Areas:
 Knowledge Extraction Pipeline (lines 81-102)

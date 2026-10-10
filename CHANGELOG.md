@@ -22,6 +22,10 @@
   - `typeagent.knowpro.secindex` → `typeagent.knowpro.secondary_index`
   - `typeagent.knowpro.textlocindex` → `typeagent.knowpro.text_location_index`
   - `typeagent.knowpro.fuzzyindex` → `typeagent.knowpro.embedding_index`
+  - `typeagent.storage.memory.semrefindex` →
+    `typeagent.storage.memory.semantic_ref_index`
+  - `typeagent.storage.sqlite.semrefindex` →
+    `typeagent.storage.sqlite.semantic_ref_index`
 
   Code importing the renamed `knowpro.interfaces_*` names from the
   `typeagent.knowpro.interfaces` aggregator is unaffected.

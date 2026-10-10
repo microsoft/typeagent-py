@@ -29,7 +29,7 @@ from typeagent.knowpro.knowledge_schema import (
 )
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage.memory.semrefindex import (
+from typeagent.storage.memory.semantic_ref_index import (
     add_action,
     add_entity,
     add_knowledge_to_index,

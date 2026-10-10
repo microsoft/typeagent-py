@@ -15,7 +15,7 @@ The knowpro system uses multiple indexes to find information quickly in conversa
 
 ## Index Types
 
-### 1. Semantic Reference Index (`semrefindex.py`)
+### 1. Semantic Reference Index (`semantic_ref_index.py`)
 
 **What it does**: The main index that connects words to semantic references (structured knowledge objects).
 

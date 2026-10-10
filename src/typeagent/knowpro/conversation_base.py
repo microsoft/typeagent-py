@@ -21,7 +21,7 @@ from . import (
 )
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
-from ..storage.memory import semrefindex
+from ..storage.memory import semantic_ref_index
 from .convsettings import ConversationSettings
 from .interfaces import (
     AddMessagesResult,
@@ -124,7 +124,7 @@ class ConversationBase(
 
     async def add_metadata_to_index(self) -> None:
         """Add metadata knowledge to the semantic reference index."""
-        await semrefindex.add_metadata_to_index(
+        await semantic_ref_index.add_metadata_to_index(
             self.messages,
             self.semantic_refs,
             self.semantic_ref_index,
@@ -325,7 +325,7 @@ class ConversationBase(
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
 
-            await semrefindex.add_knowledge_batch_to_semantic_ref_index(
+            await semantic_ref_index.add_knowledge_batch_to_semantic_ref_index(
                 self,
                 knowledge_items,
             )
@@ -390,7 +390,7 @@ class ConversationBase(
             start_from_message_ordinal,
             999_999_999,
         )
-        await semrefindex.add_metadata_to_index_from_list(
+        await semantic_ref_index.add_metadata_to_index_from_list(
             messages_slice,
             self.semantic_refs,
             self.semantic_ref_index,
@@ -415,7 +415,7 @@ class ConversationBase(
             messages,
             start_from_message_ordinal,
         )
-        await semrefindex.add_batch_to_semantic_ref_index_from_list(
+        await semantic_ref_index.add_batch_to_semantic_ref_index_from_list(
             self,
             messages,
             text_locations,
