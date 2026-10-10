@@ -2705,7 +2705,7 @@ requires-dist = [
     { name = "openai", specifier = ">=1.81.0" },
     { name = "opentelemetry-instrumentation-httpx", marker = "extra == 'logfire'", specifier = ">=0.57b0" },
     { name = "pydantic", marker = "python_full_version < '3.15'", specifier = ">=2.10.0" },
-    { name = "pydantic", marker = "python_full_version >= '3.15'", specifier = ">=2.13.4" },
+    { name = "pydantic", marker = "python_full_version >= '3.15'", specifier = ">=2.14.0" },
     { name = "pydantic-ai-slim", extras = ["openai"], specifier = ">=2.25.0" },
     { name = "pyreadline3", marker = "sys_platform == 'win32'", specifier = ">=3.5.4" },
     { name = "python-dotenv", specifier = ">=1.1.0" },

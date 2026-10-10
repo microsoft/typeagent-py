@@ -45,7 +45,7 @@ dependencies = [
   "numpy>=2.5.2; python_version >= '3.15'",
   "numpy>=2.2.6; python_version < '3.15'",
   "openai>=1.81.0",
-  "pydantic>=2.13.4; python_version >= '3.15'",
+  "pydantic>=2.14.0; python_version >= '3.15'",
   "pydantic>=2.10.0; python_version < '3.15'",
   "pydantic-ai-slim[openai]>=2.25.0",
   "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
