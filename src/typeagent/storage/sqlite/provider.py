@@ -20,8 +20,8 @@ from ...knowpro.interfaces import (
 from ..memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
-from .propindex import SqlitePropertyIndex
-from .reltermsindex import SqliteRelatedTermsIndex
+from .property_index import SqlitePropertyIndex
+from .related_terms_index import SqliteRelatedTermsIndex
 from .schema import (
     _set_conversation_metadata,
     CONVERSATION_SCHEMA_VERSION,

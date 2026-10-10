@@ -9,7 +9,7 @@ This document describes the current storage provider architecture and outlines n
 The storage system follows a clean layered design:
 
 ```
-Index Building Functions (timestampindex.py, propindex.py, etc.)
+Index Building Functions (timestampindex.py, property_index.py, etc.)
          ↓ (use conversation.secondary_indexes - this is the intended pattern)
 ConversationSecondaryIndexes (secondary_index.py)
          ↓ (internally gets indexes from storage provider)
@@ -92,7 +92,7 @@ The storage system is now fully implemented and tested:
 The implementation follows a clean layered architecture:
 
 ```
-Index Building Functions (timestampindex.py, propindex.py, etc.)
+Index Building Functions (timestampindex.py, property_index.py, etc.)
          ↓ (use conversation.secondary_indexes)
 ConversationSecondaryIndexes (secondary_index.py)
          ↓ (internally gets indexes from storage provider)
@@ -124,7 +124,7 @@ Based on code analysis, we have **7 index implementations** in `IConversationSec
    - Storage: `_map: dict[str, list[ScoredSemanticRefOrdinal]]`
    - Creates: Term → SemanticRef mappings for entities, topics, actions
 
-2. **PropertyIndex** (`propindex.py`):
+2. **PropertyIndex** (`property_index.py`):
    - Type: `IPropertyToSemanticRefIndex`
    - Storage: `_map: dict[str, list[ScoredSemanticRefOrdinal]]`
    - Creates: Property name → SemanticRef mappings
@@ -140,7 +140,7 @@ Based on code analysis, we have **7 index implementations** in `IConversationSec
    - Storage: `TextToTextLocationIndex` (embeddings)
    - Creates: Message text → MessageOrdinal mappings
 
-5. **RelatedTermsIndex** (`reltermsindex.py`):
+5. **RelatedTermsIndex** (`related_terms_index.py`):
    - Type: `ITermToRelatedTermsIndex`
    - Storage: `_alias_map` + `_term_index` (embeddings)
    - Creates: Term → Related terms mappings
@@ -244,9 +244,9 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 **What still needs updating**:
 - Multiple files still use `conversation.secondary_indexes` pattern:
   - `timestampindex.py`: Still accesses `conversation.secondary_indexes.timestamp_index`
-  - `propindex.py`: Still uses `conversation.secondary_indexes`
+  - `property_index.py`: Still uses `conversation.secondary_indexes`
   - `messageindex.py`: Still accesses `conversation.secondary_indexes.message_index`
-  - `reltermsindex.py`: Still uses `conversation.secondary_indexes`
+  - `related_terms_index.py`: Still uses `conversation.secondary_indexes`
   - Several files in search functionality
 
 #### ~~Update ConversationSecondaryIndexes Class~~ **COMPLETED**
@@ -304,7 +304,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     ) -> ITermToRelatedTermsIndex:
         if conversation_id not in self._related_terms_indexes:
             # Use default settings for now
-            from .reltermsindex import RelatedTermsIndex, RelatedTermIndexSettings
+            from .related_terms_index import RelatedTermsIndex, RelatedTermIndexSettings
             settings = RelatedTermIndexSettings()
             self._related_terms_indexes[conversation_id] = RelatedTermsIndex(settings)
         return self._related_terms_indexes[conversation_id]

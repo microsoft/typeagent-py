@@ -363,9 +363,9 @@ class ConversationBase(
         if self.secondary_indexes is None:
             return
 
-        from ..storage.memory import propindex
+        from ..storage.memory import property_index
 
-        await propindex.add_to_property_index(self, start_points.semref_count)
+        await property_index.add_to_property_index(self, start_points.semref_count)
 
         await self._add_timestamps_for_messages(
             new_messages,
@@ -431,9 +431,9 @@ class ConversationBase(
         if self.secondary_indexes is None:
             return
 
-        from ..storage.memory import propindex
+        from ..storage.memory import property_index
 
-        await propindex.add_to_property_index(self, start_points.semref_count)
+        await property_index.add_to_property_index(self, start_points.semref_count)
 
         new_messages = await self.messages.get_slice(
             start_points.message_count,

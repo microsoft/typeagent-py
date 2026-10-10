@@ -25,8 +25,8 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
-from typeagent.storage.sqlite.propindex import SqlitePropertyIndex
-from typeagent.storage.sqlite.reltermsindex import (
+from typeagent.storage.sqlite.property_index import SqlitePropertyIndex
+from typeagent.storage.sqlite.related_terms_index import (
     SqliteRelatedTermsAliases,
     SqliteRelatedTermsFuzzy,
     SqliteRelatedTermsIndex,
