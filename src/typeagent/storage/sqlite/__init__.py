@@ -4,13 +4,13 @@
 """SQLite-based storage implementations."""
 
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
-from .messageindex import SqliteMessageTextIndex
+from .message_index import SqliteMessageTextIndex
 from .property_index import SqlitePropertyIndex
 from .provider import SqliteStorageProvider
 from .related_terms_index import SqliteRelatedTermsIndex
 from .schema import get_db_schema_version, init_db_schema
 from .semantic_ref_index import SqliteTermToSemanticRefIndex
-from .timestampindex import SqliteTimestampToTextRangeIndex
+from .timestamp_index import SqliteTimestampToTextRangeIndex
 
 __all__ = [
     "get_db_schema_version",

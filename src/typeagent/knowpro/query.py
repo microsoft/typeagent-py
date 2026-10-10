@@ -8,7 +8,7 @@ from typing import cast, Literal, Protocol
 
 from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import property_index
-from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
+from ..storage.memory.message_index import IMessageTextEmbeddingIndex
 from ..storage.memory.property_index import PropertyNames
 from .collections import (
     Match,

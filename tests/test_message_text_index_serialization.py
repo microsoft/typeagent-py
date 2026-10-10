@@ -13,7 +13,7 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     TextEmbeddingIndexSettings,
 )
-from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
+from typeagent.storage.sqlite.message_index import SqliteMessageTextIndex
 from typeagent.storage.sqlite.schema import init_db_schema
 
 

@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import cast, TypeGuard
 
 from ..storage.memory import related_terms_index
-from ..storage.memory.messageindex import IMessageTextEmbeddingIndex
+from ..storage.memory.message_index import IMessageTextEmbeddingIndex
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .dataclasses import dataclass
 from .field_helpers import CamelCaseField

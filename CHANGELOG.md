@@ -34,6 +34,14 @@
     `typeagent.storage.memory.related_terms_index`
   - `typeagent.storage.sqlite.reltermsindex` →
     `typeagent.storage.sqlite.related_terms_index`
+  - `typeagent.storage.memory.messageindex` →
+    `typeagent.storage.memory.message_index`
+  - `typeagent.storage.sqlite.messageindex` →
+    `typeagent.storage.sqlite.message_index`
+  - `typeagent.storage.memory.timestampindex` →
+    `typeagent.storage.memory.timestamp_index`
+  - `typeagent.storage.sqlite.timestampindex` →
+    `typeagent.storage.sqlite.timestamp_index`
 
   Code importing the renamed `knowpro.interfaces_*` names from the
   `typeagent.knowpro.interfaces` aggregator is unaffected.

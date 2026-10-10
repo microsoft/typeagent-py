@@ -19,7 +19,7 @@ from ...knowpro.interfaces import (
 )
 from ..memory.convthreads import ConversationThreads
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
-from .messageindex import SqliteMessageTextIndex
+from .message_index import SqliteMessageTextIndex
 from .property_index import SqlitePropertyIndex
 from .related_terms_index import SqliteRelatedTermsIndex
 from .schema import (
@@ -29,7 +29,7 @@ from .schema import (
     init_db_schema,
 )
 from .semantic_ref_index import SqliteTermToSemanticRefIndex
-from .timestampindex import SqliteTimestampToTextRangeIndex
+from .timestamp_index import SqliteTimestampToTextRangeIndex
 
 
 class SqliteStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):

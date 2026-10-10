@@ -24,7 +24,7 @@ from typeagent.knowpro.interfaces import (
     TextRange,
     Topic,
 )
-from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
+from typeagent.storage.sqlite.message_index import SqliteMessageTextIndex
 from typeagent.storage.sqlite.property_index import SqlitePropertyIndex
 from typeagent.storage.sqlite.related_terms_index import (
     SqliteRelatedTermsAliases,
@@ -33,7 +33,7 @@ from typeagent.storage.sqlite.related_terms_index import (
 )
 from typeagent.storage.sqlite.schema import init_db_schema
 from typeagent.storage.sqlite.semantic_ref_index import SqliteTermToSemanticRefIndex
-from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIndex
+from typeagent.storage.sqlite.timestamp_index import SqliteTimestampToTextRangeIndex
 
 
 @pytest.fixture

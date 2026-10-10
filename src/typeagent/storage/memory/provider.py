@@ -21,11 +21,11 @@ from ...knowpro.interfaces import (
 )
 from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .convthreads import ConversationThreads
-from .messageindex import MessageTextIndex
+from .message_index import MessageTextIndex
 from .property_index import PropertyIndex
 from .related_terms_index import RelatedTermsIndex
 from .semantic_ref_index import TermToSemanticRefIndex
-from .timestampindex import TimestampToTextRangeIndex
+from .timestamp_index import TimestampToTextRangeIndex
 
 
 class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):

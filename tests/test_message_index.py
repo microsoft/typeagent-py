@@ -15,7 +15,7 @@ from typeagent.knowpro.interfaces import (
 )
 from typeagent.knowpro.text_location_index import TextToTextLocationIndex
 from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage.memory.messageindex import (
+from typeagent.storage.memory.message_index import (
     build_message_index,
     IMessageTextEmbeddingIndex,
     MessageTextIndex,

@@ -9,7 +9,7 @@ This document describes the current storage provider architecture and outlines n
 The storage system follows a clean layered design:
 
 ```
-Index Building Functions (timestampindex.py, property_index.py, etc.)
+Index Building Functions (timestamp_index.py, property_index.py, etc.)
          ↓ (use conversation.secondary_indexes - this is the intended pattern)
 ConversationSecondaryIndexes (secondary_index.py)
          ↓ (internally gets indexes from storage provider)
@@ -92,7 +92,7 @@ The storage system is now fully implemented and tested:
 The implementation follows a clean layered architecture:
 
 ```
-Index Building Functions (timestampindex.py, property_index.py, etc.)
+Index Building Functions (timestamp_index.py, property_index.py, etc.)
          ↓ (use conversation.secondary_indexes)
 ConversationSecondaryIndexes (secondary_index.py)
          ↓ (internally gets indexes from storage provider)
@@ -129,13 +129,13 @@ Based on code analysis, we have **7 index implementations** in `IConversationSec
    - Storage: `_map: dict[str, list[ScoredSemanticRefOrdinal]]`
    - Creates: Property name → SemanticRef mappings
 
-3. **TimestampToTextRangeIndex** (`timestampindex.py`):
+3. **TimestampToTextRangeIndex** (`timestamp_index.py`):
    - Type: `ITimestampToTextRangeIndex`
    - Storage: `_ranges: list[TimestampedTextRange]` (sorted by timestamp)
    - Creates: Timestamp → TextRange mappings
    - **SQLite Note**: In SQLite implementation, this will be replaced by direct queries on Messages table using `start_timestamp`/`end_timestamp` columns
 
-4. **MessageTextIndex** (`messageindex.py`):
+4. **MessageTextIndex** (`message_index.py`):
    - Type: `IMessageTextEmbeddingIndex`
    - Storage: `TextToTextLocationIndex` (embeddings)
    - Creates: Message text → MessageOrdinal mappings
@@ -163,8 +163,8 @@ Index creation is currently **scattered** across multiple files:
 
 - `secondary_index.py`: `ConversationSecondaryIndexes` class coordinates some indexes
 - `semantic_ref_index.py`: Functions like `build_semantic_ref()`, `build_semantic_ref_index()`
-- `timestampindex.py`: `build_timestamp_index()`
-- `messageindex.py`: Index creation within `MessageTextIndex.add_messages()`
+- `timestamp_index.py`: `build_timestamp_index()`
+- `message_index.py`: Index creation within `MessageTextIndex.add_messages()`
 - Individual index classes have their own `add_*()` methods
 
 This scattered approach makes it difficult to:
@@ -243,9 +243,9 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
 **What still needs updating**:
 - Multiple files still use `conversation.secondary_indexes` pattern:
-  - `timestampindex.py`: Still accesses `conversation.secondary_indexes.timestamp_index`
+  - `timestamp_index.py`: Still accesses `conversation.secondary_indexes.timestamp_index`
   - `property_index.py`: Still uses `conversation.secondary_indexes`
-  - `messageindex.py`: Still accesses `conversation.secondary_indexes.message_index`
+  - `message_index.py`: Still accesses `conversation.secondary_indexes.message_index`
   - `related_terms_index.py`: Still uses `conversation.secondary_indexes`
   - Several files in search functionality
 
@@ -399,7 +399,7 @@ async def build_semantic_ref[TMessage: IMessage](
     )
     # ... rest of building logic stays the same ...
 
-# In timestampindex.py
+# In timestamp_index.py
 async def build_timestamp_index(conversation: IConversation) -> ListIndexingResult:
     if conversation.messages:
         # Get timestamp index from storage provider

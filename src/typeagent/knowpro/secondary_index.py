@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 from ..storage.memory import property_index, related_terms_index
-from ..storage.memory.messageindex import build_message_index
-from ..storage.memory.timestampindex import build_timestamp_index
+from ..storage.memory.message_index import build_message_index
+from ..storage.memory.timestamp_index import build_timestamp_index
 from .convsettings import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,

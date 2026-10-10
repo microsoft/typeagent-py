@@ -65,7 +65,7 @@ def get_indexes_of_nearest(
 ) -> list[ScoredInt]
 ```
 
-### 3. Message Index (`messageindex.py`)
+### 3. Message Index (`message_index.py`)
 
 **What it does**: Indexes message content for direct message-level search.
 
@@ -179,7 +179,7 @@ async def lookup_text(
 ) -> list[ScoredTextLocation]
 ```
 
-### 7. Timestamp Index (`timestampindex.py`)
+### 7. Timestamp Index (`timestamp_index.py`)
 
 **What it does**: Enables time-based searches by indexing message timestamps.
 

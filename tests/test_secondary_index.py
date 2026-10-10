@@ -16,7 +16,7 @@ from typeagent.knowpro.secondary_index import (
 )
 from typeagent.storage.memory import MemoryMessageCollection as MemoryMessageCollection
 from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
+from typeagent.storage.memory.timestamp_index import TimestampToTextRangeIndex
 
 from conftest import FakeConversation  # Import the storage fixture
 from conftest import FakeMessage
