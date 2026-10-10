@@ -9,7 +9,7 @@ from typeagent.knowpro.convsettings import (
     ConversationSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.knowpro.secindex import (
+from typeagent.knowpro.secondary_index import (
     build_secondary_indexes,
     build_transient_secondary_indexes,
     ConversationSecondaryIndexes,

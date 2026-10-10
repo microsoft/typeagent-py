@@ -16,7 +16,7 @@ from ...knowpro.interfaces import (
     ScoredMessageOrdinal,
     TextLocation,
 )
-from ...knowpro.textlocindex import ScoredTextLocation, TextToTextLocationIndex
+from ...knowpro.text_location_index import ScoredTextLocation, TextToTextLocationIndex
 
 
 async def build_message_index[

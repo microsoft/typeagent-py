@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Tests for knowpro/textlocindex.py (TextToTextLocationIndex)."""
+"""Tests for knowpro/text_location_index.py (TextToTextLocationIndex)."""
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ import pytest
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.interfaces import TextLocation, TextToTextLocationIndexData
-from typeagent.knowpro.textlocindex import TextToTextLocationIndex
+from typeagent.knowpro.text_location_index import TextToTextLocationIndex
 
 
 @pytest.fixture

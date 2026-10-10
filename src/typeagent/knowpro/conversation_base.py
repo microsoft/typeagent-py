@@ -17,7 +17,7 @@ from . import (
     convknowledge,
     search_query_schema,
     searchlang,
-    secindex,
+    secondary_index,
 )
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
@@ -110,7 +110,7 @@ class ConversationBase(
         instance.messages = storage_provider.messages
         instance.semantic_refs = storage_provider.semantic_refs
         instance.semantic_ref_index = storage_provider.semantic_ref_index
-        instance.secondary_indexes = secindex.ConversationSecondaryIndexes(
+        instance.secondary_indexes = secondary_index.ConversationSecondaryIndexes(
             storage_provider, settings.related_term_index_settings
         )
         return instance

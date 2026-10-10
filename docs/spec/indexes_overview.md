@@ -38,7 +38,7 @@ async def add_batch_to_semantic_ref_index(
 - Supports exact word matching and fuzzy/semantic matching
 - Returns scored semantic reference numbers for ranking
 
-### 2. Fuzzy Index (`fuzzyindex.py`)
+### 2. Embedding Index (`embedding_index.py`)
 
 **What it does**: Finds semantically similar content using embeddings.
 
@@ -151,7 +151,7 @@ async def resolve_related_terms(
 ) -> list[Term]
 ```
 
-### 6. Text Location Index (`textlocindex.py`)
+### 6. Text Location Index (`text_location_index.py`)
 
 **What it does**: Maps text content to specific locations within the conversation.
 
@@ -209,7 +209,7 @@ def lookup_range(self, date_range: DateRange):
     )
 ```
 
-### 8. Secondary Index Coordinator (`secindex.py`)
+### 8. Secondary Index Coordinator (`secondary_index.py`)
 
 **What it does**: Manages and coordinates all secondary indexes as one system.
 
