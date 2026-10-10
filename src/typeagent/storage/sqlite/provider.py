@@ -28,7 +28,7 @@ from .schema import (
     get_db_schema_version,
     init_db_schema,
 )
-from .semrefindex import SqliteTermToSemanticRefIndex
+from .semantic_ref_index import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex
 
 

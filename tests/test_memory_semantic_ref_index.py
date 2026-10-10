@@ -1,14 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-"""Tests for storage/memory/semrefindex.py helper functions."""
+"""Tests for storage/memory/semantic_ref_index.py helper functions."""
 
 import pytest
 
 from typeagent.knowpro.interfaces import Topic
 from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet
 from typeagent.storage.memory import MemorySemanticRefCollection
-from typeagent.storage.memory.semrefindex import (
+from typeagent.storage.memory.semantic_ref_index import (
     add_action,
     add_entity,
     add_facet,

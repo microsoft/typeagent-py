@@ -32,7 +32,7 @@ from typeagent.storage.sqlite.reltermsindex import (
     SqliteRelatedTermsIndex,
 )
 from typeagent.storage.sqlite.schema import init_db_schema
-from typeagent.storage.sqlite.semrefindex import SqliteTermToSemanticRefIndex
+from typeagent.storage.sqlite.semantic_ref_index import SqliteTermToSemanticRefIndex
 from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIndex
 
 

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import typechat
 
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
-from ..storage.memory import semrefindex
+from ..storage.memory import semantic_ref_index
 from .interfaces import (
     AddMessagesResult,
     IKnowledgeExtractor,
@@ -256,11 +256,11 @@ def _collect_related_terms_for_fuzzy_index(
             related_terms.append(canonical)
 
     for entity in knowledge.entities:
-        for term in semrefindex.collect_entity_terms(entity):
+        for term in semantic_ref_index.collect_entity_terms(entity):
             _add_term(term)
 
     for action in chain(knowledge.actions, knowledge.inverse_actions):
-        for term in semrefindex.collect_action_terms(action):
+        for term in semantic_ref_index.collect_action_terms(action):
             _add_term(term)
 
     for topic in knowledge.topics:
