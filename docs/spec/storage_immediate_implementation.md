@@ -425,7 +425,7 @@ async def build_timestamp_index(conversation: IConversation) -> ListIndexingResu
 
 Tests have been successfully created:
 - `test/test_storage_indexes.py` - Tests all 6 index types creation
-- `test/test_secondary_index_storage_integration.py` - Tests ConversationSecondaryIndexes integration
+- `tests/test_secondary_index_storage_integration.py` - Tests ConversationSecondaryIndexes integration
 
 ```python
 # ✅ IMPLEMENTED in test/test_storage_indexes.py
