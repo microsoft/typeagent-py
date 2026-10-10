@@ -41,7 +41,7 @@ from typeagent.knowpro.query import (
     TextRangeSelector,
 )
 from typeagent.storage.memory import MemorySemanticRefCollection
-from typeagent.storage.memory.propindex import PropertyIndex
+from typeagent.storage.memory.property_index import PropertyIndex
 
 from conftest import FakeConversation, FakeMessage, FakeTermIndex
 

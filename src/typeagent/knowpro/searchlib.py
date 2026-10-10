@@ -8,7 +8,7 @@ Functions that help with creating search and property terms
 
 from typing import cast
 
-from ..storage.memory.propindex import PropertyNames
+from ..storage.memory.property_index import PropertyNames
 from .interfaces import (
     ISemanticRefCollection,
     KnowledgePropertyName,

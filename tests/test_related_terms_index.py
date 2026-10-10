@@ -19,7 +19,7 @@ from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage.memory.reltermsindex import (
+from typeagent.storage.memory.related_terms_index import (
     dedupe_related_terms,
     RelatedTermsIndex,
     resolve_related_terms,

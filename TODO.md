@@ -17,7 +17,7 @@ Gradually move work items from here to repo Issues.
 ## Additional code reviews (of AI-vibe-coded things)
 
 ### P1 - High Priority
-- **[P1, medium]** Scrutinize sqlite/reltermsindex.py
+- **[P1, medium]** Scrutinize sqlite/related_terms_index.py
 - **[P1, medium]** Review the new storage code more carefully, adding notes
 
 ## Storage & Persistence

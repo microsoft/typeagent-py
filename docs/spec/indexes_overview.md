@@ -95,7 +95,7 @@ async def lookup_messages(
 ) -> list[ScoredMessageOrdinal]
 ```
 
-### 4. Property Index (`propindex.py`)
+### 4. Property Index (`property_index.py`)
 
 **What it does**: Indexes structured properties of semantic references for property-based searches.
 
@@ -123,7 +123,7 @@ async def lookup_property_in_property_index(
 ) -> list[ScoredSemanticRefOrdinal]
 ```
 
-### 5. Related Terms Index (`reltermsindex.py`)
+### 5. Related Terms Index (`related_terms_index.py`)
 
 **What it does**: Stores and manages relationships between terms for query expansion and semantic search.
 

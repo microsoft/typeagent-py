@@ -5,9 +5,9 @@
 
 from .collections import SqliteMessageCollection, SqliteSemanticRefCollection
 from .messageindex import SqliteMessageTextIndex
-from .propindex import SqlitePropertyIndex
+from .property_index import SqlitePropertyIndex
 from .provider import SqliteStorageProvider
-from .reltermsindex import SqliteRelatedTermsIndex
+from .related_terms_index import SqliteRelatedTermsIndex
 from .schema import get_db_schema_version, init_db_schema
 from .semantic_ref_index import SqliteTermToSemanticRefIndex
 from .timestampindex import SqliteTimestampToTextRangeIndex

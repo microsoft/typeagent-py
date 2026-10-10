@@ -26,6 +26,14 @@
     `typeagent.storage.memory.semantic_ref_index`
   - `typeagent.storage.sqlite.semrefindex` →
     `typeagent.storage.sqlite.semantic_ref_index`
+  - `typeagent.storage.memory.propindex` →
+    `typeagent.storage.memory.property_index`
+  - `typeagent.storage.sqlite.propindex` →
+    `typeagent.storage.sqlite.property_index`
+  - `typeagent.storage.memory.reltermsindex` →
+    `typeagent.storage.memory.related_terms_index`
+  - `typeagent.storage.sqlite.reltermsindex` →
+    `typeagent.storage.sqlite.related_terms_index`
 
   Code importing the renamed `knowpro.interfaces_*` names from the
   `typeagent.knowpro.interfaces` aggregator is unaffected.
