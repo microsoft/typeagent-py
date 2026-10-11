@@ -83,13 +83,14 @@ async def test_term_index_lookup_ignores_trailing_space(
 
 
 @pytest.mark.asyncio
-async def test_term_index_whitespace_only_terms_agree(
+async def test_term_index_ignores_whitespace_only_terms(
     term_index: ITermToSemanticRefIndex,
 ) -> None:
-    await term_index.add_term(" ", 0)
+    assert await term_index.add_term(" ", 0) == ""
     await term_index.add_term("\t", 0)
+    await term_index.add_terms_batch([("\n", 1), (" Foo", 2)])
     assert await term_index.size() == 1
-    assert await term_index.get_terms() == [""]
+    assert await term_index.get_terms() == ["foo"]
 
 
 @pytest.mark.asyncio
@@ -135,12 +136,46 @@ async def test_property_index_remove_property_normalizes_name(
 
 
 @pytest.mark.asyncio
-async def test_term_index_roundtrips_empty_normalized_term(
+async def test_term_index_deserialize_skips_empty_and_missing_terms(
     term_index: ITermToSemanticRefIndex,
 ) -> None:
-    await term_index.add_term(" ", 3)
-    data = await term_index.serialize()
-    await term_index.clear()
-    await term_index.deserialize(data)
-    found = await term_index.lookup_term("")
-    assert found is not None and [r.semantic_ref_ordinal for r in found] == [3]
+    data = {
+        "items": [
+            {
+                "term": "  ",
+                "semanticRefOrdinals": [{"semanticRefOrdinal": 1, "score": 1.0}],
+            },
+            {
+                "term": None,
+                "semanticRefOrdinals": [{"semanticRefOrdinal": 2, "score": 1.0}],
+            },
+            {"semanticRefOrdinals": [{"semanticRefOrdinal": 3, "score": 1.0}]},
+            {
+                "term": "bar",
+                "semanticRefOrdinals": [{"semanticRefOrdinal": 4, "score": 1.0}],
+            },
+        ]
+    }
+    await term_index.deserialize(data)  # type: ignore[arg-type]
+    assert await term_index.get_terms() == ["bar"]
+
+
+@pytest.mark.asyncio
+async def test_term_index_deserialize_dedupes_merged_ordinals(
+    term_index: ITermToSemanticRefIndex,
+) -> None:
+    data = {
+        "items": [
+            {
+                "term": "Foo",
+                "semanticRefOrdinals": [{"semanticRefOrdinal": 1, "score": 1.0}],
+            },
+            {
+                "term": "foo ",
+                "semanticRefOrdinals": [{"semanticRefOrdinal": 1, "score": 1.0}],
+            },
+        ]
+    }
+    await term_index.deserialize(data)  # type: ignore[arg-type]
+    found = await term_index.lookup_term("foo")
+    assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]

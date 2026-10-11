@@ -313,10 +313,6 @@ class PropertyIndex(IPropertyToSemanticRefIndex):
         for key in keys_to_remove:
             del self._map[key]
 
-    def _prepare_term_text(self, term_text: str) -> str:
-        """Do any pre-processing of the term."""
-        return normalize_term(term_text)
-
     def _make_term_text(self, property_name: str, value: str) -> str:
         """Build the normalized key; must match the SQLite property index."""
         return make_property_term_text(

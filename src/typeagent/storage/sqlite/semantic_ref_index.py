@@ -46,10 +46,9 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
         term: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> str:
+        term = self._prepare_term(term)
         if not term:
             return term
-
-        term = self._prepare_term(term)
 
         semref_id, score = _split_ordinal(semantic_ref_ordinal)
 
@@ -72,9 +71,9 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
             return
         rows = []
         for term, ordinal in terms:
+            term = self._prepare_term(term)
             if not term:
                 continue
-            term = self._prepare_term(term)
             semref_id, score = _split_ordinal(ordinal)
             rows.append((term, semref_id, score))
         if rows:
@@ -147,9 +146,13 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
 
         # Prepare all insertion data for bulk operation
         insertion_data = []
+        # Raw terms that normalize to the same key may share ordinals.
+        seen: set[tuple[str, int]] = set()
         for item in data["items"]:
             if item and item.get("term") is not None:
                 term = self._prepare_term(item["term"])
+                if not term:
+                    continue
                 for semref_ordinal_data in item["semanticRefOrdinals"]:
                     if isinstance(semref_ordinal_data, dict):
                         semref_id = semref_ordinal_data["semanticRefOrdinal"]
@@ -158,7 +161,9 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
                         # Fallback for direct integer
                         semref_id = semref_ordinal_data
                         score = 1.0
-                    insertion_data.append((term, semref_id, score))
+                    if (term, semref_id) not in seen:
+                        seen.add((term, semref_id))
+                        insertion_data.append((term, semref_id, score))
 
         # Bulk insert all the data
         if insertion_data:

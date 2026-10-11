@@ -676,11 +676,11 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
         term: str,
         semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> str:
+        term = self._prepare_term(term)
         if not term:
             return term
         if not isinstance(semantic_ref_ordinal, ScoredSemanticRefOrdinal):
             semantic_ref_ordinal = ScoredSemanticRefOrdinal(semantic_ref_ordinal, 1.0)
-        term = self._prepare_term(term)
         existing = self._map.get(term)
         if existing is not None:
             existing.append(semantic_ref_ordinal)
@@ -731,12 +731,19 @@ class TermToSemanticRefIndex(ITermToSemanticRefIndex):
         self._clear()
         for index_item_data in data["items"]:
             term = index_item_data.get("term")
+            if term is None:
+                continue
             term = self._prepare_term(term)
-            scored_refs_data = index_item_data["semanticRefOrdinals"]
-            scored_refs = [
-                ScoredSemanticRefOrdinal.deserialize(s) for s in scored_refs_data
-            ]
-            self._map.setdefault(term, []).extend(scored_refs)
+            if not term:
+                continue
+            scored_refs = self._map.setdefault(term, [])
+            # Raw terms that normalize to the same key may share ordinals.
+            seen = {ref.semantic_ref_ordinal for ref in scored_refs}
+            for s in index_item_data["semanticRefOrdinals"]:
+                ref = ScoredSemanticRefOrdinal.deserialize(s)
+                if ref.semantic_ref_ordinal not in seen:
+                    seen.add(ref.semantic_ref_ordinal)
+                    scored_refs.append(ref)
 
     def _prepare_term(self, term: str) -> str:
         return normalize_term(term)
