@@ -79,6 +79,7 @@ module-root = "src"
 
 [tool.pytest.ini_options]
 asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
 testpaths = ["tests"]
 
 [tool.pyright]
