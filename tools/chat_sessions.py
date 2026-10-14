@@ -880,11 +880,15 @@ def search_sessions(
 
 
 def get_default_pager() -> str | None:
-    """Determine the pager, using the same fallback chain as git."""
-    # 1. git config core.pager
+    """Determine the pager from global Git config, environment, or platform default.
+
+    Ignore repository/worktree configuration and includes, since pager commands
+    are executed.
+    """
+    # 1. User-global git config core.pager
     try:
         result = subprocess.run(
-            ["git", "config", "--get", "core.pager"],
+            ["git", "config", "--global", "--no-includes", "--get", "core.pager"],
             capture_output=True,
             text=True,
         )
@@ -1059,7 +1063,10 @@ def main() -> None:
         "--pager",
         type=str,
         default=None,
-        help="Pager command (default: from git config, then $GIT_PAGER, $PAGER, built-in)",
+        help=(
+            "Pager command (default: global git config without includes, "
+            "then $GIT_PAGER, $PAGER, platform default)"
+        ),
     )
     parser.add_argument(
         "--no-pager",
