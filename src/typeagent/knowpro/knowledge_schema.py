@@ -11,8 +11,6 @@ from typing import Annotated, ClassVar, Literal
 
 from typing_extensions import Doc
 
-from pydantic import Field
-
 from .dataclasses import dataclass
 
 
@@ -101,16 +99,16 @@ class Action:
     verbs: Annotated[list[str], Doc("Each verb is typically a word.")]
     # NOTE: Declared via Annotated so that there is no class-level default;
     # otherwise TypeChat would render this required field as optional.
-    verb_tense: Annotated[VerbTense, Field(description="The tense of the verb")]
-    subject_entity_name: str | Literal["none"] = Field(
-        default="none", description="The name of the subject entity"
-    )
-    object_entity_name: str | Literal["none"] = Field(
-        default="none", description="The name of the object entity"
-    )
-    indirect_object_entity_name: str | Literal["none"] = Field(
-        default="none", description="The name of the indirect object entity"
-    )
+    verb_tense: Annotated[VerbTense, Doc("The tense of the verb")]
+    subject_entity_name: Annotated[
+        str | Literal["none"], Doc("The name of the subject entity")
+    ] = "none"
+    object_entity_name: Annotated[
+        str | Literal["none"], Doc("The name of the object entity")
+    ] = "none"
+    indirect_object_entity_name: Annotated[
+        str | Literal["none"], Doc("The name of the indirect object entity")
+    ] = "none"
     params: list[str | ActionParam] | None = None
     subject_entity_facet: Annotated[
         Facet | None,
