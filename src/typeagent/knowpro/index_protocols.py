@@ -7,8 +7,6 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Protocol, runtime_checkable
 
-from pydantic.dataclasses import dataclass
-
 from ..aitools.embeddings import NormalizedEmbedding
 from .core_types import (
     DateRange,
@@ -20,6 +18,7 @@ from .core_types import (
     Term,
     TextRange,
 )
+from .dataclasses import dataclass
 from .serialization_data import (
     ConversationThreadData,
     MessageTextIndexData,
