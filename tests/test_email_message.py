@@ -221,3 +221,23 @@ class TestEmailMessage:
         assert restored.text_chunks == msg.text_chunks
         assert restored.metadata.sender == msg.metadata.sender
         assert restored.tags == msg.tags
+
+    def test_alias_migration_roundtrip(self) -> None:
+        msg = EmailMessage(
+            text_chunks=["Hello"],
+            metadata=make_meta(),
+            src_url="mailbox/inbox.mbox",
+            source_id="message-1",
+        )
+
+        data = msg.serialize()
+        assert data["srcUrl"] == "mailbox/inbox.mbox"
+        assert data["sourceId"] == "message-1"
+        assert "src_url" not in data
+        assert "source_id" not in data
+
+        data["src_url"] = data.pop("srcUrl")
+        data["source_id"] = data.pop("sourceId")
+        restored = EmailMessage.deserialize(data)
+        assert restored.src_url == msg.src_url
+        assert restored.source_id == msg.source_id
