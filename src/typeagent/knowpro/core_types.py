@@ -17,10 +17,10 @@ from typing import (
     TypedDict,
 )
 
-from pydantic.dataclasses import dataclass
+from pydantic import Field
 import typechat
 
-from .field_helpers import CamelCaseField
+from .dataclasses import dataclass
 from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 
 __all__ = [
@@ -144,10 +144,10 @@ type SemanticRefOrdinal = int
 
 @dataclass
 class ScoredSemanticRefOrdinal:
-    semantic_ref_ordinal: SemanticRefOrdinal = CamelCaseField(
-        "The ordinal of the semantic reference"
+    semantic_ref_ordinal: SemanticRefOrdinal = Field(
+        description="The ordinal of the semantic reference"
     )
-    score: float = CamelCaseField("The relevance score")
+    score: float = Field(description="The relevance score")
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.semantic_ref_ordinal}, {self.score})"
@@ -223,12 +223,12 @@ class TextLocationData(TypedDict):
 @dataclass(order=True)
 class TextLocation:
     # The ordinal of the message.
-    message_ordinal: MessageOrdinal = CamelCaseField("The ordinal of the message")
+    message_ordinal: MessageOrdinal = Field(description="The ordinal of the message")
     # The ordinal of the chunk.
     # In the end of a TextRange, 1 + ordinal of the last chunk in the range.
-    chunk_ordinal: int = CamelCaseField(
-        "The ordinal of the chunk; in the end of a TextRange, 1 + ordinal of the last chunk in the range",
+    chunk_ordinal: int = Field(
         default=0,
+        description="The ordinal of the chunk; in the end of a TextRange, 1 + ordinal of the last chunk in the range",
     )
 
     def __repr__(self) -> str:
@@ -320,12 +320,12 @@ class SemanticRefData(TypedDict):
 
 @dataclass
 class SemanticRef:
-    semantic_ref_ordinal: SemanticRefOrdinal = CamelCaseField(
-        "The ordinal of the semantic reference"
+    semantic_ref_ordinal: SemanticRefOrdinal = Field(
+        description="The ordinal of the semantic reference"
     )
-    range: TextRange = CamelCaseField("The text range of the semantic reference")
-    knowledge: Knowledge = CamelCaseField(
-        "The knowledge associated with this semantic reference"
+    range: TextRange = Field(description="The text range of the semantic reference")
+    knowledge: Knowledge = Field(
+        description="The knowledge associated with this semantic reference"
     )
 
     def __repr__(self) -> str:
