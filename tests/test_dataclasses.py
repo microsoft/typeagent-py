@@ -6,6 +6,7 @@ import pytest
 
 from pydantic import ConfigDict, ValidationError
 
+from typeagent.knowpro import serialization
 from typeagent.knowpro.dataclasses import dataclass
 from typeagent.knowpro.universal_message import (
     ConversationMessage,
@@ -52,26 +53,31 @@ def test_caller_config_is_merged() -> None:
 
 def test_explicit_alias_wins() -> None:
     meta = ConversationMessageMeta(speaker="a", recipients=["b"])
-    data = dump(meta)
+    data = serialization.serialize_object(meta)
     assert data["listeners"] == ["b"]
     assert "recipients" not in data
-    assert load(ConversationMessageMeta, data) == meta
-    assert load(ConversationMessageMeta, {"speaker": "a", "recipients": ["b"]}) == meta
+    assert serialization.deserialize_object(ConversationMessageMeta, data) == meta
+    assert (
+        serialization.deserialize_object(
+            ConversationMessageMeta, {"speaker": "a", "recipients": ["b"]}
+        )
+        == meta
+    )
 
 
 def test_message_metadata_is_required() -> None:
-    with pytest.raises(ValidationError):
-        load(ConversationMessage, {"textChunks": ["hi"]})
+    with pytest.raises(serialization.DeserializationError, match="metadata"):
+        serialization.deserialize_object(ConversationMessage, {"textChunks": ["hi"]})
 
 
 def test_message_source_id_round_trip() -> None:
     meta = ConversationMessageMeta(speaker="a")
     msg = ConversationMessage(text_chunks=["hi"], metadata=meta, source_id="s1")
-    data = dump(msg)
+    data = serialization.serialize_object(msg)
     assert data["sourceId"] == "s1"
     assert "source_id" not in data
-    assert load(ConversationMessage, data) == msg
+    assert serialization.deserialize_object(ConversationMessage, data) == msg
 
     # Data written before the alias generator used the Python name.
     data["source_id"] = data.pop("sourceId")
-    assert load(ConversationMessage, data) == msg
+    assert serialization.deserialize_object(ConversationMessage, data) == msg

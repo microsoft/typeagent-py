@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from typeagent.emails.email_message import EmailMessage, EmailMessageMeta
+from typeagent.knowpro import serialization
 
 
 def make_meta(
@@ -230,14 +231,15 @@ class TestEmailMessage:
             source_id="message-1",
         )
 
-        data = msg.serialize()
+        data = serialization.serialize_object(msg)
         assert data["srcUrl"] == "mailbox/inbox.mbox"
         assert data["sourceId"] == "message-1"
         assert "src_url" not in data
         assert "source_id" not in data
+        assert serialization.deserialize_object(EmailMessage, data) == msg
 
         data["src_url"] = data.pop("srcUrl")
         data["source_id"] = data.pop("sourceId")
-        restored = EmailMessage.deserialize(data)
+        restored = serialization.deserialize_object(EmailMessage, data)
         assert restored.src_url == msg.src_url
         assert restored.source_id == msg.source_id
