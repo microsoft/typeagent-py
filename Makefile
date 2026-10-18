@@ -4,69 +4,69 @@
 # This is Guido's Makefile. Please don't make it complicated.
 
 .PHONY: all
-all: venv format ruff check test build
+all: format ruff check test build
 
 .PHONY: format
-format: venv
+format:
 	uv run isort src tests tools examples $(FLAGS)
 	uv run black -tpy312 src tests tools examples $(FLAGS)
 
 # intentionally running pyright only for the lowest and the highest version
 # running it for all versions takes too much time and doesn't add enough diagnostic power
 .PHONY: check
-check: venv
+check:
 	uv run pyright --pythonversion 3.12 src tests tools examples
 	uv run pyright --pythonversion 3.15 src tests tools examples
 
 # Narrowly scoped to deterministically banning wildcard imports
 # (AGENTS.md's import guidelines).
 .PHONY: ruff
-ruff: venv
+ruff:
 	uv run ruff check src tests tools examples
 
 .PHONY: test
-test: venv
+test:
 	uv run pytest $(FLAGS)
 
 .PHONY: coverage
-coverage: venv
+coverage:
 	uv run coverage erase
 	COVERAGE_PROCESS_START=.coveragerc uv run coverage run -m pytest $(FLAGS)
 	uv run coverage combine
 	uv run coverage report
 
 .PHONY: demo
-demo: venv
+demo:
 	uv run python -m tools.query $(FLAGS)
 
 .PHONY: compare
-compare: venv
+compare:
 	uv run python -m tools.query --batch $(FLAGS)
 
 .PHONY: eval
-eval: venv
+eval:
 	rm -f eval.db
 	uv run python tools/load_json.py --database eval.db tests/testdata/Episode_53_AdrianTchaikovsky_index
 	uv run python tools/query.py --batch --database eval.db --answer-results tests/testdata/Episode_53_Answer_results.json --search-results tests/testdata/Episode_53_Search_results.json $(FLAGS)
 
 .PHONY: mcp
-mcp: venv
+mcp:
 	uv run mcp dev src/typeagent/mcp/server.py
 
 .PHONY: profile
-profile: venv
+profile:
 	</dev/null uv run python -m cProfile -s ncalls -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index | head -60
 
 .PHONY: scaling
-scaling: venv
+scaling:
 	</dev/null uv run python -m test.cmpsearch --interactive --podcast ~/AISystems-Archive/data/knowpro/test/indexes/All_Episodes_index
 
 .PHONY: build
-build: venv
+build:
 	uv build
 
 .PHONY: release
-release: venv
+release:
 	uv run python tools/release.py $(VERSION)
 
 .PHONY: venv
