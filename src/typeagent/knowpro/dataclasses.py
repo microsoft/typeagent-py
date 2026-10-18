@@ -20,7 +20,10 @@ from pydantic import AliasChoices, AliasGenerator, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 from pydantic.dataclasses import dataclass as _pydantic_dataclass
 
-# AliasChoices rather than validate_by_name, which needs pydantic 2.11.
+# Accept Python and camelCase names through generated validation aliases while
+# preserving explicit field validation aliases. Unlike populate_by_name=True,
+# this does not globally allow Python names to bypass explicit validation aliases.
+# This works on pydantic 2.10 without validate_by_name, which requires 2.11.
 _ALIAS_GENERATOR = AliasGenerator(
     validation_alias=lambda name: AliasChoices(name, to_camel(name)),
     serialization_alias=to_camel,
