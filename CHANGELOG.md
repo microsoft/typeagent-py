@@ -52,7 +52,9 @@
   decorator now gives every field a camelCase alias. As a result, the
   `source_id` field of messages and the `src_url` field of `EmailMessage` are
   now saved as `sourceId` and `srcUrl`; data saved under the old names still
-  loads.
+  loads. Other dataclasses using this decorator also serialize previously
+  unaliased multi-word fields as camelCase when `by_alias=True`; their
+  snake_case input names remain accepted unless explicitly overridden.
 
 ### 0.5.0 (May 26)
 
