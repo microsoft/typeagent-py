@@ -62,10 +62,10 @@ class SqliteRelatedTermsAliases(ITermToRelatedTerms):
         cursor = self.db.cursor()
         # Clear existing aliases for this term
         cursor.execute("DELETE FROM RelatedTermsAliases WHERE term = ?", (term,))
-        # Add new aliases
+        # Add new aliases (use INSERT OR IGNORE to skip duplicates)
         for alias in related_terms:
             cursor.execute(
-                "INSERT INTO RelatedTermsAliases (term, alias) VALUES (?, ?)",
+                "INSERT OR IGNORE INTO RelatedTermsAliases (term, alias) VALUES (?, ?)",
                 (term, alias),
             )
 
@@ -109,33 +109,25 @@ class SqliteRelatedTermsAliases(ITermToRelatedTerms):
         return TermToRelatedTermsData(relatedTerms=items)
 
     async def deserialize(self, data: TermToRelatedTermsData | None) -> None:
-        """Deserialize alias data."""
-        cursor = self.db.cursor()
-
-        # Clear existing data
-        cursor.execute("DELETE FROM RelatedTermsAliases")
-
-        if data is None:
-            return
-
-        related_terms = data.get("relatedTerms", [])
-
-        if related_terms:
-            # Prepare all insertion data for bulk operation
-            insertion_data = []
-            for item in related_terms:
+        """Deserialize alias data, replacing the existing aliases."""
+        # Parse everything before deleting, so malformed data leaves the
+        # existing aliases in place.
+        insertion_data: list[tuple[str, str]] = []
+        if data is not None:
+            for item in data.get("relatedTerms") or []:
                 if item and item.get("termText") and item.get("relatedTerms"):
                     term = item["termText"]
                     for term_data in item["relatedTerms"]:
-                        alias = term_data["text"]
-                        insertion_data.append((term, alias))
+                        insertion_data.append((term, term_data["text"]))
 
-            # Bulk insert all the data
-            if insertion_data:
-                cursor.executemany(
-                    "INSERT INTO RelatedTermsAliases (term, alias) VALUES (?, ?)",
-                    insertion_data,
-                )
+        cursor = self.db.cursor()
+        cursor.execute("DELETE FROM RelatedTermsAliases")
+        if insertion_data:
+            # INSERT OR IGNORE: the same alias may appear more than once.
+            cursor.executemany(
+                "INSERT OR IGNORE INTO RelatedTermsAliases (term, alias) VALUES (?, ?)",
+                insertion_data,
+            )
 
 
 class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):

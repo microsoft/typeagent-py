@@ -14,7 +14,12 @@ from typeagent.knowpro.convsettings import (
     MessageTextIndexSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.knowpro.interfaces import IMessage, ITermToRelatedTermsIndex, Term
+from typeagent.knowpro.interfaces import (
+    IMessage,
+    ITermToRelatedTermsIndex,
+    Term,
+    TermToRelatedTermsData,
+)
 from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
 from typeagent.storage import SqliteStorageProvider
@@ -117,6 +122,38 @@ async def test_serialize_and_deserialize(
     result = await related_terms_index.aliases.lookup_term("python")
     assert result is not None
     assert any(term.text == "programming" for term in result)
+
+
+@pytest.mark.asyncio
+async def test_deserialize_accepts_duplicate_aliases(
+    related_terms_index: ITermToRelatedTermsIndex,
+) -> None:
+    aliases = related_terms_index.aliases
+    data: TermToRelatedTermsData = {
+        "relatedTerms": [
+            {"termText": "car", "relatedTerms": [{"text": "auto"}, {"text": "auto"}]},
+            {"termText": "car", "relatedTerms": [{"text": "auto"}]},
+        ]
+    }
+    await aliases.deserialize(data)
+    result = await aliases.lookup_term("car")
+    assert result is not None
+    assert [t.text for t in result] == ["auto"]
+    assert await aliases.size() == 1
+
+
+@pytest.mark.asyncio
+async def test_deserialize_malformed_data_keeps_existing_aliases(
+    related_terms_index: ITermToRelatedTermsIndex,
+) -> None:
+    aliases = related_terms_index.aliases
+    await aliases.add_related_term("keep", Term(text="kept"))
+    malformed = {"relatedTerms": [{"termText": "car", "relatedTerms": [{"weight": 1}]}]}
+    with pytest.raises(KeyError):
+        await aliases.deserialize(malformed)  # type: ignore[arg-type]
+    result = await aliases.lookup_term("keep")
+    assert result is not None
+    assert [t.text for t in result] == ["kept"]
 
 
 @pytest.mark.asyncio
