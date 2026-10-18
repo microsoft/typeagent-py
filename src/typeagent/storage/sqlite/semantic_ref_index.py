@@ -173,11 +173,13 @@ class SqliteTermToSemanticRefIndex(ITermToSemanticRefIndex):
         # Strip leading/trailing whitespace
         term = term.strip()
 
+        # Convert to lowercase before NFC: lowercasing can produce a sequence
+        # that composes differently (e.g. "T̈" -> "ẗ" -> "ẗ"), so the
+        # reverse order isn't idempotent and stored terms couldn't be looked up.
+        term = term.lower()
+
         # Normalize Unicode to NFC form (canonical composition)
         term = unicodedata.normalize("NFC", term)
 
         # Collapse multiple whitespace characters to single space
-        term = re.sub(r"\s+", " ", term)
-
-        # Convert to lowercase
-        return term.lower()
+        return re.sub(r"\s+", " ", term)

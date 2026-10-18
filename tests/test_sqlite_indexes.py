@@ -907,6 +907,34 @@ class TestSqliteIndexesEdgeCases:
             assert results[0].semantic_ref_ordinal == 200 + i
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "term",
+        [
+            "T̈",  # Uppercase base + combining mark: lowercase composes to ẗ
+            "J̌",  # ǰ has no uppercase precomposed form
+            "Α͂",  # Greek polytonic: Α + perispomeni lowercases to ᾶ
+        ],
+    )
+    async def test_term_normalization_is_idempotent(
+        self, sqlite_db: sqlite3.Connection, term: str
+    ):
+        """A normalized term must normalize to itself, or stored terms get lost."""
+        index = SqliteTermToSemanticRefIndex(sqlite_db)
+        await index.add_term(term, 1)
+
+        [stored] = await index.get_terms()
+        assert await index.lookup_term(stored) == await index.lookup_term(term)
+        assert await index.lookup_term(term.lower()) == await index.lookup_term(term)
+
+        # deserialize re-normalizes the already-normalized stored terms.
+        data = await index.serialize()
+        await index.clear()
+        await index.deserialize(data)
+        results = await index.lookup_term(term)
+        assert results is not None
+        assert [r.semantic_ref_ordinal for r in results] == [1]
+
+    @pytest.mark.asyncio
     async def test_term_case_sensitivity(self, sqlite_db: sqlite3.Connection):
         """Test case normalization in _prepare_term()."""
         index = SqliteTermToSemanticRefIndex(sqlite_db)
