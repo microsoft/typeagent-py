@@ -158,7 +158,7 @@ class TestGetEnclosingDateRangeForTextRange:
 
 
 class TestGetEnclosingDataRangeForMessages:
-    """The time range for a set of source messages contains every one of them."""
+    """The time range spans the first through the last source message."""
 
     @pytest_asyncio.fixture()
     async def messages(self) -> AsyncGenerator[FakeMessageCollection, None]:
@@ -172,14 +172,14 @@ class TestGetEnclosingDataRangeForMessages:
     @pytest.mark.parametrize(
         ("ordinals", "end_hour"),
         [
-            ([2], None),  # point range: start only
-            ([0, 1], 2),
-            ([3, 1], 4),
-            ([0, 2, 3], 4),
-            ([1, 4], None),  # includes the last message: open-ended
+            ([2], None),  # single message: start only
+            ([0, 1], 1),
+            ([3, 1], 3),
+            ([0, 2, 3], 3),
+            ([1, 4], 4),  # includes the conversation's last message
         ],
     )
-    async def test_contains_every_source_message(
+    async def test_spans_first_through_last_source_message(
         self,
         messages: FakeMessageCollection,
         ordinals: list[int],
@@ -192,7 +192,17 @@ class TestGetEnclosingDataRangeForMessages:
         for ordinal in ordinals:
             timestamp = (await messages.get_item(ordinal)).timestamp
             assert timestamp is not None
-            assert Datetime.fromisoformat(timestamp) in dr
+            # The end is an inclusive display bound, not DateRange's exclusive one.
+            dt = Datetime.fromisoformat(timestamp)
+            assert dr.start <= dt
+            assert dr.end is None or dt <= dr.end
+
+    @pytest.mark.asyncio
+    async def test_no_timestamp_returns_none(self) -> None:
+        coll = FakeMessageCollection()
+        await coll.append(FakeMessage("text"))  # no message_ordinal -> no timestamp
+        await coll.append(FakeMessage("text"))
+        assert await get_enclosing_data_range_for_messages(coll, [0, 1]) is None
 
 
 # ---------------------------------------------------------------------------
