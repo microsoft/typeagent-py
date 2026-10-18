@@ -75,7 +75,7 @@ def extract_speaker_from_text(text: str) -> tuple[str | None, str]:
 # input splits only one way (no exponential backtracking on a failed match).
 _VOICE_TAG_PATTERN = re.compile(r"<v(?:\.[^\s>.]+)*\s+([^\s>][^>]*)>", re.IGNORECASE)
 # Any other cue markup: </v>, <i>, <b>, <c.class>, <00:00:01.500>, ...
-_CUE_TAG_PATTERN = re.compile(r"<[^>]*>")
+_CUE_TAG_PATTERN = re.compile(r"<[^<>]*>")
 
 
 def _strip_cue_tags(text: str) -> str:

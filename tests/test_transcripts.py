@@ -98,6 +98,11 @@ def test_extract_speaker_from_text():
             [("Alice", "Hello"), ("Bob", "Hi there")],
             id="plain_voices",
         ),
+        pytest.param(
+            "<v Bob>a < b <i>c</i></v>",
+            [("Bob", "a < b c")],
+            id="stray_less_than_kept",
+        ),
     ],
 )
 def test_parse_voice_tags_keeps_text_and_strips_markup(
