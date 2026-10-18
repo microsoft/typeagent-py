@@ -45,6 +45,11 @@
 
   Code importing the renamed `knowpro.interfaces_*` names from the
   `typeagent.knowpro.interfaces` aggregator is unaffected.
+- Term and property indexes in memory and SQLite now share one normalization
+  (Unicode NFC, lowercase, trimmed, internal whitespace collapsed); whitespace-only
+  terms are no longer indexed (#322). SQLite property values stored by earlier
+  versions were only lowercased, so values with extra whitespace or decomposed
+  Unicode may no longer match; re-ingest such databases to rebuild the indexes.
 
 ### 0.5.0 (May 26)
 
