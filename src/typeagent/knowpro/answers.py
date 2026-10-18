@@ -455,13 +455,17 @@ def get_enclosing_text_range(
 def text_range_from_message_range(
     start: MessageOrdinal, end: MessageOrdinal
 ) -> TextRange | None:
+    """Return the TextRange covering messages ``start`` through ``end``, inclusive.
+
+    TextRange.end is exclusive, so it is set one past ``end``.
+    """
     if start == end:
         # Point location
         return TextRange(start=TextLocation(start))
     elif start < end:
         return TextRange(
             start=TextLocation(start),
-            end=TextLocation(end),
+            end=TextLocation(end + 1),
         )
     else:
         raise ValueError(f"Expect message ordinal range: {start} <= {end}")
