@@ -340,12 +340,10 @@ class ConversationBase(
                 raise ValueError("Chunk results exceed staged messages with chunks")
 
             remapped_knowledge_items: list[
-                tuple[MessageOrdinal, int, kplib.KnowledgeResponse]
+                tuple[MessageOrdinal, int, KnowledgeResponse]
             ] = []
             for source_message_id, chunk_ordinal, knowledge in knowledge_items:
-                storage_message_id = source_to_storage_message_id.get(
-                    source_message_id
-                )
+                storage_message_id = source_to_storage_message_id.get(source_message_id)
                 if storage_message_id is None:
                     raise ValueError(
                         "No storage message id for chunk result: "
