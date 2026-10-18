@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 from collections.abc import Callable
+import dataclasses
 from typing import Protocol, TYPE_CHECKING
 
 import numpy as np
@@ -47,14 +48,14 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
         terms: dict[str, Term] = self.map.setdefault(text, {})
         for related in related_terms:
             # Store a copy so the caller's Term can't alias the index.
-            terms.setdefault(related.text, Term(related.text, related.weight))
+            terms.setdefault(related.text, dataclasses.replace(related))
 
     async def lookup_term(self, text: str) -> list[Term] | None:
         result = self.map.get(text)
         if result:
             # Return copies: search preparation lowercases and reweights
             # related terms in place, which must not change the index.
-            return [Term(term.text, term.weight) for term in result.values()]
+            return [dataclasses.replace(term) for term in result.values()]
         else:
             return None
 
