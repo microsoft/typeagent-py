@@ -60,6 +60,69 @@ def test_extract_speaker_from_text():
         ), f"Text mismatch for '{input_text}': got {text}, expected {expected_text}"
 
 
+@pytest.mark.parametrize(
+    ("raw_text", "expected"),
+    [
+        pytest.param(
+            "<v Alice>I <i>really</i> mean it</v>",
+            [("Alice", "I really mean it")],
+            id="inline_tag_inside_voice",
+        ),
+        pytest.param(
+            "<v Ann>one</v><v Bob>two <c.code>three</c></v>",
+            [("Ann", "one"), ("Bob", "two three")],
+            id="class_span_in_second_voice",
+        ),
+        pytest.param(
+            "I <i>really</i> mean it",
+            [(None, "I really mean it")],
+            id="markup_without_voice",
+        ),
+        pytest.param(
+            "<v.loud Alice>Hi <b>there</b></v>",
+            [("Alice", "Hi there")],
+            id="voice_with_class",
+        ),
+        pytest.param(
+            "Intro <v Bob>hello</v>",
+            [(None, "Intro"), ("Bob", "hello")],
+            id="text_before_voice",
+        ),
+        pytest.param(
+            "<v Bob>Say <00:00:01.500>hi<00:00:02.000> now",
+            [("Bob", "Say hi now")],
+            id="timestamp_tags_no_closing_v",
+        ),
+        pytest.param(
+            "<v Alice>Hello</v>\n<v Bob>Hi there</v>",
+            [("Alice", "Hello"), ("Bob", "Hi there")],
+            id="plain_voices",
+        ),
+    ],
+)
+def test_parse_voice_tags_keeps_text_and_strips_markup(
+    raw_text: str, expected: list[tuple[str | None, str]]
+) -> None:
+    assert parse_voice_tags(raw_text) == expected
+
+
+def test_parse_voice_tags_on_webvtt_raw_text(tmp_path: os.PathLike[str]) -> None:
+    vtt_path = os.path.join(str(tmp_path), "inline.vtt")
+    with open(vtt_path, "w") as f:
+        f.write(
+            "WEBVTT\n\n"
+            "00:00:01.000 --> 00:00:03.000\n"
+            "<v Alice>I <i>really</i> mean it</v>\n\n"
+            "00:00:04.000 --> 00:00:05.000\n"
+            "<v Bob>Use the <c.code>make</c> command\n"
+        )
+    segments = [parse_voice_tags(c.raw_text) for c in webvtt.read(vtt_path)]
+    assert segments == [
+        [("Alice", "I really mean it")],
+        [("Bob", "Use the make command")],
+    ]
+
+
 def test_webvtt_timestamp_conversion():
     """Test conversion of WebVTT timestamps to seconds."""
     test_cases = [
