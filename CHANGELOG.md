@@ -50,6 +50,12 @@
   terms are no longer indexed (#322). SQLite property values stored by earlier
   versions were only lowercased, so values with extra whitespace or decomposed
   Unicode may no longer match; re-ingest such databases to rebuild the indexes.
+- Term normalization now lowercases before applying NFC, so normalizing an
+  already-normalized term no longer changes it. This affects only terms where
+  lowercasing yields a sequence that composes differently (e.g. an uppercase
+  letter followed by a combining mark, such as `T̈`). Indexes stored by
+  earlier versions keep such terms in the old form, so they may no longer
+  match; re-ingest to rebuild the indexes.
 
 ### 0.5.0 (May 26)
 
