@@ -8,7 +8,7 @@ import pytest
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.interfaces import TextLocation, TextRange, Thread
-from typeagent.knowpro.interfaces_serialization import ConversationThreadData
+from typeagent.knowpro.serialization_data import ConversationThreadData
 from typeagent.storage.memory.convthreads import ConversationThreads
 
 

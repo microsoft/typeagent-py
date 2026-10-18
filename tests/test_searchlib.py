@@ -21,7 +21,7 @@ from typeagent.knowpro.searchlib import (
     create_tag_search_term_group,
     create_topic_search_term_group,
 )
-from typeagent.storage.memory.propindex import PropertyNames
+from typeagent.storage.memory.property_index import PropertyNames
 
 
 class TestCreateSearchTerm:

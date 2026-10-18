@@ -17,11 +17,11 @@ from . import (
     convknowledge,
     search_query_schema,
     searchlang,
-    secindex,
+    secondary_index,
 )
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
-from ..storage.memory import semrefindex
+from ..storage.memory import semantic_ref_index
 from .convsettings import ConversationSettings
 from .interfaces import (
     AddMessagesResult,
@@ -34,9 +34,9 @@ from .interfaces import (
     IStorageProvider,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    TextLocation,
     Topic,
 )
-from .interfaces_core import TextLocation
 from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 from .messageutils import get_all_message_chunk_locations
 
@@ -110,7 +110,7 @@ class ConversationBase(
         instance.messages = storage_provider.messages
         instance.semantic_refs = storage_provider.semantic_refs
         instance.semantic_ref_index = storage_provider.semantic_ref_index
-        instance.secondary_indexes = secindex.ConversationSecondaryIndexes(
+        instance.secondary_indexes = secondary_index.ConversationSecondaryIndexes(
             storage_provider, settings.related_term_index_settings
         )
         return instance
@@ -124,7 +124,7 @@ class ConversationBase(
 
     async def add_metadata_to_index(self) -> None:
         """Add metadata knowledge to the semantic reference index."""
-        await semrefindex.add_metadata_to_index(
+        await semantic_ref_index.add_metadata_to_index(
             self.messages,
             self.semantic_refs,
             self.semantic_ref_index,
@@ -368,7 +368,7 @@ class ConversationBase(
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
 
-            await semrefindex.add_knowledge_batch_to_semantic_ref_index(
+            await semantic_ref_index.add_knowledge_batch_to_semantic_ref_index(
                 self,
                 knowledge_items,
             )
@@ -406,9 +406,9 @@ class ConversationBase(
         if self.secondary_indexes is None:
             return
 
-        from ..storage.memory import propindex
+        from ..storage.memory import property_index
 
-        await propindex.add_to_property_index(self, start_points.semref_count)
+        await property_index.add_to_property_index(self, start_points.semref_count)
 
         await self._add_timestamps_for_messages(
             new_messages,
@@ -433,7 +433,7 @@ class ConversationBase(
             start_from_message_ordinal,
             999_999_999,
         )
-        await semrefindex.add_metadata_to_index_from_list(
+        await semantic_ref_index.add_metadata_to_index_from_list(
             messages_slice,
             self.semantic_refs,
             self.semantic_ref_index,
@@ -458,7 +458,7 @@ class ConversationBase(
             messages,
             start_from_message_ordinal,
         )
-        await semrefindex.add_batch_to_semantic_ref_index_from_list(
+        await semantic_ref_index.add_batch_to_semantic_ref_index_from_list(
             self,
             messages,
             text_locations,
@@ -474,9 +474,9 @@ class ConversationBase(
         if self.secondary_indexes is None:
             return
 
-        from ..storage.memory import propindex
+        from ..storage.memory import property_index
 
-        await propindex.add_to_property_index(self, start_points.semref_count)
+        await property_index.add_to_property_index(self, start_points.semref_count)
 
         new_messages = await self.messages.get_slice(
             start_points.message_count,

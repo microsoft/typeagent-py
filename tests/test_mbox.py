@@ -5,7 +5,7 @@
 
 from datetime import datetime, timezone
 
-from typeagent.emails.email_import import email_matches_date_filter, import_email_string
+from typeagent.emails.email_ingest import email_matches_date_filter, ingest_email_string
 
 # ===========================================================================
 # Tests for email_matches_date_filter
@@ -102,12 +102,12 @@ Hello from Munich!
 class TestEncodingEdgeCases:
     def test_encoded_header_sender(self) -> None:
         """RFC 2047 encoded sender should be decoded to a string, not raise."""
-        email = import_email_string(_EMAIL_WITH_ENCODED_HEADER)
+        email = ingest_email_string(_EMAIL_WITH_ENCODED_HEADER)
         assert isinstance(email.metadata.sender, str)
 
     def test_encoded_header_subject(self) -> None:
         """RFC 2047 encoded subject should be decoded to a string."""
-        email = import_email_string(_EMAIL_WITH_ENCODED_HEADER)
+        email = ingest_email_string(_EMAIL_WITH_ENCODED_HEADER)
         assert isinstance(email.metadata.subject, str)
 
 
@@ -128,7 +128,7 @@ SGVsbG8gV29ybGQ=
 class TestUnknownCharset:
     def test_unknown_charset_does_not_crash(self) -> None:
         """An email with an unknown charset should be decoded without raising."""
-        email = import_email_string(_EMAIL_WITH_UNKNOWN_CHARSET)
+        email = ingest_email_string(_EMAIL_WITH_UNKNOWN_CHARSET)
         body = " ".join(email.text_chunks)
         assert "Hello World" in body or len(body) > 0
 
@@ -149,7 +149,7 @@ This email has no Date header.
 
 class TestMissingDate:
     def test_email_without_date_has_none_timestamp(self) -> None:
-        email = import_email_string(_EMAIL_NO_DATE)
+        email = ingest_email_string(_EMAIL_NO_DATE)
         assert email.timestamp is None
 
     def test_email_without_date_passes_date_filter(self) -> None:
@@ -160,7 +160,7 @@ class TestMissingDate:
 
 
 # ===========================================================================
-# Tests for import_email_string and import_email_message edge cases
+# Tests for ingest_email_string and ingest_email_message edge cases
 # ===========================================================================
 
 _SIMPLE_EMAIL = """\
@@ -195,7 +195,7 @@ Content-Type: text/html
 
 class TestImportEmailString:
     def test_simple_email(self) -> None:
-        email = import_email_string(_SIMPLE_EMAIL)
+        email = ingest_email_string(_SIMPLE_EMAIL)
         assert "alice@example.com" in email.metadata.sender
         assert email.metadata.subject is not None
         assert "Test" in email.metadata.subject
@@ -204,7 +204,7 @@ class TestImportEmailString:
         assert len(email.text_chunks) > 0
 
     def test_multipart_email(self) -> None:
-        email = import_email_string(_MULTIPART_EMAIL)
+        email = ingest_email_string(_MULTIPART_EMAIL)
         # Should extract the plain text part
         body = " ".join(email.text_chunks)
         assert "Plain text body" in body

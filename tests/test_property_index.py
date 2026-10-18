@@ -7,7 +7,7 @@ from typeagent.knowpro.collections import TextRangeCollection, TextRangesInScope
 from typeagent.knowpro.interfaces import SemanticRef, Tag, TextLocation, TextRange
 from typeagent.knowpro.knowledge_schema import Action, ConcreteEntity, Facet
 from typeagent.storage.memory import MemorySemanticRefCollection
-from typeagent.storage.memory.propindex import (
+from typeagent.storage.memory.property_index import (
     add_action_properties_to_index,
     add_entity_properties_to_index,
     add_facet,

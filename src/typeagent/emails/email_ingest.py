@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from datetime import datetime
+from datetime import datetime, timezone
 from email import message_from_string
 from email.header import decode_header, Header, make_header
 from email.message import Message
@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 from typing import Iterable, overload
 
+from ..knowpro.universal_message import format_timestamp_utc
 from .email_message import EmailMessage, EmailMessageMeta
 
 
@@ -42,42 +43,42 @@ def _header_to_str(
     return str(value)
 
 
-def import_emails_from_dir(
+def ingest_emails_from_dir(
     dir_path: str, max_chunk_length: int = 4096
 ) -> Iterable[EmailMessage]:
     for file_path in Path(dir_path).iterdir():
         if file_path.is_file():
-            yield import_email_from_file(str(file_path.resolve()), max_chunk_length)
+            yield ingest_email_from_file(str(file_path.resolve()), max_chunk_length)
 
 
 # Imports an email file (.eml) as a list of EmailMessage objects
-def import_email_from_file(
+def ingest_email_from_file(
     file_path: str, max_chunk_length: int = 4096
 ) -> EmailMessage:
     email_string: str = ""
     with open(file_path, "r") as f:
         email_string = f.read()
 
-    email = import_email_string(email_string, max_chunk_length)
+    email = ingest_email_string(email_string, max_chunk_length)
     email.src_url = file_path
     return email
 
 
 # Imports a single email MIME string and returns an EmailMessage object
-def import_email_string(
+def ingest_email_string(
     email_string: str, max_chunk_length: int = 4096
 ) -> EmailMessage:
     msg: Message = message_from_string(email_string)
-    email: EmailMessage = import_email_message(msg, max_chunk_length)
+    email: EmailMessage = ingest_email_message(msg, max_chunk_length)
     return email
 
 
-def import_forwarded_email_string(
+def ingest_forwarded_email_string(
     email_string: str, max_chunk_length: int = 4096
 ) -> list[EmailMessage]:
     msg_parts = get_forwarded_email_parts(email_string)
     return [
-        import_email_string(part, max_chunk_length)
+        ingest_email_string(part, max_chunk_length)
         for part in msg_parts
         if len(part) > 0
     ]
@@ -85,7 +86,7 @@ def import_forwarded_email_string(
 
 # Imports an email.message.Message object and returns an EmailMessage object
 # If the message is a reply, returns only the latest response.
-def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
+def ingest_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     # Extract metadata from headers.
     # msg.get() can return a Header object instead of str for encoded headers,
     # so coerce all values to str.
@@ -100,7 +101,12 @@ def import_email_message(msg: Message, max_chunk_length: int) -> EmailMessage:
     timestamp: str | None = None
     timestamp_date = msg.get("Date", None)
     if timestamp_date is not None:
-        timestamp = parsedate_to_datetime(timestamp_date).isoformat()
+        parsed_date = parsedate_to_datetime(timestamp_date)
+        if parsed_date.tzinfo is None:
+            # RFC 5322 "-0000": time is UTC but the origin zone is unknown.
+            parsed_date = parsed_date.replace(tzinfo=timezone.utc)
+        # Normalize to UTC so timestamps sort lexicographically across senders.
+        timestamp = format_timestamp_utc(parsed_date)
 
     # Get email body.
     # If the email was a reply, then ensure we only pick up the latest response

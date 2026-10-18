@@ -6,15 +6,15 @@
 from collections.abc import Sequence
 import sqlite3
 
-from ...knowpro import interfaces
-from ...knowpro.interfaces import ScoredSemanticRefOrdinal
-from ...storage.memory.propindex import (
-    make_property_term_text,
-    split_property_term_text,
+from ...knowpro.interfaces import (
+    IPropertyToSemanticRefIndex,
+    ScoredSemanticRefOrdinal,
+    SemanticRefOrdinal,
 )
+from ...storage.memory import property_index
 
 
-class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
+class SqlitePropertyIndex(IPropertyToSemanticRefIndex):
     """SQLite-backed implementation of property to semantic ref index."""
 
     def __init__(self, db: sqlite3.Connection):
@@ -38,12 +38,10 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
         self,
         property_name: str,
         value: str,
-        semantic_ref_ordinal: (
-            interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal
-        ),
+        semantic_ref_ordinal: SemanticRefOrdinal | ScoredSemanticRefOrdinal,
     ) -> None:
         # Extract semref_id and score from the ordinal
-        if isinstance(semantic_ref_ordinal, interfaces.ScoredSemanticRefOrdinal):
+        if isinstance(semantic_ref_ordinal, ScoredSemanticRefOrdinal):
             semref_id = semantic_ref_ordinal.semantic_ref_ordinal
             score = semantic_ref_ordinal.score
         else:
@@ -51,9 +49,9 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             score = 1.0
 
         # Normalize property name and value (to match in-memory implementation)
-        term_text = make_property_term_text(property_name, value)
+        term_text = property_index.make_property_term_text(property_name, value)
         term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
-        property_name, value = split_property_term_text(term_text)
+        property_name, value = property_index.split_property_term_text(term_text)
         # Remove "prop." prefix that was added by make_property_term_text
         if property_name.startswith("prop."):
             property_name = property_name[5:]
@@ -73,7 +71,7 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             tuple[
                 str,
                 str,
-                interfaces.SemanticRefOrdinal | interfaces.ScoredSemanticRefOrdinal,
+                SemanticRefOrdinal | ScoredSemanticRefOrdinal,
             ]
         ],
     ) -> None:
@@ -81,15 +79,15 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
             return
         rows = []
         for property_name, value, ordinal in properties:
-            if isinstance(ordinal, interfaces.ScoredSemanticRefOrdinal):
+            if isinstance(ordinal, ScoredSemanticRefOrdinal):
                 semref_id = ordinal.semantic_ref_ordinal
                 score = ordinal.score
             else:
                 semref_id = ordinal
                 score = 1.0
-            term_text = make_property_term_text(property_name, value)
+            term_text = property_index.make_property_term_text(property_name, value)
             term_text = term_text.lower()
-            property_name, value = split_property_term_text(term_text)
+            property_name, value = property_index.split_property_term_text(term_text)
             if property_name.startswith("prop."):
                 property_name = property_name[5:]
             rows.append((property_name, value, score, semref_id))
@@ -107,11 +105,11 @@ class SqlitePropertyIndex(interfaces.IPropertyToSemanticRefIndex):
         self,
         property_name: str,
         value: str,
-    ) -> list[interfaces.ScoredSemanticRefOrdinal] | None:
+    ) -> list[ScoredSemanticRefOrdinal] | None:
         # Normalize property name and value (to match in-memory implementation)
-        term_text = make_property_term_text(property_name, value)
+        term_text = property_index.make_property_term_text(property_name, value)
         term_text = term_text.lower()  # Matches PropertyIndex._prepare_term_text
-        property_name, value = split_property_term_text(term_text)
+        property_name, value = property_index.split_property_term_text(term_text)
         # Remove "prop." prefix that was added by make_property_term_text
         if property_name.startswith("prop."):
             property_name = property_name[5:]

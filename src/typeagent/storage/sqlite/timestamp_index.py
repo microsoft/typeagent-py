@@ -5,11 +5,19 @@
 
 import sqlite3
 
-from ...knowpro import interfaces
+from ...knowpro.interfaces import (
+    DateRange,
+    ITimestampToTextRangeIndex,
+    MessageOrdinal,
+    TextLocation,
+    TextRange,
+    TimestampedTextRange,
+)
 from ...knowpro.universal_message import format_timestamp_utc
+from .schema import NORMALIZED_TIMESTAMP_SQL
 
 
-class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
+class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
     """SQL-based timestamp index that queries Messages table directly."""
 
     def __init__(self, db: sqlite3.Connection):
@@ -26,13 +34,11 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
         return cursor.fetchone()[0]
 
     async def add_timestamp(
-        self, message_ordinal: interfaces.MessageOrdinal, timestamp: str
+        self, message_ordinal: MessageOrdinal, timestamp: str
     ) -> bool:
         return self._add_timestamp(message_ordinal, timestamp)
 
-    def _add_timestamp(
-        self, message_ordinal: interfaces.MessageOrdinal, timestamp: str
-    ) -> bool:
+    def _add_timestamp(self, message_ordinal: MessageOrdinal, timestamp: str) -> bool:
         """Add timestamp to Messages table start_timestamp column."""
         cursor = self.db.cursor()
         cursor.execute(
@@ -43,28 +49,30 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
 
     async def get_timestamp_ranges(
         self, start_timestamp: str, end_timestamp: str | None = None
-    ) -> list[interfaces.TimestampedTextRange]:
+    ) -> list[TimestampedTextRange]:
         """Get timestamp ranges from Messages table."""
         cursor = self.db.cursor()
 
+        norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
+        norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
         if end_timestamp is None:
             # Single timestamp query
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp
                 FROM Messages
-                WHERE start_timestamp = ?
+                WHERE {norm_col} = {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp,),
             )
         else:
-            # Range query
+            # Range query (inclusive)
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp
                 FROM Messages
-                WHERE start_timestamp >= ? AND start_timestamp <= ?
+                WHERE {norm_col} >= {norm_arg} AND {norm_col} <= {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp, end_timestamp),
@@ -78,14 +86,12 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
             text_range = TextRange(
                 start=TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
             )
-            results.append(
-                interfaces.TimestampedTextRange(range=text_range, timestamp=timestamp)
-            )
+            results.append(TimestampedTextRange(range=text_range, timestamp=timestamp))
 
         return results
 
     async def add_timestamps(
-        self, message_timestamps: list[tuple[interfaces.MessageOrdinal, str]]
+        self, message_timestamps: list[tuple[MessageOrdinal, str]]
     ) -> None:
         """Add multiple timestamps."""
         if not message_timestamps:
@@ -96,23 +102,25 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
             [(ts, ordinal) for ordinal, ts in message_timestamps],
         )
 
-    async def lookup_range(
-        self, date_range: interfaces.DateRange
-    ) -> list[interfaces.TimestampedTextRange]:
+    async def lookup_range(self, date_range: DateRange) -> list[TimestampedTextRange]:
         """Lookup messages in a date range."""
         cursor = self.db.cursor()
 
-        # Convert datetime objects to ISO format strings with Z suffix
+        # Stored timestamps may have any UTC offset and any fractional precision,
+        # so raw strings don't sort chronologically. Compare via strftime(), which
+        # converts to UTC and renders a fixed-width value (also for existing rows).
         start_timestamp = format_timestamp_utc(date_range.start)
         end_timestamp = format_timestamp_utc(date_range.end) if date_range.end else None
 
+        norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
+        norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
         if date_range.end is None:
             # Point query
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp, chunks
                 FROM Messages
-                WHERE start_timestamp = ?
+                WHERE {norm_col} = {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp,),
@@ -120,10 +128,10 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
         else:
             # Range query
             cursor.execute(
-                """
+                f"""
                 SELECT msg_id, start_timestamp, chunks
                 FROM Messages
-                WHERE start_timestamp >= ? AND start_timestamp < ?
+                WHERE {norm_col} >= {norm_arg} AND {norm_col} < {norm_arg}
                 ORDER BY msg_id
                 """,
                 (start_timestamp, end_timestamp),
@@ -131,14 +139,8 @@ class SqliteTimestampToTextRangeIndex(interfaces.ITimestampToTextRangeIndex):
 
         results = []
         for msg_id, timestamp, _chunks in cursor.fetchall():
-            text_location = interfaces.TextLocation(
-                message_ordinal=msg_id, chunk_ordinal=0
-            )
-            text_range = interfaces.TextRange(
-                start=text_location, end=None  # Point range
-            )
-            results.append(
-                interfaces.TimestampedTextRange(timestamp=timestamp, range=text_range)
-            )
+            text_location = TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
+            text_range = TextRange(start=text_location, end=None)  # Point range
+            results.append(TimestampedTextRange(timestamp=timestamp, range=text_range))
 
         return results

@@ -15,7 +15,7 @@ from typeagent.storage.memory.collections import (
     MemoryMessageCollection,
     MemorySemanticRefCollection,
 )
-from typeagent.storage.memory.semrefindex import TermToSemanticRefIndex
+from typeagent.storage.memory.semantic_ref_index import TermToSemanticRefIndex
 from typeagent.transcripts.transcript import (
     split_speaker_name,
     Transcript,

@@ -28,14 +28,14 @@ import time
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import SemanticRef, Topic
+from typeagent.knowpro.core_types import SemanticRef, Topic
 from typeagent.knowpro.knowledge_schema import (
     Action,
     ConcreteEntity,
     Facet,
     KnowledgeResponse,
 )
-from typeagent.storage.memory.semrefindex import (
+from typeagent.storage.memory.semantic_ref_index import (
     add_knowledge_batch_to_semantic_ref_index,
     text_range_from_message_chunk,
     validate_entity,

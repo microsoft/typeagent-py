@@ -1,10 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from ..storage.memory import reltermsindex
-from ..storage.memory.messageindex import build_message_index
-from ..storage.memory.propindex import build_property_index
-from ..storage.memory.timestampindex import build_timestamp_index
+from ..storage.memory import property_index, related_terms_index
+from ..storage.memory.message_index import build_message_index
+from ..storage.memory.timestamp_index import build_timestamp_index
 from .convsettings import ConversationSettings, RelatedTermIndexSettings
 from .interfaces import (
     IConversation,
@@ -45,7 +44,7 @@ async def build_secondary_indexes[
     else:
         storage_provider = await conversation_settings.get_storage_provider()
     await build_transient_secondary_indexes(conversation, conversation_settings)
-    await reltermsindex.build_related_terms_index(
+    await related_terms_index.build_related_terms_index(
         conversation, conversation_settings.related_term_index_settings
     )
     if conversation.secondary_indexes is not None:
@@ -66,5 +65,5 @@ async def build_transient_secondary_indexes[
             await settings.get_storage_provider(),
             settings.related_term_index_settings,
         )
-    await build_property_index(conversation)
+    await property_index.build_property_index(conversation)
     await build_timestamp_index(conversation)

@@ -135,8 +135,10 @@ async def test_related_terms_index_population_from_database(really_needs_auth):
         # Create a test conversation and build related terms index
         from typeagent.knowpro.convsettings import ConversationSettings
         from typeagent.podcasts.podcast import Podcast
-        from typeagent.storage.memory.reltermsindex import build_related_terms_index
-        from typeagent.storage.sqlite.reltermsindex import SqliteRelatedTermsIndex
+        from typeagent.storage.memory.related_terms_index import (
+            build_related_terms_index,
+        )
+        from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsIndex
 
         settings2 = ConversationSettings()
         settings2.storage_provider = storage2

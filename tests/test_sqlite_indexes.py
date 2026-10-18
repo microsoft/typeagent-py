@@ -3,6 +3,7 @@
 
 """Tests for SQLite index implementations with real embeddings."""
 
+from datetime import timedelta, timezone
 import os
 import sqlite3
 import tempfile
@@ -15,22 +16,24 @@ from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro import interfaces
 from typeagent.knowpro.convsettings import MessageTextIndexSettings
 from typeagent.knowpro.interfaces import (
+    DateRange,
+    Datetime,
     SemanticRef,
     Term,
     TextLocation,
     TextRange,
     Topic,
 )
-from typeagent.storage.sqlite.messageindex import SqliteMessageTextIndex
-from typeagent.storage.sqlite.propindex import SqlitePropertyIndex
-from typeagent.storage.sqlite.reltermsindex import (
+from typeagent.storage.sqlite.message_index import SqliteMessageTextIndex
+from typeagent.storage.sqlite.property_index import SqlitePropertyIndex
+from typeagent.storage.sqlite.related_terms_index import (
     SqliteRelatedTermsAliases,
     SqliteRelatedTermsFuzzy,
     SqliteRelatedTermsIndex,
 )
 from typeagent.storage.sqlite.schema import init_db_schema
-from typeagent.storage.sqlite.semrefindex import SqliteTermToSemanticRefIndex
-from typeagent.storage.sqlite.timestampindex import SqliteTimestampToTextRangeIndex
+from typeagent.storage.sqlite.semantic_ref_index import SqliteTermToSemanticRefIndex
+from typeagent.storage.sqlite.timestamp_index import SqliteTimestampToTextRangeIndex
 
 
 @pytest.fixture
@@ -187,6 +190,50 @@ class TestSqliteTimestampToTextRangeIndex:
             "2023-01-01T10:00:00Z", "2023-01-01T11:00:00Z"
         )
         assert len(results) == 2
+
+    @pytest.mark.asyncio
+    async def test_lookup_range_mixed_offsets_and_precision(
+        self, sqlite_db: sqlite3.Connection
+    ):
+        """Range lookup compares instants, not raw strings."""
+        index = SqliteTimestampToTextRangeIndex(sqlite_db)
+        stored = [
+            "2024-01-01T12:00:00+05:00",  # 07:00:00 UTC (legacy email format)
+            "2024-01-01T07:00:00Z",  # 07:00:00 UTC
+            "2024-01-01T07:00:00.250000Z",
+            "2024-01-01T07:00:01Z",
+        ]
+        cursor = sqlite_db.cursor()
+        for i, ts in enumerate(stored):
+            cursor.execute(
+                "INSERT INTO Messages (msg_id, chunks, start_timestamp) VALUES (?, '[\"m\"]', ?)",
+                (i, ts),
+            )
+        sqlite_db.commit()
+
+        def ordinals(results):
+            return [r.range.start.message_ordinal for r in results]
+
+        utc = timezone.utc
+        dr = DateRange(
+            start=Datetime(2024, 1, 1, 7, tzinfo=utc),
+            end=Datetime(2024, 1, 1, 7, 0, 1, tzinfo=utc),
+        )
+        assert ordinals(await index.lookup_range(dr)) == [0, 1, 2]
+
+        # A fractional bound must exclude the whole-second value before it.
+        dr = DateRange(
+            start=Datetime(2024, 1, 1, 7, 0, 0, 500000, tzinfo=utc),
+            end=Datetime(2024, 1, 1, 8, tzinfo=utc),
+        )
+        assert ordinals(await index.lookup_range(dr)) == [3]
+
+        # Point query with a non-UTC offset matches both representations.
+        dr = DateRange(
+            start=Datetime(2024, 1, 1, 12, tzinfo=timezone(timedelta(hours=5))),
+            end=None,
+        )
+        assert ordinals(await index.lookup_range(dr)) == [0, 1]
 
 
 class TestSqliteRelatedTermsAliases:

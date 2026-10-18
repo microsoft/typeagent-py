@@ -27,7 +27,7 @@ from typeagent.aitools.embeddings import (
     NormalizedEmbeddings,
 )
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.interfaces_core import Term
+from typeagent.knowpro.core_types import Term
 from typeagent.knowpro.query import lookup_term_filtered
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (

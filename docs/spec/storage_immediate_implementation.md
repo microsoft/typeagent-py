@@ -9,9 +9,9 @@ This document describes the current storage provider architecture and outlines n
 The storage system follows a clean layered design:
 
 ```
-Index Building Functions (timestampindex.py, propindex.py, etc.)
+Index Building Functions (timestamp_index.py, property_index.py, etc.)
          ↓ (use conversation.secondary_indexes - this is the intended pattern)
-ConversationSecondaryIndexes (secindex.py)
+ConversationSecondaryIndexes (secondary_index.py)
          ↓ (internally gets indexes from storage provider)
 Storage Provider (memorystore.py, sqlitestore.py)
          ↓ (manages actual index instances)
@@ -92,9 +92,9 @@ The storage system is now fully implemented and tested:
 The implementation follows a clean layered architecture:
 
 ```
-Index Building Functions (timestampindex.py, propindex.py, etc.)
+Index Building Functions (timestamp_index.py, property_index.py, etc.)
          ↓ (use conversation.secondary_indexes)
-ConversationSecondaryIndexes (secindex.py)
+ConversationSecondaryIndexes (secondary_index.py)
          ↓ (internally gets indexes from storage provider)
 Storage Provider (memorystore.py)
          ↓ (manages actual index instances)
@@ -119,28 +119,28 @@ The foundation is solid. The current lazy index creation approach is sufficient 
 
 Based on code analysis, we have **7 index implementations** in `IConversationSecondaryIndexes`:
 
-1. **SemanticRefIndex** (`semrefindex.py`):
+1. **SemanticRefIndex** (`semantic_ref_index.py`):
    - Type: `ITermToSemanticRefIndex`
    - Storage: `_map: dict[str, list[ScoredSemanticRefOrdinal]]`
    - Creates: Term → SemanticRef mappings for entities, topics, actions
 
-2. **PropertyIndex** (`propindex.py`):
+2. **PropertyIndex** (`property_index.py`):
    - Type: `IPropertyToSemanticRefIndex`
    - Storage: `_map: dict[str, list[ScoredSemanticRefOrdinal]]`
    - Creates: Property name → SemanticRef mappings
 
-3. **TimestampToTextRangeIndex** (`timestampindex.py`):
+3. **TimestampToTextRangeIndex** (`timestamp_index.py`):
    - Type: `ITimestampToTextRangeIndex`
    - Storage: `_ranges: list[TimestampedTextRange]` (sorted by timestamp)
    - Creates: Timestamp → TextRange mappings
    - **SQLite Note**: In SQLite implementation, this will be replaced by direct queries on Messages table using `start_timestamp`/`end_timestamp` columns
 
-4. **MessageTextIndex** (`messageindex.py`):
+4. **MessageTextIndex** (`message_index.py`):
    - Type: `IMessageTextEmbeddingIndex`
    - Storage: `TextToTextLocationIndex` (embeddings)
    - Creates: Message text → MessageOrdinal mappings
 
-5. **RelatedTermsIndex** (`reltermsindex.py`):
+5. **RelatedTermsIndex** (`related_terms_index.py`):
    - Type: `ITermToRelatedTermsIndex`
    - Storage: `_alias_map` + `_term_index` (embeddings)
    - Creates: Term → Related terms mappings
@@ -151,7 +151,7 @@ Based on code analysis, we have **7 index implementations** in `IConversationSec
    - Storage: `threads: list[Thread]` + `vector_base: VectorBase`
    - Creates: Thread description → Thread mappings
 
-7. **EmbeddingIndex** (`fuzzyindex.py`):
+7. **EmbeddingIndex** (`embedding_index.py`):
    - Type: Custom wrapper around `VectorBase`
    - Storage: NumPy arrays via VectorBase
    - Creates: Text embedding vectors for fuzzy search
@@ -161,10 +161,10 @@ Based on code analysis, we have **7 index implementations** in `IConversationSec
 
 Index creation is currently **scattered** across multiple files:
 
-- `secindex.py`: `ConversationSecondaryIndexes` class coordinates some indexes
-- `semrefindex.py`: Functions like `build_semantic_ref()`, `build_semantic_ref_index()`
-- `timestampindex.py`: `build_timestamp_index()`
-- `messageindex.py`: Index creation within `MessageTextIndex.add_messages()`
+- `secondary_index.py`: `ConversationSecondaryIndexes` class coordinates some indexes
+- `semantic_ref_index.py`: Functions like `build_semantic_ref()`, `build_semantic_ref_index()`
+- `timestamp_index.py`: `build_timestamp_index()`
+- `message_index.py`: Index creation within `MessageTextIndex.add_messages()`
 - Individual index classes have their own `add_*()` methods
 
 This scattered approach makes it difficult to:
@@ -243,15 +243,15 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
 **What still needs updating**:
 - Multiple files still use `conversation.secondary_indexes` pattern:
-  - `timestampindex.py`: Still accesses `conversation.secondary_indexes.timestamp_index`
-  - `propindex.py`: Still uses `conversation.secondary_indexes`
-  - `messageindex.py`: Still accesses `conversation.secondary_indexes.message_index`
-  - `reltermsindex.py`: Still uses `conversation.secondary_indexes`
+  - `timestamp_index.py`: Still accesses `conversation.secondary_indexes.timestamp_index`
+  - `property_index.py`: Still uses `conversation.secondary_indexes`
+  - `message_index.py`: Still accesses `conversation.secondary_indexes.message_index`
+  - `related_terms_index.py`: Still uses `conversation.secondary_indexes`
   - Several files in search functionality
 
 #### ~~Update ConversationSecondaryIndexes Class~~ **COMPLETED**
 
-~~Modify `secindex.py` to get indexes from storage provider:~~ The integration has been implemented and tested.
+~~Modify `secondary_index.py` to get indexes from storage provider:~~ The integration has been implemented and tested.
 
     async def get_message_text_index(
         self, conversation_id: str
@@ -304,7 +304,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     ) -> ITermToRelatedTermsIndex:
         if conversation_id not in self._related_terms_indexes:
             # Use default settings for now
-            from .reltermsindex import RelatedTermsIndex, RelatedTermIndexSettings
+            from .related_terms_index import RelatedTermsIndex, RelatedTermIndexSettings
             settings = RelatedTermIndexSettings()
             self._related_terms_indexes[conversation_id] = RelatedTermsIndex(settings)
         return self._related_terms_indexes[conversation_id]
@@ -346,7 +346,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
 #### Update ConversationSecondaryIndexes Class
 
-Modify `secindex.py` to get indexes from storage provider:
+Modify `secondary_index.py` to get indexes from storage provider:
 
 ```python
 class ConversationSecondaryIndexes[TMessage: IMessage](IConversationSecondaryIndexes[TMessage]):
@@ -380,7 +380,7 @@ class ConversationSecondaryIndexes[TMessage: IMessage](IConversationSecondaryInd
 Modify existing functions to use storage provider indexes:
 
 ```python
-# In semrefindex.py
+# In semantic_ref_index.py
 async def build_semantic_ref[TMessage: IMessage](
     conversation: IConversation[TMessage, SemanticRefIndex],
     conversation_settings: importing.ConversationSettings,
@@ -399,7 +399,7 @@ async def build_semantic_ref[TMessage: IMessage](
     )
     # ... rest of building logic stays the same ...
 
-# In timestampindex.py
+# In timestamp_index.py
 async def build_timestamp_index(conversation: IConversation) -> ListIndexingResult:
     if conversation.messages:
         # Get timestamp index from storage provider
@@ -425,7 +425,7 @@ async def build_timestamp_index(conversation: IConversation) -> ListIndexingResu
 
 Tests have been successfully created:
 - `test/test_storage_indexes.py` - Tests all 6 index types creation
-- `test/test_secindex_storage_integration.py` - Tests ConversationSecondaryIndexes integration
+- `tests/test_secondary_index_storage_integration.py` - Tests ConversationSecondaryIndexes integration
 
 ```python
 # ✅ IMPLEMENTED in test/test_storage_indexes.py

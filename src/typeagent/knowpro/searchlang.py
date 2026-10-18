@@ -31,7 +31,7 @@ from ..knowpro.search import (
     SearchQueryExpr,
 )
 from ..knowpro.searchlib import create_property_search_term
-from ..storage.memory.propindex import PropertyNames
+from ..storage.memory.property_index import PropertyNames
 from .date_time_schema import DateTime, DateTimeRange
 from .search_query_schema import (
     ActionTerm,

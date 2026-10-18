@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-"""Core conversation and knowledge interfaces for knowpro."""
+"""Core conversation and knowledge types and protocols for knowpro."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ __all__ = [
 ]
 
 if TYPE_CHECKING:
-    from .interfaces_serialization import ScoredSemanticRefOrdinalData, TermData
+    from .serialization_data import ScoredSemanticRefOrdinalData, TermData
 
 
 class IKnowledgeSource(Protocol):

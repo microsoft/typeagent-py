@@ -2,6 +2,50 @@
 
 ## 2026
 
+### 0.6.0 (unreleased)
+
+#### Breaking changes
+- Rename modules and functions for clearer, more consistent naming (#307).
+  There are no compatibility aliases; update imports as follows:
+  - `typeagent.emails.email_import` → `typeagent.emails.email_ingest`, and its
+    public `import_*` functions → `ingest_*` (`import_emails_from_dir` →
+    `ingest_emails_from_dir`, `import_email_from_file` →
+    `ingest_email_from_file`, `import_email_string` → `ingest_email_string`,
+    `import_forwarded_email_string` → `ingest_forwarded_email_string`,
+    `import_email_message` → `ingest_email_message`).
+  - `typeagent.knowpro.interfaces_search` → `typeagent.knowpro.search_terms`
+  - `typeagent.knowpro.interfaces_serialization` →
+    `typeagent.knowpro.serialization_data`
+  - `typeagent.knowpro.interfaces_indexes` → `typeagent.knowpro.index_protocols`
+  - `typeagent.knowpro.interfaces_storage` → `typeagent.knowpro.storage_protocols`
+  - `typeagent.knowpro.interfaces_core` → `typeagent.knowpro.core_types`
+  - `typeagent.knowpro.secindex` → `typeagent.knowpro.secondary_index`
+  - `typeagent.knowpro.textlocindex` → `typeagent.knowpro.text_location_index`
+  - `typeagent.knowpro.fuzzyindex` → `typeagent.knowpro.embedding_index`
+  - `typeagent.storage.memory.semrefindex` →
+    `typeagent.storage.memory.semantic_ref_index`
+  - `typeagent.storage.sqlite.semrefindex` →
+    `typeagent.storage.sqlite.semantic_ref_index`
+  - `typeagent.storage.memory.propindex` →
+    `typeagent.storage.memory.property_index`
+  - `typeagent.storage.sqlite.propindex` →
+    `typeagent.storage.sqlite.property_index`
+  - `typeagent.storage.memory.reltermsindex` →
+    `typeagent.storage.memory.related_terms_index`
+  - `typeagent.storage.sqlite.reltermsindex` →
+    `typeagent.storage.sqlite.related_terms_index`
+  - `typeagent.storage.memory.messageindex` →
+    `typeagent.storage.memory.message_index`
+  - `typeagent.storage.sqlite.messageindex` →
+    `typeagent.storage.sqlite.message_index`
+  - `typeagent.storage.memory.timestampindex` →
+    `typeagent.storage.memory.timestamp_index`
+  - `typeagent.storage.sqlite.timestampindex` →
+    `typeagent.storage.sqlite.timestamp_index`
+
+  Code importing the renamed `knowpro.interfaces_*` names from the
+  `typeagent.knowpro.interfaces` aggregator is unaffected.
+
 ### 0.5.0 (May 26)
 
 This release focuses on ingestion throughput, robustness, and developer tooling,

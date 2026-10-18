@@ -5,7 +5,6 @@
 
 from datetime import datetime, timezone
 
-from . import reltermsindex
 from ...knowpro.convsettings import MessageTextIndexSettings, RelatedTermIndexSettings
 from ...knowpro.interfaces import (
     ChunkFailure,
@@ -22,10 +21,11 @@ from ...knowpro.interfaces import (
 )
 from .collections import MemoryMessageCollection, MemorySemanticRefCollection
 from .convthreads import ConversationThreads
-from .messageindex import MessageTextIndex
-from .propindex import PropertyIndex
-from .semrefindex import TermToSemanticRefIndex
-from .timestampindex import TimestampToTextRangeIndex
+from .message_index import MessageTextIndex
+from .property_index import PropertyIndex
+from .related_terms_index import RelatedTermsIndex
+from .semantic_ref_index import TermToSemanticRefIndex
+from .timestamp_index import TimestampToTextRangeIndex
 
 
 class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
@@ -38,7 +38,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
     _property_index: PropertyIndex
     _timestamp_index: TimestampToTextRangeIndex
     _message_text_index: MessageTextIndex
-    _related_terms_index: reltermsindex.RelatedTermsIndex
+    _related_terms_index: RelatedTermsIndex
     _conversation_threads: ConversationThreads
     _ingested_sources: set[str]
     _chunk_failures: dict[tuple[int, int], ChunkFailure]
@@ -60,9 +60,7 @@ class MemoryStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
         self._conversation_index = TermToSemanticRefIndex()
         self._property_index = PropertyIndex()
         self._timestamp_index = TimestampToTextRangeIndex()
-        self._related_terms_index = reltermsindex.RelatedTermsIndex(
-            related_terms_settings
-        )
+        self._related_terms_index = RelatedTermsIndex(related_terms_settings)
         thread_settings = message_text_settings.embedding_index_settings
         self._conversation_threads = ConversationThreads(thread_settings)
         self._ingested_sources = set()

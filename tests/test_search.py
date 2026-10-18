@@ -5,12 +5,12 @@
 
 import pytest
 
+from typeagent.knowpro.core_types import ScoredMessageOrdinal
 from typeagent.knowpro.interfaces import (
     SearchTerm,
     SearchTermGroup,
     Term,
 )
-from typeagent.knowpro.interfaces_core import ScoredMessageOrdinal
 from typeagent.knowpro.query import is_conversation_searchable
 from typeagent.knowpro.search import (
     ConversationSearchResult,

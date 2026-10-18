@@ -11,7 +11,7 @@ from typing import Any, NamedTuple, Protocol, Self
 from pydantic.dataclasses import dataclass
 
 from ..aitools.embeddings import NormalizedEmbedding
-from .interfaces_core import (
+from .core_types import (
     IMessage,
     ITermToSemanticRefIndex,
     KnowledgeType,
@@ -20,7 +20,7 @@ from .interfaces_core import (
     SemanticRefOrdinal,
     TextRange,
 )
-from .interfaces_indexes import (
+from .index_protocols import (
     IConversationSecondaryIndexes,
     IConversationThreads,
     IMessageTextIndex,

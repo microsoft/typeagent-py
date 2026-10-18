@@ -9,14 +9,14 @@ from typeagent.knowpro.convsettings import (
     ConversationSettings,
     RelatedTermIndexSettings,
 )
-from typeagent.knowpro.secindex import (
+from typeagent.knowpro.secondary_index import (
     build_secondary_indexes,
     build_transient_secondary_indexes,
     ConversationSecondaryIndexes,
 )
 from typeagent.storage.memory import MemoryMessageCollection as MemoryMessageCollection
 from typeagent.storage.memory import MemoryStorageProvider
-from typeagent.storage.memory.timestampindex import TimestampToTextRangeIndex
+from typeagent.storage.memory.timestamp_index import TimestampToTextRangeIndex
 
 from conftest import FakeConversation  # Import the storage fixture
 from conftest import FakeMessage

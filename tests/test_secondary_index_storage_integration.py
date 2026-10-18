@@ -7,7 +7,7 @@ import pytest
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.aitools.vectorbase import TextEmbeddingIndexSettings
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
-from typeagent.knowpro.secindex import ConversationSecondaryIndexes
+from typeagent.knowpro.secondary_index import ConversationSecondaryIndexes
 from typeagent.storage.memory import MemoryStorageProvider
 
 

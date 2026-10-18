@@ -1,6 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-"""Search-related interfaces for knowpro."""
+"""Search term and query data types for knowpro."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from typing import Literal
 
 from pydantic.dataclasses import dataclass
 
-from .field_helpers import CamelCaseField
-from .interfaces_core import (
+from .core_types import (
     DateRange,
     KnowledgeType,
     ScoredSemanticRefOrdinal,
     Term,
     TextRange,
 )
+from .field_helpers import CamelCaseField
 
 __all__ = [
     "KnowledgePropertyName",

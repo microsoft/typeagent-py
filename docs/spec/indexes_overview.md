@@ -15,7 +15,7 @@ The knowpro system uses multiple indexes to find information quickly in conversa
 
 ## Index Types
 
-### 1. Semantic Reference Index (`semrefindex.py`)
+### 1. Semantic Reference Index (`semantic_ref_index.py`)
 
 **What it does**: The main index that connects words to semantic references (structured knowledge objects).
 
@@ -38,7 +38,7 @@ async def add_batch_to_semantic_ref_index(
 - Supports exact word matching and fuzzy/semantic matching
 - Returns scored semantic reference numbers for ranking
 
-### 2. Fuzzy Index (`fuzzyindex.py`)
+### 2. Embedding Index (`embedding_index.py`)
 
 **What it does**: Finds semantically similar content using embeddings.
 
@@ -65,7 +65,7 @@ def get_indexes_of_nearest(
 ) -> list[ScoredInt]
 ```
 
-### 3. Message Index (`messageindex.py`)
+### 3. Message Index (`message_index.py`)
 
 **What it does**: Indexes message content for direct message-level search.
 
@@ -95,7 +95,7 @@ async def lookup_messages(
 ) -> list[ScoredMessageOrdinal]
 ```
 
-### 4. Property Index (`propindex.py`)
+### 4. Property Index (`property_index.py`)
 
 **What it does**: Indexes structured properties of semantic references for property-based searches.
 
@@ -123,7 +123,7 @@ async def lookup_property_in_property_index(
 ) -> list[ScoredSemanticRefOrdinal]
 ```
 
-### 5. Related Terms Index (`reltermsindex.py`)
+### 5. Related Terms Index (`related_terms_index.py`)
 
 **What it does**: Stores and manages relationships between terms for query expansion and semantic search.
 
@@ -151,7 +151,7 @@ async def resolve_related_terms(
 ) -> list[Term]
 ```
 
-### 6. Text Location Index (`textlocindex.py`)
+### 6. Text Location Index (`text_location_index.py`)
 
 **What it does**: Maps text content to specific locations within the conversation.
 
@@ -179,7 +179,7 @@ async def lookup_text(
 ) -> list[ScoredTextLocation]
 ```
 
-### 7. Timestamp Index (`timestampindex.py`)
+### 7. Timestamp Index (`timestamp_index.py`)
 
 **What it does**: Enables time-based searches by indexing message timestamps.
 
@@ -209,7 +209,7 @@ def lookup_range(self, date_range: DateRange):
     )
 ```
 
-### 8. Secondary Index Coordinator (`secindex.py`)
+### 8. Secondary Index Coordinator (`secondary_index.py`)
 
 **What it does**: Manages and coordinates all secondary indexes as one system.
 

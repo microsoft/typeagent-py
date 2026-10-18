@@ -9,7 +9,7 @@ import numpy as np
 
 from ..aitools.embeddings import NormalizedEmbedding
 from ..aitools.vectorbase import TextEmbeddingIndexSettings
-from .fuzzyindex import EmbeddingIndex, ScoredInt
+from .embedding_index import EmbeddingIndex, ScoredInt
 from .interfaces import TextLocation, TextToTextLocationIndexData
 
 
