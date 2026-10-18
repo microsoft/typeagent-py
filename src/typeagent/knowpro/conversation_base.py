@@ -53,6 +53,11 @@ class _ChunkCommitResult(Protocol):
     related_terms: list[str] | None
     related_term_embeddings: list[NormalizedEmbedding] | None
 
+    # Read-only (and typed as object) so the pipeline's generic result type
+    # matches; it is only compared by identity against the staged messages.
+    @property
+    def message(self) -> object: ...
+
 
 @dataclass(init=False)
 class ConversationBase(
@@ -242,14 +247,16 @@ class ConversationBase(
             return AddMessagesResult()
 
         # Chunk locations use source-stream ordinals. Those ordinals can have
-        # gaps when skip_failed_messages omits a message, so preserve their
-        # order for remapping to consecutive storage ordinals below.
-        source_message_ids: list[MessageOrdinal] = []
-        source_message_id: MessageOrdinal | None = None
+        # gaps when skip_failed_messages omits a message, so group the results
+        # by source message, in order, for pairing with the staged messages
+        # (and remapping to consecutive storage ordinals) below.
+        source_groups: list[tuple[MessageOrdinal, object]] = []
         for result in chunk_results:
-            if result.chunk_id.message_ordinal != source_message_id:
-                source_message_ids.append(result.chunk_id.message_ordinal)
-                source_message_id = result.chunk_id.message_ordinal
+            if (
+                not source_groups
+                or result.chunk_id.message_ordinal != source_groups[-1][0]
+            ):
+                source_groups.append((result.chunk_id.message_ordinal, result.message))
 
         # Process chunk results first to collect embeddings and knowledge items
         knowledge_items: list[tuple[MessageOrdinal, int, KnowledgeResponse]] = []
@@ -298,7 +305,8 @@ class ConversationBase(
                 )
             fuzzy_terms.extend(result.related_terms)
             fuzzy_term_embeddings.extend(result.related_term_embeddings)
-            # Store embedding by source message/chunk location until commit remaps it.
+            # Keyed by source-stream location; read below while building
+            # chunk_embeddings in storage order.
             chunk_embedding_map[
                 (result.chunk_id.message_ordinal, result.chunk_id.chunk_ordinal)
             ] = result.chunk_embedding
@@ -317,12 +325,18 @@ class ConversationBase(
             ):
                 if not message.text_chunks:
                     continue
-                if result_group_index >= len(source_message_ids):
+                if result_group_index >= len(source_groups):
                     raise ValueError(
                         "Missing chunk results for staged message: "
                         f"message={storage_message_id}"
                     )
-                source_message_id = source_message_ids[result_group_index]
+                source_message_id, source_message = source_groups[result_group_index]
+                if source_message is not message:
+                    raise ValueError(
+                        "Chunk results do not belong to staged message: "
+                        f"message={storage_message_id}, "
+                        f"source_message={source_message_id}"
+                    )
                 result_group_index += 1
                 source_to_storage_message_id[source_message_id] = storage_message_id
                 for chunk_ordinal in range(len(message.text_chunks)):
@@ -336,8 +350,11 @@ class ConversationBase(
                         )
                     chunk_embeddings.append(embedding)
 
-            if result_group_index != len(source_message_ids):
-                raise ValueError("Chunk results exceed staged messages with chunks")
+            if result_group_index != len(source_groups):
+                raise ValueError(
+                    "Chunk results exceed staged messages with chunks: "
+                    f"consumed={result_group_index}, groups={len(source_groups)}"
+                )
 
             remapped_knowledge_items: list[
                 tuple[MessageOrdinal, int, KnowledgeResponse]

@@ -12,10 +12,17 @@ import pytest
 import typechat
 
 from typeagent.aitools.model_adapters import create_test_embedding_model
-from typeagent.knowpro.add_messages import add_messages_streaming
+from typeagent.knowpro.add_messages import (
+    add_messages_streaming,
+    ChunkProcessingResult,
+)
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.core_types import AddMessagesResult, IKnowledgeExtractor
-from typeagent.knowpro.knowledge_schema import KnowledgeResponse
+from typeagent.knowpro.core_types import (
+    AddMessagesResult,
+    IKnowledgeExtractor,
+    TextLocation,
+)
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.transcripts.transcript import (
     Transcript,
@@ -127,6 +134,25 @@ class ControlledExtractor:
         return typechat.Success(_EMPTY_RESPONSE)
 
 
+class _EntityPerChunkExtractor:
+    """Return one entity named after each chunk; fail on chunks in ``fail_on_text``."""
+
+    def __init__(self, fail_on_text: set[str]) -> None:
+        self.fail_on_text = fail_on_text
+
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
+        if message in self.fail_on_text:
+            return typechat.Failure(f"Extraction failed for chunk {message!r}")
+        return typechat.Success(
+            KnowledgeResponse(
+                entities=[ConcreteEntity(name=message, type=["chunk"])],
+                actions=[],
+                inverse_actions=[],
+                topics=[],
+            )
+        )
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -234,6 +260,113 @@ async def test_streaming_skips_failed_message_and_commits_next_message() -> None
         assert await transcript.messages.get_slice(0, 1) == [messages[1]]
         assert not await storage.is_source_ingested("failed-source")
         assert await storage.is_source_ingested("successful-source")
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("chunks_per_message", "batch_size"),
+    [
+        pytest.param([["bad"], ["a"], ["b0", "b1"]], 100, id="single_skip"),
+        pytest.param(
+            [["bad0"], ["bad1"], ["a"], ["b0", "b1"]], 100, id="consecutive_skips"
+        ),
+        pytest.param(
+            [["x0", "bad"], ["a"], ["b0", "b1"]], 100, id="partially_failed_message"
+        ),
+        # batch_size counts chunks: batches are [a], [b0, b1], [c].
+        pytest.param(
+            [["a"], ["bad"], ["b0", "b1"], ["c"]], 2, id="skip_before_batch_boundary"
+        ),
+        # Batches are [a0, a1], [b], [c0, c1].
+        pytest.param(
+            [["a0", "a1"], ["bad"], ["b"], ["c0", "c1"]], 2, id="skip_after_full_batch"
+        ),
+    ],
+)
+async def test_streaming_skip_remaps_semref_locations_to_storage_ordinals(
+    chunks_per_message: list[list[str]], batch_size: int
+) -> None:
+    """Semrefs for messages after a skipped one point at their storage ordinal."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        failing = {
+            text for chunks in chunks_per_message for text in chunks if "bad" in text
+        }
+        transcript, storage = await _create_transcript(
+            db_path,
+            auto_extract=True,
+            knowledge_extractor=_EntityPerChunkExtractor(failing),
+        )
+        messages = [
+            TranscriptMessage(
+                text_chunks=chunks, metadata=TranscriptMessageMeta(speaker="Alice")
+            )
+            for chunks in chunks_per_message
+        ]
+        kept = [m for m in messages if not failing & set(m.text_chunks)]
+
+        result = await add_messages_streaming(
+            transcript,
+            _async_iter(messages),
+            batch_size=batch_size,
+            skip_failed_messages=True,
+        )
+        assert result.messages_skipped == len(messages) - len(kept)
+        assert result.messages_added == len(kept)
+
+        stored = await transcript.messages.get_slice(
+            0, await transcript.messages.size()
+        )
+        assert stored == kept
+        semrefs = await transcript.semantic_refs.get_slice(
+            0, await transcript.semantic_refs.size()
+        )
+        chunk_entities = [
+            (s.range.start, s.knowledge)
+            for s in semrefs
+            if isinstance(s.knowledge, ConcreteEntity) and s.knowledge.type == ["chunk"]
+        ]
+        assert sorted(entity.name for _, entity in chunk_entities) == sorted(
+            text for m in kept for text in m.text_chunks
+        )
+        for start, entity in chunk_entities:
+            assert (
+                stored[start.message_ordinal].text_chunks[start.chunk_ordinal]
+                == entity.name
+            )
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_commit_rejects_chunk_results_for_a_different_message() -> None:
+    """Pairing checks message identity, so same-size messages cannot be swapped."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+        transcript, storage = await _create_transcript(db_path)
+        first = _make_message("first")
+        second = _make_message("second")
+        embedding = await create_test_embedding_model().get_embedding_nocache("x")
+        swapped_results = [
+            ChunkProcessingResult[TranscriptMessage](
+                chunk_id=TextLocation(ordinal, 0),
+                chunk_count=1,
+                message=message,
+                extracted_knowledge=_EMPTY_RESPONSE,
+                chunk_embedding=embedding,
+                related_terms=[],
+                related_term_embeddings=[],
+            )
+            for ordinal, message in enumerate([second, first])
+        ]
+
+        with pytest.raises(ValueError, match="do not belong to staged message"):
+            await transcript._commit_batch_from_chunk_results(
+                storage, [first, second], swapped_results
+            )
+        assert await transcript.messages.size() == 0
 
         await storage.close()
 
