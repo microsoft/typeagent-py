@@ -315,11 +315,10 @@ async def test_property_index_get_values(property_index: PropertyIndex):
     assert "value2" in values
 
 
-def test_property_index_prepare_term_text(property_index: PropertyIndex):
-    """Test preprocessing term text in PropertyIndex."""
-    term_text = "Prop.Name@@Value"
-    prepared_text = property_index._prepare_term_text(term_text)
-    assert prepared_text == "prop.name@@value"  # Should be converted to lowercase
+def test_property_index_make_term_text(property_index: PropertyIndex):
+    """Test building the normalized term text in PropertyIndex."""
+    term_text = property_index._make_term_text(" Name", "Some  Value")
+    assert term_text == "prop.name@@some value"
 
 
 @pytest.mark.asyncio
