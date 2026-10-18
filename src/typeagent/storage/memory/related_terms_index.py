@@ -46,12 +46,15 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
             related_terms = [related_terms]
         terms: dict[str, Term] = self.map.setdefault(text, {})
         for related in related_terms:
-            terms.setdefault(related.text, related)
+            # Store a copy so the caller's Term can't alias the index.
+            terms.setdefault(related.text, Term(related.text, related.weight))
 
     async def lookup_term(self, text: str) -> list[Term] | None:
         result = self.map.get(text)
         if result:
-            return list(result.values())
+            # Return copies: search preparation lowercases and reweights
+            # related terms in place, which must not change the index.
+            return [Term(term.text, term.weight) for term in result.values()]
         else:
             return None
 
