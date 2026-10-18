@@ -22,6 +22,7 @@ from . import (
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import semantic_ref_index
+from .common import normalize_term
 from .convsettings import ConversationSettings
 from .interfaces import (
     AddMessagesResult,
@@ -52,6 +53,11 @@ class _ChunkCommitResult(Protocol):
     chunk_embedding: NormalizedEmbedding | None
     related_terms: list[str] | None
     related_term_embeddings: list[NormalizedEmbedding] | None
+
+    # Read-only (and typed as object) so the pipeline's generic result type
+    # matches; it is only compared by identity against the staged messages.
+    @property
+    def message(self) -> object: ...
 
 
 @dataclass(init=False)
@@ -241,6 +247,18 @@ class ConversationBase(
         if not messages_batch:
             return AddMessagesResult()
 
+        # Chunk locations use source-stream ordinals. Those ordinals can have
+        # gaps when skip_failed_messages omits a message, so group the results
+        # by source message, in order, for pairing with the staged messages
+        # (and remapping to consecutive storage ordinals) below.
+        source_groups: list[tuple[MessageOrdinal, object]] = []
+        for result in chunk_results:
+            if (
+                not source_groups
+                or result.chunk_id.message_ordinal != source_groups[-1][0]
+            ):
+                source_groups.append((result.chunk_id.message_ordinal, result.message))
+
         # Process chunk results first to collect embeddings and knowledge items
         knowledge_items: list[tuple[MessageOrdinal, int, KnowledgeResponse]] = []
         fuzzy_terms: list[str] = []
@@ -288,7 +306,8 @@ class ConversationBase(
                 )
             fuzzy_terms.extend(result.related_terms)
             fuzzy_term_embeddings.extend(result.related_term_embeddings)
-            # Store embedding for later retrieval in correct message/chunk order
+            # Keyed by source-stream location; read below while building
+            # chunk_embeddings in storage order.
             chunk_embedding_map[
                 (result.chunk_id.message_ordinal, result.chunk_id.chunk_ordinal)
             ] = result.chunk_embedding
@@ -299,19 +318,59 @@ class ConversationBase(
                 semref_count=await self.semantic_refs.size(),
             )
 
-            # Build chunk_embeddings in the correct order (matching message/chunk iteration)
+            source_to_storage_message_id: dict[MessageOrdinal, MessageOrdinal] = {}
             chunk_embeddings: list[NormalizedEmbedding] = []
-            for msg_ord, message in enumerate(
+            result_group_index = 0
+            for storage_message_id, message in enumerate(
                 messages_batch, start_points.message_count
             ):
-                for chunk_ord in range(len(message.text_chunks)):
-                    embedding = chunk_embedding_map.get((msg_ord, chunk_ord))
+                if not message.text_chunks:
+                    continue
+                if result_group_index >= len(source_groups):
+                    raise ValueError(
+                        "Missing chunk results for staged message: "
+                        f"message={storage_message_id}"
+                    )
+                source_message_id, source_message = source_groups[result_group_index]
+                if source_message is not message:
+                    raise ValueError(
+                        "Chunk results do not belong to staged message: "
+                        f"message={storage_message_id}, "
+                        f"source_message={source_message_id}"
+                    )
+                result_group_index += 1
+                source_to_storage_message_id[source_message_id] = storage_message_id
+                for chunk_ordinal in range(len(message.text_chunks)):
+                    embedding = chunk_embedding_map.get(
+                        (source_message_id, chunk_ordinal)
+                    )
                     if embedding is None:
                         raise ValueError(
                             "Missing chunk embedding for staged message chunk: "
-                            f"message={msg_ord}, chunk={chunk_ord}"
+                            f"message={storage_message_id}, chunk={chunk_ordinal}"
                         )
                     chunk_embeddings.append(embedding)
+
+            if result_group_index != len(source_groups):
+                raise ValueError(
+                    "Chunk results exceed staged messages with chunks: "
+                    f"consumed={result_group_index}, groups={len(source_groups)}"
+                )
+
+            remapped_knowledge_items: list[
+                tuple[MessageOrdinal, int, KnowledgeResponse]
+            ] = []
+            for source_message_id, chunk_ordinal, knowledge in knowledge_items:
+                storage_message_id = source_to_storage_message_id.get(source_message_id)
+                if storage_message_id is None:
+                    raise ValueError(
+                        "No storage message id for chunk result: "
+                        f"source_message={source_message_id}, chunk={chunk_ordinal}"
+                    )
+                remapped_knowledge_items.append(
+                    (storage_message_id, chunk_ordinal, knowledge)
+                )
+            knowledge_items = remapped_knowledge_items
 
             # Use precomputed embeddings to avoid redundant embedding work
             await self.messages.extend(
@@ -490,16 +549,17 @@ class ConversationBase(
 
         fuzzy_index = self.secondary_indexes.term_to_related_terms_index.fuzzy_index
         if fuzzy_index is not None and new_semrefs:
-            new_terms = set()
+            new_terms: set[str] = set()
             for semref in new_semrefs:
                 knowledge = semref.knowledge
                 if isinstance(knowledge, ConcreteEntity):
-                    new_terms.add(knowledge.name.lower())
+                    new_terms.add(normalize_term(knowledge.name))
                 elif isinstance(knowledge, Topic):
-                    new_terms.add(knowledge.text.lower())
+                    new_terms.add(normalize_term(knowledge.text))
                 elif isinstance(knowledge, Action):
                     for verb in knowledge.verbs:
-                        new_terms.add(verb.lower())
+                        new_terms.add(normalize_term(verb))
+            new_terms.discard("")  # Whitespace-only terms must not be embedded
 
             if new_terms:
                 await fuzzy_index.add_terms(list(new_terms))
