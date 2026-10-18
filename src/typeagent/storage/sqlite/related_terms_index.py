@@ -159,6 +159,7 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
             for term, blob in rows:
                 assert blob is not None, term
                 self._terms_list.append(term)
+                self._added_terms.add(term)
                 embeddings.append(deserialize_embedding(blob))
             # Bulk add embeddings to VectorBase
             self._vector_base.add_embeddings(None, np.array(embeddings))
@@ -202,6 +203,9 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
     async def clear(self) -> None:
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM RelatedTermsFuzzy")
+        self._vector_base.clear()
+        self._terms_list.clear()
+        self._added_terms.clear()
 
     async def size(self) -> int:
         return self._size()
@@ -292,6 +296,7 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
         cursor.execute("DELETE FROM RelatedTermsFuzzy")
 
         # Clear local mappings
+        self._vector_base.clear()
         self._terms_list.clear()
         self._added_terms.clear()
 
