@@ -106,6 +106,12 @@ def test_parse_voice_tags_keeps_text_and_strips_markup(
     assert parse_voice_tags(raw_text) == expected
 
 
+def test_parse_voice_tags_unclosed_class_list_is_not_exponential() -> None:
+    # Backtracks exponentially with an ambiguous class pattern (CodeQL alert).
+    raw_text = "<v." + "!." * 100
+    assert parse_voice_tags(raw_text) == [(None, raw_text)]
+
+
 def test_parse_voice_tags_on_webvtt_raw_text(tmp_path: os.PathLike[str]) -> None:
     vtt_path = os.path.join(str(tmp_path), "inline.vtt")
     with open(vtt_path, "w") as f:

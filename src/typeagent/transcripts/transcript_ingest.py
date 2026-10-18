@@ -70,8 +70,10 @@ def extract_speaker_from_text(text: str) -> tuple[str | None, str]:
     return None, text
 
 
-# Opening voice tag, optionally with classes: <v Speaker> or <v.loud Speaker>
-_VOICE_TAG_PATTERN = re.compile(r"<v(?:\.[^\s>]+)*\s+([^>]+)>", re.IGNORECASE)
+# Opening voice tag, optionally with classes: <v Speaker> or <v.loud Speaker>.
+# Class names exclude "." and the speaker starts with a non-space, so each
+# input splits only one way (no exponential backtracking on a failed match).
+_VOICE_TAG_PATTERN = re.compile(r"<v(?:\.[^\s>.]+)*\s+([^\s>][^>]*)>", re.IGNORECASE)
 # Any other cue markup: </v>, <i>, <b>, <c.class>, <00:00:01.500>, ...
 _CUE_TAG_PATTERN = re.compile(r"<[^>]*>")
 
