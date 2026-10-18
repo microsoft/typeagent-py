@@ -21,6 +21,7 @@ from .collections import (
     TextRangesInScope,
 )
 from .common import is_search_term_wildcard
+from .dataclasses import dataclass as pydantic_dataclass
 from .interfaces import (
     DateRange,
     Datetime,
@@ -54,7 +55,9 @@ type BooleanOp = Literal["and", "or", "or_max"]
 
 
 # TODO: Move to compilelib.py
-@dataclass
+# A pydantic dataclass, like SearchTerm: a stdlib dataclass would take
+# SearchTerm's pydantic Field object as the default of related_terms.
+@pydantic_dataclass
 class CompiledSearchTerm(SearchTerm):
     related_terms_required: bool = False
 

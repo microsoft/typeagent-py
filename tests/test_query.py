@@ -24,6 +24,7 @@ from typeagent.knowpro.interfaces import (
     Topic,
 )
 from typeagent.knowpro.query import (
+    CompiledSearchTerm,
     get_text_range_for_date_range,
     GetScopeExpr,
     is_conversation_searchable,
@@ -42,6 +43,7 @@ from typeagent.knowpro.query import (
 )
 from typeagent.storage.memory import MemorySemanticRefCollection
 from typeagent.storage.memory.property_index import PropertyIndex
+from typeagent.storage.memory.related_terms_index import dedupe_related_terms
 
 from conftest import FakeConversation, FakeMessage, FakeTermIndex
 
@@ -799,3 +801,16 @@ class TestWhereSemanticRefExprProvenance:
         assert "term_a" in filtered.search_term_matches
         filtered.search_term_matches.add("new_term")
         assert "new_term" not in src.search_term_matches
+
+
+def test_compiled_search_term_defaults() -> None:
+    term = CompiledSearchTerm(Term("python"))
+    assert term.related_terms is None
+    assert term.related_terms_required is False
+
+
+def test_dedupe_related_terms_accepts_default_compiled_terms() -> None:
+    # A default related_terms that isn't None used to crash TermSet.add_or_union.
+    terms = [CompiledSearchTerm(Term("python")), CompiledSearchTerm(Term("java"))]
+    dedupe_related_terms(terms, ensure_single_occurrence=True)
+    assert [t.related_terms for t in terms] == [None, None]
