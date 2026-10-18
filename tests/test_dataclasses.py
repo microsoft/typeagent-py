@@ -4,7 +4,7 @@
 
 import pytest
 
-from pydantic import ConfigDict, ValidationError
+from pydantic import ConfigDict, Field, ValidationError
 
 from typeagent.knowpro import serialization
 from typeagent.knowpro.dataclasses import dataclass
@@ -63,6 +63,33 @@ def test_explicit_alias_wins() -> None:
         )
         == meta
     )
+
+
+@pytest.mark.parametrize("key", ["two_words", "twoWords"])
+def test_explicit_alias_overrides_generated_names(key: str) -> None:
+    @dataclass
+    class Aliased:
+        two_words: str = Field(alias="X")
+
+    obj = load(Aliased, {"X": "y"})
+    assert obj.two_words == "y"
+    assert dump(obj) == {"X": "y"}
+    assert load(Aliased, dump(obj)) == obj
+    with pytest.raises(ValidationError, match="Field required"):
+        load(Aliased, {key: "y"})
+
+
+@pytest.mark.parametrize("key", ["two_words", "twoWords"])
+def test_serialization_alias_does_not_change_input_names(key: str) -> None:
+    @dataclass
+    class OutputAlias:
+        two_words: str = Field(default="x", serialization_alias="X")
+
+    obj = load(OutputAlias, {key: "y"})
+    assert obj.two_words == "y"
+    assert dump(obj) == {"X": "y"}
+    # The custom output key is ignored unless a validation alias accepts it.
+    assert load(OutputAlias, dump(obj)).two_words == "x"
 
 
 def test_message_metadata_is_required() -> None:

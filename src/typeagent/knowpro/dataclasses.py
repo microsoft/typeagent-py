@@ -2,9 +2,12 @@
 # Licensed under the MIT License.
 """Pydantic dataclass decorator that adds camelCase aliases to every field.
 
-Fields are declared in snake_case.  On input, both the snake_case name and
-its camelCase form are accepted; on output (``by_alias=True``), camelCase is
-written.  An explicit alias on a field takes precedence.
+Fields are declared in snake_case. By default, both the snake_case name and
+its generated camelCase form are accepted on input; output uses camelCase
+when ``by_alias=True``. Explicit field aliases override the corresponding
+generated aliases. A custom serialization alias needs a matching validation
+alias if its output must round-trip; setting it alone does not change the
+accepted input names.
 """
 
 from collections.abc import Callable
