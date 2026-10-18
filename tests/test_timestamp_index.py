@@ -2,11 +2,19 @@
 # Licensed under the MIT License.
 
 from datetime import timedelta, timezone
+import sqlite3
+from typing import Literal
 
 import pytest
 
-from typeagent.knowpro.interfaces import DateRange, Datetime
+from typeagent.knowpro.interfaces import (
+    DateRange,
+    Datetime,
+    ITimestampToTextRangeIndex,
+)
 from typeagent.storage.memory.timestamp_index import TimestampToTextRangeIndex
+from typeagent.storage.sqlite.schema import init_db_schema
+from typeagent.storage.sqlite.timestamp_index import SqliteTimestampToTextRangeIndex
 
 
 async def make_index(ts: list[str]) -> TimestampToTextRangeIndex:
@@ -124,3 +132,83 @@ async def test_fractional_seconds_sort_chronologically():
         start=Datetime(2024, 1, 1, 12, 0, 0, 250000, tzinfo=timezone.utc), end=None
     )
     assert await idx.lookup_range(dr) == []
+
+
+async def make_backend_index(
+    backend: Literal["memory", "sqlite"], ts: list[str]
+) -> ITimestampToTextRangeIndex:
+    if backend == "memory":
+        return await make_index(ts)
+    db = sqlite3.connect(":memory:")
+    init_db_schema(db)
+    db.executemany(
+        "INSERT INTO Messages (msg_id, chunks) VALUES (?, '[]')",
+        [(i,) for i in range(len(ts))],
+    )
+    idx = SqliteTimestampToTextRangeIndex(db)
+    await idx.add_timestamps(list(enumerate(ts)))
+    return idx
+
+
+T0 = Datetime(2024, 1, 1, tzinfo=timezone.utc)
+US = timedelta(microseconds=1)
+MS = timedelta(milliseconds=1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("backend", ["memory", "sqlite"])
+@pytest.mark.parametrize(
+    ("stored", "start", "end", "expected"),
+    [
+        pytest.param(
+            ["2024-01-01T00:00:00Z"], T0, T0 + US, [0], id="range_one_us_wide"
+        ),
+        pytest.param(
+            ["2024-01-01T00:00:00Z"], T0 + US, None, [], id="point_one_us_off"
+        ),
+        pytest.param(
+            [
+                "2024-01-01T00:00:00Z",
+                "2024-01-01T00:00:00.000001Z",
+                "2024-01-01T00:00:00.000999Z",
+                "2024-01-01T00:00:00.001Z",
+            ],
+            T0 + US,
+            T0 + MS,
+            [1, 2],
+            id="range_within_one_ms",
+        ),
+        # SQLite's strftime clamps .9996 to .999 rather than rounding up.
+        pytest.param(
+            ["2024-01-01T00:00:00.9996Z"],
+            T0 + timedelta(microseconds=999600),
+            None,
+            [0],
+            id="point_near_second_boundary",
+        ),
+        pytest.param(
+            ["2024-01-01T05:30:00.000001+05:30"],
+            T0,
+            T0 + US,
+            [],
+            id="offset_range_excludes",
+        ),
+        pytest.param(
+            ["2024-01-01T05:30:00.000001+05:30"],
+            T0 + US,
+            T0 + 2 * US,
+            [0],
+            id="offset_range_includes",
+        ),
+    ],
+)
+async def test_lookup_range_sub_millisecond_precision(
+    backend: Literal["memory", "sqlite"],
+    stored: list[str],
+    start: Datetime,
+    end: Datetime | None,
+    expected: list[int],
+) -> None:
+    idx = await make_backend_index(backend, stored)
+    results = await idx.lookup_range(DateRange(start=start, end=end))
+    assert [e.range.start.message_ordinal for e in results] == expected
