@@ -8,8 +8,6 @@ from collections.abc import AsyncIterable, Iterable
 from datetime import datetime as Datetime
 from typing import Any, NamedTuple, Protocol, Self
 
-from pydantic.dataclasses import dataclass
-
 from ..aitools.embeddings import NormalizedEmbedding
 from .core_types import (
     IMessage,
@@ -20,6 +18,7 @@ from .core_types import (
     SemanticRefOrdinal,
     TextRange,
 )
+from .dataclasses import dataclass
 from .index_protocols import (
     IConversationSecondaryIndexes,
     IConversationThreads,

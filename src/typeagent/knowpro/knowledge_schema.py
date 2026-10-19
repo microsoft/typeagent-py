@@ -12,7 +12,6 @@ from typing import Annotated, ClassVar, Literal
 from typing_extensions import Doc
 
 from .dataclasses import dataclass
-from .field_helpers import CamelCaseField
 
 
 @dataclass
@@ -100,19 +99,16 @@ class Action:
     verbs: Annotated[list[str], Doc("Each verb is typically a word.")]
     # NOTE: Declared via Annotated so that there is no class-level default;
     # otherwise TypeChat would render this required field as optional.
-    verb_tense: Annotated[
-        VerbTense,
-        CamelCaseField("The tense of the verb", field_name="verb_tense"),
-    ]
-    subject_entity_name: str | Literal["none"] = CamelCaseField(
-        "The name of the subject entity", default="none"
-    )
-    object_entity_name: str | Literal["none"] = CamelCaseField(
-        "The name of the object entity", default="none"
-    )
-    indirect_object_entity_name: str | Literal["none"] = CamelCaseField(
-        "The name of the indirect object entity", default="none"
-    )
+    verb_tense: Annotated[VerbTense, Doc("The tense of the verb")]
+    subject_entity_name: Annotated[
+        str | Literal["none"], Doc("The name of the subject entity")
+    ] = "none"
+    object_entity_name: Annotated[
+        str | Literal["none"], Doc("The name of the object entity")
+    ] = "none"
+    indirect_object_entity_name: Annotated[
+        str | Literal["none"], Doc("The name of the indirect object entity")
+    ] = "none"
     params: list[str | ActionParam] | None = None
     subject_entity_facet: Annotated[
         Facet | None,
@@ -120,7 +116,6 @@ class Action:
             "If the action implies this additional facet or property of the subject entity, "
             "such as hobbies, activities, interests, personality"
         ),
-        CamelCaseField(field_name="subject_entity_facet"),
     ] = None
 
 

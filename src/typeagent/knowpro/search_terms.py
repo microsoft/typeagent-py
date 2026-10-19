@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic.dataclasses import dataclass
+from pydantic import Field
 
 from .core_types import (
     DateRange,
@@ -15,7 +15,7 @@ from .core_types import (
     Term,
     TextRange,
 )
-from .field_helpers import CamelCaseField
+from .dataclasses import dataclass
 
 __all__ = [
     "KnowledgePropertyName",
@@ -43,9 +43,9 @@ class SearchTerm:
     """
 
     term: Term
-    related_terms: list[Term] | None = CamelCaseField(
-        "Additional terms related to the term. These can be supplied from synonym tables and so on",
+    related_terms: list[Term] | None = Field(
         default=None,
+        description="Additional terms related to the term. These can be supplied from synonym tables and so on",
     )
 
 
@@ -81,21 +81,21 @@ class PropertySearchTerm:
     related terms secondary index, if one is available.
     """
 
-    property_name: KnowledgePropertyName | SearchTerm = CamelCaseField(
-        "The property name to search for"
+    property_name: KnowledgePropertyName | SearchTerm = Field(
+        description="The property name to search for"
     )
-    property_value: SearchTerm = CamelCaseField("The property value to search for")
+    property_value: SearchTerm = Field(description="The property value to search for")
 
 
 @dataclass
 class SearchTermGroup:
     """A group of search terms."""
 
-    boolean_op: Literal["and", "or", "or_max"] = CamelCaseField(
-        "The boolean operation to apply to the terms"
+    boolean_op: Literal["and", "or", "or_max"] = Field(
+        description="The boolean operation to apply to the terms"
     )
-    terms: list["SearchTermGroupTypes"] = CamelCaseField(
-        "The list of search terms in this group", default_factory=list
+    terms: list["SearchTermGroupTypes"] = Field(
+        default_factory=list, description="The list of search terms in this group"
     )
 
 
@@ -131,9 +131,9 @@ class WhenFilter:
 class SearchSelectExpr:
     """An expression used to select structured contents of a conversation."""
 
-    search_term_group: SearchTermGroup = CamelCaseField(
-        "Term group that matches information"
-    )  # Term group that matches information
+    search_term_group: SearchTermGroup = Field(
+        description="Term group that matches information"
+    )
     when: WhenFilter | None = None  # Filter that scopes what information to match
 
 

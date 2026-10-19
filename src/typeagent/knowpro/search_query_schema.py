@@ -9,7 +9,6 @@ from typing_extensions import Doc
 
 from .dataclasses import dataclass
 from .date_time_schema import DateTimeRange
-from .field_helpers import CamelCaseField
 
 
 @dataclass
@@ -146,11 +145,7 @@ class SearchFilter:
 
 @dataclass
 class SearchExpr:
-    rewritten_query: Annotated[
-        str,
-        Doc("The rewritten search query"),
-        CamelCaseField(field_name="rewritten_query"),
-    ]
+    rewritten_query: Annotated[str, Doc("The rewritten search query")]
     filters: Annotated[list[SearchFilter], Doc("List of search filters")]
 
 
@@ -161,5 +156,4 @@ class SearchQuery:
         Doc(
             "One expression for each search required by user request. Each SearchExpr runs independently, so make them standalone by resolving references like 'it', 'that', 'them' etc."
         ),
-        CamelCaseField(field_name="search_expressions"),
     ]

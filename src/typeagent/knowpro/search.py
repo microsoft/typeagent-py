@@ -4,11 +4,12 @@
 from collections.abc import Callable
 from typing import cast, TypeGuard
 
+from pydantic import Field
+
 from ..storage.memory import related_terms_index
 from ..storage.memory.message_index import IMessageTextEmbeddingIndex
 from .collections import MessageAccumulator, SemanticRefAccumulator
 from .dataclasses import dataclass
-from .field_helpers import CamelCaseField
 from .interfaces import (
     IConversation,
     IConversationSecondaryIndexes,
@@ -71,8 +72,8 @@ from .searchlib import create_tag_search_term_group
 
 @dataclass
 class SearchQueryExpr:
-    select_expressions: list[SearchSelectExpr] = CamelCaseField(
-        "List of selection expressions for the search"
+    select_expressions: list[SearchSelectExpr] = Field(
+        description="List of selection expressions for the search"
     )
     raw_query: str | None = None
 

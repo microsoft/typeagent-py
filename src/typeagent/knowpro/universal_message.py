@@ -9,7 +9,6 @@ from typing import TypedDict
 from pydantic import AliasChoices, Field
 
 from .dataclasses import dataclass as pydantic_dataclass
-from .field_helpers import CamelCaseField
 from .interfaces import IKnowledgeSource, IMessage, IMessageMetadata
 from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
 
@@ -182,12 +181,13 @@ class ConversationMessageData(TypedDict):
 class ConversationMessage(IMessage):
     """Universal message for any conversation type."""
 
-    text_chunks: list[str] = CamelCaseField("The text chunks of the message")
-    metadata: ConversationMessageMeta = CamelCaseField(
-        "Metadata associated with the message"
+    text_chunks: list[str] = Field(description="The text chunks of the message")
+    # Without Field(), this would inherit the None default from IMessage.
+    metadata: ConversationMessageMeta = Field(
+        description="Metadata associated with the message"
     )
-    tags: list[str] = CamelCaseField(
-        "Tags associated with the message", default_factory=list
+    tags: list[str] = Field(
+        default_factory=list, description="Tags associated with the message"
     )
     timestamp: str | None = None
     """

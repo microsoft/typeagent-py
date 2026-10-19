@@ -5,9 +5,8 @@ from email.utils import parseaddr
 from typing import Any
 
 from pydantic import Field
-from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-from ..knowpro.field_helpers import CamelCaseField
+from ..knowpro.dataclasses import dataclass as pydantic_dataclass
 from ..knowpro.interfaces import IKnowledgeSource, IMessage, IMessageMetadata
 from ..knowpro.knowledge_schema import Action, ConcreteEntity, Facet, KnowledgeResponse
 
@@ -148,12 +147,13 @@ class EmailMessage(IMessage):
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
 
-    text_chunks: list[str] = CamelCaseField("The text chunks of the email message")
-    metadata: EmailMessageMeta = CamelCaseField(
-        "Metadata associated with the email message"
+    text_chunks: list[str] = Field(description="The text chunks of the email message")
+    # Without Field(), this would inherit the None default from IMessage.
+    metadata: EmailMessageMeta = Field(
+        description="Metadata associated with the email message"
     )
-    tags: list[str] = CamelCaseField(
-        "Tags associated with the message", default_factory=list
+    tags: list[str] = Field(
+        default_factory=list, description="Tags associated with the message"
     )
     timestamp: str | None = None  # Use metadata.sent_on for the actual sent time
     src_url: str | None = None  # Source file or uri for this email

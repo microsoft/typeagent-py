@@ -70,6 +70,14 @@ def test_action_verb_tense_is_rendered_required() -> None:
     assert "verb_tense: VerbTense;" in lines
 
 
+def test_action_field_descriptions_are_rendered() -> None:
+    lines = [line.strip() for line in render_interface_body(Action).splitlines()]
+    assert "// The tense of the verb" in lines
+    assert "// The name of the subject entity" in lines
+    assert "// The name of the object entity" in lines
+    assert "// The name of the indirect object entity" in lines
+
+
 def test_action_verb_tense_is_required_by_validator() -> None:
     validator = typechat.TypeChatValidator[Action](Action)
     assert isinstance(validator.validate_object({"verbs": ["go"]}), typechat.Failure)
