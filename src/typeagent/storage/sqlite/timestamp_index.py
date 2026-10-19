@@ -3,10 +3,12 @@
 
 """SQLite-based timestamp index implementation."""
 
+from datetime import timedelta, timezone
 import sqlite3
 
 from ...knowpro.interfaces import (
     DateRange,
+    Datetime,
     ITimestampToTextRangeIndex,
     MessageOrdinal,
     TextLocation,
@@ -15,6 +17,11 @@ from ...knowpro.interfaces import (
 )
 from ...knowpro.universal_message import format_timestamp_utc
 from .schema import NORMALIZED_TIMESTAMP_SQL
+
+# strftime('%f') keeps only milliseconds (rounding or clamping the rest), so the
+# indexed SQL comparison is a prefilter widened by this margin; lookup_range
+# then applies the exact bounds to the parsed timestamps.
+_PREFILTER_MARGIN = timedelta(milliseconds=2)
 
 
 class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
@@ -107,38 +114,36 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         cursor = self.db.cursor()
 
         # Stored timestamps may have any UTC offset and any fractional precision,
-        # so raw strings don't sort chronologically. Compare via strftime(), which
-        # converts to UTC and renders a fixed-width value (also for existing rows).
-        start_timestamp = format_timestamp_utc(date_range.start)
-        end_timestamp = format_timestamp_utc(date_range.end) if date_range.end else None
-
+        # so raw strings don't sort chronologically. Prefilter via strftime(),
+        # which converts to UTC and renders a fixed-width value (also for existing
+        # rows) but only to the millisecond, then check exact bounds in Python.
+        start = date_range.start
+        stop = date_range.end if date_range.end is not None else start
         norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
         norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
-        if date_range.end is None:
-            # Point query
-            cursor.execute(
-                f"""
-                SELECT msg_id, start_timestamp, chunks
-                FROM Messages
-                WHERE {norm_col} = {norm_arg}
-                ORDER BY msg_id
-                """,
-                (start_timestamp,),
-            )
-        else:
-            # Range query
-            cursor.execute(
-                f"""
-                SELECT msg_id, start_timestamp, chunks
-                FROM Messages
-                WHERE {norm_col} >= {norm_arg} AND {norm_col} < {norm_arg}
-                ORDER BY msg_id
-                """,
-                (start_timestamp, end_timestamp),
-            )
+        cursor.execute(
+            f"""
+            SELECT msg_id, start_timestamp
+            FROM Messages
+            WHERE {norm_col} >= {norm_arg} AND {norm_col} < {norm_arg}
+            ORDER BY msg_id
+            """,
+            (
+                format_timestamp_utc(start - _PREFILTER_MARGIN),
+                format_timestamp_utc(stop + _PREFILTER_MARGIN),
+            ),
+        )
 
         results = []
-        for msg_id, timestamp, _chunks in cursor.fetchall():
+        for msg_id, timestamp in cursor.fetchall():
+            occurred = Datetime.fromisoformat(timestamp)
+            if occurred.tzinfo is None:
+                occurred = occurred.replace(tzinfo=timezone.utc)  # naive == UTC
+            if date_range.end is None:
+                if occurred != start:  # Point query
+                    continue
+            elif not start <= occurred < date_range.end:
+                continue
             text_location = TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
             text_range = TextRange(start=text_location, end=None)  # Point range
             results.append(TimestampedTextRange(timestamp=timestamp, range=text_range))
