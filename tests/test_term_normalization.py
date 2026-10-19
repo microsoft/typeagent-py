@@ -35,6 +35,22 @@ def test_normalize_term(raw: str, expected: str) -> None:
     assert normalize_term(raw) == expected
 
 
+# Terms whose lowercase form composes differently under NFC, so normalizing
+# NFC-then-lowercase isn't idempotent.
+NON_IDEMPOTENT_TERMS = [
+    "T\u0308",  # Uppercase base + combining mark: lowercase composes to \u1e97
+    "J\u030c",  # \u01f0 has no uppercase precomposed form
+    "\u0391\u0342",  # Greek polytonic: Alpha + perispomeni lowercases to \u1fb6
+]
+
+
+@pytest.mark.parametrize("raw", NON_IDEMPOTENT_TERMS)
+def test_normalize_term_is_idempotent(raw: str) -> None:
+    once = normalize_term(raw)
+    assert normalize_term(once) == once
+    assert normalize_term(raw.lower()) == once
+
+
 @pytest.fixture(params=["memory", "sqlite"])
 def term_index(
     request: pytest.FixtureRequest,
@@ -178,4 +194,27 @@ async def test_term_index_deserialize_dedupes_merged_ordinals(
     }
     await term_index.deserialize(data)  # type: ignore[arg-type]
     found = await term_index.lookup_term("foo")
+    assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("term", NON_IDEMPOTENT_TERMS)
+async def test_term_index_normalization_round_trips(
+    term_index: ITermToSemanticRefIndex, term: str
+) -> None:
+    """A stored term must normalize to itself, or it can't be looked up."""
+    await term_index.add_term(term, 1)
+
+    [stored] = await term_index.get_terms()
+    found = await term_index.lookup_term(stored)
+    assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
+    found = await term_index.lookup_term(term.lower())
+    assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
+
+    # deserialize re-normalizes the already-normalized stored terms.
+    data = await term_index.serialize()
+    await term_index.clear()
+    await term_index.deserialize(data)
+    assert await term_index.get_terms() == [stored]
+    found = await term_index.lookup_term(term)
     assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
