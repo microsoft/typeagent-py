@@ -9,6 +9,7 @@ import numpy as np
 
 from ...aitools.embeddings import NormalizedEmbedding
 from ...aitools.vectorbase import TextEmbeddingIndexSettings, VectorBase
+from ...knowpro.common import normalize_term
 from ...knowpro.interfaces import (
     ITermToRelatedTerms,
     ITermToRelatedTermsFuzzy,
@@ -31,7 +32,10 @@ class SqliteRelatedTermsAliases(ITermToRelatedTerms):
 
     async def lookup_term(self, text: str) -> list[Term] | None:
         cursor = self.db.cursor()
-        cursor.execute("SELECT alias FROM RelatedTermsAliases WHERE term = ?", (text,))
+        cursor.execute(
+            "SELECT alias FROM RelatedTermsAliases WHERE term = ?",
+            (normalize_term(text),),
+        )
         results = [Term(row[0]) for row in cursor.fetchall()]
         return results if results else None
 
@@ -42,23 +46,27 @@ class SqliteRelatedTermsAliases(ITermToRelatedTerms):
         if isinstance(related_terms, Term):
             related_terms = [related_terms]
 
+        text = normalize_term(text)
         cursor = self.db.cursor()
         # Add new aliases (use INSERT OR IGNORE to avoid duplicates)
         for related_term in related_terms:
             cursor.execute(
                 "INSERT OR IGNORE INTO RelatedTermsAliases (term, alias) VALUES (?, ?)",
-                (text, related_term.text),
+                (text, normalize_term(related_term.text)),
             )
 
     async def remove_term(self, text: str) -> None:
         cursor = self.db.cursor()
-        cursor.execute("DELETE FROM RelatedTermsAliases WHERE term = ?", (text,))
+        cursor.execute(
+            "DELETE FROM RelatedTermsAliases WHERE term = ?", (normalize_term(text),)
+        )
 
     async def clear(self) -> None:
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM RelatedTermsAliases")
 
     async def set_related_terms(self, term: str, related_terms: list[str]) -> None:
+        term = normalize_term(term)
         cursor = self.db.cursor()
         # Clear existing aliases for this term
         cursor.execute("DELETE FROM RelatedTermsAliases WHERE term = ?", (term,))
@@ -66,7 +74,7 @@ class SqliteRelatedTermsAliases(ITermToRelatedTerms):
         for alias in related_terms:
             cursor.execute(
                 "INSERT OR IGNORE INTO RelatedTermsAliases (term, alias) VALUES (?, ?)",
-                (term, alias),
+                (term, normalize_term(alias)),
             )
 
     async def size(self) -> int:
@@ -116,9 +124,9 @@ class SqliteRelatedTermsAliases(ITermToRelatedTerms):
         if data is not None:
             for item in data.get("relatedTerms") or []:
                 if item and item.get("termText") and item.get("relatedTerms"):
-                    term = item["termText"]
+                    term = normalize_term(item["termText"])
                     for term_data in item["relatedTerms"]:
-                        insertion_data.append((term, term_data["text"]))
+                        insertion_data.append((term, normalize_term(term_data["text"])))
 
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM RelatedTermsAliases")

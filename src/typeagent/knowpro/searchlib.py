@@ -9,6 +9,7 @@ Functions that help with creating search and property terms
 from typing import cast
 
 from ..storage.memory.property_index import PropertyNames
+from .common import normalize_term
 from .interfaces import (
     ISemanticRefCollection,
     KnowledgePropertyName,
@@ -149,7 +150,7 @@ def _parse_search_term(text: str) -> SearchTerm | None:
     """Parse a search term string with optional related terms separated by ';'."""
     term_strings = _split_term_values(text, ";")
     if len(term_strings) > 0:
-        term_strings = [t.lower() for t in term_strings]
+        term_strings = [normalize_term(t) for t in term_strings]
         search_term = SearchTerm(term=Term(text=term_strings[0]))
         if len(term_strings) > 1:
             search_term.related_terms = []

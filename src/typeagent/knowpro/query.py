@@ -20,7 +20,7 @@ from .collections import (
     TextRangeCollection,
     TextRangesInScope,
 )
-from .common import is_search_term_wildcard
+from .common import is_search_term_wildcard, normalize_term
 from .dataclasses import dataclass as pydantic_dataclass
 from .interfaces import (
     DateRange,
@@ -128,12 +128,14 @@ async def get_text_range_for_date_range(
 
 
 def get_matching_term_for_text(search_term: SearchTerm, text: str) -> Term | None:
-    # Do case-INSENSITIVE comparisons, since stored entities may have different case.
-    if text.lower() == search_term.term.text.lower():
+    # Compare normalized text, since stored entities may differ in case,
+    # whitespace or Unicode form.
+    text = normalize_term(text)
+    if text == normalize_term(search_term.term.text):
         return search_term.term
     if search_term.related_terms:
         for related_term in search_term.related_terms:
-            if text.lower() == related_term.text.lower():
+            if text == normalize_term(related_term.text):
                 return related_term
     return None
 
