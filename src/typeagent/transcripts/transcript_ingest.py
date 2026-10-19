@@ -70,6 +70,18 @@ def extract_speaker_from_text(text: str) -> tuple[str | None, str]:
     return None, text
 
 
+# Opening voice tag, optionally with classes: <v Speaker> or <v.loud Speaker>.
+# Class names exclude "." and the speaker starts with a non-space, so each
+# input splits only one way (no exponential backtracking on a failed match).
+_VOICE_TAG_PATTERN = re.compile(r"<v(?:\.[^\s>.]+)*\s+([^\s>][^>]*)>", re.IGNORECASE)
+# Any other cue markup: </v>, <i>, <b>, <c.class>, <00:00:01.500>, ...
+_CUE_TAG_PATTERN = re.compile(r"<[^<>]*>")
+
+
+def _strip_cue_tags(text: str) -> str:
+    return _CUE_TAG_PATTERN.sub("", text).strip()
+
+
 def parse_voice_tags(raw_text: str) -> list[tuple[str | None, str]]:
     """
     Parse WebVTT voice tags from raw caption text.
@@ -79,35 +91,37 @@ def parse_voice_tags(raw_text: str) -> list[tuple[str | None, str]]:
     WebVTT voice tags can be in the format:
     - <v Speaker>Text</v>
     - <v Speaker>Text (no closing tag)
+    - <v.class Speaker>Text
 
     Multiple voice tags can exist in a single caption, and this function extracts all of them.
+    Each segment runs until the next voice tag; other cue markup inside it (such as
+    <i>, <b>, <c.class> or timestamp tags) is removed but its text is kept. Text
+    before the first voice tag becomes a segment with no speaker.
 
     Args:
         raw_text: Raw caption text that may contain <v> tags
 
     Returns:
-        List of (speaker, text) tuples. If no voice tags found, returns [(None, raw_text)]
+        List of (speaker, text) tuples. If no voice tags found, returns
+        [(None, text)] with the cue markup removed.
     """
-    # Pattern to match <v Speaker>Text</v> or <v Speaker>Text
-    # Captures speaker name and the text that follows until the next tag or end
-    voice_pattern = r"<v\s+([^>]+)>([^<]*(?:</v>)?)"
-
-    matches = list(re.finditer(voice_pattern, raw_text, re.IGNORECASE))
+    matches = list(_VOICE_TAG_PATTERN.finditer(raw_text))
 
     if not matches:
-        # No voice tags found, return the text as-is with no speaker
-        return [(None, raw_text.strip())]
+        # No voice tags found, return the text with no speaker
+        return [(None, _strip_cue_tags(raw_text))]
 
-    results = []
-    for match in matches:
-        speaker = match.group(1).strip()
-        text = match.group(2).strip()
-        # Remove closing </v> tag if present
-        text = re.sub(r"</v>\s*$", "", text, flags=re.IGNORECASE).strip()
+    results: list[tuple[str | None, str]] = []
+    leading_text = _strip_cue_tags(raw_text[: matches[0].start()])
+    if leading_text:
+        results.append((None, leading_text))
+    for i, match in enumerate(matches):
+        segment_end = matches[i + 1].start() if i + 1 < len(matches) else None
+        text = _strip_cue_tags(raw_text[match.end() : segment_end])
         if text:  # Only add non-empty text
-            results.append((speaker, text))
+            results.append((match.group(1).strip(), text))
 
-    return results if results else [(None, raw_text.strip())]
+    return results if results else [(None, _strip_cue_tags(raw_text))]
 
 
 async def ingest_vtt_transcript(
