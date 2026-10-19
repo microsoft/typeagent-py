@@ -442,6 +442,65 @@ class TestSqliteRelatedTermsFuzzy:
         embeddings = data["embeddings"]
         assert embeddings is not None
 
+    @pytest.mark.asyncio
+    async def test_fuzzy_clear_resets_lookup_state(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+    ):
+        """clear() forgets cleared terms, so re-adding them stores them again."""
+        index = SqliteRelatedTermsFuzzy(sqlite_db, embedding_settings)
+        await index.add_terms(["apple"])
+
+        await index.clear()
+        assert await index.lookup_term("apple", min_score=0.0) == []
+        assert index.serialize()["textItems"] == []
+
+        await index.add_terms(["apple"])
+        assert await index.get_terms() == ["apple"]
+        assert [t.text for t in await index.lookup_term("apple", min_score=0.0)] == [
+            "apple"
+        ]
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_empty_deserialize_resets_lookup_state(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+    ):
+        """Terms added after deserializing empty data map to the right embeddings."""
+        index = SqliteRelatedTermsFuzzy(sqlite_db, embedding_settings)
+        await index.add_terms(["pear"])
+
+        await index.deserialize({"textItems": [], "embeddings": None})
+        await index.add_terms(["kiwi"])
+
+        results = await index.lookup_term("kiwi", max_hits=1, min_score=0.0)
+        assert [t.text for t in results] == ["kiwi"]
+        assert await index.get_terms() == ["kiwi"]
+
+    @pytest.mark.asyncio
+    async def test_fuzzy_reopen_does_not_duplicate_existing_terms(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+        temp_db_path: str,
+    ):
+        """Terms loaded from an existing database count as already added."""
+        index = SqliteRelatedTermsFuzzy(sqlite_db, embedding_settings)
+        await index.add_terms(["plum"])
+        sqlite_db.commit()
+
+        reopened_db = sqlite3.connect(temp_db_path)
+        try:
+            reopened = SqliteRelatedTermsFuzzy(reopened_db, embedding_settings)
+            await reopened.add_terms(["plum"])
+            results = await reopened.lookup_term("plum", min_score=0.0)
+            assert [t.text for t in results] == ["plum"]
+            assert reopened.serialize()["textItems"] == ["plum"]
+        finally:
+            reopened_db.close()
+
 
 class TestSqliteRelatedTermsIndex:
     """Test SqliteRelatedTermsIndex combined functionality."""
