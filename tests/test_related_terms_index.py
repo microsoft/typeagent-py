@@ -124,6 +124,71 @@ async def test_serialize_and_deserialize(
     assert any(term.text == "programming" for term in result)
 
 
+async def _alias_snapshot(
+    index: ITermToRelatedTermsIndex, text: str
+) -> list[tuple[str, float | None]] | None:
+    """Plain-value copy of an alias lookup, unaffected by later Term mutation."""
+    terms = await index.aliases.lookup_term(text)
+    return None if terms is None else [(t.text, t.weight) for t in terms]
+
+
+@pytest.mark.asyncio
+async def test_lookup_term_result_does_not_alias_index(
+    related_terms_index: ITermToRelatedTermsIndex,
+) -> None:
+    aliases = related_terms_index.aliases
+    await aliases.add_related_term("car", Term(text="Auto", weight=0.5))
+    before = await _alias_snapshot(related_terms_index, "car")
+
+    # Search preparation lowercases and reweights related terms in place.
+    looked_up = await aliases.lookup_term("car")
+    assert looked_up is not None
+    looked_up[0].text = "auto"
+    looked_up[0].weight = 10.0
+
+    assert await _alias_snapshot(related_terms_index, "car") == before
+
+
+@pytest.mark.asyncio
+async def test_add_related_term_does_not_alias_caller_term(
+    related_terms_index: ITermToRelatedTermsIndex,
+) -> None:
+    aliases = related_terms_index.aliases
+    related = Term(text="Auto", weight=0.5)
+    await aliases.add_related_term("car", related)
+    before = await _alias_snapshot(related_terms_index, "car")
+
+    related.text = "auto"
+    related.weight = 10.0
+
+    assert await _alias_snapshot(related_terms_index, "car") == before
+
+
+@pytest.mark.asyncio
+async def test_resolve_related_terms_does_not_modify_aliases(
+    related_terms_index: ITermToRelatedTermsIndex,
+) -> None:
+    aliases = related_terms_index.aliases
+    await aliases.add_related_term("car", Term(text="auto", weight=0.5))
+    await aliases.add_related_term("vehicle", Term(text="auto", weight=0.9))
+    car_before = await _alias_snapshot(related_terms_index, "car")
+    vehicle_before = await _alias_snapshot(related_terms_index, "vehicle")
+
+    for _ in range(2):
+        group = CompiledTermGroup(
+            terms=[
+                CompiledSearchTerm(term=Term(text="car"), related_terms=None),
+                CompiledSearchTerm(term=Term(text="vehicle"), related_terms=None),
+            ],
+            boolean_op="or",
+        )
+        # Deduping "auto" across both search terms keeps its maximum weight.
+        await resolve_related_terms(related_terms_index, [group])
+
+    assert await _alias_snapshot(related_terms_index, "car") == car_before
+    assert await _alias_snapshot(related_terms_index, "vehicle") == vehicle_before
+
+
 @pytest.mark.asyncio
 async def test_deserialize_accepts_duplicate_aliases(
     related_terms_index: ITermToRelatedTermsIndex,
