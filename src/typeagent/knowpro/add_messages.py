@@ -13,13 +13,13 @@ import typechat
 
 from ..aitools.embeddings import IEmbeddingModel, NormalizedEmbedding
 from ..storage.memory import semantic_ref_index
-from .common import normalize_term
 from .interfaces import (
     AddMessagesResult,
     IKnowledgeExtractor,
     IMessage,
     MessageOrdinal,
     TextLocation,
+    Topic,
 )
 from .knowledge_schema import KnowledgeResponse
 
@@ -221,7 +221,7 @@ class ChunkProcessingResult[TMessage: IMessage]:
         message: Original message object containing this chunk.
         extracted_knowledge: Extracted KnowledgeResponse if extraction succeeded, else None.
         chunk_embedding: Normalized embedding vector for the message chunk, or None if extraction or embedding failed.
-        related_terms: Lowercased, deduplicated related-term texts extracted from knowledge.
+        related_terms: Normalized, deduplicated related-term texts extracted from knowledge.
         related_term_embeddings: Embeddings for related_terms in the same order, or [] when there are no related terms.
         error: Exception from the first failing operation, or None if extraction and embedding succeeded.
 
@@ -244,32 +244,18 @@ def _collect_related_terms_for_fuzzy_index(
 ) -> list[str]:
     """Collect canonical related-term texts for the fuzzy related-terms index.
 
-    These terms are derived from the same knowledge that feeds semantic refs.
-    We normalize each term with `normalize_term` (strip, NFC, collapse
-    whitespace, lowercase), drop empty results, and deduplicate while
-    preserving order to match index behavior.
+    These are the normalized, deduplicated terms the knowledge adds to the
+    semantic ref index, in the order they are first added. Terms from message
+    metadata are added at commit time.
     """
-    seen: set[str] = set()
-    related_terms: list[str] = []
-
-    def _add_term(term: str) -> None:
-        canonical = normalize_term(term)
-        if canonical and canonical not in seen:
-            seen.add(canonical)
-            related_terms.append(canonical)
-
-    for entity in knowledge.entities:
-        for term in semantic_ref_index.collect_entity_terms(entity):
-            _add_term(term)
-
-    for action in chain(knowledge.actions, knowledge.inverse_actions):
-        for term in semantic_ref_index.collect_action_terms(action):
-            _add_term(term)
-
-    for topic in knowledge.topics:
-        _add_term(topic)
-
-    return related_terms
+    return semantic_ref_index.collect_related_terms_for_fuzzy_index(
+        chain(
+            knowledge.entities,
+            knowledge.actions,
+            knowledge.inverse_actions,
+            (Topic(text=topic) for topic in knowledge.topics),
+        )
+    )
 
 
 # "Public", imported by tests

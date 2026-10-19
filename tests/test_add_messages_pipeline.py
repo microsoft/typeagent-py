@@ -24,6 +24,7 @@ from typeagent.knowpro.add_messages import (
     process_chunk_with_extraction_and_embeddings,
     ProducerState,
 )
+from typeagent.knowpro.common import normalize_term
 from typeagent.knowpro.core_types import (
     DeletionInfo,
     IMessageMetadata,
@@ -31,10 +32,12 @@ from typeagent.knowpro.core_types import (
 )
 from typeagent.knowpro.knowledge_schema import (
     Action,
+    ActionParam,
     ConcreteEntity,
     Facet,
     KnowledgeResponse,
 )
+from typeagent.storage.memory import semantic_ref_index
 
 
 @dataclass
@@ -199,6 +202,55 @@ async def test_collect_related_terms_lowercases_dedupes_and_preserves_order() ->
     assert terms[0] == "alice"
     assert "mentorship" in terms
     assert len(terms) == len(set(terms))
+
+
+def test_fuzzy_terms_match_semantic_ref_index_terms() -> None:
+    """Both ingestion paths collect exactly the term index terms for knowledge."""
+    knowledge = KnowledgeResponse(
+        entities=[
+            ConcreteEntity(
+                name="Space  Needle",
+                type=["Tower"],
+                facets=[Facet(name="Height", value=184)],
+            ),
+            ConcreteEntity(name="", type=["Ghost"]),  # Not indexed
+        ],
+        actions=[
+            Action(
+                verbs=["Looks", "Up"],
+                verb_tense="past",
+                subject_entity_name="Alice",
+                object_entity_name="Space Needle",
+                params=["Slowly", ActionParam(name="Time", value="Noon")],
+                subject_entity_facet=Facet(name="Mood", value="Happy"),
+            )
+        ],
+        inverse_actions=[
+            Action(
+                verbs=["Seen"],
+                verb_tense="past",
+                subject_entity_name="Space Needle",
+                object_entity_name="none",
+            )
+        ],
+        topics=["Seattle"],
+    )
+    refs, index_terms = semantic_ref_index._collect_knowledge_refs_and_terms(
+        0, 0, 0, knowledge
+    )
+    expected = list(dict.fromkeys(normalize_term(term) for term, _ in index_terms))
+
+    # Path used by add_messages_streaming (extracted knowledge).
+    assert _collect_related_terms_for_fuzzy_index(knowledge) == expected
+    # Path used by add_messages_with_indexing (new semantic refs).
+    assert (
+        semantic_ref_index.collect_related_terms_for_fuzzy_index(
+            ref.knowledge for ref in refs
+        )
+        == expected
+    )
+    assert "looks up" in expected and "looks" not in expected
+    assert "ghost" not in expected
 
 
 @pytest.mark.asyncio

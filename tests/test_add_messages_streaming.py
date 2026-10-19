@@ -22,8 +22,14 @@ from typeagent.knowpro.core_types import (
     IKnowledgeExtractor,
     TextLocation,
 )
-from typeagent.knowpro.knowledge_schema import ConcreteEntity, KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
+from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsFuzzy
 from typeagent.transcripts.transcript import (
     Transcript,
     TranscriptMessage,
@@ -984,5 +990,63 @@ async def test_streaming_replay_without_repair_does_not_duplicate() -> None:
         texts = await _message_texts(transcript)
         assert texts == ["msg-0", "msg-2"]
         assert _ingested_count(storage) == 2
+
+        await storage.close()
+
+
+# ---------------------------------------------------------------------------
+# Fuzzy related-terms index contents (#346)
+# ---------------------------------------------------------------------------
+
+
+class _RichExtractor:
+    """Returns knowledge that uses every kind of indexed term."""
+
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
+        return typechat.Success(
+            KnowledgeResponse(
+                entities=[
+                    ConcreteEntity(
+                        name="Space Needle",
+                        type=["Tower"],
+                        facets=[Facet(name="Height", value=184)],
+                    )
+                ],
+                actions=[
+                    Action(
+                        verbs=["Looks", "Up"],
+                        verb_tense="past",
+                        subject_entity_name="Carol",
+                        object_entity_name="Space Needle",
+                    )
+                ],
+                inverse_actions=[],
+                topics=["Seattle"],
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_streaming_fuzzy_terms_match_term_index() -> None:
+    """Streaming embeds every semantic ref index term, metadata included."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(
+            os.path.join(tmpdir, "test.db"),
+            auto_extract=True,
+            knowledge_extractor=_RichExtractor(),
+        )
+        message = TranscriptMessage(
+            text_chunks=["Look up at the Space Needle"],
+            metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+            tags=["test"],
+        )
+        await add_messages_streaming(transcript, _async_iter([message]))
+
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        # Metadata terms (speaker, recipient) and extracted terms.
+        assert {"carol", "bob", "person", "looks up", "height"} <= set(term_index_terms)
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()
