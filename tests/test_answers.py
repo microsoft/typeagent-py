@@ -14,12 +14,13 @@ from typeagent.knowpro.answers import (
     AnswerGeneratorSettings,
     facets_to_merged_facets,
     generate_answers,
+    get_enclosing_data_range_for_messages,
     get_enclosing_date_range_for_text_range,
     get_enclosing_text_range,
     merged_facets_to_facets,
     text_range_from_message_range,
 )
-from typeagent.knowpro.interfaces import TextLocation, TextRange
+from typeagent.knowpro.interfaces import Datetime, TextLocation, TextRange
 from typeagent.knowpro.knowledge_schema import Facet
 from typeagent.knowpro.search import ConversationSearchResult
 
@@ -79,12 +80,12 @@ class TestFacetsToMergedFacets:
 
 
 # ---------------------------------------------------------------------------
-# Change 2: get_enclosing_date_range_for_text_range uses ordinal-1 for end
+# get_enclosing_date_range_for_text_range treats TextRange.end as exclusive
 # ---------------------------------------------------------------------------
 
 
 class TestGetEnclosingDateRangeForTextRange:
-    """Verify the off-by-one fix: end is exclusive, so we subtract 1."""
+    """TextRange.end is exclusive, so its message's timestamp is the exclusive end."""
 
     @pytest_asyncio.fixture()
     async def messages(self) -> AsyncGenerator[FakeMessageCollection, None]:
@@ -156,6 +157,54 @@ class TestGetEnclosingDateRangeForTextRange:
         assert dr is None
 
 
+class TestGetEnclosingDataRangeForMessages:
+    """The time range spans the first through the last source message."""
+
+    @pytest_asyncio.fixture()
+    async def messages(self) -> AsyncGenerator[FakeMessageCollection, None]:
+        """Five messages with ordinals 0..4; message i is at hour i."""
+        coll = FakeMessageCollection()
+        for i in range(5):
+            await coll.append(FakeMessage("text", message_ordinal=i))
+        yield coll
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("ordinals", "end_hour"),
+        [
+            ([2], None),  # single message: start only
+            ([0, 1], 1),
+            ([3, 1], 3),
+            ([0, 2, 3], 3),
+            ([1, 4], 4),  # includes the conversation's last message
+        ],
+    )
+    async def test_spans_first_through_last_source_message(
+        self,
+        messages: FakeMessageCollection,
+        ordinals: list[int],
+        end_hour: int | None,
+    ) -> None:
+        dr = await get_enclosing_data_range_for_messages(messages, ordinals)
+        assert dr is not None
+        assert dr.start.hour == min(ordinals)
+        assert (dr.end.hour if dr.end else None) == end_hour
+        for ordinal in ordinals:
+            timestamp = (await messages.get_item(ordinal)).timestamp
+            assert timestamp is not None
+            # The end is an inclusive display bound, not DateRange's exclusive one.
+            dt = Datetime.fromisoformat(timestamp)
+            assert dr.start <= dt
+            assert dr.end is None or dt <= dr.end
+
+    @pytest.mark.asyncio
+    async def test_no_timestamp_returns_none(self) -> None:
+        coll = FakeMessageCollection()
+        await coll.append(FakeMessage("text"))  # no message_ordinal -> no timestamp
+        await coll.append(FakeMessage("text"))
+        assert await get_enclosing_data_range_for_messages(coll, [0, 1]) is None
+
+
 # ---------------------------------------------------------------------------
 # Helper functions (also exercised for completeness)
 # ---------------------------------------------------------------------------
@@ -173,7 +222,14 @@ class TestGetEnclosingTextRange:
         assert tr is not None
         assert tr.start.message_ordinal == 1
         assert tr.end is not None
-        assert tr.end.message_ordinal == 7
+        assert tr.end.message_ordinal == 8  # exclusive: one past the last message
+
+    @pytest.mark.parametrize("ordinals", [[0, 1], [3, 1, 7], [4, 4, 2]])
+    def test_contains_every_source_message(self, ordinals: list[int]) -> None:
+        tr = get_enclosing_text_range(ordinals)
+        assert tr is not None
+        for ordinal in ordinals:
+            assert TextRange(start=TextLocation(ordinal)) in tr
 
     def test_empty_ordinals(self) -> None:
         tr = get_enclosing_text_range([])
@@ -192,7 +248,7 @@ class TestTextRangeFromMessageRange:
         assert tr is not None
         assert tr.start.message_ordinal == 2
         assert tr.end is not None
-        assert tr.end.message_ordinal == 5
+        assert tr.end.message_ordinal == 6  # exclusive: one past message 5
 
     def test_invalid_raises(self) -> None:
         with pytest.raises(ValueError, match="Expect message ordinal range"):

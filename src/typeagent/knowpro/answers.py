@@ -431,15 +431,36 @@ async def get_enclosing_data_range_for_messages(
     messages: IMessageCollection,
     message_ordinals: Iterable[MessageOrdinal],
 ) -> DateRange | None:
+    """The time span of the given messages, for display in a prompt.
+
+    It runs from the earliest to the latest message's timestamp; for a single
+    message the end is None. Like `get_time_range_for_conversation`, the end is
+    an inclusive-looking bound, so do NOT pass this range to a timestamp index
+    lookup: `DateRange` is half-open and the last message would fall outside it.
+    """
     text_range = get_enclosing_text_range(message_ordinals)
     if not text_range:
         return None
-    return await get_enclosing_date_range_for_text_range(messages, text_range)
+    start_timestamp = (
+        await messages.get_item(text_range.start.message_ordinal)
+    ).timestamp
+    if not start_timestamp:
+        return None
+    end_timestamp: str | None = None
+    if text_range.end:
+        # TextRange.end is exclusive; the last message is the one before it.
+        last_ordinal = text_range.end.message_ordinal - 1
+        end_timestamp = (await messages.get_item(last_ordinal)).timestamp
+    return DateRange(
+        start=Datetime.fromisoformat(start_timestamp),
+        end=Datetime.fromisoformat(end_timestamp) if end_timestamp else None,
+    )
 
 
 def get_enclosing_text_range(
     message_ordinals: Iterable[MessageOrdinal],
 ) -> TextRange | None:
+    """The smallest TextRange containing the given messages, or None if empty."""
     start: MessageOrdinal | None = None
     end: MessageOrdinal | None = start
     for ordinal in message_ordinals:
@@ -455,13 +476,17 @@ def get_enclosing_text_range(
 def text_range_from_message_range(
     start: MessageOrdinal, end: MessageOrdinal
 ) -> TextRange | None:
+    """Return the TextRange covering messages ``start`` through ``end``, inclusive.
+
+    TextRange.end is exclusive, so it is set one past ``end``.
+    """
     if start == end:
         # Point location
         return TextRange(start=TextLocation(start))
     elif start < end:
         return TextRange(
             start=TextLocation(start),
-            end=TextLocation(end),
+            end=TextLocation(end + 1),
         )
     else:
         raise ValueError(f"Expect message ordinal range: {start} <= {end}")
