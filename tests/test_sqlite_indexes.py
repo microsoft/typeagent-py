@@ -294,6 +294,16 @@ class TestSqliteRelatedTermsAliases:
         assert not await index.is_empty()
         assert await index.size() == 2
 
+    @pytest.mark.asyncio
+    async def test_set_related_terms_accepts_duplicates(
+        self, sqlite_db: sqlite3.Connection
+    ):
+        index = SqliteRelatedTermsAliases(sqlite_db)
+        await index.set_related_terms("car", ["auto", "auto", "vehicle"])
+        results = await index.lookup_term("car")
+        assert results is not None
+        assert sorted(t.text for t in results) == ["auto", "vehicle"]
+
 
 class TestSqliteRelatedTermsFuzzy:
     """Test SqliteRelatedTermsFuzzy with real embeddings."""
