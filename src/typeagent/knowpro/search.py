@@ -9,6 +9,7 @@ from pydantic import Field
 from ..storage.memory import related_terms_index
 from ..storage.memory.message_index import IMessageTextEmbeddingIndex
 from .collections import MessageAccumulator, SemanticRefAccumulator
+from .common import normalize_term
 from .dataclasses import dataclass
 from .interfaces import (
     IConversation,
@@ -542,7 +543,7 @@ class QueryCompiler:
                     related_term.weight = self.default_term_match_weight
         return True
 
-    # Currently, just changes the case of a term
+    # Currently, just normalizes a term the same way the term indexes do
     #  But here, we may do other things like:
     # - Check for noise terms
     # - Do additional rewriting
@@ -550,7 +551,7 @@ class QueryCompiler:
     # Return false if the term should be rejected
     def validate_and_prepare_term(self, term: Term | None) -> bool:
         if term:
-            term.text = term.text.lower()
+            term.text = normalize_term(term.text)
         return True
 
     def boost_entities(

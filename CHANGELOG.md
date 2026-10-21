@@ -56,6 +56,14 @@
   letter followed by a combining mark, such as `T̈`). Indexes stored by
   earlier versions keep such terms in the old form, so they may no longer
   match; re-ingest to rebuild the indexes.
+- Search terms, query term matching (e.g. entity boosting) and the
+  related-terms alias index in memory and SQLite now use the same
+  normalization as the term indexes (#346). Previously search terms and query
+  matching only lowercased, and the alias index stored and matched keys
+  verbatim, so a search for `"space needle"` missed the boost for an entity
+  named `"Space  Needle"`, and an alias added for `"Space Needle"` was never
+  found by a search. SQLite aliases stored by earlier versions keep their old
+  keys and may no longer match; re-ingest such databases to rebuild them.
 
 #### Core typeagent package
 - Replace `CamelCaseField` (and its module `typeagent.knowpro.field_helpers`)

@@ -263,7 +263,7 @@ class TestSqliteRelatedTermsAliases:
         term_texts = [term.text for term in results]
         assert "artificial intelligence" in term_texts
         assert "machine learning" in term_texts
-        assert "ML" in term_texts
+        assert "ml" in term_texts  # Aliases are stored normalized
 
     @pytest.mark.asyncio
     async def test_serialize_deserialize(self, sqlite_db: sqlite3.Connection):
