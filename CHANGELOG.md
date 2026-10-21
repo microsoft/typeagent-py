@@ -66,6 +66,16 @@
   loads. Other dataclasses using this decorator also serialize previously
   unaliased multi-word fields as camelCase when `by_alias=True`; their
   snake_case input names remain accepted unless explicitly overridden.
+- `add_messages_with_indexing` and `add_messages_streaming` now add the same
+  terms to the fuzzy related-terms index: every term added to the semantic ref
+  index (#346), so related-term expansion no longer depends on the ingestion
+  path. `add_messages_with_indexing` used to add only entity names, topics and
+  each action verb separately; it now embeds more terms per message, and
+  multi-word verbs are embedded as one term (e.g. `"looks up"` rather than
+  `"looks"` and `"up"`), matching the term index. `add_messages_streaming`
+  used to skip terms from message metadata (e.g. speakers and recipients) and
+  now embeds them at commit time; it also no longer embeds the types and
+  facets of entities without a name, which the term index skips.
 
 ### 0.5.0 (May 26)
 

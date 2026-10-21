@@ -8,9 +8,18 @@ import tempfile
 
 import pytest
 
+import typechat
+
 from typeagent.aitools.model_adapters import create_test_embedding_model
 from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
+from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsFuzzy
 from typeagent.transcripts.transcript import (
     Transcript,
     TranscriptMessage,
@@ -160,5 +169,120 @@ async def test_transaction_rollback_on_error():
             async with storage:
                 async with storage:  # This should fail
                     pass
+
+        await storage.close()
+
+
+class _RichExtractor:
+    """Returns knowledge that uses every kind of indexed term."""
+
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
+        return typechat.Success(
+            KnowledgeResponse(
+                entities=[
+                    ConcreteEntity(
+                        name="Space Needle",
+                        type=["Tower"],
+                        facets=[Facet(name="Height", value=184)],
+                    )
+                ],
+                actions=[
+                    Action(
+                        verbs=["Looks", "Up"],
+                        verb_tense="past",
+                        subject_entity_name="Alice",
+                        object_entity_name="Space Needle",
+                    )
+                ],
+                inverse_actions=[],
+                topics=["Seattle"],
+            )
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("auto_extract", [False, True])
+async def test_add_messages_with_indexing_fuzzy_terms_match_term_index(
+    auto_extract: bool,
+):
+    """The fuzzy related-terms index gets every semantic ref index term (#346)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+
+        test_model = create_test_embedding_model()
+        settings = ConversationSettings(model=test_model)
+        settings.semantic_ref_index_settings.auto_extract_knowledge = auto_extract
+        settings.semantic_ref_index_settings.knowledge_extractor = _RichExtractor()
+
+        storage = SqliteStorageProvider(
+            db_path,
+            message_type=TranscriptMessage,
+            message_text_index_settings=settings.message_text_index_settings,
+            related_term_index_settings=settings.related_term_index_settings,
+        )
+        settings.storage_provider = storage
+        transcript = await Transcript.create(settings, name="test")
+
+        messages = [
+            TranscriptMessage(
+                text_chunks=["Hello world"],
+                metadata=TranscriptMessageMeta(speaker="Alice", recipients=["Bob"]),
+            ),
+        ]
+        await transcript.add_messages_with_indexing(messages)
+
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert {"alice", "bob", "person"} <= set(term_index_terms)
+        if auto_extract:
+            assert {"looks up", "height", "seattle"} <= set(term_index_terms)
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_add_messages_with_indexing_fuzzy_terms_include_nameless_metadata_entity(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Metadata entities are indexed without validation; so are their terms."""
+    original_get_knowledge = TranscriptMessage.get_knowledge
+
+    def get_knowledge(self: TranscriptMessage) -> KnowledgeResponse:
+        knowledge = original_get_knowledge(self)
+        knowledge.entities.append(ConcreteEntity(name="", type=["Ghost"]))
+        return knowledge
+
+    monkeypatch.setattr(TranscriptMessage, "get_knowledge", get_knowledge)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+
+        test_model = create_test_embedding_model()
+        settings = ConversationSettings(model=test_model)
+        settings.semantic_ref_index_settings.auto_extract_knowledge = False
+
+        storage = SqliteStorageProvider(
+            db_path,
+            message_type=TranscriptMessage,
+            message_text_index_settings=settings.message_text_index_settings,
+            related_term_index_settings=settings.related_term_index_settings,
+        )
+        settings.storage_provider = storage
+        transcript = await Transcript.create(settings, name="test")
+
+        messages = [
+            TranscriptMessage(
+                text_chunks=["Hello world"],
+                metadata=TranscriptMessageMeta(speaker="Alice", recipients=["Bob"]),
+            ),
+        ]
+        await transcript.add_messages_with_indexing(messages)
+
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert "ghost" in term_index_terms
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()

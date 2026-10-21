@@ -3,7 +3,7 @@
 
 from __future__ import annotations  # TODO: Avoid
 
-from collections.abc import AsyncIterable, Callable, Sequence
+from collections.abc import AsyncIterable, Callable, Iterable, Sequence
 
 from typechat import Failure
 
@@ -583,6 +583,42 @@ def collect_action_terms(action: Action) -> list[str]:
                     terms.append(param.value)
     terms.extend(collect_facet_terms(action.subject_entity_facet))
     return terms
+
+
+def collect_knowledge_terms(knowledge: Knowledge) -> list[str]:
+    """Collect all terms an indexed knowledge item adds to the semantic ref index.
+
+    Extracted entities that fail `validate_entity` are never indexed; callers
+    collecting terms for extracted knowledge must filter those out first.
+    """
+    if isinstance(knowledge, ConcreteEntity):
+        return collect_entity_terms(knowledge)
+    if isinstance(knowledge, Action):
+        return collect_action_terms(knowledge)
+    if isinstance(knowledge, Topic):
+        return [knowledge.text]
+    return []  # Tags are not added to the semantic ref index
+
+
+def collect_related_terms_for_fuzzy_index(
+    knowledge_items: Iterable[Knowledge],
+) -> list[str]:
+    """Collect the terms to add to the fuzzy related-terms index.
+
+    These are the terms the knowledge items add to the semantic ref index,
+    so the same knowledge yields the same fuzzy-index terms on every
+    ingestion path. Each term is normalized with `normalize_term`; empty
+    results are dropped and duplicates removed, keeping the first occurrence.
+    """
+    seen: set[str] = set()
+    related_terms: list[str] = []
+    for knowledge in knowledge_items:
+        for term in collect_knowledge_terms(knowledge):
+            canonical = normalize_term(term)
+            if canonical and canonical not in seen:
+                seen.add(canonical)
+                related_terms.append(canonical)
+    return related_terms
 
 
 async def add_metadata_to_index_from_list[TMessage: IMessage](
