@@ -222,6 +222,22 @@ async def test_deserialize_malformed_data_keeps_existing_aliases(
 
 
 @pytest.mark.asyncio
+async def test_deserialize_invalid_term_text_keeps_existing_aliases(
+    related_terms_index: ITermToRelatedTermsIndex,
+) -> None:
+    aliases = related_terms_index.aliases
+    await aliases.add_related_term("keep", Term(text="kept"))
+    # A non-string key only fails in normalize_term(), which must run
+    # before the existing aliases are cleared.
+    invalid = {"relatedTerms": [{"termText": 42, "relatedTerms": [{"text": "x"}]}]}
+    with pytest.raises(AttributeError):
+        await aliases.deserialize(invalid)  # type: ignore[arg-type]
+    result = await aliases.lookup_term("keep")
+    assert result is not None
+    assert [t.text for t in result] == ["kept"]
+
+
+@pytest.mark.asyncio
 async def test_related_terms_index_basic(really_needs_auth: None) -> None:
     settings = RelatedTermIndexSettings(TextEmbeddingIndexSettings())
     index = RelatedTermsIndex(settings)

@@ -86,16 +86,19 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
         return TermToRelatedTermsData(relatedTerms=related_terms)
 
     async def deserialize(self, data: TermToRelatedTermsData | None) -> None:
-        # Parse everything before clearing, so malformed data leaves the
-        # existing aliases in place.
+        # Parse and normalize everything before clearing, so malformed data
+        # leaves the existing aliases in place.
         items: list[tuple[str, list[Term]]] = []
         if data is not None:
             for item in data.get("relatedTerms") or []:
                 related_terms = [
-                    Term(term_data["text"], weight=term_data.get("weight"))
+                    Term(
+                        normalize_term(term_data["text"]),
+                        weight=term_data.get("weight"),
+                    )
                     for term_data in item["relatedTerms"]
                 ]
-                items.append((item["termText"], related_terms))
+                items.append((normalize_term(item["termText"]), related_terms))
         self.map.clear()
         for term_text, related_terms in items:
             await self.add_related_term(term_text, related_terms)
