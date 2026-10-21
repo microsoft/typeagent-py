@@ -251,6 +251,10 @@ def test_fuzzy_terms_match_semantic_ref_index_terms() -> None:
     )
     assert "looks up" in expected and "looks" not in expected
     assert "ghost" not in expected
+    # Indexed knowledge (e.g. metadata, which isn't validated) keeps all terms.
+    assert "ghost" in semantic_ref_index.collect_related_terms_for_fuzzy_index(
+        [ConcreteEntity(name="", type=["Ghost"])]
+    )
 
 
 @pytest.mark.asyncio

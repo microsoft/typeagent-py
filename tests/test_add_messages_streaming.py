@@ -1050,3 +1050,83 @@ async def test_streaming_fuzzy_terms_match_term_index() -> None:
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_fuzzy_terms_include_nameless_metadata_entity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Metadata entities are indexed without validation; so are their terms."""
+    original_get_knowledge = TranscriptMessage.get_knowledge
+
+    def get_knowledge(self: TranscriptMessage) -> KnowledgeResponse:
+        knowledge = original_get_knowledge(self)
+        knowledge.entities.append(ConcreteEntity(name="", type=["Ghost"]))
+        return knowledge
+
+    monkeypatch.setattr(TranscriptMessage, "get_knowledge", get_knowledge)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(
+            os.path.join(tmpdir, "test.db"),
+            auto_extract=True,
+            knowledge_extractor=_RichExtractor(),
+        )
+        message = TranscriptMessage(
+            text_chunks=["Look up at the Space Needle"],
+            metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+        )
+        await add_messages_streaming(transcript, _async_iter([message]))
+
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert "ghost" in term_index_terms
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_retry_after_metadata_embedding_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed commit-time embedding must not hide terms from a retry."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(
+            os.path.join(tmpdir, "test.db"),
+            auto_extract=True,
+            knowledge_extractor=_RichExtractor(),
+        )
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+
+        # Only commit-time (metadata) embeddings go through the vector base;
+        # extracted terms are embedded with the model before the commit.
+        vector_base = fuzzy_index._vector_base
+        original_get_embeddings = vector_base.get_embeddings
+        calls = 0
+
+        async def get_embeddings(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("Embedding failure")
+            return await original_get_embeddings(*args, **kwargs)
+
+        monkeypatch.setattr(vector_base, "get_embeddings", get_embeddings)
+
+        message = TranscriptMessage(
+            text_chunks=["Look up at the Space Needle"],
+            metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+        )
+        with pytest.raises(RuntimeError, match="Embedding failure"):
+            await add_messages_streaming(transcript, _async_iter([message]))
+        assert await transcript.messages.size() == 0
+
+        await add_messages_streaming(transcript, _async_iter([message]))
+
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert {"carol", "bob", "looks up", "height"} <= set(term_index_terms)
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+
+        await storage.close()

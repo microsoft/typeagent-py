@@ -240,3 +240,49 @@ async def test_add_messages_with_indexing_fuzzy_terms_match_term_index(
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_add_messages_with_indexing_fuzzy_terms_include_nameless_metadata_entity(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Metadata entities are indexed without validation; so are their terms."""
+    original_get_knowledge = TranscriptMessage.get_knowledge
+
+    def get_knowledge(self: TranscriptMessage) -> KnowledgeResponse:
+        knowledge = original_get_knowledge(self)
+        knowledge.entities.append(ConcreteEntity(name="", type=["Ghost"]))
+        return knowledge
+
+    monkeypatch.setattr(TranscriptMessage, "get_knowledge", get_knowledge)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = os.path.join(tmpdir, "test.db")
+
+        test_model = create_test_embedding_model()
+        settings = ConversationSettings(model=test_model)
+        settings.semantic_ref_index_settings.auto_extract_knowledge = False
+
+        storage = SqliteStorageProvider(
+            db_path,
+            message_type=TranscriptMessage,
+            message_text_index_settings=settings.message_text_index_settings,
+            related_term_index_settings=settings.related_term_index_settings,
+        )
+        settings.storage_provider = storage
+        transcript = await Transcript.create(settings, name="test")
+
+        messages = [
+            TranscriptMessage(
+                text_chunks=["Hello world"],
+                metadata=TranscriptMessageMeta(speaker="Alice", recipients=["Bob"]),
+            ),
+        ]
+        await transcript.add_messages_with_indexing(messages)
+
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert "ghost" in term_index_terms
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+
+        await storage.close()

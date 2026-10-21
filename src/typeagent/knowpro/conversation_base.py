@@ -429,6 +429,13 @@ class ConversationBase(
             start_points.message_count,
         )
 
+        # Metadata knowledge is only indexed at commit time, so its terms
+        # have no precomputed embeddings; embed them now. Do this before
+        # adding the precomputed terms: if embedding fails, the fuzzy index's
+        # in-memory state (which a rollback doesn't restore) is still unchanged.
+        await self._update_related_terms_incremental(
+            start_points.semref_count, exclude=set(related_terms)
+        )
         term_to_related = self.secondary_indexes.term_to_related_terms_index
         if term_to_related is not None:
             fuzzy_index = term_to_related.fuzzy_index
@@ -437,11 +444,6 @@ class ConversationBase(
                     related_terms,
                     related_term_embeddings,
                 )
-        # Metadata knowledge is only indexed at commit time, so its terms
-        # have no precomputed embeddings; embed them now.
-        await self._update_related_terms_incremental(
-            start_points.semref_count, exclude=set(related_terms)
-        )
 
     async def _add_metadata_knowledge_incremental(
         self,

@@ -250,7 +250,8 @@ def _collect_related_terms_for_fuzzy_index(
     """
     return semantic_ref_index.collect_related_terms_for_fuzzy_index(
         chain(
-            knowledge.entities,
+            # Extracted entities without a name are not indexed.
+            filter(semantic_ref_index.validate_entity, knowledge.entities),
             knowledge.actions,
             knowledge.inverse_actions,
             (Topic(text=topic) for topic in knowledge.topics),

@@ -586,9 +586,13 @@ def collect_action_terms(action: Action) -> list[str]:
 
 
 def collect_knowledge_terms(knowledge: Knowledge) -> list[str]:
-    """Collect all terms a knowledge item would add to the semantic ref index."""
+    """Collect all terms an indexed knowledge item adds to the semantic ref index.
+
+    Extracted entities that fail `validate_entity` are never indexed; callers
+    collecting terms for extracted knowledge must filter those out first.
+    """
     if isinstance(knowledge, ConcreteEntity):
-        return collect_entity_terms(knowledge) if validate_entity(knowledge) else []
+        return collect_entity_terms(knowledge)
     if isinstance(knowledge, Action):
         return collect_action_terms(knowledge)
     if isinstance(knowledge, Topic):
