@@ -1027,12 +1027,13 @@ class _RichExtractor:
 
 
 @pytest.mark.asyncio
-async def test_streaming_fuzzy_terms_match_term_index() -> None:
+@pytest.mark.parametrize("auto_extract", [False, True])
+async def test_streaming_fuzzy_terms_match_term_index(auto_extract: bool) -> None:
     """Streaming embeds every semantic ref index term, metadata included."""
     with tempfile.TemporaryDirectory() as tmpdir:
         transcript, storage = await _create_transcript(
             os.path.join(tmpdir, "test.db"),
-            auto_extract=True,
+            auto_extract=auto_extract,
             knowledge_extractor=_RichExtractor(),
         )
         message = TranscriptMessage(
@@ -1046,7 +1047,9 @@ async def test_streaming_fuzzy_terms_match_term_index() -> None:
         assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
         term_index_terms = await storage.semantic_ref_index.get_terms()
         # Metadata terms (speaker, recipient) and extracted terms.
-        assert {"carol", "bob", "person", "looks up", "height"} <= set(term_index_terms)
+        assert {"carol", "bob", "person"} <= set(term_index_terms)
+        if auto_extract:
+            assert {"looks up", "height", "seattle"} <= set(term_index_terms)
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()

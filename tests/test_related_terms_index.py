@@ -28,6 +28,7 @@ from typeagent.storage.memory.related_terms_index import (
     dedupe_related_terms,
     RelatedTermsIndex,
     resolve_related_terms,
+    TermEmbeddingIndex,
     TermToRelatedTermsMap,
 )
 
@@ -141,6 +142,25 @@ async def test_fuzzy_index_skips_duplicate_terms(
     assert await fuzzy_index.size() == 3
     hits = await fuzzy_index.lookup_term("person", max_hits=10)
     assert sorted(term.text for term in hits) == ["alice", "bob", "person"]
+
+
+@pytest.mark.asyncio
+async def test_term_embedding_index_skips_held_terms_after_reload_and_clear(
+    embedding_model: IEmbeddingModel,
+) -> None:
+    settings = TextEmbeddingIndexSettings(embedding_model)
+    index = TermEmbeddingIndex(settings)
+    await index.add_terms(["person", "alice"])
+
+    # A reloaded index still knows which terms it holds.
+    reloaded = TermEmbeddingIndex(settings, index.serialize())
+    await reloaded.add_terms(["person", "bob"])
+    assert await reloaded.size() == 3
+
+    # A cleared index holds nothing, so the same terms are added again.
+    reloaded.clear()
+    await reloaded.add_terms(["person"])
+    assert await reloaded.size() == 1
 
 
 async def _alias_snapshot(
