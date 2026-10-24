@@ -435,7 +435,7 @@ class ConversationBase(
         # in-memory state (which a rollback doesn't restore) is still unchanged.
         # A failure *after* this point still leaves that state ahead of the
         # rolled-back DB, so a retry on the same storage would skip those terms.
-        # TODO: Restore the fuzzy index's in-memory state on rollback.
+        # TODO: Restore the fuzzy index's in-memory state on rollback (#362).
         await self._update_related_terms_incremental(
             start_points.semref_count, exclude=set(related_terms)
         )
