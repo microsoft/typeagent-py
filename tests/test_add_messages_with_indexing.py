@@ -3,21 +3,17 @@
 
 """Test add_messages_with_indexing functionality."""
 
+from collections.abc import AsyncIterator
 import os
 import tempfile
 
 import pytest
 
-import typechat
-
 from typeagent.aitools.model_adapters import create_test_embedding_model
+from typeagent.knowpro.add_messages import add_messages_streaming
 from typeagent.knowpro.convsettings import ConversationSettings
-from typeagent.knowpro.knowledge_schema import (
-    Action,
-    ConcreteEntity,
-    Facet,
-    KnowledgeResponse,
-)
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, KnowledgeResponse
+from typeagent.storage.memory.related_terms_index import TermEmbeddingIndex
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsFuzzy
 from typeagent.transcripts.transcript import (
@@ -25,6 +21,15 @@ from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
+
+from conftest import RichKnowledgeExtractor
+
+
+async def _async_iter(
+    items: list[TranscriptMessage],
+) -> AsyncIterator[TranscriptMessage]:
+    for item in items:
+        yield item
 
 
 @pytest.mark.asyncio
@@ -173,33 +178,6 @@ async def test_transaction_rollback_on_error():
         await storage.close()
 
 
-class _RichExtractor:
-    """Returns knowledge that uses every kind of indexed term."""
-
-    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
-        return typechat.Success(
-            KnowledgeResponse(
-                entities=[
-                    ConcreteEntity(
-                        name="Space Needle",
-                        type=["Tower"],
-                        facets=[Facet(name="Height", value=184)],
-                    )
-                ],
-                actions=[
-                    Action(
-                        verbs=["Looks", "Up"],
-                        verb_tense="past",
-                        subject_entity_name="Alice",
-                        object_entity_name="Space Needle",
-                    )
-                ],
-                inverse_actions=[],
-                topics=["Seattle"],
-            )
-        )
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("auto_extract", [False, True])
 async def test_add_messages_with_indexing_fuzzy_terms_match_term_index(
@@ -212,7 +190,9 @@ async def test_add_messages_with_indexing_fuzzy_terms_match_term_index(
         test_model = create_test_embedding_model()
         settings = ConversationSettings(model=test_model)
         settings.semantic_ref_index_settings.auto_extract_knowledge = auto_extract
-        settings.semantic_ref_index_settings.knowledge_extractor = _RichExtractor()
+        settings.semantic_ref_index_settings.knowledge_extractor = (
+            RichKnowledgeExtractor(subject="Alice")
+        )
 
         storage = SqliteStorageProvider(
             db_path,
@@ -286,3 +266,49 @@ async def test_add_messages_with_indexing_fuzzy_terms_include_nameless_metadata_
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("streaming", [False, True])
+async def test_memory_fuzzy_terms_match_term_index_across_batches(
+    streaming: bool,
+) -> None:
+    """In memory, repeated batches leave one fuzzy entry per term-index term."""
+    settings = ConversationSettings(model=create_test_embedding_model())
+    settings.semantic_ref_index_settings.auto_extract_knowledge = True
+    settings.semantic_ref_index_settings.knowledge_extractor = RichKnowledgeExtractor(
+        subject="Alice"
+    )
+    transcript = await Transcript.create(settings, name="test")
+
+    batches = [
+        [
+            TranscriptMessage(
+                text_chunks=["Hello world"],
+                metadata=TranscriptMessageMeta(speaker="Alice", recipients=["Bob"]),
+            )
+        ],
+        [
+            TranscriptMessage(
+                text_chunks=["Hello again"],
+                metadata=TranscriptMessageMeta(speaker="Bob", recipients=["Alice"]),
+            )
+        ],
+    ]
+    for batch in batches:
+        if streaming:
+            await add_messages_streaming(transcript, _async_iter(batch))
+        else:
+            await transcript.add_messages_with_indexing(batch)
+
+    assert await transcript.messages.size() == 2
+    secondary_indexes = transcript.secondary_indexes
+    assert secondary_indexes is not None
+    related_terms_index = secondary_indexes.term_to_related_terms_index
+    assert related_terms_index is not None
+    fuzzy_index = related_terms_index.fuzzy_index
+    assert isinstance(fuzzy_index, TermEmbeddingIndex)
+    fuzzy_terms = fuzzy_index.serialize()["textItems"]
+    term_index_terms = await transcript.semantic_ref_index.get_terms()
+    assert {"alice", "bob", "person", "looks up", "seattle"} <= set(term_index_terms)
+    assert sorted(fuzzy_terms) == sorted(term_index_terms)

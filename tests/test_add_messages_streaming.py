@@ -22,12 +22,7 @@ from typeagent.knowpro.core_types import (
     IKnowledgeExtractor,
     TextLocation,
 )
-from typeagent.knowpro.knowledge_schema import (
-    Action,
-    ConcreteEntity,
-    Facet,
-    KnowledgeResponse,
-)
+from typeagent.knowpro.knowledge_schema import ConcreteEntity, KnowledgeResponse
 from typeagent.storage.sqlite.provider import SqliteStorageProvider
 from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsFuzzy
 from typeagent.transcripts.transcript import (
@@ -35,6 +30,8 @@ from typeagent.transcripts.transcript import (
     TranscriptMessage,
     TranscriptMessageMeta,
 )
+
+from conftest import RichKnowledgeExtractor
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -999,33 +996,6 @@ async def test_streaming_replay_without_repair_does_not_duplicate() -> None:
 # ---------------------------------------------------------------------------
 
 
-class _RichExtractor:
-    """Returns knowledge that uses every kind of indexed term."""
-
-    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
-        return typechat.Success(
-            KnowledgeResponse(
-                entities=[
-                    ConcreteEntity(
-                        name="Space Needle",
-                        type=["Tower"],
-                        facets=[Facet(name="Height", value=184)],
-                    )
-                ],
-                actions=[
-                    Action(
-                        verbs=["Looks", "Up"],
-                        verb_tense="past",
-                        subject_entity_name="Carol",
-                        object_entity_name="Space Needle",
-                    )
-                ],
-                inverse_actions=[],
-                topics=["Seattle"],
-            )
-        )
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("auto_extract", [False, True])
 async def test_streaming_fuzzy_terms_match_term_index(auto_extract: bool) -> None:
@@ -1034,7 +1004,7 @@ async def test_streaming_fuzzy_terms_match_term_index(auto_extract: bool) -> Non
         transcript, storage = await _create_transcript(
             os.path.join(tmpdir, "test.db"),
             auto_extract=auto_extract,
-            knowledge_extractor=_RichExtractor(),
+            knowledge_extractor=RichKnowledgeExtractor(subject="Carol"),
         )
         message = TranscriptMessage(
             text_chunks=["Look up at the Space Needle"],
@@ -1072,7 +1042,7 @@ async def test_streaming_fuzzy_terms_include_nameless_metadata_entity(
         transcript, storage = await _create_transcript(
             os.path.join(tmpdir, "test.db"),
             auto_extract=True,
-            knowledge_extractor=_RichExtractor(),
+            knowledge_extractor=RichKnowledgeExtractor(subject="Carol"),
         )
         message = TranscriptMessage(
             text_chunks=["Look up at the Space Needle"],
@@ -1098,7 +1068,7 @@ async def test_streaming_retry_after_metadata_embedding_failure(
         transcript, storage = await _create_transcript(
             os.path.join(tmpdir, "test.db"),
             auto_extract=True,
-            knowledge_extractor=_RichExtractor(),
+            knowledge_extractor=RichKnowledgeExtractor(subject="Carol"),
         )
         fuzzy_index = storage.related_terms_index.fuzzy_index
         assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
@@ -1131,5 +1101,46 @@ async def test_streaming_retry_after_metadata_embedding_failure(
         term_index_terms = await storage.semantic_ref_index.get_terms()
         assert {"carol", "bob", "looks up", "height"} <= set(term_index_terms)
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_commit_embeds_only_metadata_terms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Terms with precomputed embeddings are not embedded again at commit."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(
+            os.path.join(tmpdir, "test.db"),
+            auto_extract=True,
+            knowledge_extractor=RichKnowledgeExtractor(subject="Carol"),
+        )
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+
+        # Only commit-time (metadata) embeddings go through the vector base.
+        vector_base = fuzzy_index._vector_base
+        original_get_embeddings = vector_base.get_embeddings
+        embedded: list[str] = []
+
+        async def get_embeddings(keys: list[str], cache: bool = True):
+            embedded.extend(keys)
+            return await original_get_embeddings(keys, cache)
+
+        monkeypatch.setattr(vector_base, "get_embeddings", get_embeddings)
+
+        message = TranscriptMessage(
+            text_chunks=["Look up at the Space Needle"],
+            metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+        )
+        await add_messages_streaming(transcript, _async_iter([message]))
+
+        # "carol" is both the speaker and the extracted action's subject, so
+        # it already has a precomputed embedding.
+        assert "bob" in embedded
+        assert "carol" not in embedded
+        assert not {"space needle", "looks up", "seattle"} & set(embedded)
+        assert len(embedded) == len(set(embedded))
 
         await storage.close()

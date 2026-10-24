@@ -34,6 +34,7 @@ from .interfaces import (
     IStorageProvider,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    SemanticRefOrdinal,
     TextLocation,
 )
 from .knowledge_schema import KnowledgeResponse
@@ -381,6 +382,7 @@ class ConversationBase(
                 await storage.mark_sources_ingested_batch(source_ids)
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
+            metadata_semref_end = await self.semantic_refs.size()
 
             await semantic_ref_index.add_knowledge_batch_to_semantic_ref_index(
                 self,
@@ -389,6 +391,7 @@ class ConversationBase(
 
             await self._update_secondary_indexes_incremental_with_embeddings(
                 start_points,
+                metadata_semref_end,
                 messages_batch,
                 fuzzy_terms,
                 fuzzy_term_embeddings,
@@ -412,6 +415,7 @@ class ConversationBase(
     async def _update_secondary_indexes_incremental_with_embeddings(
         self,
         start_points: IndexingStartPoints,
+        metadata_semref_end: SemanticRefOrdinal,
         new_messages: list[TMessage],
         related_terms: list[str],
         related_term_embeddings: list[NormalizedEmbedding],
@@ -429,15 +433,18 @@ class ConversationBase(
             start_points.message_count,
         )
 
-        # Metadata knowledge is only indexed at commit time, so its terms
-        # have no precomputed embeddings; embed them now. Do this before
-        # adding the precomputed terms: if embedding fails, the fuzzy index's
-        # in-memory state (which a rollback doesn't restore) is still unchanged.
-        # A failure *after* this point still leaves that state ahead of the
-        # rolled-back DB, so a retry on the same storage would skip those terms.
+        # Metadata knowledge (the semrefs before metadata_semref_end) is only
+        # indexed at commit time, so its terms have no precomputed embeddings;
+        # embed them now. Do this before adding the precomputed terms: if
+        # embedding fails, SqliteRelatedTermsFuzzy's in-memory state (which a
+        # rollback doesn't restore) is still unchanged. A failure *after* this
+        # point still leaves that state ahead of the rolled-back DB, so a retry
+        # on the same storage would skip those terms.
         # TODO: Restore the fuzzy index's in-memory state on rollback (#362).
         await self._update_related_terms_incremental(
-            start_points.semref_count, exclude=set(related_terms)
+            start_points.semref_count,
+            metadata_semref_end,
+            exclude=set(related_terms),
         )
         term_to_related = self.secondary_indexes.term_to_related_terms_index
         if term_to_related is not None:
@@ -511,7 +518,9 @@ class ConversationBase(
             start_points.message_count,
         )
 
-        await self._update_related_terms_incremental(start_points.semref_count)
+        await self._update_related_terms_incremental(
+            start_points.semref_count, await self.semantic_refs.size()
+        )
 
         # Update message text index with new messages
         await self._update_message_index_incremental(
@@ -541,10 +550,11 @@ class ConversationBase(
 
     async def _update_related_terms_incremental(
         self,
-        start_from_semref_ordinal: int,
+        start_from_semref_ordinal: SemanticRefOrdinal,
+        end_semref_ordinal: SemanticRefOrdinal,
         exclude: Collection[str] = (),
     ) -> None:
-        """Update related terms index with new semantic refs.
+        """Add terms of the semantic refs in [start, end) to the fuzzy index.
 
         Terms in ``exclude`` (already added by the caller) are skipped.
         """
@@ -556,7 +566,7 @@ class ConversationBase(
 
         new_semrefs = await self.semantic_refs.get_slice(
             start_from_semref_ordinal,
-            999_999_999,
+            end_semref_ordinal,
         )
 
         fuzzy_index = self.secondary_indexes.term_to_related_terms_index.fuzzy_index

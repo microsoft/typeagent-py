@@ -287,9 +287,19 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
     def deserialize(self, data: TextEmbeddingIndexData | None) -> None:
         self.clear()
         if data is not None:
-            self._texts = data.get("textItems", [])
-            self._text_set = set(self._texts)
-            self._vectorbase.deserialize(data.get("embeddings"))
+            texts = data.get("textItems", [])
+            embeddings = data.get("embeddings")
+            # Keep the first occurrence of each term; data saved by older
+            # versions may repeat terms.
+            first_positions = {}
+            for i, text in enumerate(texts):
+                first_positions.setdefault(text, i)
+            if len(first_positions) < len(texts) and embeddings is not None:
+                texts = list(first_positions)
+                embeddings = embeddings[list(first_positions.values())]
+            self._texts = texts
+            self._text_set = set(texts)
+            self._vectorbase.deserialize(embeddings)
 
     async def size(self) -> int:
         return len(self._vectorbase)

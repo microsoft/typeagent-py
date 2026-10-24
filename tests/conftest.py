@@ -12,6 +12,8 @@ import pytest
 import pytest_asyncio
 import stamina
 
+import typechat
+
 stamina.set_testing(True)
 
 
@@ -36,7 +38,12 @@ from typeagent.knowpro.interfaces import (
     SemanticRef,
     TextLocation,
 )
-from typeagent.knowpro.knowledge_schema import KnowledgeResponse
+from typeagent.knowpro.knowledge_schema import (
+    Action,
+    ConcreteEntity,
+    Facet,
+    KnowledgeResponse,
+)
 from typeagent.knowpro.secondary_index import ConversationSecondaryIndexes
 from typeagent.storage import SqliteStorageProvider
 from typeagent.storage.memory import MemoryStorageProvider
@@ -359,3 +366,37 @@ async def fake_conversation_with_storage(
 ) -> FakeConversation:
     """Fixture to create a FakeConversation instance with storage provider."""
     return FakeConversation(storage_provider=memory_storage)
+
+
+class RichKnowledgeExtractor:
+    """Returns knowledge that uses every kind of indexed term.
+
+    Pass the message's speaker as ``subject`` to make an extracted term
+    overlap a metadata term.
+    """
+
+    def __init__(self, subject: str):
+        self.subject = subject
+
+    async def extract(self, message: str) -> typechat.Result[KnowledgeResponse]:
+        return typechat.Success(
+            KnowledgeResponse(
+                entities=[
+                    ConcreteEntity(
+                        name="Space Needle",
+                        type=["Tower"],
+                        facets=[Facet(name="Height", value=184)],
+                    )
+                ],
+                actions=[
+                    Action(
+                        verbs=["Looks", "Up"],
+                        verb_tense="past",
+                        subject_entity_name=self.subject,
+                        object_entity_name="Space Needle",
+                    )
+                ],
+                inverse_actions=[],
+                topics=["Seattle"],
+            )
+        )

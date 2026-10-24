@@ -301,27 +301,21 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
         if not text_items or embeddings_data is None:
             return
 
-        # Use persistent VectorBase to deserialize embeddings (preserves caching)
-        self._vector_base.deserialize(embeddings_data)
-
-        # Prepare all insertion data for bulk operation
-        from .schema import serialize_embedding
-
+        # Keep the first occurrence of each term; data saved by older
+        # versions may repeat terms.
+        kept_positions: list[int] = []
         insertion_data = []
-        for i, text in enumerate(text_items):
-            if i < len(self._vector_base):
-                # Get embedding from persistent VectorBase
-                embedding = self._vector_base.get_embedding_at(i)
-                if embedding is not None:
-                    serialized_embedding = serialize_embedding(embedding)
-                    # Insert as self-referential entry with only term_embedding
-                    insertion_data.append((text, serialized_embedding))
-                    # Update local mappings
-                    self._terms_list.append(text)
-                    self._added_terms.add(text)
+        for i, text in enumerate(text_items[: len(embeddings_data)]):
+            if text in self._added_terms:
+                continue
+            kept_positions.append(i)
+            self._terms_list.append(text)
+            self._added_terms.add(text)
+            # Insert as self-referential entry with only term_embedding
+            insertion_data.append((text, serialize_embedding(embeddings_data[i])))
 
-        # Bulk insert all the data
-        if insertion_data:
+        if kept_positions:
+            self._vector_base.add_embeddings(None, embeddings_data[kept_positions])
             cursor.executemany(
                 """
                 INSERT OR REPLACE INTO RelatedTermsFuzzy

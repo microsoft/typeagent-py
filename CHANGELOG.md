@@ -79,7 +79,8 @@
 - The fuzzy related-terms index (in memory and SQLite) now stores each term
   once: terms repeated within one `add_terms`/`add_terms_with_embeddings` call
   or already held are skipped, so common terms such as `person` no longer
-  fill fuzzy lookup results with duplicate hits.
+  fill fuzzy lookup results with duplicate hits. Repeated terms in saved
+  fuzzy-index data are dropped on load, keeping the first of each.
 
 ### 0.5.0 (May 26)
 
