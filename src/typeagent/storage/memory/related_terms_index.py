@@ -14,7 +14,7 @@ from typeagent.aitools.vectorbase import (
     VectorBase,
 )
 from typeagent.knowpro.collections import TermSet
-from typeagent.knowpro.common import is_search_term_wildcard
+from typeagent.knowpro.common import is_search_term_wildcard, normalize_term
 from typeagent.knowpro.convsettings import RelatedTermIndexSettings
 from typeagent.knowpro.interfaces import (
     IConversation,
@@ -45,13 +45,16 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
     ) -> None:
         if not isinstance(related_terms, list):
             related_terms = [related_terms]
-        terms: dict[str, Term] = self.map.setdefault(text, {})
+        terms: dict[str, Term] = self.map.setdefault(normalize_term(text), {})
         for related in related_terms:
             # Store a copy so the caller's Term can't alias the index.
-            terms.setdefault(related.text, dataclasses.replace(related))
+            related_text = normalize_term(related.text)
+            terms.setdefault(
+                related_text, dataclasses.replace(related, text=related_text)
+            )
 
     async def lookup_term(self, text: str) -> list[Term] | None:
-        result = self.map.get(text)
+        result = self.map.get(normalize_term(text))
         if result:
             # Return copies: search preparation lowercases and reweights
             # related terms in place, which must not change the index.
@@ -60,7 +63,7 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
             return None
 
     async def remove_term(self, text: str) -> None:
-        self.map.pop(text, None)
+        self.map.pop(normalize_term(text), None)
 
     async def clear(self) -> None:
         self.map.clear()
@@ -83,16 +86,19 @@ class TermToRelatedTermsMap(ITermToRelatedTerms):
         return TermToRelatedTermsData(relatedTerms=related_terms)
 
     async def deserialize(self, data: TermToRelatedTermsData | None) -> None:
-        # Parse everything before clearing, so malformed data leaves the
-        # existing aliases in place.
+        # Parse and normalize everything before clearing, so malformed data
+        # leaves the existing aliases in place.
         items: list[tuple[str, list[Term]]] = []
         if data is not None:
             for item in data.get("relatedTerms") or []:
                 related_terms = [
-                    Term(term_data["text"], weight=term_data.get("weight"))
+                    Term(
+                        normalize_term(term_data["text"]),
+                        weight=term_data.get("weight"),
+                    )
                     for term_data in item["relatedTerms"]
                 ]
-                items.append((item["termText"], related_terms))
+                items.append((normalize_term(item["termText"]), related_terms))
         self.map.clear()
         for term_text, related_terms in items:
             await self.add_related_term(term_text, related_terms)

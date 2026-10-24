@@ -5,17 +5,31 @@
 
 from collections.abc import Generator
 import sqlite3
+from typing import cast
 
 import pytest
 
 from typeagent.knowpro.common import normalize_term
 from typeagent.knowpro.interfaces import (
+    IConversation,
     IPropertyToSemanticRefIndex,
+    ITermToRelatedTerms,
     ITermToSemanticRefIndex,
+    SearchTerm,
+    Term,
 )
+from typeagent.knowpro.knowledge_schema import ConcreteEntity
+from typeagent.knowpro.query import (
+    get_matching_term_for_text,
+    match_entity_name_or_type,
+)
+from typeagent.knowpro.search import QueryCompiler
+from typeagent.knowpro.searchlib import create_search_terms
 from typeagent.storage.memory.property_index import PropertyIndex
+from typeagent.storage.memory.related_terms_index import TermToRelatedTermsMap
 from typeagent.storage.memory.semantic_ref_index import TermToSemanticRefIndex
 from typeagent.storage.sqlite.property_index import SqlitePropertyIndex
+from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsAliases
 from typeagent.storage.sqlite.schema import init_db_schema
 from typeagent.storage.sqlite.semantic_ref_index import SqliteTermToSemanticRefIndex
 
@@ -74,6 +88,19 @@ def prop_index(
         db = sqlite3.connect(":memory:")
         init_db_schema(db)
         yield SqlitePropertyIndex(db)
+        db.close()
+
+
+@pytest.fixture(params=["memory", "sqlite"])
+def alias_index(
+    request: pytest.FixtureRequest,
+) -> Generator[ITermToRelatedTerms, None, None]:
+    if request.param == "memory":
+        yield TermToRelatedTermsMap()
+    else:
+        db = sqlite3.connect(":memory:")
+        init_db_schema(db)
+        yield SqliteRelatedTermsAliases(db)
         db.close()
 
 
@@ -218,3 +245,101 @@ async def test_term_index_normalization_round_trips(
     assert await term_index.get_terms() == [stored]
     found = await term_index.lookup_term(term)
     assert found is not None and [r.semantic_ref_ordinal for r in found] == [1]
+
+
+# Search side and alias index (#346)
+
+
+def test_create_search_terms_normalizes() -> None:
+    [search_term] = create_search_terms([" Space\tNeedle ;Seattle  Tower"])
+    assert search_term.term.text == "space needle"
+    assert search_term.related_terms is not None
+    assert [t.text for t in search_term.related_terms] == ["seattle tower"]
+
+
+def test_validate_and_prepare_term_normalizes() -> None:
+    # validate_and_prepare_term doesn't touch the conversation.
+    compiler = QueryCompiler(cast(IConversation, None), None)
+    term = Term(" Space\tNeedle ")
+    assert compiler.validate_and_prepare_term(term)
+    assert term.text == "space needle"
+
+
+def test_get_matching_term_for_text_normalizes() -> None:
+    related_term = Term("seattle tower")
+    search_term = SearchTerm(Term("space needle"), related_terms=[related_term])
+    assert get_matching_term_for_text(search_term, "Space  Needle") is (
+        search_term.term
+    )
+    assert get_matching_term_for_text(search_term, " Seattle\tTower") is related_term
+    assert get_matching_term_for_text(search_term, "space") is None
+
+
+def test_match_entity_name_or_type_normalizes() -> None:
+    entity = ConcreteEntity(name="Space  Needle", type=["Tourist  Attraction"])
+    assert match_entity_name_or_type(SearchTerm(Term("space needle")), entity)
+    assert match_entity_name_or_type(SearchTerm(Term("tourist attraction")), entity)
+    entity = ConcreteEntity(name="Cafe\u0301", type=[])  # NFD
+    assert match_entity_name_or_type(SearchTerm(Term("café")), entity)
+
+
+@pytest.mark.asyncio
+async def test_alias_index_normalizes_key_and_aliases(
+    alias_index: ITermToRelatedTerms,
+) -> None:
+    await alias_index.add_related_term("Space  Needle", Term(" Seattle\tTower "))
+    found = await alias_index.lookup_term(" SPACE\tNEEDLE")
+    assert found is not None and [t.text for t in found] == ["seattle tower"]
+    found = await alias_index.lookup_term("space needle")
+    assert found is not None and [t.text for t in found] == ["seattle tower"]
+
+    await alias_index.remove_term("Space Needle ")
+    assert await alias_index.lookup_term("space needle") is None
+
+
+@pytest.mark.asyncio
+async def test_alias_index_normalizes_unicode_form(
+    alias_index: ITermToRelatedTerms,
+) -> None:
+    await alias_index.add_related_term("Cafe\u0301", Term("coffee shop"))  # NFD
+    found = await alias_index.lookup_term("café")  # NFC
+    assert found is not None and [t.text for t in found] == ["coffee shop"]
+
+
+@pytest.mark.asyncio
+async def test_alias_index_merges_aliases_of_colliding_keys(
+    alias_index: ITermToRelatedTerms,
+) -> None:
+    await alias_index.add_related_term("Space Needle", Term("tower"))
+    await alias_index.add_related_term("space  needle", [Term("Tower"), Term("spire")])
+    found = await alias_index.lookup_term("space needle")
+    assert found is not None and sorted(t.text for t in found) == ["spire", "tower"]
+    assert await alias_index.size() == 1
+
+
+@pytest.mark.asyncio
+async def test_alias_index_deserialize_normalizes(
+    alias_index: ITermToRelatedTerms,
+) -> None:
+    await alias_index.deserialize(
+        {
+            "relatedTerms": [
+                {
+                    "termText": "Space  Needle",
+                    "relatedTerms": [{"text": "Seattle Tower"}],
+                },
+                {"termText": "space needle", "relatedTerms": [{"text": "spire"}]},
+            ]
+        }
+    )
+    found = await alias_index.lookup_term("space needle")
+    assert found is not None
+    assert sorted(t.text for t in found) == ["seattle tower", "spire"]
+
+    # A round trip keeps the normalized form.
+    data = await alias_index.serialize()
+    await alias_index.clear()
+    await alias_index.deserialize(data)
+    found = await alias_index.lookup_term(" Space\tNeedle")
+    assert found is not None
+    assert sorted(t.text for t in found) == ["seattle tower", "spire"]
