@@ -124,6 +124,25 @@ async def test_serialize_and_deserialize(
     assert any(term.text == "programming" for term in result)
 
 
+@pytest.mark.asyncio
+async def test_fuzzy_index_skips_duplicate_terms(
+    related_terms_index: ITermToRelatedTermsIndex,
+    embedding_model: IEmbeddingModel,
+) -> None:
+    fuzzy_index = related_terms_index.fuzzy_index
+    assert fuzzy_index is not None
+    texts = ["person", "alice", "person"]
+    embeddings = list(await embedding_model.get_embeddings(texts))
+    # Repeats within one call and across calls are held only once.
+    await fuzzy_index.add_terms_with_embeddings(texts, embeddings)
+    await fuzzy_index.add_terms_with_embeddings(texts[:1], embeddings[:1])
+    await fuzzy_index.add_terms(["person", "bob", "bob"])
+
+    assert await fuzzy_index.size() == 3
+    hits = await fuzzy_index.lookup_term("person", max_hits=10)
+    assert sorted(term.text for term in hits) == ["alice", "bob", "person"]
+
+
 async def _alias_snapshot(
     index: ITermToRelatedTermsIndex, text: str
 ) -> list[tuple[str, float | None]] | None:

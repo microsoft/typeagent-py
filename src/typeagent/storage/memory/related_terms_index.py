@@ -259,6 +259,7 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
     settings: TextEmbeddingIndexSettings
     _vectorbase: VectorBase
     _texts: list[str]
+    _text_set: set[str]
 
     def __init__(
         self,
@@ -268,12 +269,14 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
         self.settings = settings
         self._vectorbase = VectorBase(settings)
         self._texts: list[str] = []
+        self._text_set: set[str] = set()
         if data:
             self.deserialize(data)
 
     def clear(self) -> None:
         self._vectorbase.clear()
         self._texts.clear()
+        self._text_set.clear()
 
     def serialize(self) -> TextEmbeddingIndexData:
         return TextEmbeddingIndexData(
@@ -285,16 +288,18 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
         self.clear()
         if data is not None:
             self._texts = data.get("textItems", [])
+            self._text_set = set(self._texts)
             self._vectorbase.deserialize(data.get("embeddings"))
 
     async def size(self) -> int:
         return len(self._vectorbase)
 
     async def add_terms(self, texts: list[str]) -> None:
-        if not texts:
+        new_texts = [t for t in dict.fromkeys(texts) if t not in self._text_set]
+        if not new_texts:
             return
-        embeddings = await self._vectorbase.get_embeddings(texts)
-        await self.add_terms_with_embeddings(texts, list(embeddings))
+        embeddings = await self._vectorbase.get_embeddings(new_texts)
+        await self.add_terms_with_embeddings(new_texts, list(embeddings))
 
     async def add_terms_with_embeddings(
         self,
@@ -306,11 +311,21 @@ class TermEmbeddingIndex(ITermEmbeddingIndex):
                 "texts and embeddings must have the same length: "
                 f"{len(texts)} != {len(embeddings)}"
             )
-        if not texts:
+        # Skip terms already held and repeats within this call (first wins),
+        # so repeated terms don't crowd out other hits in fuzzy lookups.
+        new_term_embeddings: dict[str, NormalizedEmbedding] = {}
+        for text, embedding in zip(texts, embeddings):
+            if text not in self._text_set:
+                new_term_embeddings.setdefault(text, embedding)
+        if not new_term_embeddings:
             return
-        embedding_array = np.stack(embeddings, axis=0).astype(np.float32, copy=False)
-        self._vectorbase.add_embeddings(texts, embedding_array)
-        self._texts.extend(texts)
+        new_texts = list(new_term_embeddings)
+        embedding_array = np.stack(list(new_term_embeddings.values()), axis=0).astype(
+            np.float32, copy=False
+        )
+        self._vectorbase.add_embeddings(new_texts, embedding_array)
+        self._texts.extend(new_texts)
+        self._text_set.update(new_texts)
 
     async def lookup_term(
         self, text: str, max_hits: int | None = None, min_score: float | None = None

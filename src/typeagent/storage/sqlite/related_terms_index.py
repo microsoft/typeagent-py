@@ -214,7 +214,7 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
 
     async def add_terms(self, texts: list[str]) -> None:
         """Add terms with batched embedding generation and DB writes."""
-        new_terms = [t for t in texts if t not in self._added_terms]
+        new_terms = [t for t in dict.fromkeys(texts) if t not in self._added_terms]
         if not new_terms:
             return
         embeddings = await self._vector_base.get_embeddings(new_terms)
@@ -234,16 +234,18 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
                 f"{len(texts)} != {len(embeddings)}"
             )
 
-        new_term_embeddings = [
-            (term, embedding)
-            for term, embedding in zip(texts, embeddings)
-            if term not in self._added_terms
-        ]
+        # Skip terms already held and repeats within this call (first wins);
+        # otherwise the VectorBase and _terms_list would hold duplicates that
+        # INSERT OR REPLACE silently collapses in the database.
+        new_term_embeddings: dict[str, NormalizedEmbedding] = {}
+        for term, embedding in zip(texts, embeddings):
+            if term not in self._added_terms:
+                new_term_embeddings.setdefault(term, embedding)
         if not new_term_embeddings:
             return
 
-        new_terms = [term for term, _ in new_term_embeddings]
-        new_embeddings = [embedding for _, embedding in new_term_embeddings]
+        new_terms = list(new_term_embeddings)
+        new_embeddings = list(new_term_embeddings.values())
         embedding_array = np.stack(new_embeddings, axis=0).astype(
             np.float32, copy=False
         )
