@@ -4,7 +4,7 @@
 """Base class for conversations with incremental indexing support."""
 
 import asyncio
-from collections.abc import AsyncIterable, Callable, Collection, Sequence
+from collections.abc import AsyncIterable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Generic, Protocol, Self, TypeVar
@@ -265,6 +265,24 @@ class ConversationBase(
         chunk_embedding_map: dict[tuple[int, int], NormalizedEmbedding] = {}
 
         for result in chunk_results:
+            if result.related_terms is None or result.related_term_embeddings is None:
+                raise ValueError(
+                    "Chunk result missing related-term embeddings for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}"
+                )
+            if len(result.related_terms) != len(result.related_term_embeddings):
+                raise ValueError(
+                    "related_terms and related_term_embeddings length mismatch for "
+                    f"message={result.chunk_id.message_ordinal}, "
+                    f"chunk={result.chunk_id.chunk_ordinal}: "
+                    f"{len(result.related_terms)} != "
+                    f"{len(result.related_term_embeddings)}"
+                )
+            fuzzy_terms.extend(result.related_terms)
+            fuzzy_term_embeddings.extend(result.related_term_embeddings)
+
+            # A zero-chunk message's result only carries metadata terms.
             if result.chunk_count == 0:
                 continue
 
@@ -288,23 +306,6 @@ class ConversationBase(
                     result.extracted_knowledge,
                 )
             )
-
-            if result.related_terms is None or result.related_term_embeddings is None:
-                raise ValueError(
-                    "Chunk result missing related-term embeddings for "
-                    f"message={result.chunk_id.message_ordinal}, "
-                    f"chunk={result.chunk_id.chunk_ordinal}"
-                )
-            if len(result.related_terms) != len(result.related_term_embeddings):
-                raise ValueError(
-                    "related_terms and related_term_embeddings length mismatch for "
-                    f"message={result.chunk_id.message_ordinal}, "
-                    f"chunk={result.chunk_id.chunk_ordinal}: "
-                    f"{len(result.related_terms)} != "
-                    f"{len(result.related_term_embeddings)}"
-                )
-            fuzzy_terms.extend(result.related_terms)
-            fuzzy_term_embeddings.extend(result.related_term_embeddings)
             # Keyed by source-stream location; read below while building
             # chunk_embeddings in storage order.
             chunk_embedding_map[
@@ -323,8 +324,6 @@ class ConversationBase(
             for storage_message_id, message in enumerate(
                 messages_batch, start_points.message_count
             ):
-                if not message.text_chunks:
-                    continue
                 if result_group_index >= len(source_groups):
                     raise ValueError(
                         "Missing chunk results for staged message: "
@@ -352,7 +351,7 @@ class ConversationBase(
 
             if result_group_index != len(source_groups):
                 raise ValueError(
-                    "Chunk results exceed staged messages with chunks: "
+                    "Chunk results exceed staged messages: "
                     f"consumed={result_group_index}, groups={len(source_groups)}"
                 )
 
@@ -382,7 +381,6 @@ class ConversationBase(
                 await storage.mark_sources_ingested_batch(source_ids)
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
-            metadata_semref_end = await self.semantic_refs.size()
 
             await semantic_ref_index.add_knowledge_batch_to_semantic_ref_index(
                 self,
@@ -391,7 +389,6 @@ class ConversationBase(
 
             await self._update_secondary_indexes_incremental_with_embeddings(
                 start_points,
-                metadata_semref_end,
                 messages_batch,
                 fuzzy_terms,
                 fuzzy_term_embeddings,
@@ -415,12 +412,15 @@ class ConversationBase(
     async def _update_secondary_indexes_incremental_with_embeddings(
         self,
         start_points: IndexingStartPoints,
-        metadata_semref_end: SemanticRefOrdinal,
         new_messages: list[TMessage],
         related_terms: list[str],
         related_term_embeddings: list[NormalizedEmbedding],
     ) -> None:
-        """Update secondary indexes using precomputed embeddings when available."""
+        """Update secondary indexes using precomputed embeddings only.
+
+        ``related_terms`` must cover the terms of all new semantic refs,
+        metadata knowledge included, so no embedding model call is made here.
+        """
         if self.secondary_indexes is None:
             return
 
@@ -433,19 +433,11 @@ class ConversationBase(
             start_points.message_count,
         )
 
-        # Metadata knowledge (the semrefs before metadata_semref_end) is only
-        # indexed at commit time, so its terms have no precomputed embeddings;
-        # embed them now. Do this before adding the precomputed terms: if
-        # embedding fails, SqliteRelatedTermsFuzzy's in-memory state (which a
-        # rollback doesn't restore) is still unchanged. A failure *after* this
-        # point still leaves that state ahead of the rolled-back DB, so a retry
-        # on the same storage would skip those terms.
+        # A failure after add_terms_with_embeddings leaves
+        # SqliteRelatedTermsFuzzy's in-memory state (which a rollback doesn't
+        # restore) ahead of the rolled-back DB, so a retry on the same storage
+        # would skip those terms.
         # TODO: Restore the fuzzy index's in-memory state on rollback (#362).
-        await self._update_related_terms_incremental(
-            start_points.semref_count,
-            metadata_semref_end,
-            exclude=set(related_terms),
-        )
         term_to_related = self.secondary_indexes.term_to_related_terms_index
         if term_to_related is not None:
             fuzzy_index = term_to_related.fuzzy_index
@@ -552,12 +544,8 @@ class ConversationBase(
         self,
         start_from_semref_ordinal: SemanticRefOrdinal,
         end_semref_ordinal: SemanticRefOrdinal,
-        exclude: Collection[str] = (),
     ) -> None:
-        """Add terms of the semantic refs in [start, end) to the fuzzy index.
-
-        Terms in ``exclude`` (already added by the caller) are skipped.
-        """
+        """Add terms of the semantic refs in [start, end) to the fuzzy index."""
         if (
             self.secondary_indexes is None
             or self.secondary_indexes.term_to_related_terms_index is None
@@ -571,13 +559,9 @@ class ConversationBase(
 
         fuzzy_index = self.secondary_indexes.term_to_related_terms_index.fuzzy_index
         if fuzzy_index is not None and new_semrefs:
-            new_terms = [
-                term
-                for term in semantic_ref_index.collect_related_terms_for_fuzzy_index(
-                    semref.knowledge for semref in new_semrefs
-                )
-                if term not in exclude
-            ]
+            new_terms = semantic_ref_index.collect_related_terms_for_fuzzy_index(
+                semref.knowledge for semref in new_semrefs
+            )
             if new_terms:
                 await fuzzy_index.add_terms(new_terms)
 
