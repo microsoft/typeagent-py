@@ -318,7 +318,7 @@ async def test_memory_fuzzy_terms_match_term_index_across_batches(
 async def test_add_messages_with_indexing_retry_after_rollback(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A retry after a failed commit persists the terms the rollback dropped (#362)."""
+    """A retry after a rolled-back transaction persists the dropped terms (#362)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = os.path.join(tmpdir, "test.db")
 
@@ -342,7 +342,7 @@ async def test_add_messages_with_indexing_retry_after_rollback(
             ),
         ]
 
-        # Fail once at the end of the commit transaction, after the fuzzy
+        # Fail once at the end of the indexing transaction, after the fuzzy
         # index and the message text index have been updated.
         original_update = storage.update_conversation_timestamps
         calls = 0
@@ -377,5 +377,9 @@ async def test_add_messages_with_indexing_retry_after_rollback(
         hits = await fuzzy_index.lookup_term("alice", max_hits=1, min_score=0.0)
         assert [t.text for t in hits] == ["alice"]
         assert await storage.message_text_index.size() == 1
+        matches = await storage.message_text_index.lookup_messages(
+            "Hello world", max_matches=1
+        )
+        assert [m.message_ordinal for m in matches] == [0]
 
         await storage.close()

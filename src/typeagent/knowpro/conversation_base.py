@@ -435,10 +435,10 @@ class ConversationBase(
 
         # Metadata knowledge (the semrefs before metadata_semref_end) is only
         # indexed at commit time, so its terms have no precomputed embeddings;
-        # embed them now, before adding the precomputed terms, so a failed
-        # embedding call leaves the fuzzy index untouched. (If anything later
-        # in the transaction fails, SqliteStorageProvider's rollback reloads
-        # the fuzzy index's in-memory state from the table.)
+        # embed them now. Doing this before adding the precomputed terms is a
+        # cheap safeguard, not a correctness requirement: if anything in the
+        # transaction fails, the storage provider's rollback restores the
+        # fuzzy index's in-memory state (see SqliteStorageProvider.__aexit__).
         await self._update_related_terms_incremental(
             start_points.semref_count,
             metadata_semref_end,

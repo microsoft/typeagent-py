@@ -1018,3 +1018,93 @@ class TestSqliteIndexesEdgeCases:
             assert len(results) == len(
                 unicode_cases
             ), f"Unicode case variant '{variant}' should find all forms"
+
+
+class TestSqliteMessageTextIndexInMemoryState:
+    """The VectorBase follows the MessageTextIndex table (#362)."""
+
+    @staticmethod
+    def _make_index(
+        sqlite_db: sqlite3.Connection, embedding_settings: TextEmbeddingIndexSettings
+    ) -> SqliteMessageTextIndex:
+        settings = MessageTextIndexSettings(
+            TextEmbeddingIndexSettings(embedding_settings.embedding_model)
+        )
+        return SqliteMessageTextIndex(sqlite_db, settings)
+
+    @pytest.mark.asyncio
+    async def test_clear_resets_vectorbase(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+    ):
+        from conftest import FakeMessage
+
+        index = self._make_index(sqlite_db, embedding_settings)
+        await index.add_messages_starting_at(
+            0, [FakeMessage(["first"]), FakeMessage(["second"])]
+        )
+        await index.clear()
+        assert await index.lookup_text("first", min_score=0.0) == []
+
+        # Without the reset, the stale "first" vector would win this lookup
+        # and map to no row, hiding the real hit.
+        await index.add_messages_starting_at(0, [FakeMessage(["third"])])
+        assert await index.size() == 1
+        for text in ("first", "third"):
+            locations = await index.lookup_text(text, max_matches=1, min_score=0.0)
+            assert [loc.text_location.message_ordinal for loc in locations] == [0]
+
+    @pytest.mark.asyncio
+    async def test_deserialize_replaces_vectorbase(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+    ):
+        from typeagent.knowpro.interfaces import (
+            MessageTextIndexData,
+            TextToTextLocationIndexData,
+        )
+
+        from conftest import FakeMessage
+
+        index = self._make_index(sqlite_db, embedding_settings)
+        await index.add_messages_starting_at(
+            0, [FakeMessage(["first"]), FakeMessage(["second"])]
+        )
+
+        embedding = await embedding_settings.embedding_model.get_embedding("payload")
+        data: MessageTextIndexData = {
+            "indexData": TextToTextLocationIndexData(
+                textLocations=[{"messageOrdinal": 5, "chunkOrdinal": 0}],
+                embeddings=embedding[None, :],
+            )
+        }
+        await index.deserialize(data)
+
+        assert await index.size() == 1
+        cursor = sqlite_db.cursor()
+        cursor.execute("SELECT index_position FROM MessageTextIndex")
+        assert cursor.fetchall() == [(0,)]
+        matches = await index.lookup_by_embedding(embedding, max_matches=1)
+        assert [m.message_ordinal for m in matches] == [5]
+        locations = await index.lookup_text("first", max_matches=1, min_score=0.0)
+        assert [loc.text_location.message_ordinal for loc in locations] == [5]
+
+    @pytest.mark.asyncio
+    async def test_reload_rejects_non_contiguous_positions(
+        self,
+        sqlite_db: sqlite3.Connection,
+        embedding_settings: TextEmbeddingIndexSettings,
+    ):
+        from conftest import FakeMessage
+
+        index = self._make_index(sqlite_db, embedding_settings)
+        await index.add_messages_starting_at(
+            0, [FakeMessage(["first"]), FakeMessage(["second"])]
+        )
+        sqlite_db.execute(
+            "UPDATE MessageTextIndex SET index_position = 7 WHERE index_position = 1"
+        )
+        with pytest.raises(ValueError, match="not contiguous"):
+            index.reload_from_db()

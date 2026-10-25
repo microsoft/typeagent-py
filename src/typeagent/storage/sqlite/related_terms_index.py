@@ -155,8 +155,12 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
 
         The VectorBase, terms list and added-terms set are updated alongside
         the table writes, but a transaction rollback restores only the table.
-        Call this after a rollback so lookups and duplicate checks match the
-        rows that are actually persisted.
+        The constructor calls this, and so does the storage provider after a
+        rollback, so lookups and duplicate checks match the persisted rows.
+
+        Terms are loaded in table order (sorted by term), so after a reload
+        the ordinals and the order of ``serialize()["textItems"]`` can differ
+        from the insertion order.
         """
         self._vector_base.clear()
         self._terms_list.clear()
@@ -170,7 +174,10 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
             return
         embeddings: list[NormalizedEmbedding] = []
         for term, blob in rows:
-            assert blob is not None, term
+            if blob is None:
+                raise ValueError(
+                    f"RelatedTermsFuzzy row {term!r} has no term_embedding"
+                )
             self._terms_list.append(term)
             self._added_terms.add(term)
             embeddings.append(deserialize_embedding(blob))

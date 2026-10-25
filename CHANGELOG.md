@@ -91,11 +91,16 @@
   fuzzy-index data are dropped on load, keeping the first of each.
 - When a SQLite transaction rolls back, the fuzzy related-terms index and the
   message text index now reload their in-memory state from the tables (#362).
-  Previously that state kept the rolled-back terms and vectors, so a retry on
-  the same storage provider skipped those terms as already present, leaving
-  them out of the persisted fuzzy index until the database was reopened.
-  `SqliteStorageProvider.clear()` and `SqliteMessageTextIndex.clear()` now also
-  reset that in-memory state.
+  Previously that state kept the rolled-back terms and vectors: a retry on the
+  same storage provider skipped those terms as already present, so they were
+  never written to the persisted fuzzy index (reopening the database did not
+  restore them), and the message text index kept vectors for rows that no
+  longer existed, so lookups could hit them and return nothing.
+  `SqliteStorageProvider.clear()`, `SqliteMessageTextIndex.clear()` and
+  `SqliteMessageTextIndex.deserialize()` now also reset that in-memory state
+  instead of leaving stale vectors behind. Loading a message text index whose
+  `index_position` values are not contiguous from 0 now raises `ValueError`
+  instead of silently misaligning lookups.
 
 ### 0.5.0 (May 26)
 

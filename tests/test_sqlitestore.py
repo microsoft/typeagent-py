@@ -244,3 +244,56 @@ async def test_sqlite_rollback_reloads_in_memory_indexes(
     assert [t.text for t in hits] == ["pear"]
     assert await text_index.size() == 2
     assert len(text_index._vectorbase) == 2
+    # Vector rows line up with the persisted index positions.
+    for text, ordinal in [("first", 0), ("second", 1)]:
+        locations = await text_index.lookup_text(text, max_matches=1, min_score=0.0)
+        assert [loc.text_location.message_ordinal for loc in locations] == [ordinal]
+
+
+@pytest.mark.asyncio
+async def test_sqlite_rollback_on_fresh_provider(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """Reloading after a rollback copes with empty tables."""
+    provider = dummy_sqlite_storage_provider
+    with pytest.raises(RuntimeError, match="boom"):
+        async with provider:
+            raise RuntimeError("boom")
+
+    fuzzy_index = provider.related_terms_index.fuzzy_index
+    assert await fuzzy_index.lookup_term("x", min_score=0.0) == []
+    assert await provider.message_text_index.lookup_text("x", min_score=0.0) == []
+
+
+@pytest.mark.asyncio
+async def test_sqlite_clear_resets_in_memory_indexes(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """clear() drops the fuzzy and message text index state with the rows."""
+    provider = dummy_sqlite_storage_provider
+    fuzzy_index = provider.related_terms_index.fuzzy_index
+    text_index = provider.message_text_index
+
+    async with provider:
+        await fuzzy_index.add_terms(["apple"])
+        await provider.messages.append(DummyMessage(["first"]))
+
+    async with provider:
+        await provider.clear()
+
+    assert await fuzzy_index.get_terms() == []
+    assert fuzzy_index.serialize()["textItems"] == []
+    assert await fuzzy_index.lookup_term("apple", min_score=0.0) == []
+    assert await text_index.size() == 0
+    assert await text_index.lookup_text("first", min_score=0.0) == []
+
+    # Terms and messages added after clear() are persisted and searchable.
+    async with provider:
+        await fuzzy_index.add_terms(["apple"])
+        await provider.messages.append(DummyMessage(["second"]))
+
+    assert await fuzzy_index.get_terms() == ["apple"]
+    hits = await fuzzy_index.lookup_term("apple", max_hits=1, min_score=0.0)
+    assert [t.text for t in hits] == ["apple"]
+    locations = await text_index.lookup_text("second", max_matches=1, min_score=0.0)
+    assert [loc.text_location.message_ordinal for loc in locations] == [0]

@@ -45,16 +45,31 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         """Rebuild the VectorBase from the MessageTextIndex table.
 
         The VectorBase is updated alongside the table writes, but a transaction
-        rollback restores only the table. Call this after a rollback so the
-        VectorBase rows match the persisted index positions.
+        rollback restores only the table. The constructor calls this, and so
+        does the storage provider after a rollback, so VectorBase row i holds
+        the embedding stored at index_position i.
+
+        That mapping requires the index_position values to be 0..n-1 without
+        gaps, which holds because positions are assigned from the VectorBase
+        length and rows are only ever deleted all at once.
         """
         self._vectorbase.clear()
         cursor = self.db.cursor()
-        cursor.execute("SELECT embedding FROM MessageTextIndex ORDER BY index_position")
+        cursor.execute(
+            "SELECT index_position, embedding FROM MessageTextIndex "
+            "ORDER BY index_position"
+        )
         rows = cursor.fetchall()
         if rows:
+            positions = [row[0] for row in rows]
+            if positions != list(range(len(rows))):
+                raise ValueError(
+                    "MessageTextIndex index_position values are not contiguous "
+                    f"from 0 (found {len(rows)} rows, positions {positions[0]}"
+                    f"..{positions[-1]}); re-ingest to rebuild the index"
+                )
             embeddings: list[NormalizedEmbedding] = [
-                deserialize_embedding(row[0]) for row in rows
+                deserialize_embedding(row[1]) for row in rows
             ]
             embeddings_array = np.stack(embeddings, axis=0).astype(
                 np.float32, copy=False
