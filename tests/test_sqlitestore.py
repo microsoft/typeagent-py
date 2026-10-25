@@ -163,13 +163,15 @@ async def test_sqlite_timestamp_index(
     more_timestamps = [(0, "2024-01-01T09:00:00Z"), (2, "2024-01-01T13:00:00Z")]
     await timestamp_index.add_timestamps(more_timestamps)
 
-    # Test lookup_range - point query
-    point_date = datetime.fromisoformat("2024-01-01T09:00:00+00:00")
-    point_range = DateRange(start=point_date, end=None)
-    results = await timestamp_index.lookup_range(point_range)
-    assert len(results) == 1
-    assert results[0].timestamp == "2024-01-01T09:00:00Z"  # Z format
-    assert results[0].range.start.message_ordinal == 0  # Message ordinal 0
+    # Test lookup_range - open-ended query (end=None means start <= t)
+    open_start = datetime.fromisoformat("2024-01-01T11:00:00+00:00")
+    open_range = DateRange(start=open_start, end=None)
+    results = await timestamp_index.lookup_range(open_range)
+    assert [r.timestamp for r in results] == [
+        "2024-01-01T11:00:00Z",  # Z format
+        "2024-01-01T13:00:00Z",
+    ]
+    assert [r.range.start.message_ordinal for r in results] == [1, 2]
 
     # Test lookup_range - range query
     start_date = datetime.fromisoformat("2024-01-01T10:00:00Z")

@@ -1,8 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+from typing import Literal
+
 import pytest
 
+from typeagent.aitools.embeddings import IEmbeddingModel
 from typeagent.knowpro.collections import (
     MatchAccumulator,
     PropertyTermSet,
@@ -11,6 +14,8 @@ from typeagent.knowpro.collections import (
     TextRangeCollection,
     TextRangesInScope,
 )
+from typeagent.knowpro.convsettings import ConversationSettings
+from typeagent.knowpro.date_time_schema import DateTime, DateTimeRange, DateVal
 from typeagent.knowpro.interfaces import (
     DateRange,
     Datetime,
@@ -40,10 +45,18 @@ from typeagent.knowpro.query import (
     QueryOpExpr,
     SelectTopNExpr,
     TextRangeSelector,
+    TextRangesInDateRangeSelector,
 )
+from typeagent.knowpro.searchlang import date_range_from_datetime_range
 from typeagent.storage.memory import MemorySemanticRefCollection
 from typeagent.storage.memory.property_index import PropertyIndex
 from typeagent.storage.memory.related_terms_index import dedupe_related_terms
+from typeagent.storage.sqlite.provider import SqliteStorageProvider
+from typeagent.transcripts.transcript import (
+    Transcript,
+    TranscriptMessage,
+    TranscriptMessageMeta,
+)
 
 from conftest import FakeConversation, FakeMessage, FakeTermIndex
 
@@ -814,3 +827,68 @@ def test_dedupe_related_terms_accepts_default_compiled_terms() -> None:
     terms = [CompiledSearchTerm(Term("python")), CompiledSearchTerm(Term("java"))]
     dedupe_related_terms(terms, ensure_single_occurrence=True)
     assert [t.related_terms for t in terms] == [None, None]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("backend", ["memory", "sqlite"])
+async def test_date_range_selector_open_ended_with_and_without_index(
+    backend: Literal["memory", "sqlite"],
+    embedding_model: IEmbeddingModel,
+    temp_db_path: str,
+) -> None:
+    """A time range with no stop date selects the same messages whether or
+    not a timestamp index is used (#371)."""
+    settings = ConversationSettings(model=embedding_model)
+    settings.semantic_ref_index_settings.auto_extract_knowledge = False
+    if backend == "sqlite":
+        settings.storage_provider = SqliteStorageProvider(
+            temp_db_path,
+            message_type=TranscriptMessage,
+            message_text_index_settings=settings.message_text_index_settings,
+            related_term_index_settings=settings.related_term_index_settings,
+        )
+    conversation = await Transcript.create(settings, name="test")
+    timestamps = [
+        "2024-03-04T09:00:00Z",
+        "2024-03-05T09:00:00Z",
+        "2024-03-05T15:30:00Z",
+        "2024-03-07T08:00:00Z",
+    ]
+    await conversation.add_messages_with_indexing(
+        [
+            TranscriptMessage(
+                text_chunks=[f"message {i}"],
+                metadata=TranscriptMessageMeta(speaker="Alice"),
+                timestamp=timestamp,
+            )
+            for i, timestamp in enumerate(timestamps)
+        ]
+    )
+    # What the query schema yields for a time range with only a start date.
+    date_range = date_range_from_datetime_range(
+        DateTimeRange(start_date=DateTime(date=DateVal(day=5, month=3, year=2024)))
+    )
+    assert date_range.end is None
+    selector = TextRangesInDateRangeSelector(date_range)
+
+    assert conversation.secondary_indexes is not None
+    timestamp_index = conversation.secondary_indexes.timestamp_index
+    assert timestamp_index is not None
+    with_index = await selector.eval(
+        QueryEvalContext(conversation, timestamp_index=timestamp_index)
+    )
+    without_index = await selector.eval(QueryEvalContext(conversation))
+    assert with_index is not None and without_index is not None
+
+    in_scope = [
+        ordinal
+        for ordinal in range(len(timestamps))
+        if with_index.contains_range(TextRange(TextLocation(ordinal)))
+    ]
+    assert in_scope == [1, 2, 3]
+    for ordinal in range(len(timestamps)):
+        point = TextRange(TextLocation(ordinal))
+        assert with_index.contains_range(point) == without_index.contains_range(point)
+
+    if backend == "sqlite":
+        await settings.storage_provider.close()

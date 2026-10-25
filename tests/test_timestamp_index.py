@@ -29,7 +29,7 @@ def to_ts_list(entries):
 
 
 @pytest.mark.asyncio
-async def test_lookup_range_half_open_and_point_query():
+async def test_lookup_range_half_open_and_open_ended():
     # Stored timestamps are normalized to UTC with a "Z" suffix (naive == UTC).
     # Three sequential timestamps
     t0 = "2025-01-01T00:00:00"
@@ -52,19 +52,25 @@ async def test_lookup_range_half_open_and_point_query():
     results = await idx.lookup_range(dr)
     assert to_ts_list(results) == [t1 + ".000000Z"]
 
-    # Point query: end=None means [t1, t1+epsilon) -> exactly t1
+    # Open-ended: end=None means start <= t, like DateRange.__contains__
     dr = DateRange(start=Datetime.fromisoformat(t1), end=None)
     results = await idx.lookup_range(dr)
-    assert to_ts_list(results) == [t1 + ".000000Z"]
+    assert to_ts_list(results) == [t1 + ".000000Z", t2 + ".000000Z"]
 
-    # Point query at t2 returns [t2]
+    # Open-ended from the last timestamp returns [t2]
     dr = DateRange(start=Datetime.fromisoformat(t2), end=None)
     results = await idx.lookup_range(dr)
     assert to_ts_list(results) == [t2 + ".000000Z"]
 
-    # Point query at a time not present returns []
+    # Open-ended from a time not present starts at the next timestamp
     tmid = "2025-01-01T00:30:00"
     dr = DateRange(start=Datetime.fromisoformat(tmid), end=None)
+    results = await idx.lookup_range(dr)
+    assert to_ts_list(results) == [t1 + ".000000Z", t2 + ".000000Z"]
+
+    # Open-ended from after the last timestamp returns []
+    tlate = "2025-01-01T03:00:00"
+    dr = DateRange(start=Datetime.fromisoformat(tlate), end=None)
     results = await idx.lookup_range(dr)
     assert to_ts_list(results) == []
 
@@ -87,10 +93,15 @@ async def test_lookup_range_mixed_utc_offsets():
     )
     assert [e.range.start.message_ordinal for e in await idx.lookup_range(dr)] == [0, 1]
 
-    # Query bound with a non-UTC offset; point query on the exact instant.
+    # Open-ended query whose start has a non-UTC offset (07:00 UTC).
     plus5 = timezone(timedelta(hours=5))
     dr = DateRange(start=Datetime(2024, 1, 1, 12, tzinfo=plus5), end=None)
-    assert [e.range.start.message_ordinal for e in await idx.lookup_range(dr)] == [0]
+    assert [e.range.start.message_ordinal for e in await idx.lookup_range(dr)] == [
+        0,
+        1,
+    ]
+    dr = DateRange(start=Datetime(2024, 1, 1, 13, tzinfo=plus5), end=None)
+    assert [e.range.start.message_ordinal for e in await idx.lookup_range(dr)] == [1]
 
 
 @pytest.mark.asyncio
@@ -131,7 +142,7 @@ async def test_fractional_seconds_sort_chronologically():
     dr = DateRange(
         start=Datetime(2024, 1, 1, 12, 0, 0, 250000, tzinfo=timezone.utc), end=None
     )
-    assert await idx.lookup_range(dr) == []
+    assert [e.range.start.message_ordinal for e in await idx.lookup_range(dr)] == [1]
 
 
 async def make_backend_index(
@@ -164,7 +175,7 @@ MS = timedelta(milliseconds=1)
             ["2024-01-01T00:00:00Z"], T0, T0 + US, [0], id="range_one_us_wide"
         ),
         pytest.param(
-            ["2024-01-01T00:00:00Z"], T0 + US, None, [], id="point_one_us_off"
+            ["2024-01-01T00:00:00Z"], T0 + US, None, [], id="open_ended_one_us_after"
         ),
         pytest.param(
             [
@@ -184,7 +195,7 @@ MS = timedelta(milliseconds=1)
             T0 + timedelta(microseconds=999600),
             None,
             [0],
-            id="point_near_second_boundary",
+            id="open_ended_near_second_boundary",
         ),
         pytest.param(
             ["2024-01-01T05:30:00.000001+05:30"],

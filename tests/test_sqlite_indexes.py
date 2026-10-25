@@ -228,12 +228,17 @@ class TestSqliteTimestampToTextRangeIndex:
         )
         assert ordinals(await index.lookup_range(dr)) == [3]
 
-        # Point query with a non-UTC offset matches both representations.
+        # Open-ended query with a non-UTC offset includes both
+        # representations of its start instant and everything after.
         dr = DateRange(
             start=Datetime(2024, 1, 1, 12, tzinfo=timezone(timedelta(hours=5))),
             end=None,
         )
-        assert ordinals(await index.lookup_range(dr)) == [0, 1]
+        assert ordinals(await index.lookup_range(dr)) == [0, 1, 2, 3]
+
+        # An open-ended fractional start still compares at full precision.
+        dr = DateRange(start=Datetime(2024, 1, 1, 7, 0, 0, 250001, tzinfo=utc))
+        assert ordinals(await index.lookup_range(dr)) == [3]
 
 
 class TestSqliteRelatedTermsAliases:

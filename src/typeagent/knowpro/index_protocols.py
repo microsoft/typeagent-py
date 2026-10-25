@@ -89,7 +89,8 @@ class ITimestampToTextRangeIndex(Protocol):
     # Contract (stable across providers):
     # - Timestamps must be ISO-8601 strings sortable lexicographically.
     # - lookup_range(DateRange) returns items with start <= t < end (end exclusive).
-    #   If end is None, treat as a point query with end = start + epsilon.
+    #   If end is None, the range is open-ended (start <= t), matching
+    #   DateRange.__contains__.
 
     async def size(self) -> int: ...
 
