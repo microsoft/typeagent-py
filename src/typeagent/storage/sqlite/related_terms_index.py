@@ -222,7 +222,7 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
 
     async def add_terms(self, texts: list[str]) -> None:
         """Add terms with batched embedding generation and DB writes."""
-        new_terms = [t for t in texts if t not in self._added_terms]
+        new_terms = [t for t in dict.fromkeys(texts) if t not in self._added_terms]
         if not new_terms:
             return
         embeddings = await self._vector_base.get_embeddings(new_terms)
@@ -242,16 +242,18 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
                 f"{len(texts)} != {len(embeddings)}"
             )
 
-        new_term_embeddings = [
-            (term, embedding)
-            for term, embedding in zip(texts, embeddings)
-            if term not in self._added_terms
-        ]
+        # Skip terms already held and repeats within this call (first wins);
+        # otherwise the VectorBase and _terms_list would hold duplicates that
+        # INSERT OR REPLACE silently collapses in the database.
+        new_term_embeddings: dict[str, NormalizedEmbedding] = {}
+        for term, embedding in zip(texts, embeddings):
+            if term not in self._added_terms:
+                new_term_embeddings.setdefault(term, embedding)
         if not new_term_embeddings:
             return
 
-        new_terms = [term for term, _ in new_term_embeddings]
-        new_embeddings = [embedding for _, embedding in new_term_embeddings]
+        new_terms = list(new_term_embeddings)
+        new_embeddings = list(new_term_embeddings.values())
         embedding_array = np.stack(new_embeddings, axis=0).astype(
             np.float32, copy=False
         )
@@ -307,27 +309,21 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
         if not text_items or embeddings_data is None:
             return
 
-        # Use persistent VectorBase to deserialize embeddings (preserves caching)
-        self._vector_base.deserialize(embeddings_data)
-
-        # Prepare all insertion data for bulk operation
-        from .schema import serialize_embedding
-
+        # Keep the first occurrence of each term; data saved by older
+        # versions may repeat terms.
+        kept_positions: list[int] = []
         insertion_data = []
-        for i, text in enumerate(text_items):
-            if i < len(self._vector_base):
-                # Get embedding from persistent VectorBase
-                embedding = self._vector_base.get_embedding_at(i)
-                if embedding is not None:
-                    serialized_embedding = serialize_embedding(embedding)
-                    # Insert as self-referential entry with only term_embedding
-                    insertion_data.append((text, serialized_embedding))
-                    # Update local mappings
-                    self._terms_list.append(text)
-                    self._added_terms.add(text)
+        for i, text in enumerate(text_items[: len(embeddings_data)]):
+            if text in self._added_terms:
+                continue
+            kept_positions.append(i)
+            self._terms_list.append(text)
+            self._added_terms.add(text)
+            # Insert as self-referential entry with only term_embedding
+            insertion_data.append((text, serialize_embedding(embeddings_data[i])))
 
-        # Bulk insert all the data
-        if insertion_data:
+        if kept_positions:
+            self._vector_base.add_embeddings(None, embeddings_data[kept_positions])
             cursor.executemany(
                 """
                 INSERT OR REPLACE INTO RelatedTermsFuzzy

@@ -4,7 +4,7 @@
 """Base class for conversations with incremental indexing support."""
 
 import asyncio
-from collections.abc import AsyncIterable, Callable, Sequence
+from collections.abc import AsyncIterable, Callable, Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Generic, Protocol, Self, TypeVar
@@ -22,7 +22,6 @@ from . import (
 from ..aitools import model_adapters, utils
 from ..aitools.embeddings import NormalizedEmbedding
 from ..storage.memory import semantic_ref_index
-from .common import normalize_term
 from .convsettings import ConversationSettings
 from .interfaces import (
     AddMessagesResult,
@@ -35,10 +34,10 @@ from .interfaces import (
     IStorageProvider,
     ITermToSemanticRefIndex,
     MessageOrdinal,
+    SemanticRefOrdinal,
     TextLocation,
-    Topic,
 )
-from .knowledge_schema import Action, ConcreteEntity, KnowledgeResponse
+from .knowledge_schema import KnowledgeResponse
 from .messageutils import get_all_message_chunk_locations
 
 TMessage = TypeVar("TMessage", bound=IMessage)
@@ -383,6 +382,7 @@ class ConversationBase(
                 await storage.mark_sources_ingested_batch(source_ids)
 
             await self._add_metadata_knowledge_incremental(start_points.message_count)
+            metadata_semref_end = await self.semantic_refs.size()
 
             await semantic_ref_index.add_knowledge_batch_to_semantic_ref_index(
                 self,
@@ -391,6 +391,7 @@ class ConversationBase(
 
             await self._update_secondary_indexes_incremental_with_embeddings(
                 start_points,
+                metadata_semref_end,
                 messages_batch,
                 fuzzy_terms,
                 fuzzy_term_embeddings,
@@ -414,6 +415,7 @@ class ConversationBase(
     async def _update_secondary_indexes_incremental_with_embeddings(
         self,
         start_points: IndexingStartPoints,
+        metadata_semref_end: SemanticRefOrdinal,
         new_messages: list[TMessage],
         related_terms: list[str],
         related_term_embeddings: list[NormalizedEmbedding],
@@ -431,6 +433,19 @@ class ConversationBase(
             start_points.message_count,
         )
 
+        # Metadata knowledge (the semrefs before metadata_semref_end) is only
+        # indexed at commit time, so its terms have no precomputed embeddings;
+        # embed them now. Do this before adding the precomputed terms: if
+        # embedding fails, SqliteRelatedTermsFuzzy's in-memory state (which a
+        # rollback doesn't restore) is still unchanged. A failure *after* this
+        # point still leaves that state ahead of the rolled-back DB, so a retry
+        # on the same storage would skip those terms.
+        # TODO: Restore the fuzzy index's in-memory state on rollback (#362).
+        await self._update_related_terms_incremental(
+            start_points.semref_count,
+            metadata_semref_end,
+            exclude=set(related_terms),
+        )
         term_to_related = self.secondary_indexes.term_to_related_terms_index
         if term_to_related is not None:
             fuzzy_index = term_to_related.fuzzy_index
@@ -503,7 +518,9 @@ class ConversationBase(
             start_points.message_count,
         )
 
-        await self._update_related_terms_incremental(start_points.semref_count)
+        await self._update_related_terms_incremental(
+            start_points.semref_count, await self.semantic_refs.size()
+        )
 
         # Update message text index with new messages
         await self._update_message_index_incremental(
@@ -533,9 +550,14 @@ class ConversationBase(
 
     async def _update_related_terms_incremental(
         self,
-        start_from_semref_ordinal: int,
+        start_from_semref_ordinal: SemanticRefOrdinal,
+        end_semref_ordinal: SemanticRefOrdinal,
+        exclude: Collection[str] = (),
     ) -> None:
-        """Update related terms index with new semantic refs."""
+        """Add terms of the semantic refs in [start, end) to the fuzzy index.
+
+        Terms in ``exclude`` (already added by the caller) are skipped.
+        """
         if (
             self.secondary_indexes is None
             or self.secondary_indexes.term_to_related_terms_index is None
@@ -544,25 +566,20 @@ class ConversationBase(
 
         new_semrefs = await self.semantic_refs.get_slice(
             start_from_semref_ordinal,
-            999_999_999,
+            end_semref_ordinal,
         )
 
         fuzzy_index = self.secondary_indexes.term_to_related_terms_index.fuzzy_index
         if fuzzy_index is not None and new_semrefs:
-            new_terms: set[str] = set()
-            for semref in new_semrefs:
-                knowledge = semref.knowledge
-                if isinstance(knowledge, ConcreteEntity):
-                    new_terms.add(normalize_term(knowledge.name))
-                elif isinstance(knowledge, Topic):
-                    new_terms.add(normalize_term(knowledge.text))
-                elif isinstance(knowledge, Action):
-                    for verb in knowledge.verbs:
-                        new_terms.add(normalize_term(verb))
-            new_terms.discard("")  # Whitespace-only terms must not be embedded
-
+            new_terms = [
+                term
+                for term in semantic_ref_index.collect_related_terms_for_fuzzy_index(
+                    semref.knowledge for semref in new_semrefs
+                )
+                if term not in exclude
+            ]
             if new_terms:
-                await fuzzy_index.add_terms(list(new_terms))
+                await fuzzy_index.add_terms(new_terms)
 
     async def _update_message_index_incremental(
         self,

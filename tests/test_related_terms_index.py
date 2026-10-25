@@ -19,6 +19,7 @@ from typeagent.knowpro.interfaces import (
     ITermToRelatedTermsIndex,
     Term,
     TermToRelatedTermsData,
+    TextEmbeddingIndexData,
 )
 from typeagent.knowpro.knowledge_schema import KnowledgeResponse
 from typeagent.knowpro.query import CompiledSearchTerm, CompiledTermGroup
@@ -28,8 +29,10 @@ from typeagent.storage.memory.related_terms_index import (
     dedupe_related_terms,
     RelatedTermsIndex,
     resolve_related_terms,
+    TermEmbeddingIndex,
     TermToRelatedTermsMap,
 )
+from typeagent.storage.sqlite.related_terms_index import SqliteRelatedTermsFuzzy
 
 
 @pytest_asyncio.fixture(params=["memory", "sqlite"])
@@ -122,6 +125,70 @@ async def test_serialize_and_deserialize(
     result = await related_terms_index.aliases.lookup_term("python")
     assert result is not None
     assert any(term.text == "programming" for term in result)
+
+
+@pytest.mark.asyncio
+async def test_fuzzy_index_skips_duplicate_terms(
+    related_terms_index: ITermToRelatedTermsIndex,
+    embedding_model: IEmbeddingModel,
+) -> None:
+    fuzzy_index = related_terms_index.fuzzy_index
+    assert fuzzy_index is not None
+    texts = ["person", "alice", "person"]
+    embeddings = list(await embedding_model.get_embeddings(texts))
+    # Repeats within one call and across calls are held only once.
+    await fuzzy_index.add_terms_with_embeddings(texts, embeddings)
+    await fuzzy_index.add_terms_with_embeddings(texts[:1], embeddings[:1])
+    await fuzzy_index.add_terms(["person", "bob", "bob"])
+
+    assert await fuzzy_index.size() == 3
+    hits = await fuzzy_index.lookup_term("person", max_hits=10)
+    assert sorted(term.text for term in hits) == ["alice", "bob", "person"]
+
+
+@pytest.mark.asyncio
+async def test_term_embedding_index_skips_held_terms_after_reload_and_clear(
+    embedding_model: IEmbeddingModel,
+) -> None:
+    settings = TextEmbeddingIndexSettings(embedding_model)
+    index = TermEmbeddingIndex(settings)
+    await index.add_terms(["person", "alice"])
+
+    # A reloaded index still knows which terms it holds.
+    reloaded = TermEmbeddingIndex(settings, index.serialize())
+    await reloaded.add_terms(["person", "bob"])
+    assert await reloaded.size() == 3
+
+    # A cleared index holds nothing, so the same terms are added again.
+    reloaded.clear()
+    await reloaded.add_terms(["person"])
+    assert await reloaded.size() == 1
+
+
+@pytest.mark.asyncio
+async def test_fuzzy_index_deserialize_drops_repeated_terms(
+    related_terms_index: ITermToRelatedTermsIndex,
+    embedding_model: IEmbeddingModel,
+) -> None:
+    """Data saved by older versions may repeat terms; keep the first of each."""
+    fuzzy_index = related_terms_index.fuzzy_index
+    assert fuzzy_index is not None
+    embeddings = await embedding_model.get_embeddings(["person", "alice", "bob"])
+    data = TextEmbeddingIndexData(
+        textItems=["person", "alice", "person"],
+        embeddings=embeddings,
+    )
+    if isinstance(fuzzy_index, TermEmbeddingIndex):
+        fuzzy_index.deserialize(data)
+    else:
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+        await fuzzy_index.deserialize(data)
+
+    assert await fuzzy_index.size() == 2
+    hits = await fuzzy_index.lookup_term("person", max_hits=10)
+    assert sorted(term.text for term in hits) == ["alice", "person"]
+    # The first "person" embedding is kept, so it is an exact match.
+    assert max(hits, key=lambda term: term.weight or 0).text == "person"
 
 
 async def _alias_snapshot(
