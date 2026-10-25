@@ -309,6 +309,12 @@ class SqliteStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
             self.db.commit()
         else:
             self.db.rollback()
+            # The rollback restores only the tables; the indexes that mirror
+            # table rows in memory must follow, or a retry on this provider
+            # would skip terms as already present and keep vectors for rows
+            # that no longer exist (#362).
+            self._message_text_index.reload_from_db()
+            self._related_terms_index.fuzzy_index.reload_from_db()
 
     async def close(self) -> None:
         """Close the database connection. COMMITS."""
@@ -372,6 +378,7 @@ class SqliteStorageProvider[TMessage: IMessage](IStorageProvider[TMessage]):
 
         # Clear in-memory indexes
         await self._message_text_index.clear()
+        await self._related_terms_index.fuzzy_index.clear()
 
     def serialize(self) -> dict:
         """Serialize all storage provider data."""

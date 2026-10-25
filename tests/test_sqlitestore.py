@@ -203,3 +203,44 @@ async def test_sqlite_nested_transaction_error(
         with pytest.raises(RuntimeError, match="Cannot start a new transaction"):
             async with provider:
                 pass
+
+
+@pytest.mark.asyncio
+async def test_sqlite_rollback_reloads_in_memory_indexes(
+    dummy_sqlite_storage_provider: SqliteStorageProvider[DummyMessage],
+):
+    """A rollback also resets the fuzzy and message text index state (#362)."""
+    provider = dummy_sqlite_storage_provider
+    fuzzy_index = provider.related_terms_index.fuzzy_index
+    text_index = provider.message_text_index
+
+    async with provider:
+        await fuzzy_index.add_terms(["apple"])
+        await provider.messages.append(DummyMessage(["first"]))
+
+    with pytest.raises(RuntimeError, match="boom"):
+        async with provider:
+            await fuzzy_index.add_terms(["pear"])
+            await provider.messages.append(DummyMessage(["second"]))
+            raise RuntimeError("boom")
+
+    # The in-memory state matches the rolled-back tables.
+    assert await fuzzy_index.get_terms() == ["apple"]
+    assert fuzzy_index.serialize()["textItems"] == ["apple"]
+    hits = await fuzzy_index.lookup_term("pear", min_score=0.0)
+    assert [t.text for t in hits] == ["apple"]
+    assert await provider.messages.size() == 1
+    assert await text_index.size() == 1
+    assert len(text_index._vectorbase) == 1
+
+    # A retry on the same provider persists what the rollback dropped.
+    async with provider:
+        await fuzzy_index.add_terms(["pear"])
+        await provider.messages.append(DummyMessage(["second"]))
+
+    assert await fuzzy_index.get_terms() == ["apple", "pear"]
+    assert sorted(fuzzy_index.serialize()["textItems"]) == ["apple", "pear"]
+    hits = await fuzzy_index.lookup_term("pear", max_hits=1, min_score=0.0)
+    assert [t.text for t in hits] == ["pear"]
+    assert await text_index.size() == 2
+    assert len(text_index._vectorbase) == 2

@@ -89,6 +89,13 @@
   or already held are skipped, so common terms such as `person` no longer
   fill fuzzy lookup results with duplicate hits. Repeated terms in saved
   fuzzy-index data are dropped on load, keeping the first of each.
+- When a SQLite transaction rolls back, the fuzzy related-terms index and the
+  message text index now reload their in-memory state from the tables (#362).
+  Previously that state kept the rolled-back terms and vectors, so a retry on
+  the same storage provider skipped those terms as already present, leaving
+  them out of the persisted fuzzy index until the database was reopened.
+  `SqliteStorageProvider.clear()` and `SqliteMessageTextIndex.clear()` now also
+  reset that in-memory state.
 
 ### 0.5.0 (May 26)
 

@@ -148,21 +148,33 @@ class SqliteRelatedTermsFuzzy(ITermToRelatedTermsFuzzy):
         # Maintain our own list of terms to map ordinals back to keys
         self._terms_list: list[str] = []  # TODO: Use the database instead?
         self._added_terms: set[str] = set()  # TODO: Ditto?
-        # If items exist in the db, copy them into the VectorBase, terms list, and added terms
-        if self._size() > 0:
-            cursor = self.db.cursor()
-            cursor.execute(
-                "SELECT term, term_embedding FROM RelatedTermsFuzzy ORDER BY term"
-            )
-            rows = cursor.fetchall()
-            embeddings: list[NormalizedEmbedding] = []
-            for term, blob in rows:
-                assert blob is not None, term
-                self._terms_list.append(term)
-                self._added_terms.add(term)
-                embeddings.append(deserialize_embedding(blob))
-            # Bulk add embeddings to VectorBase
-            self._vector_base.add_embeddings(None, np.array(embeddings))
+        self.reload_from_db()
+
+    def reload_from_db(self) -> None:
+        """Rebuild the in-memory state from the RelatedTermsFuzzy table.
+
+        The VectorBase, terms list and added-terms set are updated alongside
+        the table writes, but a transaction rollback restores only the table.
+        Call this after a rollback so lookups and duplicate checks match the
+        rows that are actually persisted.
+        """
+        self._vector_base.clear()
+        self._terms_list.clear()
+        self._added_terms.clear()
+        cursor = self.db.cursor()
+        cursor.execute(
+            "SELECT term, term_embedding FROM RelatedTermsFuzzy ORDER BY term"
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return
+        embeddings: list[NormalizedEmbedding] = []
+        for term, blob in rows:
+            assert blob is not None, term
+            self._terms_list.append(term)
+            self._added_terms.add(term)
+            embeddings.append(deserialize_embedding(blob))
+        self._vector_base.add_embeddings(None, np.array(embeddings))
 
     async def lookup_term(
         self,
@@ -348,7 +360,7 @@ class SqliteRelatedTermsIndex(ITermToRelatedTermsIndex):
         return self._aliases
 
     @property
-    def fuzzy_index(self) -> ITermToRelatedTermsFuzzy | None:
+    def fuzzy_index(self) -> SqliteRelatedTermsFuzzy:
         return self._fuzzy_index
 
     async def serialize(self) -> TermsToRelatedTermsIndexData:

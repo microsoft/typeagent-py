@@ -39,18 +39,27 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         self.settings = settings
         self._message_collection = message_collection
         self._vectorbase = VectorBase(settings=settings.embedding_index_settings)
-        if self._size():
-            cursor = self.db.cursor()
-            cursor.execute("SELECT embedding FROM MessageTextIndex")
-            rows = cursor.fetchall()
-            if rows:
-                embeddings: list[NormalizedEmbedding] = [
-                    deserialize_embedding(row[0]) for row in rows
-                ]
-                embeddings_array = np.stack(embeddings, axis=0).astype(
-                    np.float32, copy=False
-                )
-                self._vectorbase.add_embeddings(None, embeddings_array)
+        self.reload_from_db()
+
+    def reload_from_db(self) -> None:
+        """Rebuild the VectorBase from the MessageTextIndex table.
+
+        The VectorBase is updated alongside the table writes, but a transaction
+        rollback restores only the table. Call this after a rollback so the
+        VectorBase rows match the persisted index positions.
+        """
+        self._vectorbase.clear()
+        cursor = self.db.cursor()
+        cursor.execute("SELECT embedding FROM MessageTextIndex ORDER BY index_position")
+        rows = cursor.fetchall()
+        if rows:
+            embeddings: list[NormalizedEmbedding] = [
+                deserialize_embedding(row[0]) for row in rows
+            ]
+            embeddings_array = np.stack(embeddings, axis=0).astype(
+                np.float32, copy=False
+            )
+            self._vectorbase.add_embeddings(None, embeddings_array)
 
     async def size(self) -> int:
         return self._size()
@@ -389,6 +398,7 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
 
         # Clear existing data
         cursor.execute("DELETE FROM MessageTextIndex")
+        self._vectorbase.clear()
 
         # Get the index data
         index_data = data.get("indexData")
@@ -437,3 +447,4 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         """Clear the message text index."""
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM MessageTextIndex")
+        self._vectorbase.clear()
