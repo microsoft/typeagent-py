@@ -4,7 +4,7 @@
 """New modular implementation of add_messages_streaming with pipelined architecture."""
 
 import asyncio
-from collections.abc import AsyncIterable, Awaitable, Callable
+from collections.abc import AsyncIterable, Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING
@@ -17,6 +17,7 @@ from .interfaces import (
     AddMessagesResult,
     IKnowledgeExtractor,
     IMessage,
+    Knowledge,
     MessageOrdinal,
     TextLocation,
     Topic,
@@ -70,7 +71,12 @@ class ProducerState:
 
 @dataclass
 class ChunkWorkItem[TMessage: IMessage]:
-    """One chunk scheduled by the producer for worker processing."""
+    """One chunk scheduled by the producer for worker processing.
+
+    A message with no text chunks gets a single metadata-only item with
+    ``chunk_count == 0``, ``chunk_ordinal == 0`` and empty ``chunk_text``: its
+    worker only embeds the message's metadata terms.
+    """
 
     chunk_id: TextLocation
     chunk_count: int
@@ -83,7 +89,6 @@ async def _producer_task[TMessage: IMessage](
     chunk_queue: asyncio.Queue[ChunkWorkItem[TMessage] | None],
     stop_state: PipelineStopState,
     producer_state: ProducerState,
-    result_queue: asyncio.Queue["ChunkProcessingResult[TMessage] | None"],
     shutdown_event: asyncio.Event | None,
 ) -> None:
     """Read input messages and enqueue chunk work items.
@@ -102,12 +107,13 @@ async def _producer_task[TMessage: IMessage](
 
             chunk_count = len(message.text_chunks)
             if chunk_count == 0:
-                # Zero-chunk message: nothing for the dispatcher to process.
-                # Emit a zero-chunk result directly to the reassembler.
-                await result_queue.put(
-                    ChunkProcessingResult[TMessage](
+                # Zero-chunk message: nothing to extract, but its metadata
+                # terms still need embeddings, so it goes to the dispatcher.
+                await chunk_queue.put(
+                    ChunkWorkItem[TMessage](
                         chunk_id=TextLocation(message_id, 0),
                         chunk_count=0,
+                        chunk_text="",
                         message=message,
                     )
                 )
@@ -215,18 +221,24 @@ async def _dispatcher_task[TMessage: IMessage](
 class ChunkProcessingResult[TMessage: IMessage]:
     """Result of processing a single chunk through extraction and embeddings.
 
+    ``error`` is the only failure signal. A metadata-only result for a message
+    with no text chunks (``chunk_count == 0``) succeeds with
+    ``extracted_knowledge`` and ``chunk_embedding`` left as None.
+
     Attributes:
         chunk_id: Message/chunk location for the processed chunk.
-        chunk_count: Total number of chunks in the message that owns this chunk.
+        chunk_count: Total number of chunks in the message that owns this chunk,
+            or 0 for the metadata-only result of a message with no text chunks.
         message: Original message object containing this chunk.
-        extracted_knowledge: Extracted KnowledgeResponse if extraction succeeded, else None.
-        chunk_embedding: Normalized embedding vector for the message chunk, or None if extraction or embedding failed.
-        related_terms: Normalized, deduplicated related-term texts extracted from knowledge.
+        extracted_knowledge: Extracted KnowledgeResponse; None on failure and for
+            metadata-only results.
+        chunk_embedding: Normalized embedding vector for the message chunk; None
+            on failure and for metadata-only results.
+        related_terms: Normalized, deduplicated related-term texts from the extracted
+            knowledge, plus the message's metadata knowledge for chunk 0 (and for
+            zero-chunk messages, whose only terms are metadata terms).
         related_term_embeddings: Embeddings for related_terms in the same order, or [] when there are no related terms.
-        error: Exception from the first failing operation, or None if extraction and embedding succeeded.
-
-        The ``success`` property is True only when extraction succeeded, chunk embedding was
-        generated, related-term embeddings were generated, and no error occurred.
+        error: Exception from the first failing operation, or None on success.
     """
 
     chunk_id: TextLocation
@@ -239,23 +251,41 @@ class ChunkProcessingResult[TMessage: IMessage]:
     error: Exception | None = None
 
 
+def _extracted_knowledge_items(knowledge: KnowledgeResponse) -> Iterable[Knowledge]:
+    """The knowledge items the semantic ref index stores for extracted knowledge."""
+    return chain(
+        # Extracted entities without a name are not indexed.
+        filter(semantic_ref_index.validate_entity, knowledge.entities),
+        knowledge.actions,
+        knowledge.inverse_actions,
+        (Topic(text=topic) for topic in knowledge.topics),
+    )
+
+
+def _metadata_knowledge_items(message: IMessage) -> Iterable[Knowledge]:
+    """The knowledge items the semantic ref index stores for message metadata.
+
+    Unlike extracted knowledge, metadata entities are indexed without validation.
+    """
+    knowledge = message.get_knowledge()
+    return chain(
+        knowledge.entities,
+        knowledge.actions,
+        knowledge.inverse_actions,
+        (Topic(text=topic) for topic in knowledge.topics),
+    )
+
+
 def _collect_related_terms_for_fuzzy_index(
     knowledge: KnowledgeResponse,
 ) -> list[str]:
     """Collect canonical related-term texts for the fuzzy related-terms index.
 
-    These are the normalized, deduplicated terms the knowledge adds to the
-    semantic ref index, in the order they are first added. Terms from message
-    metadata are added at commit time.
+    These are the normalized, deduplicated terms the extracted knowledge adds
+    to the semantic ref index, in the order they are first added.
     """
     return semantic_ref_index.collect_related_terms_for_fuzzy_index(
-        chain(
-            # Extracted entities without a name are not indexed.
-            filter(semantic_ref_index.validate_entity, knowledge.entities),
-            knowledge.actions,
-            knowledge.inverse_actions,
-            (Topic(text=topic) for topic in knowledge.topics),
-        )
+        _extracted_knowledge_items(knowledge)
     )
 
 
@@ -272,6 +302,10 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
 
     Runs extraction/related-term embedding and chunk embedding concurrently,
     capturing the first failure and stopping processing if an error occurs.
+
+    Chunk 0 also embeds the related terms of the message's metadata knowledge,
+    so committing the message needs no embedding calls. A zero-chunk message
+    (``chunk_count == 0``) only gets those metadata-term embeddings.
 
     Chunk embeddings are computed uncached; related-term embeddings use
     cache-aware model calls on the same embedding model.
@@ -293,16 +327,9 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
     )
     sem = asyncio.Semaphore(1)  # Avoid concurrent embedding requests
 
-    async def _extract_knowledge_and_related_embeddings() -> None:
-        knowledge_result = await knowledge_extractor.extract(chunk_text)
-        if isinstance(knowledge_result, typechat.Failure):
-            raise RuntimeError(
-                f"Knowledge extraction failed: {knowledge_result.message}"
-            )
-        result.extracted_knowledge = knowledge_result.value
-
-        result.related_terms = _collect_related_terms_for_fuzzy_index(
-            result.extracted_knowledge
+    async def _embed_related_terms(knowledge_items: Iterable[Knowledge]) -> None:
+        result.related_terms = semantic_ref_index.collect_related_terms_for_fuzzy_index(
+            knowledge_items
         )
         if result.related_terms:
             async with sem:
@@ -313,6 +340,21 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
         else:
             result.related_term_embeddings = []
 
+    async def _extract_knowledge_and_related_embeddings() -> None:
+        knowledge_result = await knowledge_extractor.extract(chunk_text)
+        if isinstance(knowledge_result, typechat.Failure):
+            raise RuntimeError(
+                f"Knowledge extraction failed: {knowledge_result.message}"
+            )
+        result.extracted_knowledge = knowledge_result.value
+
+        knowledge_items = _extracted_knowledge_items(result.extracted_knowledge)
+        if chunk_id.chunk_ordinal == 0:
+            # Metadata first, so a term shared with the extracted knowledge
+            # is deduplicated to its metadata occurrence.
+            knowledge_items = chain(_metadata_knowledge_items(message), knowledge_items)
+        await _embed_related_terms(knowledge_items)
+
     async def _generate_chunk_embedding() -> None:
         async with sem:
             result.chunk_embedding = await embedding_model.get_embedding_nocache(
@@ -321,11 +363,24 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
 
     try:
         async with asyncio.TaskGroup() as tg:
-            tg.create_task(_extract_knowledge_and_related_embeddings())
-            tg.create_task(_generate_chunk_embedding())
+            if chunk_count == 0:
+                tg.create_task(_embed_related_terms(_metadata_knowledge_items(message)))
+            else:
+                tg.create_task(_extract_knowledge_and_related_embeddings())
+                tg.create_task(_generate_chunk_embedding())
     except Exception as error:
         while isinstance(error, ExceptionGroup) and len(error.exceptions) == 1:
             error = error.exceptions[0]
+        if chunk_count == 0:
+            error.add_note(
+                f"while processing message {chunk_id.message_ordinal} "
+                "(metadata only; no text chunks)"
+            )
+        else:
+            error.add_note(
+                f"while processing message {chunk_id.message_ordinal}, "
+                f"chunk {chunk_id.chunk_ordinal}"
+            )
         result.error = error
 
     return result
@@ -342,7 +397,8 @@ class MessageAssembly[TMessage: IMessage]:
     has_error: bool = False
 
     def is_complete(self) -> bool:
-        return len(self.chunks) == self.chunk_count
+        # A zero-chunk message has a single result, stored at ordinal 0.
+        return len(self.chunks) == max(self.chunk_count, 1)
 
 
 @dataclass
@@ -450,7 +506,7 @@ async def _reassembler_task[TMessage: IMessage](
             ordered_results = [assembly.chunks[i] for i in ordered_chunk_ordinals]
             staged_messages.append(assembly.message)
             staged_results.extend(ordered_results)
-            staged_chunks += len(ordered_results)
+            staged_chunks += assembly.chunk_count
 
             del assemblies[state.first_uncommitted_ordinal]
             state.first_uncommitted_ordinal += 1
@@ -468,8 +524,14 @@ async def _reassembler_task[TMessage: IMessage](
             validation_error: str | None = None
             assembly = assemblies.get(message_id)
             if item.chunk_count == 0:
-                # Zero-chunk message: create an immediately-complete assembly.
-                if assembly is None:
+                # Zero-chunk message: its single (metadata-only) result
+                # completes the assembly.
+                if assembly is not None:
+                    validation_error = (
+                        "Duplicate result for zero-chunk message: "
+                        f"message_id={message_id}"
+                    )
+                else:
                     assembly = MessageAssembly[TMessage](
                         message_id=message_id,
                         chunk_count=0,
@@ -509,8 +571,7 @@ async def _reassembler_task[TMessage: IMessage](
 
             assert assembly is not None
 
-            if item.chunk_count > 0:
-                assembly.chunks[chunk_ordinal] = item
+            assembly.chunks[chunk_ordinal] = item
 
             if item.error is not None:
                 assembly.has_error = True
@@ -552,7 +613,10 @@ async def add_messages_streaming[TMessage: IMessage](
             with that batch's AddMessagesResult.
         skip_failed_messages: If True, skip messages that fail extraction or
             embedding and continue processing. If False (default), halt on
-            first failure and raise an exception.
+            first failure and raise an exception. Failing to embed a message's
+            metadata terms (e.g. speaker and recipients), or ``get_knowledge()``
+            raising, is a failure of that message: with True the whole message
+            is skipped, including chunks whose extraction succeeded.
 
     Returns:
         AddMessagesResult aggregating all committed batches, including count
@@ -616,7 +680,6 @@ async def add_messages_streaming[TMessage: IMessage](
                     chunk_queue,
                     stop_state,
                     producer_state,
-                    result_queue,
                     shutdown_event=shutdown_event,
                 )
             )
