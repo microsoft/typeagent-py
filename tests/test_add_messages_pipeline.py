@@ -468,6 +468,54 @@ async def test_producer_breaks_inside_chunk_loop_when_stop_marker_changes() -> N
 
 
 @pytest.mark.asyncio
+async def test_dispatcher_full_result_queue_bounds_in_flight_work() -> None:
+    """Finished tasks keep their slot until their result is queued (#369)."""
+    concurrency = 2
+    item_count = 50
+    chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
+    result_queue: asyncio.Queue[ChunkProcessingResult[_Message] | None] = asyncio.Queue(
+        maxsize=1
+    )
+    for ordinal in range(item_count):
+        await chunk_queue.put(
+            ChunkWorkItem(
+                chunk_id=TextLocation(ordinal, 0),
+                chunk_count=1,
+                chunk_text=f"chunk {ordinal}",
+                message=_Message([f"chunk {ordinal}"]),
+            )
+        )
+    await chunk_queue.put(None)
+
+    extractor = _SequenceExtractor([typechat.Success(_empty_knowledge())] * item_count)
+    dispatcher = asyncio.create_task(
+        _dispatcher_task(
+            chunk_queue,
+            result_queue,
+            PipelineStopState(),
+            extractor,
+            _StubEmbeddingModel(),
+            concurrency=concurrency,
+            skip_failed_messages=False,
+        )
+    )
+    # Nobody reads result_queue yet, as during a slow commit.
+    for _ in range(100):
+        await asyncio.sleep(0)
+
+    # One result fills result_queue, `concurrency` tasks hold their slots
+    # waiting to put, and the dispatcher holds one more item waiting for a slot.
+    taken = item_count + 1 - chunk_queue.qsize()
+    assert taken <= result_queue.maxsize + concurrency + 1
+
+    items = await _drain_result_queue(result_queue)
+    await dispatcher
+    assert len(items) == item_count + 1
+    assert items[-1] is None
+    assert all(item is not None and item.error is None for item in items[:-1])
+
+
+@pytest.mark.asyncio
 async def test_dispatcher_stops_on_sentinel_and_emits_result_sentinel() -> None:
     chunk_queue: asyncio.Queue[ChunkWorkItem[_Message] | None] = asyncio.Queue()
     result_queue = asyncio.Queue()
