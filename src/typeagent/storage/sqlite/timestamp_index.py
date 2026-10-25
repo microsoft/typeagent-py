@@ -54,49 +54,6 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         )
         return cursor.rowcount > 0
 
-    async def get_timestamp_ranges(
-        self, start_timestamp: str, end_timestamp: str | None = None
-    ) -> list[TimestampedTextRange]:
-        """Get timestamp ranges from Messages table."""
-        cursor = self.db.cursor()
-
-        norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
-        norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
-        if end_timestamp is None:
-            # Single timestamp query
-            cursor.execute(
-                f"""
-                SELECT msg_id, start_timestamp
-                FROM Messages
-                WHERE {norm_col} = {norm_arg}
-                ORDER BY msg_id
-                """,
-                (start_timestamp,),
-            )
-        else:
-            # Range query (inclusive)
-            cursor.execute(
-                f"""
-                SELECT msg_id, start_timestamp
-                FROM Messages
-                WHERE {norm_col} >= {norm_arg} AND {norm_col} <= {norm_arg}
-                ORDER BY msg_id
-                """,
-                (start_timestamp, end_timestamp),
-            )
-
-        results = []
-        for msg_id, timestamp in cursor.fetchall():
-            # Create text range for message
-            from ...knowpro.interfaces import TextLocation, TextRange
-
-            text_range = TextRange(
-                start=TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
-            )
-            results.append(TimestampedTextRange(range=text_range, timestamp=timestamp))
-
-        return results
-
     async def add_timestamps(
         self, message_timestamps: list[tuple[MessageOrdinal, str]]
     ) -> None:

@@ -180,17 +180,6 @@ class TestSqliteTimestampToTextRangeIndex:
         # Check size
         assert await index.size() == 2
 
-        # Get timestamp ranges
-        results = await index.get_timestamp_ranges("2023-01-01T10:00:00Z")
-        assert len(results) == 1
-        assert results[0].timestamp == "2023-01-01T10:00:00Z"
-
-        # Range query
-        results = await index.get_timestamp_ranges(
-            "2023-01-01T10:00:00Z", "2023-01-01T11:00:00Z"
-        )
-        assert len(results) == 2
-
     @pytest.mark.asyncio
     async def test_lookup_range_mixed_offsets_and_precision(
         self, sqlite_db: sqlite3.Connection
