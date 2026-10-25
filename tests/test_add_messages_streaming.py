@@ -1085,12 +1085,11 @@ async def test_streaming_retry_after_metadata_embedding_failure(
         # the cached model call; the chunk embedding is uncached.
         model = transcript.settings.embedding_model
         original_get_embeddings = model.get_embeddings
-        calls = 0
+        failed_keys: list[str] = []
 
         async def get_embeddings(keys: list[str]):
-            nonlocal calls
-            calls += 1
-            if calls == 1:
+            if not failed_keys:
+                failed_keys.extend(keys)
                 raise RuntimeError("Embedding failure")
             return await original_get_embeddings(keys)
 
@@ -1100,8 +1099,11 @@ async def test_streaming_retry_after_metadata_embedding_failure(
             text_chunks=["Look up at the Space Needle"],
             metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
         )
-        with pytest.raises(RuntimeError, match="Embedding failure"):
+        with pytest.raises(RuntimeError, match="Embedding failure") as exc_info:
             await add_messages_streaming(transcript, _async_iter([message]))
+        # The failing call embedded the metadata terms ("bob" is metadata only).
+        assert {"carol", "bob"} <= set(failed_keys)
+        assert "while processing message 0, chunk 0" in exc_info.value.__notes__
         assert await transcript.messages.size() == 0
         assert await fuzzy_index.get_terms() == []
 
@@ -1110,6 +1112,66 @@ async def test_streaming_retry_after_metadata_embedding_failure(
         term_index_terms = await storage.semantic_ref_index.get_terms()
         assert {"carol", "bob", "looks up", "height"} <= set(term_index_terms)
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skip_failed_messages", [False, True])
+async def test_streaming_zero_chunk_metadata_embedding_failure(
+    monkeypatch: pytest.MonkeyPatch, skip_failed_messages: bool
+) -> None:
+    """Failing to embed a zero-chunk message's metadata terms fails that message."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(
+            os.path.join(tmpdir, "test.db"),
+            auto_extract=True,
+            knowledge_extractor=RichKnowledgeExtractor(subject="Carol"),
+        )
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
+
+        model = transcript.settings.embedding_model
+        original_get_embeddings = model.get_embeddings
+
+        async def get_embeddings(keys: list[str]):
+            if "dave" in keys:
+                raise RuntimeError("Embedding failure")
+            return await original_get_embeddings(keys)
+
+        monkeypatch.setattr(model, "get_embeddings", get_embeddings)
+
+        messages = [
+            TranscriptMessage(
+                text_chunks=[],
+                metadata=TranscriptMessageMeta(speaker="Dave", recipients=["Erin"]),
+            ),
+            TranscriptMessage(
+                text_chunks=["Look up at the Space Needle"],
+                metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+            ),
+        ]
+        if skip_failed_messages:
+            result = await add_messages_streaming(
+                transcript, _async_iter(messages), skip_failed_messages=True
+            )
+            assert result.messages_skipped == 1
+            assert result.messages_added == 1
+            assert await transcript.messages.size() == 1
+            term_index_terms = await storage.semantic_ref_index.get_terms()
+            assert "bob" in term_index_terms
+            assert not {"dave", "erin"} & set(term_index_terms)
+            assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+        else:
+            with pytest.raises(RuntimeError, match="Embedding failure") as exc_info:
+                await add_messages_streaming(transcript, _async_iter(messages))
+            assert (
+                "while processing message 0 (metadata only; no text chunks)"
+                in exc_info.value.__notes__
+            )
+            assert await transcript.messages.size() == 0
+            assert await storage.semantic_ref_index.get_terms() == []
+            assert await fuzzy_index.get_terms() == []
 
         await storage.close()
 

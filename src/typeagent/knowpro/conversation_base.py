@@ -420,6 +420,19 @@ class ConversationBase(
 
         ``related_terms`` must cover the terms of all new semantic refs,
         metadata knowledge included, so no embedding model call is made here.
+
+        Nothing re-derives those terms from the semantic refs actually written,
+        so these pairs in ``add_messages`` and ``semantic_ref_index`` must stay
+        in sync by hand:
+
+        - ``_metadata_knowledge_items`` and ``add_metadata_to_index_from_list``
+          (which metadata knowledge is indexed);
+        - ``_extracted_knowledge_items`` and ``_collect_knowledge_refs_and_terms``
+          (which extracted knowledge is indexed);
+        - ``collect_knowledge_terms`` and the terms the semantic ref index
+          adds for each knowledge item.
+
+        ``test_streaming_fuzzy_terms_match_term_index`` checks the result.
         """
         if self.secondary_indexes is None:
             return

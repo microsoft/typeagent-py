@@ -71,7 +71,12 @@ class ProducerState:
 
 @dataclass
 class ChunkWorkItem[TMessage: IMessage]:
-    """One chunk scheduled by the producer for worker processing."""
+    """One chunk scheduled by the producer for worker processing.
+
+    A message with no text chunks gets a single metadata-only item with
+    ``chunk_count == 0``, ``chunk_ordinal == 0`` and empty ``chunk_text``: its
+    worker only embeds the message's metadata terms.
+    """
 
     chunk_id: TextLocation
     chunk_count: int
@@ -216,20 +221,24 @@ async def _dispatcher_task[TMessage: IMessage](
 class ChunkProcessingResult[TMessage: IMessage]:
     """Result of processing a single chunk through extraction and embeddings.
 
+    ``error`` is the only failure signal. A metadata-only result for a message
+    with no text chunks (``chunk_count == 0``) succeeds with
+    ``extracted_knowledge`` and ``chunk_embedding`` left as None.
+
     Attributes:
         chunk_id: Message/chunk location for the processed chunk.
-        chunk_count: Total number of chunks in the message that owns this chunk.
+        chunk_count: Total number of chunks in the message that owns this chunk,
+            or 0 for the metadata-only result of a message with no text chunks.
         message: Original message object containing this chunk.
-        extracted_knowledge: Extracted KnowledgeResponse if extraction succeeded, else None.
-        chunk_embedding: Normalized embedding vector for the message chunk, or None if extraction or embedding failed.
+        extracted_knowledge: Extracted KnowledgeResponse; None on failure and for
+            metadata-only results.
+        chunk_embedding: Normalized embedding vector for the message chunk; None
+            on failure and for metadata-only results.
         related_terms: Normalized, deduplicated related-term texts from the extracted
             knowledge, plus the message's metadata knowledge for chunk 0 (and for
             zero-chunk messages, whose only terms are metadata terms).
         related_term_embeddings: Embeddings for related_terms in the same order, or [] when there are no related terms.
-        error: Exception from the first failing operation, or None if extraction and embedding succeeded.
-
-        The ``success`` property is True only when extraction succeeded, chunk embedding was
-        generated, related-term embeddings were generated, and no error occurred.
+        error: Exception from the first failing operation, or None on success.
     """
 
     chunk_id: TextLocation
@@ -341,7 +350,8 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
 
         knowledge_items = _extracted_knowledge_items(result.extracted_knowledge)
         if chunk_id.chunk_ordinal == 0:
-            # Metadata first, matching the order the commit indexes them in.
+            # Metadata first, so a term shared with the extracted knowledge
+            # is deduplicated to its metadata occurrence.
             knowledge_items = chain(_metadata_knowledge_items(message), knowledge_items)
         await _embed_related_terms(knowledge_items)
 
@@ -361,6 +371,16 @@ async def process_chunk_with_extraction_and_embeddings[TMessage: IMessage](
     except Exception as error:
         while isinstance(error, ExceptionGroup) and len(error.exceptions) == 1:
             error = error.exceptions[0]
+        if chunk_count == 0:
+            error.add_note(
+                f"while processing message {chunk_id.message_ordinal} "
+                "(metadata only; no text chunks)"
+            )
+        else:
+            error.add_note(
+                f"while processing message {chunk_id.message_ordinal}, "
+                f"chunk {chunk_id.chunk_ordinal}"
+            )
         result.error = error
 
     return result
@@ -593,7 +613,10 @@ async def add_messages_streaming[TMessage: IMessage](
             with that batch's AddMessagesResult.
         skip_failed_messages: If True, skip messages that fail extraction or
             embedding and continue processing. If False (default), halt on
-            first failure and raise an exception.
+            first failure and raise an exception. Failing to embed a message's
+            metadata terms (e.g. speaker and recipients), or ``get_knowledge()``
+            raising, is a failure of that message: with True the whole message
+            is skipped, including chunks whose extraction succeeded.
 
     Returns:
         AddMessagesResult aggregating all committed batches, including count
