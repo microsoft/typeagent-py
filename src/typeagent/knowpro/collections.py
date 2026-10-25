@@ -421,10 +421,17 @@ class MessageAccumulator(MatchAccumulator[MessageOrdinal]):
         score: float,
     ) -> None:
         message_ordinal_start = semantic_ref.range.start.message_ordinal
-        if semantic_ref.range.end is not None:
-            message_ordinal_end = semantic_ref.range.end.message_ordinal
+        end = semantic_ref.range.end
+        if end is not None:
+            # The end is exclusive: an end at chunk 0 covers nothing of its
+            # message, so the last message is the one before it.
+            last_message_ordinal = (
+                end.message_ordinal
+                if end.chunk_ordinal > 0
+                else end.message_ordinal - 1
+            )
             for message_ordinal in range(
-                message_ordinal_start, message_ordinal_end + 1
+                message_ordinal_start, last_message_ordinal + 1
             ):
                 self.add(message_ordinal, score)
         else:

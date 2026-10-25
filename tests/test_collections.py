@@ -10,6 +10,7 @@ from typeagent.knowpro.collections import (
     get_top_k,
     Match,
     MatchAccumulator,
+    MessageAccumulator,
     PropertyTermSet,
     Scored,
     SemanticRefAccumulator,
@@ -558,3 +559,59 @@ def test_add_to_set():
     assert "b" in my_set
     assert "c" in my_set
     assert "d" in my_set
+
+
+def _messages_added_for_range(text_range: TextRange) -> list[int]:
+    accumulator = MessageAccumulator()
+    accumulator.add_messages_for_semantic_ref(
+        SemanticRef(0, range=text_range, knowledge=ConcreteEntity("e", ["t"])),
+        1.0,
+    )
+    return sorted(accumulator.get_matched_values())
+
+
+@pytest.mark.parametrize(
+    ("text_range", "expected"),
+    [
+        pytest.param(TextRange(TextLocation(3, 1)), [3], id="point"),
+        pytest.param(
+            TextRange(TextLocation(0), TextLocation(1)), [0], id="one_message"
+        ),
+        pytest.param(
+            TextRange(TextLocation(0), TextLocation(3)), [0, 1, 2], id="end_at_chunk_0"
+        ),
+        pytest.param(
+            TextRange(TextLocation(0), TextLocation(2, 1)),
+            [0, 1, 2],
+            id="end_inside_message",
+        ),
+        pytest.param(
+            TextRange(TextLocation(3, 0), TextLocation(3, 2)),
+            [3],
+            id="within_one_message",
+        ),
+    ],
+)
+def test_add_messages_for_semantic_ref_exclusive_end(
+    text_range: TextRange, expected: list[int]
+) -> None:
+    assert _messages_added_for_range(text_range) == expected
+
+
+def test_add_messages_for_semantic_ref_matches_text_range_containment() -> None:
+    """A message is added iff one of its chunks lies inside the range."""
+    locations = [TextLocation(m, c) for m in range(4) for c in range(4)]
+    for start in locations:
+        for end in locations:
+            if not start < end:
+                continue
+            text_range = TextRange(start, end)
+            expected = sorted(
+                {
+                    m
+                    for m in range(4)
+                    for c in range(4)  # Every chunk ordinal a range starts at.
+                    if TextRange(TextLocation(m, c)) in text_range
+                }
+            )
+            assert _messages_added_for_range(text_range) == expected, text_range
