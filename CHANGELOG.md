@@ -66,6 +66,7 @@
   keys and may no longer match; re-ingest such databases to rebuild them.
 
 #### Core typeagent package
+- Switch the default model from gpt-4o to gpt-6-luna; 4o will soon be retired.
 - Replace `CamelCaseField` (and its module `typeagent.knowpro.field_helpers`)
   with a pydantic alias generator: the `typeagent.knowpro.dataclasses.dataclass`
   decorator now gives every field a camelCase alias. As a result, the
@@ -169,7 +170,7 @@ infrastructure overhaul.
 - Provider-agnostic chat and embedding model configuration via new
   `model_adapters` module backed by pydantic_ai (#200):
   - Use `provider:model` spec strings,
-    e.g. `create_chat_model("openai:gpt-6-luna")`.
+    e.g. `create_chat_model("openai:gpt-4o")`.
   - Replace `AsyncEmbeddingModel` with `IEmbedder`/`IEmbeddingModel`
     protocols and `CachingEmbeddingModel`.
   - Add `OPENAI_MODEL` and `OPENAI_EMBEDDING_MODEL` envvars
