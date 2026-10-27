@@ -116,21 +116,19 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
 
     This lets any pydantic_ai chat model (OpenAI, Anthropic, Google, …) be
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
-    Requests disable thinking for GPT-6 Luna; other models use their defaults.
-
-    ``model_name`` names the underlying model when ``model.model_name`` is
-    something else, such as an Azure deployment name.
+    ``settings`` are passed through to each request; when omitted, the wrapped
+    model uses its own defaults.
     """
 
     def __init__(
         self,
         model: Model,
         retrier: BoundAsyncRetryingCaller | None = None,
-        model_name: str | None = None,
+        settings: ModelSettings | None = None,
     ) -> None:
         self._model = model
         self._retrier = retrier or DEFAULT_CHAT_RETRIER
-        self.model_name = model_name or model.model_name
+        self.settings = settings
 
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
@@ -148,12 +146,9 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        settings = (
-            ModelSettings(thinking=False)
-            if should_disable_thinking(self.model_name)
-            else None
+        response = await self._retrier(
+            self._model.request, messages, self.settings, params
         )
-        response = await self._retrier(self._model.request, messages, settings, params)
         text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
         if text_parts:
             return typechat.Success("".join(text_parts))
@@ -284,6 +279,7 @@ def create_chat_model(
 
     If *model_spec* is ``None``, it is constructed from the ``OPENAI_MODEL``
     environment variable (falling back to :data:`DEFAULT_CHAT_SPEC`).
+    Requests disable thinking for GPT-6 Luna; other models use their defaults.
 
     Examples::
 
@@ -299,6 +295,9 @@ def create_chat_model(
         else:
             model_spec = DEFAULT_CHAT_SPEC
     provider, _, model_name = model_spec.partition(":")
+    settings = (
+        ModelSettings(thinking=False) if should_disable_thinking(model_name) else None
+    )
     if _needs_azure_fallback(provider):
         from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -318,8 +317,8 @@ def create_chat_model(
             provider=azure_provider,
             profile=azure_provider.model_profile(model_name),
         )
-        return PydanticAIChatModel(model, retrier, model_name)
-    return PydanticAIChatModel(infer_model(model_spec), retrier)
+        return PydanticAIChatModel(model, retrier, settings=settings)
+    return PydanticAIChatModel(infer_model(model_spec), retrier, settings=settings)
 
 
 DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"

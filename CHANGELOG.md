@@ -66,11 +66,21 @@
   keys and may no longer match; re-ingest such databases to rebuild them.
 
 #### Core typeagent package
-- Switch the default model from gpt-4o to gpt-6-luna; 4o will soon be retired.
-  To start, we disable reasoning (`thinking=False`) for GPT-6 Luna only;
-  other models retain their default reasoning settings.
-  On Azure, the model is taken from the requested model name (default
-  `gpt-6-luna`), not the deployment name, so this works for any deployment.
+- Switch the default chat model from gpt-4o to gpt-6-luna in
+  `create_chat_model` and `make_agent`, because OpenAI is retiring gpt-4o.
+  `create_chat_model` disables reasoning
+  (`thinking=False`) for `gpt-6-luna` and names starting with `gpt-6-luna-`;
+  other models retain their default reasoning settings. `make_agent` uses
+  GPT-6 Luna with reasoning disabled.
+  In the Azure fallback, requests still use the deployment name from the
+  endpoint, while capability settings come from the requested model name
+  (default `gpt-6-luna`). The requested model must match the deployed model;
+  `make_agent` assumes the deployment serves GPT-6 Luna.
+  `PydanticAIChatModel` preserves the wrapped model's settings when its new
+  `settings` constructor argument is omitted; supplied settings take precedence
+  over the corresponding wrapped model defaults.
+  Raise the minimum `pydantic-ai-slim[openai]` version from 2.25.0 to 2.48.0
+  (the earliest pydantic-ai version that recognizes gpt-6-luna).
 - Replace `CamelCaseField` (and its module `typeagent.knowpro.field_helpers`)
   with a pydantic alias generator: the `typeagent.knowpro.dataclasses.dataclass`
   decorator now gives every field a camelCase alias. As a result, the

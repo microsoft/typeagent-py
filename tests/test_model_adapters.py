@@ -64,25 +64,33 @@ def test_should_disable_thinking(model_name: str, expected: bool) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "model_name, adapter_model_name, expected_thinking",
+    "model_name, settings, expected_thinking",
     [
-        ("gpt-6-luna", None, False),
+        ("gpt-6-luna", None, "low"),
         ("gpt-6-astra", None, None),
-        ("my-deploy", "gpt-6-luna", False),
+        ("gpt-6-luna", ModelSettings(thinking=False), False),
+        ("gpt-6-luna", ModelSettings(thinking="high"), "high"),
     ],
 )
-async def test_chat_adapter_disables_thinking_only_for_luna(
-    model_name: str, adapter_model_name: str | None, expected_thinking: bool | None
+async def test_chat_adapter_preserves_and_overrides_model_settings(
+    model_name: str,
+    settings: ModelSettings | None,
+    expected_thinking: bool | str | None,
 ) -> None:
     def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
-        assert info.model_request_parameters.thinking is expected_thinking
+        assert info.model_request_parameters.thinking == expected_thinking
         return ModelResponse(parts=[TextPart(content="hello")])
 
     adapter = PydanticAIChatModel(
         FunctionModel(
-            respond, model_name=model_name, profile={"supports_thinking": True}
+            respond,
+            model_name=model_name,
+            profile={"supports_thinking": True},
+            settings=(
+                ModelSettings(thinking="low") if model_name == "gpt-6-luna" else None
+            ),
         ),
-        model_name=adapter_model_name,
+        settings=settings,
     )
     result = await adapter.complete("test prompt")
     assert isinstance(result, typechat.Success)
@@ -279,8 +287,12 @@ def test_create_embedding_model_uses_azure_deployment_name(
     assert embedder.model_name == "text-embedding-ada-002"
 
 
+@pytest.mark.parametrize(
+    "model_name, expected_thinking",
+    [("gpt-6-luna", False), ("gpt-6-astra", None)],
+)
 def test_create_chat_model_azure_profile_from_requested_model(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, model_name: str, expected_thinking: bool | None
 ) -> None:
     """Azure chat models use the deployment name for requests, but take their
     profile and thinking setting from the requested model name."""
@@ -292,14 +304,28 @@ def test_create_chat_model_azure_profile_from_requested_model(
         "https://myhost.openai.azure.com/openai/deployments/my-deploy/chat/completions?api-version=2025-01-01-preview",
     )
 
-    chat_model = create_chat_model()
+    chat_model = create_chat_model(f"openai:{model_name}")
 
-    assert chat_model.model_name == "gpt-6-luna"
+    assert chat_model.settings == (
+        {"thinking": False} if expected_thinking is False else None
+    )
     model = chat_model._model
     assert model.model_name == "my-deploy"
     assert model.profile.get("supports_thinking") is True
     # Without the requested model's profile, pydantic_ai drops thinking=False.
-    _, params = model.prepare_request(
-        ModelSettings(thinking=False), ModelRequestParameters()
-    )
-    assert params.thinking is False
+    _, params = model.prepare_request(chat_model.settings, ModelRequestParameters())
+    assert params.thinking is expected_thinking
+
+
+@pytest.mark.parametrize(
+    "model_name, expected_settings",
+    [("gpt-6-luna", ModelSettings(thinking=False)), ("gpt-6-astra", None)],
+)
+def test_create_chat_model_openai_thinking_default(
+    monkeypatch: pytest.MonkeyPatch,
+    model_name: str,
+    expected_settings: ModelSettings | None,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "unused-key")
+    chat_model = create_chat_model(f"openai:{model_name}")
+    assert chat_model.settings == expected_settings
