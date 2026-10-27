@@ -371,10 +371,7 @@ async def test_producer_enqueues_all_chunks_and_sentinel() -> None:
         for message in messages:
             yield message
 
-    result_queue = asyncio.Queue()
-    await _producer_task(
-        _iter_messages(), queue, stop_state, producer_state, result_queue, None
-    )
+    await _producer_task(_iter_messages(), queue, stop_state, producer_state, None)
 
     items: list[ChunkWorkItem[_Message] | None] = [
         await queue.get(),
@@ -404,10 +401,7 @@ async def test_producer_stops_at_stop_marker() -> None:
         yield _Message(["a"])
         yield _Message(["b"])
 
-    result_queue = asyncio.Queue()
-    await _producer_task(
-        _iter_messages(), queue, stop_state, producer_state, result_queue, None
-    )
+    await _producer_task(_iter_messages(), queue, stop_state, producer_state, None)
 
     first = await queue.get()
     sentinel = await queue.get()
@@ -426,10 +420,7 @@ async def test_producer_sets_exception_and_still_sends_sentinel() -> None:
 
     failing_iter = _FailingAsyncMessages([_Message(["a"])], RuntimeError("input boom"))
 
-    result_queue = asyncio.Queue()
-    await _producer_task(
-        failing_iter, queue, stop_state, producer_state, result_queue, None
-    )
+    await _producer_task(failing_iter, queue, stop_state, producer_state, None)
 
     first = await queue.get()
     sentinel = await queue.get()
@@ -453,10 +444,7 @@ async def test_producer_breaks_inside_chunk_loop_when_stop_marker_changes() -> N
     async def _iter_messages() -> AsyncIterator[_Message]:
         yield message
 
-    result_queue = asyncio.Queue()
-    await _producer_task(
-        _iter_messages(), queue, stop_state, producer_state, result_queue, None
-    )
+    await _producer_task(_iter_messages(), queue, stop_state, producer_state, None)
 
     first = await queue.get()
     sentinel = await queue.get()
@@ -526,7 +514,6 @@ async def test_shutdown_finishes_message_already_admitted_to_full_queue() -> Non
             chunk_queue,
             stop_state,
             producer_state,
-            result_queue,
             shutdown_event,
         )
     )
@@ -870,6 +857,39 @@ async def test_reassembler_raises_on_duplicate_chunk_and_sets_stop_marker() -> N
         )
 
     assert stop_state.stop_at_message_id == 5
+
+
+@pytest.mark.asyncio
+async def test_reassembler_raises_on_duplicate_zero_chunk_result() -> None:
+    result_queue = asyncio.Queue()
+    stop_state = PipelineStopState()
+
+    message = _Message([])
+    await result_queue.put(_chunk_result(message, 3, 0, 0))
+    await result_queue.put(_chunk_result(message, 3, 0, 0))
+    await result_queue.put(None)
+
+    committed: list[list[_Message]] = []
+
+    async def _commit(
+        messages: list[_Message], results: list[ChunkProcessingResult[_Message]]
+    ) -> None:
+        committed.append(messages)
+
+    # Message 2 never arrives, so message 3 stays buffered and the second
+    # result reaches its assembly.
+    with pytest.raises(RuntimeError, match="Duplicate result for zero-chunk message"):
+        await _reassembler_task(
+            result_queue,
+            stop_state,
+            first_uncommitted_ordinal=2,
+            target_commit_chunk_count=10,
+            commit_batch=_commit,
+            skip_failed_messages=False,
+        )
+
+    assert stop_state.stop_at_message_id == 3
+    assert committed == []
 
 
 @pytest.mark.asyncio
