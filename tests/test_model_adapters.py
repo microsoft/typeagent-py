@@ -188,7 +188,9 @@ def test_configure_models_returns_correct_types(
 ) -> None:
     """configure_models creates both adapters."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    chat, embedder = configure_models("openai:gpt-4o", "openai:text-embedding-3-small")
+    chat, embedder = configure_models(
+        "openai:gpt-6-luna", "openai:text-embedding-3-small"
+    )
     assert isinstance(chat, PydanticAIChatModel)
     assert isinstance(embedder, CachingEmbeddingModel)
 
@@ -252,7 +254,7 @@ def test_create_chat_model_uses_azure_deployment_name(
     monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
     monkeypatch.setenv(
         "AZURE_OPENAI_ENDPOINT",
-        "https://myhost.openai.azure.com/openai/deployments/gpt-4o-2/chat/completions?api-version=2025-01-01-preview",
+        "https://myhost.openai.azure.com/openai/deployments/gpt-6-luna-2/chat/completions?api-version=2025-01-01-preview",
     )
     monkeypatch.setattr(
         model_adapters,
@@ -266,5 +268,5 @@ def test_create_chat_model_uses_azure_deployment_name(
     chat_model = create_chat_model()
 
     assert isinstance(chat_model, PydanticAIChatModel)
-    assert captured["azure_model_name"] == "gpt-4o-2"
+    assert captured["azure_model_name"] == "gpt-6-luna-2"
     assert captured["provider"] is provider

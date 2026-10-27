@@ -8,7 +8,7 @@ Create chat and embedding models from ``provider:model`` spec strings::
     from typeagent.aitools.model_adapters import configure_models
 
     chat, embedder = configure_models(
-        "openai:gpt-4o",
+        "openai:gpt-6-luna",
         "openai:text-embedding-3-small",
     )
 
@@ -251,7 +251,7 @@ def _make_azure_provider(
 # ---------------------------------------------------------------------------
 
 
-DEFAULT_CHAT_SPEC = "openai:gpt-4o"
+DEFAULT_CHAT_SPEC = "openai:gpt-6-luna"
 
 
 def create_chat_model(
@@ -270,8 +270,8 @@ def create_chat_model(
 
     Examples::
 
-        model = create_chat_model()  # uses OPENAI_MODEL or gpt-4o
-        model = create_chat_model("openai:gpt-4o")
+        model = create_chat_model()  # uses OPENAI_MODEL or gpt-6-luna
+        model = create_chat_model("openai:gpt-6-luna")
         model = create_chat_model("anthropic:claude-sonnet-4-20250514")
         model = create_chat_model("google:gemini-2.0-flash")
     """
@@ -461,7 +461,7 @@ def configure_models(
     Example::
 
         chat, embedder = configure_models(
-            "openai:gpt-4o",
+            "openai:gpt-6-luna",
             "openai:text-embedding-3-small",
         )
 

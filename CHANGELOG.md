@@ -169,7 +169,7 @@ infrastructure overhaul.
 - Provider-agnostic chat and embedding model configuration via new
   `model_adapters` module backed by pydantic_ai (#200):
   - Use `provider:model` spec strings,
-    e.g. `create_chat_model("openai:gpt-4o")`.
+    e.g. `create_chat_model("openai:gpt-6-luna")`.
   - Replace `AsyncEmbeddingModel` with `IEmbedder`/`IEmbeddingModel`
     protocols and `CachingEmbeddingModel`.
   - Add `OPENAI_MODEL` and `OPENAI_EMBEDDING_MODEL` envvars

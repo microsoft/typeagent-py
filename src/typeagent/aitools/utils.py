@@ -277,7 +277,7 @@ def make_agent[T](cls: type[T]):
     if os.getenv("OPENAI_API_KEY"):
         Wrapper = NativeOutput
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
-        model = OpenAIChatModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
+        model = OpenAIChatModel("gpt-6-luna")  # Retrieves OPENAI_API_KEY again.
 
     elif os.getenv("AZURE_OPENAI_API_KEY"):
         from typeagent.aitools.model_adapters import _make_azure_provider
@@ -287,7 +287,7 @@ def make_agent[T](cls: type[T]):
 
         print(f"## Using Azure with {Wrapper.__name__} ##")
         model = OpenAIChatModel(
-            resolve_azure_model_name("gpt-4o"),
+            resolve_azure_model_name("gpt-6-luna"),
             provider=azure_provider,
         )
 
