@@ -9,13 +9,13 @@ all: format ruff check test build
 .PHONY: format
 format:
 	uv run isort src tests tools examples $(FLAGS)
-	uv run black -tpy312 src tests tools examples $(FLAGS)
+	uv run black -tpy313 src tests tools examples $(FLAGS)
 
 # intentionally running pyright only for the lowest and the highest version
 # running it for all versions takes too much time and doesn't add enough diagnostic power
 .PHONY: check
 check:
-	uv run pyright --pythonversion 3.12 src tests tools examples
+	uv run pyright --pythonversion 3.13 src tests tools examples
 	uv run pyright --pythonversion 3.15 src tests tools examples
 
 # Narrowly scoped to deterministically banning wildcard imports

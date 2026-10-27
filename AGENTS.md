@@ -80,7 +80,7 @@ please follow these guidelines:
 # Licensed under the MIT License.
 ```
 
-* Assume Python 3.12
+* Assume Python 3.13
 
 * `from __future__ import annotations` is not allowed.
 
