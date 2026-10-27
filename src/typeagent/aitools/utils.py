@@ -278,11 +278,13 @@ def make_agent[T](cls: type[T]):
 
     from typeagent.aitools.model_adapters import should_disable_thinking
 
+    model_name = "gpt-6-luna"
+
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):
         Wrapper = NativeOutput
         print(f"## Using OpenAI with {Wrapper.__name__} ##")
-        model = OpenAIChatModel("gpt-6-luna")  # Retrieves OPENAI_API_KEY again.
+        model = OpenAIChatModel(model_name)  # Retrieves OPENAI_API_KEY again.
 
     elif os.getenv("AZURE_OPENAI_API_KEY"):
         from typeagent.aitools.model_adapters import _make_azure_provider
@@ -291,9 +293,12 @@ def make_agent[T](cls: type[T]):
         Wrapper = ToolOutput
 
         print(f"## Using Azure with {Wrapper.__name__} ##")
+        # The deployment name says nothing about the model, so take the
+        # profile (e.g. thinking support) from the requested model name.
         model = OpenAIChatModel(
-            resolve_azure_model_name("gpt-6-luna"),
+            resolve_azure_model_name(model_name),
             provider=azure_provider,
+            profile=azure_provider.model_profile(model_name),
         )
 
     else:
@@ -305,7 +310,7 @@ def make_agent[T](cls: type[T]):
         model,
         output_type=Wrapper(cls, strict=True),
         model_settings=(
-            {"thinking": False} if should_disable_thinking(model.model_name) else None
+            {"thinking": False} if should_disable_thinking(model_name) else None
         ),
         retries=3,
     )

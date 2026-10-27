@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import pytest
 
 import pydantic.dataclasses
+from pydantic_ai.models.openai import OpenAIChatModel
 import typechat
 
 from typeagent.aitools import utils
@@ -312,26 +313,21 @@ class TestGetAzureApiKey:
 
 
 class TestMakeAgent:
-    @pytest.mark.parametrize(
-        "deployment, disables_thinking",
-        [("gpt-6-luna", True), ("gpt-6-astra", False)],
-    )
-    def test_azure_thinking_only_disabled_for_luna(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        deployment: str,
-        disables_thinking: bool,
+    def test_azure_disables_thinking_for_any_deployment_name(
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.setenv("AZURE_OPENAI_API_KEY", "unused-key")
         monkeypatch.setenv(
             "AZURE_OPENAI_ENDPOINT",
-            f"https://example.openai.azure.com/openai/deployments/{deployment}/chat/completions?api-version=2025-01-01-preview",
+            "https://example.openai.azure.com/openai/deployments/my-deploy/chat/completions?api-version=2025-01-01-preview",
         )
         agent = utils.make_agent(str)
-        assert agent.model_settings == (
-            {"thinking": False} if disables_thinking else None
-        )
+        assert agent.model_settings == {"thinking": False}
+        model = agent.model
+        assert isinstance(model, OpenAIChatModel)
+        assert model.model_name == "my-deploy"
+        assert model.profile.get("supports_thinking") is True
 
     def test_openai_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "unused-key")

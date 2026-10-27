@@ -15,8 +15,9 @@ from pydantic_ai.messages import (
     TextPart,
     UserPromptPart,
 )
-from pydantic_ai.models import Model
+from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.settings import ModelSettings
 import typechat
 
 from typeagent.aitools import model_adapters
@@ -63,11 +64,15 @@ def test_should_disable_thinking(model_name: str, expected: bool) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "model_name, expected_thinking",
-    [("gpt-6-luna", False), ("gpt-6-astra", None)],
+    "model_name, adapter_model_name, expected_thinking",
+    [
+        ("gpt-6-luna", None, False),
+        ("gpt-6-astra", None, None),
+        ("my-deploy", "gpt-6-luna", False),
+    ],
 )
 async def test_chat_adapter_disables_thinking_only_for_luna(
-    model_name: str, expected_thinking: bool | None
+    model_name: str, adapter_model_name: str | None, expected_thinking: bool | None
 ) -> None:
     def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
         assert info.model_request_parameters.thinking is expected_thinking
@@ -76,7 +81,8 @@ async def test_chat_adapter_disables_thinking_only_for_luna(
     adapter = PydanticAIChatModel(
         FunctionModel(
             respond, model_name=model_name, profile={"supports_thinking": True}
-        )
+        ),
+        model_name=adapter_model_name,
     )
     result = await adapter.complete("test prompt")
     assert isinstance(result, typechat.Success)
@@ -273,39 +279,27 @@ def test_create_embedding_model_uses_azure_deployment_name(
     assert embedder.model_name == "text-embedding-ada-002"
 
 
-def test_create_chat_model_uses_azure_deployment_name(
+def test_create_chat_model_azure_profile_from_requested_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Azure chat endpoints contribute the deployment name."""
-    captured: dict[str, object] = {}
-    provider = object()
-
-    class FakeOpenAIChatModel:
-        def __init__(self, model_name: str, provider: object) -> None:
-            captured["azure_model_name"] = model_name
-            captured["provider"] = provider
-
-        async def request(self, *args: object, **kwargs: object) -> ModelResponse:
-            raise AssertionError("request() should not be called in this test")
-
+    """Azure chat models use the deployment name for requests, but take their
+    profile and thinking setting from the requested model name."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_MODEL", raising=False)
-    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "unused-key")
     monkeypatch.setenv(
         "AZURE_OPENAI_ENDPOINT",
-        "https://myhost.openai.azure.com/openai/deployments/gpt-6-luna-2/chat/completions?api-version=2025-01-01-preview",
-    )
-    monkeypatch.setattr(
-        model_adapters,
-        "_make_azure_provider",
-        lambda endpoint_envvar="AZURE_OPENAI_ENDPOINT", api_key_envvar="AZURE_OPENAI_API_KEY": provider,
-    )
-    monkeypatch.setattr(
-        "pydantic_ai.models.openai.OpenAIChatModel", FakeOpenAIChatModel
+        "https://myhost.openai.azure.com/openai/deployments/my-deploy/chat/completions?api-version=2025-01-01-preview",
     )
 
     chat_model = create_chat_model()
 
-    assert isinstance(chat_model, PydanticAIChatModel)
-    assert captured["azure_model_name"] == "gpt-6-luna-2"
-    assert captured["provider"] is provider
+    assert chat_model.model_name == "gpt-6-luna"
+    model = chat_model._model
+    assert model.model_name == "my-deploy"
+    assert model.profile.get("supports_thinking") is True
+    # Without the requested model's profile, pydantic_ai drops thinking=False.
+    _, params = model.prepare_request(
+        ModelSettings(thinking=False), ModelRequestParameters()
+    )
+    assert params.thinking is False

@@ -117,15 +117,20 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     This lets any pydantic_ai chat model (OpenAI, Anthropic, Google, …) be
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
     Requests disable thinking for GPT-6 Luna; other models use their defaults.
+
+    ``model_name`` names the underlying model when ``model.model_name`` is
+    something else, such as an Azure deployment name.
     """
 
     def __init__(
         self,
         model: Model,
         retrier: BoundAsyncRetryingCaller | None = None,
+        model_name: str | None = None,
     ) -> None:
         self._model = model
         self._retrier = retrier or DEFAULT_CHAT_RETRIER
+        self.model_name = model_name or model.model_name
 
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
@@ -145,7 +150,7 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
 
         settings = (
             ModelSettings(thinking=False)
-            if should_disable_thinking(self._model.model_name)
+            if should_disable_thinking(self.model_name)
             else None
         )
         response = await self._retrier(self._model.request, messages, settings, params)
@@ -305,13 +310,16 @@ def create_chat_model(
                 f"Azure deployment is determined by AZURE_OPENAI_ENDPOINT"
             )
         _, _, deployment_name = parse_azure_endpoint_parts()
+        azure_provider = _make_azure_provider()
+        # The deployment name says nothing about the model, so take the
+        # profile (e.g. thinking support) from the requested model name.
         model = OpenAIChatModel(
             deployment_name or model_name,
-            provider=_make_azure_provider(),
+            provider=azure_provider,
+            profile=azure_provider.model_profile(model_name),
         )
-    else:
-        model = infer_model(model_spec)
-    return PydanticAIChatModel(model, retrier)
+        return PydanticAIChatModel(model, retrier, model_name)
+    return PydanticAIChatModel(infer_model(model_spec), retrier)
 
 
 DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"

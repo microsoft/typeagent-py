@@ -69,6 +69,8 @@
 - Switch the default model from gpt-4o to gpt-6-luna; 4o will soon be retired.
   To start, we disable reasoning (`thinking=False`) for GPT-6 Luna only;
   other models retain their default reasoning settings.
+  On Azure, the model is taken from the requested model name (default
+  `gpt-6-luna`), not the deployment name, so this works for any deployment.
 - Replace `CamelCaseField` (and its module `typeagent.knowpro.field_helpers`)
   with a pydantic alias generator: the `typeagent.knowpro.dataclasses.dataclass`
   decorator now gives every field a camelCase alias. As a result, the
