@@ -27,6 +27,7 @@ from typeagent.aitools.model_adapters import (
     create_embedding_model,
     PydanticAIChatModel,
     PydanticAIEmbedder,
+    should_disable_thinking,
 )
 
 # ---------------------------------------------------------------------------
@@ -46,15 +47,24 @@ def test_spec_uses_colon_separator() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    "model_name, expected",
+    [
+        ("gpt-6-luna", True),
+        ("gpt-6-luna-2026-10-01", True),
+        ("gpt-6-lunar", False),
+        ("gpt-6-astra", False),
+        ("claude-sonnet-4-20250514", False),
+    ],
+)
+def test_should_disable_thinking(model_name: str, expected: bool) -> None:
+    assert should_disable_thinking(model_name) is expected
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "model_name, expected_thinking",
-    [
-        ("gpt-6-luna", False),
-        ("gpt-6-luna-2026-10-01", False),
-        ("gpt-6-astra", None),
-        ("claude-sonnet-4-20250514", None),
-    ],
+    [("gpt-6-luna", False), ("gpt-6-astra", None)],
 )
 async def test_chat_adapter_disables_thinking_only_for_luna(
     model_name: str, expected_thinking: bool | None

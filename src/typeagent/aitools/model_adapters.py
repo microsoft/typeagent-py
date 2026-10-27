@@ -105,6 +105,11 @@ set_on_retry_hooks([_on_retry])
 # ---------------------------------------------------------------------------
 
 
+def should_disable_thinking(model_name: str) -> bool:
+    """Return whether requests to this chat model should disable thinking."""
+    return model_name == "gpt-6-luna" or model_name.startswith("gpt-6-luna-")
+
+
 class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     """Adapter from :class:`pydantic_ai.models.Model` to TypeChat's
     :class:`~typechat.TypeChatLanguageModel`.
@@ -138,10 +143,9 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        model_name = self._model.model_name
         settings = (
             ModelSettings(thinking=False)
-            if model_name == "gpt-6-luna" or model_name.startswith("gpt-6-luna-")
+            if should_disable_thinking(self._model.model_name)
             else None
         )
         response = await self._retrier(self._model.request, messages, settings, params)

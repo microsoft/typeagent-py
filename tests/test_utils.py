@@ -333,7 +333,7 @@ class TestMakeAgent:
             {"thinking": False} if disables_thinking else None
         )
 
-    def test_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_openai_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "unused-key")
         agent = utils.make_agent(str)
         assert agent.model_settings == {"thinking": False}

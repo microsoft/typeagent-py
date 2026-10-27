@@ -269,9 +269,14 @@ def resolve_azure_model_name(
 
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
 def make_agent[T](cls: type[T]):
-    """Create Pydantic AI agent using hardcoded preferences, disabling Luna thinking."""
+    """Create Pydantic AI agent using hardcoded preferences.
+
+    Thinking is disabled for GPT-6 Luna.
+    """
     from pydantic_ai import Agent, NativeOutput, ToolOutput
     from pydantic_ai.models.openai import OpenAIChatModel
+
+    from typeagent.aitools.model_adapters import should_disable_thinking
 
     # Prefer straight OpenAI over Azure OpenAI.
     if os.getenv("OPENAI_API_KEY"):
@@ -300,10 +305,7 @@ def make_agent[T](cls: type[T]):
         model,
         output_type=Wrapper(cls, strict=True),
         model_settings=(
-            {"thinking": False}
-            if model.model_name == "gpt-6-luna"
-            or model.model_name.startswith("gpt-6-luna-")
-            else None
+            {"thinking": False} if should_disable_thinking(model.model_name) else None
         ),
         retries=3,
     )
