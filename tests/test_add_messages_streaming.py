@@ -1059,11 +1059,19 @@ async def test_streaming_fuzzy_terms_include_nameless_metadata_entity(
         await storage.close()
 
 
+_EMBEDDING_METHODS = (
+    "get_embedding",
+    "get_embeddings",
+    "get_embedding_nocache",
+    "get_embeddings_nocache",
+)
+
+
 @pytest.mark.asyncio
 async def test_streaming_retry_after_metadata_embedding_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A failed commit-time embedding must not hide terms from a retry."""
+    """A failed metadata-term embedding fails the message before its commit."""
     with tempfile.TemporaryDirectory() as tmpdir:
         transcript, storage = await _create_transcript(
             os.path.join(tmpdir, "test.db"),
@@ -1073,28 +1081,31 @@ async def test_streaming_retry_after_metadata_embedding_failure(
         fuzzy_index = storage.related_terms_index.fuzzy_index
         assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
 
-        # Only commit-time (metadata) embeddings go through the vector base;
-        # extracted terms are embedded with the model before the commit.
-        vector_base = fuzzy_index._vector_base
-        original_get_embeddings = vector_base.get_embeddings
-        calls = 0
+        # Related terms (metadata and extracted) are embedded together with
+        # the cached model call; the chunk embedding is uncached.
+        model = transcript.settings.embedding_model
+        original_get_embeddings = model.get_embeddings
+        failed_keys: list[str] = []
 
-        async def get_embeddings(*args, **kwargs):
-            nonlocal calls
-            calls += 1
-            if calls == 1:
+        async def get_embeddings(keys: list[str]):
+            if not failed_keys:
+                failed_keys.extend(keys)
                 raise RuntimeError("Embedding failure")
-            return await original_get_embeddings(*args, **kwargs)
+            return await original_get_embeddings(keys)
 
-        monkeypatch.setattr(vector_base, "get_embeddings", get_embeddings)
+        monkeypatch.setattr(model, "get_embeddings", get_embeddings)
 
         message = TranscriptMessage(
             text_chunks=["Look up at the Space Needle"],
             metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
         )
-        with pytest.raises(RuntimeError, match="Embedding failure"):
+        with pytest.raises(RuntimeError, match="Embedding failure") as exc_info:
             await add_messages_streaming(transcript, _async_iter([message]))
+        # The failing call embedded the metadata terms ("bob" is metadata only).
+        assert {"carol", "bob"} <= set(failed_keys)
+        assert "while processing message 0, chunk 0" in exc_info.value.__notes__
         assert await transcript.messages.size() == 0
+        assert await fuzzy_index.get_terms() == []
 
         await add_messages_streaming(transcript, _async_iter([message]))
 
@@ -1106,10 +1117,11 @@ async def test_streaming_retry_after_metadata_embedding_failure(
 
 
 @pytest.mark.asyncio
-async def test_streaming_commit_embeds_only_metadata_terms(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("skip_failed_messages", [False, True])
+async def test_streaming_zero_chunk_metadata_embedding_failure(
+    monkeypatch: pytest.MonkeyPatch, skip_failed_messages: bool
 ) -> None:
-    """Terms with precomputed embeddings are not embedded again at commit."""
+    """Failing to embed a zero-chunk message's metadata terms fails that message."""
     with tempfile.TemporaryDirectory() as tmpdir:
         transcript, storage = await _create_transcript(
             os.path.join(tmpdir, "test.db"),
@@ -1119,28 +1131,105 @@ async def test_streaming_commit_embeds_only_metadata_terms(
         fuzzy_index = storage.related_terms_index.fuzzy_index
         assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
 
-        # Only commit-time (metadata) embeddings go through the vector base.
-        vector_base = fuzzy_index._vector_base
-        original_get_embeddings = vector_base.get_embeddings
-        embedded: list[str] = []
+        model = transcript.settings.embedding_model
+        original_get_embeddings = model.get_embeddings
 
-        async def get_embeddings(keys: list[str], cache: bool = True):
-            embedded.extend(keys)
-            return await original_get_embeddings(keys, cache)
+        async def get_embeddings(keys: list[str]):
+            if "dave" in keys:
+                raise RuntimeError("Embedding failure")
+            return await original_get_embeddings(keys)
 
-        monkeypatch.setattr(vector_base, "get_embeddings", get_embeddings)
+        monkeypatch.setattr(model, "get_embeddings", get_embeddings)
 
-        message = TranscriptMessage(
-            text_chunks=["Look up at the Space Needle"],
-            metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+        messages = [
+            TranscriptMessage(
+                text_chunks=[],
+                metadata=TranscriptMessageMeta(speaker="Dave", recipients=["Erin"]),
+            ),
+            TranscriptMessage(
+                text_chunks=["Look up at the Space Needle"],
+                metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+            ),
+        ]
+        if skip_failed_messages:
+            result = await add_messages_streaming(
+                transcript, _async_iter(messages), skip_failed_messages=True
+            )
+            assert result.messages_skipped == 1
+            assert result.messages_added == 1
+            assert await transcript.messages.size() == 1
+            term_index_terms = await storage.semantic_ref_index.get_terms()
+            assert "bob" in term_index_terms
+            assert not {"dave", "erin"} & set(term_index_terms)
+            assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+        else:
+            with pytest.raises(RuntimeError, match="Embedding failure") as exc_info:
+                await add_messages_streaming(transcript, _async_iter(messages))
+            assert (
+                "while processing message 0 (metadata only; no text chunks)"
+                in exc_info.value.__notes__
+            )
+            assert await transcript.messages.size() == 0
+            assert await storage.semantic_ref_index.get_terms() == []
+            assert await fuzzy_index.get_terms() == []
+
+        await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_commit_makes_no_embedding_calls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """All embeddings, metadata terms included, are computed outside the
+    commit transaction (#270)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(
+            os.path.join(tmpdir, "test.db"),
+            auto_extract=True,
+            knowledge_extractor=RichKnowledgeExtractor(subject="Carol"),
         )
-        await add_messages_streaming(transcript, _async_iter([message]))
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+        assert isinstance(fuzzy_index, SqliteRelatedTermsFuzzy)
 
-        # "carol" is both the speaker and the extracted action's subject, so
-        # it already has a precomputed embedding.
-        assert "bob" in embedded
-        assert "carol" not in embedded
-        assert not {"space needle", "looks up", "seattle"} & set(embedded)
-        assert len(embedded) == len(set(embedded))
+        embedded_outside: list[str] = []
+        embedded_inside: list[str] = []
+
+        def _record(original):
+            async def wrapper(arg):
+                keys = [arg] if isinstance(arg, str) else list(arg)
+                if storage.db.in_transaction:
+                    embedded_inside.extend(keys)
+                else:
+                    embedded_outside.extend(keys)
+                return await original(arg)
+
+            return wrapper
+
+        model = transcript.settings.embedding_model
+        for name in _EMBEDDING_METHODS:
+            monkeypatch.setattr(model, name, _record(getattr(model, name)))
+        vector_base = fuzzy_index._vector_base
+        monkeypatch.setattr(
+            vector_base, "get_embeddings", _record(vector_base.get_embeddings)
+        )
+
+        messages = [
+            TranscriptMessage(
+                text_chunks=["Look up at the Space Needle", "It is tall"],
+                metadata=TranscriptMessageMeta(speaker="Carol", recipients=["Bob"]),
+            ),
+            # Zero-chunk messages still have metadata terms to embed.
+            TranscriptMessage(
+                text_chunks=[],
+                metadata=TranscriptMessageMeta(speaker="Dave", recipients=["Erin"]),
+            ),
+        ]
+        await add_messages_streaming(transcript, _async_iter(messages))
+
+        assert embedded_inside == []
+        assert {"bob", "dave", "erin", "space needle"} <= set(embedded_outside)
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert {"dave", "erin"} <= set(term_index_terms)
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()
