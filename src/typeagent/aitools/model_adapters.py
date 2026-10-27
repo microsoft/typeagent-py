@@ -111,7 +111,7 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
 
     This lets any pydantic_ai chat model (OpenAI, Anthropic, Google, …) be
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
-    Requests disable thinking where the model supports it.
+    Requests disable thinking for GPT-6 Luna; other models use their defaults.
     """
 
     def __init__(
@@ -138,9 +138,13 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        response = await self._retrier(
-            self._model.request, messages, ModelSettings(thinking=False), params
+        model_name = self._model.model_name
+        settings = (
+            ModelSettings(thinking=False)
+            if model_name == "gpt-6-luna" or model_name.startswith("gpt-6-luna-")
+            else None
         )
+        response = await self._retrier(self._model.request, messages, settings, params)
         text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
         if text_parts:
             return typechat.Success("".join(text_parts))

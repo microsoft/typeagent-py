@@ -47,13 +47,26 @@ def test_spec_uses_colon_separator() -> None:
 
 
 @pytest.mark.asyncio
-async def test_chat_adapter_disables_thinking() -> None:
+@pytest.mark.parametrize(
+    "model_name, expected_thinking",
+    [
+        ("gpt-6-luna", False),
+        ("gpt-6-luna-2026-10-01", False),
+        ("gpt-6-astra", None),
+        ("claude-sonnet-4-20250514", None),
+    ],
+)
+async def test_chat_adapter_disables_thinking_only_for_luna(
+    model_name: str, expected_thinking: bool | None
+) -> None:
     def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
-        assert info.model_request_parameters.thinking is False
+        assert info.model_request_parameters.thinking is expected_thinking
         return ModelResponse(parts=[TextPart(content="hello")])
 
     adapter = PydanticAIChatModel(
-        FunctionModel(respond, profile={"supports_thinking": True})
+        FunctionModel(
+            respond, model_name=model_name, profile={"supports_thinking": True}
+        )
     )
     result = await adapter.complete("test prompt")
     assert isinstance(result, typechat.Success)

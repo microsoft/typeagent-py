@@ -312,6 +312,27 @@ class TestGetAzureApiKey:
 
 
 class TestMakeAgent:
+    @pytest.mark.parametrize(
+        "deployment, disables_thinking",
+        [("gpt-6-luna", True), ("gpt-6-astra", False)],
+    )
+    def test_azure_thinking_only_disabled_for_luna(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        deployment: str,
+        disables_thinking: bool,
+    ) -> None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "unused-key")
+        monkeypatch.setenv(
+            "AZURE_OPENAI_ENDPOINT",
+            f"https://example.openai.azure.com/openai/deployments/{deployment}/chat/completions?api-version=2025-01-01-preview",
+        )
+        agent = utils.make_agent(str)
+        assert agent.model_settings == (
+            {"thinking": False} if disables_thinking else None
+        )
+
     def test_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "unused-key")
         agent = utils.make_agent(str)

@@ -67,7 +67,8 @@
 
 #### Core typeagent package
 - Switch the default model from gpt-4o to gpt-6-luna; 4o will soon be retired.
-  To start, we disable reasoning (thinking=False).
+  To start, we disable reasoning (`thinking=False`) for GPT-6 Luna only;
+  other models retain their default reasoning settings.
 - Replace `CamelCaseField` (and its module `typeagent.knowpro.field_helpers`)
   with a pydantic alias generator: the `typeagent.knowpro.dataclasses.dataclass`
   decorator now gives every field a camelCase alias. As a result, the
