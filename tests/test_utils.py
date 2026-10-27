@@ -312,6 +312,11 @@ class TestGetAzureApiKey:
 
 
 class TestMakeAgent:
+    def test_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "unused-key")
+        agent = utils.make_agent(str)
+        assert agent.model_settings == {"thinking": False}
+
     def test_no_keys_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)

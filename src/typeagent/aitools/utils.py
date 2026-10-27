@@ -269,7 +269,7 @@ def resolve_azure_model_name(
 
 # The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
 def make_agent[T](cls: type[T]):
-    """Create Pydantic AI agent using hardcoded preferences."""
+    """Create Pydantic AI agent using hardcoded preferences, disabling thinking."""
     from pydantic_ai import Agent, NativeOutput, ToolOutput
     from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -296,4 +296,9 @@ def make_agent[T](cls: type[T]):
             "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
         )
 
-    return Agent(model, output_type=Wrapper(cls, strict=True), retries=3)
+    return Agent(
+        model,
+        output_type=Wrapper(cls, strict=True),
+        model_settings={"thinking": False},
+        retries=3,
+    )

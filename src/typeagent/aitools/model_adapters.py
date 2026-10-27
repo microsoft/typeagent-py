@@ -50,6 +50,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import infer_model, Model, ModelRequestParameters
+from pydantic_ai.settings import ModelSettings
 import typechat
 
 from .embeddings import (
@@ -110,6 +111,7 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
 
     This lets any pydantic_ai chat model (OpenAI, Anthropic, Google, …) be
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
+    Requests disable thinking where the model supports it.
     """
 
     def __init__(
@@ -136,7 +138,9 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        response = await self._retrier(self._model.request, messages, None, params)
+        response = await self._retrier(
+            self._model.request, messages, ModelSettings(thinking=False), params
+        )
         text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
         if text_parts:
             return typechat.Success("".join(text_parts))

@@ -9,12 +9,14 @@ import pytest
 from pydantic_ai import Embedder
 from pydantic_ai.embeddings import EmbeddingResult
 from pydantic_ai.messages import (
+    ModelMessage,
     ModelResponse,
     SystemPromptPart,
     TextPart,
     UserPromptPart,
 )
 from pydantic_ai.models import Model
+from pydantic_ai.models.function import AgentInfo, FunctionModel
 import typechat
 
 from typeagent.aitools import model_adapters
@@ -42,6 +44,20 @@ def test_spec_uses_colon_separator() -> None:
 # ---------------------------------------------------------------------------
 # PydanticAIChatModel adapter
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_chat_adapter_disables_thinking() -> None:
+    def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        assert info.model_request_parameters.thinking is False
+        return ModelResponse(parts=[TextPart(content="hello")])
+
+    adapter = PydanticAIChatModel(
+        FunctionModel(respond, profile={"supports_thinking": True})
+    )
+    result = await adapter.complete("test prompt")
+    assert isinstance(result, typechat.Success)
+    assert result.value == "hello"
 
 
 @pytest.mark.asyncio
