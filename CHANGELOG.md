@@ -82,8 +82,14 @@
   multi-word verbs are embedded as one term (e.g. `"looks up"` rather than
   `"looks"` and `"up"`), matching the term index. `add_messages_streaming`
   used to skip terms from message metadata (e.g. speakers and recipients) and
-  now embeds them at commit time; it also no longer embeds the types and
-  facets of extracted entities without a name, which the term index skips.
+  now embeds them; it also no longer embeds the types and facets of extracted
+  entities without a name, which the term index skips.
+- `add_messages_streaming` now computes all related-term embeddings, metadata
+  terms included, in the pipeline workers; the per-batch commit transaction no
+  longer calls the embedding model (#270). Messages with no text chunks now
+  pass through the pipeline as metadata-only work items, so a failure
+  embedding their metadata terms is a message failure like any other: it
+  raises, or with `skip_failed_messages=True` skips the whole message.
 - The fuzzy related-terms index (in memory and SQLite) now stores each term
   once: terms repeated within one `add_terms`/`add_terms_with_embeddings` call
   or already held are skipped, so common terms such as `person` no longer
