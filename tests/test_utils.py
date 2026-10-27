@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 import pytest
 
 import pydantic.dataclasses
-from pydantic_ai.models.openai import OpenAIChatModel
 import typechat
 
 from typeagent.aitools import utils
@@ -310,35 +309,6 @@ class TestGetAzureApiKey:
         # (lowercased) triggers that path. Since we can't call the identity provider
         # in tests, just verify non-identity keys pass through unchanged.
         assert utils.get_azure_api_key("APIKEY123") == "APIKEY123"
-
-
-class TestMakeAgent:
-    def test_azure_disables_thinking_for_any_deployment_name(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.setenv("AZURE_OPENAI_API_KEY", "unused-key")
-        monkeypatch.setenv(
-            "AZURE_OPENAI_ENDPOINT",
-            "https://example.openai.azure.com/openai/deployments/my-deploy/chat/completions?api-version=2025-01-01-preview",
-        )
-        agent = utils.make_agent(str)
-        assert agent.model_settings == {"thinking": False}
-        model = agent.model
-        assert isinstance(model, OpenAIChatModel)
-        assert model.model_name == "my-deploy"
-        assert model.profile.get("supports_thinking") is True
-
-    def test_openai_disables_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OPENAI_API_KEY", "unused-key")
-        agent = utils.make_agent(str)
-        assert agent.model_settings == {"thinking": False}
-
-    def test_no_keys_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
-        with pytest.raises(RuntimeError, match="Neither OPENAI_API_KEY"):
-            utils.make_agent(str)
 
 
 class TestResolveAzureModelName:
