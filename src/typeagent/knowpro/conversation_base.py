@@ -446,11 +446,10 @@ class ConversationBase(
             start_points.message_count,
         )
 
-        # A failure after add_terms_with_embeddings leaves
-        # SqliteRelatedTermsFuzzy's in-memory state (which a rollback doesn't
-        # restore) ahead of the rolled-back DB, so a retry on the same storage
-        # would skip those terms.
-        # TODO: Restore the fuzzy index's in-memory state on rollback (#362).
+        # If anything in the transaction fails, the storage provider's rollback
+        # restores the fuzzy index's in-memory state (see
+        # SqliteStorageProvider.__aexit__), so a retry on the same storage
+        # re-adds these terms.
         term_to_related = self.secondary_indexes.term_to_related_terms_index
         if term_to_related is not None:
             fuzzy_index = term_to_related.fuzzy_index

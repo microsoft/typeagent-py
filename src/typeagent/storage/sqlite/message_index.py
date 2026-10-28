@@ -39,18 +39,42 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         self.settings = settings
         self._message_collection = message_collection
         self._vectorbase = VectorBase(settings=settings.embedding_index_settings)
-        if self._size():
-            cursor = self.db.cursor()
-            cursor.execute("SELECT embedding FROM MessageTextIndex")
-            rows = cursor.fetchall()
-            if rows:
-                embeddings: list[NormalizedEmbedding] = [
-                    deserialize_embedding(row[0]) for row in rows
-                ]
-                embeddings_array = np.stack(embeddings, axis=0).astype(
-                    np.float32, copy=False
+        self.reload_from_db()
+
+    def reload_from_db(self) -> None:
+        """Rebuild the VectorBase from the MessageTextIndex table.
+
+        The VectorBase is updated alongside the table writes, but a transaction
+        rollback restores only the table. The constructor calls this, and so
+        does the storage provider after a rollback, so VectorBase row i holds
+        the embedding stored at index_position i.
+
+        That mapping requires the index_position values to be 0..n-1 without
+        gaps, which holds because positions are assigned from the VectorBase
+        length and rows are only ever deleted all at once.
+        """
+        self._vectorbase.clear()
+        cursor = self.db.cursor()
+        cursor.execute(
+            "SELECT index_position, embedding FROM MessageTextIndex "
+            "ORDER BY index_position"
+        )
+        rows = cursor.fetchall()
+        if rows:
+            positions = [row[0] for row in rows]
+            if positions != list(range(len(rows))):
+                raise ValueError(
+                    "MessageTextIndex index_position values are not contiguous "
+                    f"from 0 (found {len(rows)} rows, positions {positions[0]}"
+                    f"..{positions[-1]}); re-ingest to rebuild the index"
                 )
-                self._vectorbase.add_embeddings(None, embeddings_array)
+            embeddings: list[NormalizedEmbedding] = [
+                deserialize_embedding(row[1]) for row in rows
+            ]
+            embeddings_array = np.stack(embeddings, axis=0).astype(
+                np.float32, copy=False
+            )
+            self._vectorbase.add_embeddings(None, embeddings_array)
 
     async def size(self) -> int:
         return self._size()
@@ -389,6 +413,7 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
 
         # Clear existing data
         cursor.execute("DELETE FROM MessageTextIndex")
+        self._vectorbase.clear()
 
         # Get the index data
         index_data = data.get("indexData")
@@ -437,3 +462,4 @@ class SqliteMessageTextIndex(IMessageTextEmbeddingIndex):
         """Clear the message text index."""
         cursor = self.db.cursor()
         cursor.execute("DELETE FROM MessageTextIndex")
+        self._vectorbase.clear()

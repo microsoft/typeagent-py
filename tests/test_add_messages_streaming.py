@@ -1233,3 +1233,56 @@ async def test_streaming_commit_makes_no_embedding_calls(
         assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
 
         await storage.close()
+
+
+@pytest.mark.asyncio
+async def test_streaming_retry_after_rollback_of_later_batch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A batch rolled back after its indexes were updated can be re-ingested (#362)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        transcript, storage = await _create_transcript(os.path.join(tmpdir, "test.db"))
+        fuzzy_index = storage.related_terms_index.fuzzy_index
+
+        # Fail the second batch's commit at its last step, after the fuzzy
+        # index and the message text index have been updated.
+        original_update = storage.update_conversation_timestamps
+        calls = 0
+
+        async def update_timestamps_failing_second(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("simulated failure")
+            await original_update(*args, **kwargs)
+
+        monkeypatch.setattr(
+            storage, "update_conversation_timestamps", update_timestamps_failing_second
+        )
+
+        batch1 = [_make_message("first", "Alice"), _make_message("second", "Bob")]
+        batch2 = [_make_message("third", "Carol")]
+        with pytest.raises(RuntimeError, match="simulated failure"):
+            await add_messages_streaming(
+                transcript, _async_iter(batch1 + batch2), batch_size=2
+            )
+        assert await transcript.messages.size() == 2
+        assert "carol" not in await fuzzy_index.get_terms()
+        assert "carol" not in fuzzy_index.serialize()["textItems"]
+
+        await add_messages_streaming(transcript, _async_iter(batch2))
+
+        assert await transcript.messages.size() == 3
+        term_index_terms = await storage.semantic_ref_index.get_terms()
+        assert {"alice", "bob", "carol"} <= set(term_index_terms)
+        assert sorted(await fuzzy_index.get_terms()) == sorted(term_index_terms)
+        for term in ("alice", "carol"):
+            hits = await fuzzy_index.lookup_term(term, max_hits=1, min_score=0.0)
+            assert [t.text for t in hits] == [term]
+        for text, ordinal in (("first", 0), ("third", 2)):
+            matches = await storage.message_text_index.lookup_messages(
+                text, max_matches=1
+            )
+            assert [m.message_ordinal for m in matches] == [ordinal]
+
+        await storage.close()
