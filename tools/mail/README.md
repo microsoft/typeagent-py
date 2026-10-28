@@ -6,7 +6,7 @@ Downloads Gmail messages as `.eml` files via the Gmail API.
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.13+
 - A Google Cloud project with the Gmail API enabled
 - OAuth 2.0 client credentials (`client_secret.json`)
 
@@ -74,7 +74,7 @@ Downloads Outlook emails as `.eml` files via the Microsoft Graph API.
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.13+
 - An Azure AD (Microsoft Entra ID) app registration
 
 ### Azure AD App Registration Setup
@@ -185,7 +185,7 @@ files (numbered `1.eml`, `2.eml`, …).
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.13+
 - An `.mbox` file (local or accessible via URL)
 
 No API keys, OAuth credentials, or cloud projects are required.
