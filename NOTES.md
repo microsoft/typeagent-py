@@ -91,7 +91,7 @@ Examples of questions where Python's answer generator does better
 
 I don't do an exhaustive check but I didn't find any where TS did better.
 Possibly this can be explained by the TS version's stingy character budget.
-Python (yet) use an infinite character budget. (GPT-6-luna has a very large
+Python (yet) use an infinite character budget. (GPT-4o has a very large
 token buffer limit, IIRC our entire podcast would fit in it.)
 *Arguably Python is cheating here.*
 
