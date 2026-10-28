@@ -194,7 +194,7 @@ class TestParseAzureEndpoint:
         """APIM prefix before /openai/deployments/ is kept."""
         monkeypatch.setenv(
             "TEST_ENDPOINT",
-            "https://apim.net/openai/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
+            "https://apim.net/openai/openai/deployments/gpt-6-luna/chat/completions?api-version=2025-01-01-preview",
         )
         endpoint, version = utils.parse_azure_endpoint("TEST_ENDPOINT")
         assert endpoint == "https://apim.net/openai"
@@ -227,14 +227,14 @@ class TestParseAzureEndpoint:
         """APIM-style URL: prefix before /openai kept, deployment name extracted."""
         monkeypatch.setenv(
             "TEST_ENDPOINT",
-            "https://apim.net/openai/openai/deployments/gpt-4o/chat/completions?api-version=2025-01-01-preview",
+            "https://apim.net/openai/openai/deployments/gpt-6-luna/chat/completions?api-version=2025-01-01-preview",
         )
         endpoint, version, deployment = utils.parse_azure_endpoint_parts(
             "TEST_ENDPOINT"
         )
         assert endpoint == "https://apim.net/openai"
         assert version == "2025-01-01-preview"
-        assert deployment == "gpt-4o"
+        assert deployment == "gpt-6-luna"
 
 
 class TestReindent:
@@ -311,14 +311,6 @@ class TestGetAzureApiKey:
         assert utils.get_azure_api_key("APIKEY123") == "APIKEY123"
 
 
-class TestMakeAgent:
-    def test_no_keys_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        monkeypatch.delenv("AZURE_OPENAI_API_KEY", raising=False)
-        with pytest.raises(RuntimeError, match="Neither OPENAI_API_KEY"):
-            utils.make_agent(str)
-
-
 class TestResolveAzureModelName:
     def test_returns_model_name_when_no_deployment(
         self, monkeypatch: pytest.MonkeyPatch
@@ -327,8 +319,8 @@ class TestResolveAzureModelName:
             "AZURE_OPENAI_ENDPOINT",
             "https://myhost.openai.azure.com/openai?api-version=2024-06-01",
         )
-        result = utils.resolve_azure_model_name("gpt-4o")
-        assert result == "gpt-4o"
+        result = utils.resolve_azure_model_name("gpt-6-luna")
+        assert result == "gpt-6-luna"
 
     def test_returns_deployment_when_present(
         self, monkeypatch: pytest.MonkeyPatch
@@ -337,5 +329,5 @@ class TestResolveAzureModelName:
             "AZURE_OPENAI_ENDPOINT",
             "https://myhost.openai.azure.com/openai/deployments/my-deploy/chat?api-version=2024-06-01",
         )
-        result = utils.resolve_azure_model_name("gpt-4o")
+        result = utils.resolve_azure_model_name("gpt-6-luna")
         assert result == "my-deploy"

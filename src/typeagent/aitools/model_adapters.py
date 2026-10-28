@@ -8,7 +8,7 @@ Create chat and embedding models from ``provider:model`` spec strings::
     from typeagent.aitools.model_adapters import configure_models
 
     chat, embedder = configure_models(
-        "openai:gpt-4o",
+        "openai:gpt-6-luna",
         "openai:text-embedding-3-small",
     )
 
@@ -50,6 +50,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import infer_model, Model, ModelRequestParameters
+from pydantic_ai.settings import ModelSettings
 import typechat
 
 from .embeddings import (
@@ -104,21 +105,30 @@ set_on_retry_hooks([_on_retry])
 # ---------------------------------------------------------------------------
 
 
+def should_disable_thinking(model_name: str) -> bool:
+    """Return whether requests to this chat model should disable thinking."""
+    return model_name == "gpt-6-luna" or model_name.startswith("gpt-6-luna-")
+
+
 class PydanticAIChatModel(typechat.TypeChatLanguageModel):
     """Adapter from :class:`pydantic_ai.models.Model` to TypeChat's
     :class:`~typechat.TypeChatLanguageModel`.
 
     This lets any pydantic_ai chat model (OpenAI, Anthropic, Google, …) be
     used wherever TypeChat expects a ``TypeChatLanguageModel``.
+    ``settings`` are passed through to each request; when omitted, the wrapped
+    model uses its own defaults.
     """
 
     def __init__(
         self,
         model: Model,
         retrier: BoundAsyncRetryingCaller | None = None,
+        settings: ModelSettings | None = None,
     ) -> None:
         self._model = model
         self._retrier = retrier or DEFAULT_CHAT_RETRIER
+        self.settings = settings
 
     async def complete(
         self, prompt: str | list[typechat.PromptSection]
@@ -136,7 +146,9 @@ class PydanticAIChatModel(typechat.TypeChatLanguageModel):
         messages: list[ModelMessage] = [ModelRequest(parts=parts)]
         params = ModelRequestParameters()
 
-        response = await self._retrier(self._model.request, messages, None, params)
+        response = await self._retrier(
+            self._model.request, messages, self.settings, params
+        )
         text_parts = [p.content for p in response.parts if isinstance(p, TextPart)]
         if text_parts:
             return typechat.Success("".join(text_parts))
@@ -251,7 +263,7 @@ def _make_azure_provider(
 # ---------------------------------------------------------------------------
 
 
-DEFAULT_CHAT_SPEC = "openai:gpt-4o"
+DEFAULT_CHAT_SPEC = "openai:gpt-6-luna"
 
 
 def create_chat_model(
@@ -267,11 +279,12 @@ def create_chat_model(
 
     If *model_spec* is ``None``, it is constructed from the ``OPENAI_MODEL``
     environment variable (falling back to :data:`DEFAULT_CHAT_SPEC`).
+    Requests disable thinking for GPT-6 Luna; other models use their defaults.
 
     Examples::
 
-        model = create_chat_model()  # uses OPENAI_MODEL or gpt-4o
-        model = create_chat_model("openai:gpt-4o")
+        model = create_chat_model()  # uses OPENAI_MODEL or gpt-6-luna
+        model = create_chat_model("openai:gpt-6-luna")
         model = create_chat_model("anthropic:claude-sonnet-4-20250514")
         model = create_chat_model("google:gemini-2.0-flash")
     """
@@ -282,6 +295,9 @@ def create_chat_model(
         else:
             model_spec = DEFAULT_CHAT_SPEC
     provider, _, model_name = model_spec.partition(":")
+    settings = (
+        ModelSettings(thinking=False) if should_disable_thinking(model_name) else None
+    )
     if _needs_azure_fallback(provider):
         from pydantic_ai.models.openai import OpenAIChatModel
 
@@ -293,13 +309,16 @@ def create_chat_model(
                 f"Azure deployment is determined by AZURE_OPENAI_ENDPOINT"
             )
         _, _, deployment_name = parse_azure_endpoint_parts()
+        azure_provider = _make_azure_provider()
+        # The deployment name says nothing about the model, so take the
+        # profile (e.g. thinking support) from the requested model name.
         model = OpenAIChatModel(
             deployment_name or model_name,
-            provider=_make_azure_provider(),
+            provider=azure_provider,
+            profile=azure_provider.model_profile(model_name),
         )
-    else:
-        model = infer_model(model_spec)
-    return PydanticAIChatModel(model, retrier)
+        return PydanticAIChatModel(model, retrier, settings=settings)
+    return PydanticAIChatModel(infer_model(model_spec), retrier, settings=settings)
 
 
 DEFAULT_EMBEDDING_SPEC = "openai:text-embedding-ada-002"
@@ -461,7 +480,7 @@ def configure_models(
     Example::
 
         chat, embedder = configure_models(
-            "openai:gpt-4o",
+            "openai:gpt-6-luna",
             "openai:text-embedding-3-small",
         )
 

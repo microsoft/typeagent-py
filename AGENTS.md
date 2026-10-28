@@ -41,6 +41,7 @@ AGENTS.md. In all cases show what you added to AGENTS.md.
 - When adding precomputed-embedding write paths, expose explicit `*_with_embeddings` methods and have existing methods compute embeddings then delegate to those methods.
 - In asyncio code, avoid locks for in-memory state updates that do not `await` between read/modify/write; use locks only when a critical section spans `await` points.
 - Name returned summary/value objects as `*Result`; reserve `*State` for mutable shared/internal state.
+- Keep model-specific default settings in model factories, not provider-agnostic adapters. Adapters should pass through explicit request settings and preserve wrapped model defaults when settings are omitted.
 - Keep internal helper type naming consistent within a module; avoid mixing underscored and non-underscored helper class names without a clear API-boundary reason.
 - Prefer variable names that reflect role rather than lifecycle; for accumulators like message assemblies, use neutral names (e.g., `assembly`) instead of state-qualified names (e.g., `existing`).
 - Avoid potential import cycles between conversation orchestration and pipeline modules by using neutral payload protocols/arguments instead of importing concrete pipeline result classes across modules.
@@ -80,7 +81,7 @@ please follow these guidelines:
 # Licensed under the MIT License.
 ```
 
-* Assume Python 3.12
+* Assume Python 3.13
 
 * `from __future__ import annotations` is not allowed.
 

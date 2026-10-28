@@ -19,7 +19,7 @@ The (public) OpenAI environment variables include the following:
   [OpenAI dashboard](https://platform.openai.com/api-keys).
 - `OPENAI_MODEL`: An environment variable introduced by
   [TypeChat](https://microsoft.github.io/TypeChat/docs/examples/)
-  indicating the model to use (e.g.`gpt-4o`).
+  indicating the model to use (e.g.`gpt-6-luna`).
 
 ### Optional:
 

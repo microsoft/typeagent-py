@@ -47,7 +47,7 @@ goto help
 if not exist ".venv\" call make.bat venv
 echo Formatting code...
 uv run isort src tests tools examples %ARGS% || exit /b 1
-uv run black -tpy312 src tests tools examples %ARGS% || exit /b 1
+uv run black -tpy313 src tests tools examples %ARGS% || exit /b 1
 goto end
 
 :: intentionally running pyright only for the lowest and the highest version 
@@ -56,7 +56,7 @@ goto end
 :check
 if not exist ".venv\" call make.bat venv
 echo Running type checks...
-uv run pyright --pythonversion 3.12 src tests tools examples || exit /b 1
+uv run pyright --pythonversion 3.13 src tests tools examples || exit /b 1
 uv run pyright --pythonversion 3.15 src tests tools examples || exit /b 1
 goto end
 

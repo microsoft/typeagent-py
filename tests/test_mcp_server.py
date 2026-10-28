@@ -84,7 +84,7 @@ async def sampling_callback(
     return CreateMessageResult(
         role="assistant",
         content=TextContent(type="text", text=text),
-        model="gpt-4o",
+        model="gpt-6-luna",
         stopReason="endTurn",
     )
 

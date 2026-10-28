@@ -19,6 +19,7 @@ Don't use it to index confidential information.
 
 - Found in the [docs directory](docs/README.md)
 - Quick install: `pip install typeagent`
+- Requires Python 3.13 or newer.
 - Download the [PyBay '25 PowerPoint slides](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pptx)
 - Download the [PyBay '25 slides as PDF](https://github.com/microsoft/typeagent-py/raw/refs/heads/main/docs/StructuredRagPyBay25.pdf)
 - Watch the [PyBay '25 video](https://youtu.be/-klESD7iB-s)

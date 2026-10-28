@@ -14,14 +14,13 @@ authors = [
   { name = "Steven Lucco" },
   { name = "Umesh Madan" },
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: 3.15",
@@ -47,7 +46,7 @@ dependencies = [
   "openai>=1.81.0",
   "pydantic>=2.14.0; python_version >= '3.15'",
   "pydantic>=2.10.0; python_version < '3.15'",
-  "pydantic-ai-slim[openai]>=2.25.0",
+  "pydantic-ai-slim[openai]>=2.48.0",
   "pyreadline3>=3.5.4 ; sys_platform == 'win32'",
   "python-dotenv>=1.1.0",
   "stamina>=26.1.0",
