@@ -66,7 +66,7 @@ The minimal set of environment variables is:
 
 ```sh
 export OPENAI_API_KEY=your-very-secret-openai-api-key
-export OPENAI_MODEL=gpt-4o
+export OPENAI_MODEL=gpt-6-luna
 ```
 
 Some OpenAI setups will require some additional environment variables.

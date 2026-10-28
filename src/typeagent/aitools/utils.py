@@ -265,35 +265,3 @@ def resolve_azure_model_name(
     """Resolve an Azure deployment name from an endpoint, if present."""
     _, _, deployment_name = parse_azure_endpoint_parts(endpoint_envvar)
     return deployment_name or model_name
-
-
-# The true return type is pydantic_ai.Agent[T], but that's an optional dependency.
-def make_agent[T](cls: type[T]):
-    """Create Pydantic AI agent using hardcoded preferences."""
-    from pydantic_ai import Agent, NativeOutput, ToolOutput
-    from pydantic_ai.models.openai import OpenAIChatModel
-
-    # Prefer straight OpenAI over Azure OpenAI.
-    if os.getenv("OPENAI_API_KEY"):
-        Wrapper = NativeOutput
-        print(f"## Using OpenAI with {Wrapper.__name__} ##")
-        model = OpenAIChatModel("gpt-4o")  # Retrieves OPENAI_API_KEY again.
-
-    elif os.getenv("AZURE_OPENAI_API_KEY"):
-        from typeagent.aitools.model_adapters import _make_azure_provider
-
-        azure_provider = _make_azure_provider()
-        Wrapper = ToolOutput
-
-        print(f"## Using Azure with {Wrapper.__name__} ##")
-        model = OpenAIChatModel(
-            resolve_azure_model_name("gpt-4o"),
-            provider=azure_provider,
-        )
-
-    else:
-        raise RuntimeError(
-            "Neither OPENAI_API_KEY nor AZURE_OPENAI_API_KEY was provided."
-        )
-
-    return Agent(model, output_type=Wrapper(cls, strict=True), retries=3)
