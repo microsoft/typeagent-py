@@ -158,9 +158,10 @@ async def _dispatcher_task[TMessage: IMessage](
     ``None`` sentinel on ``result_queue`` to signal the reassembler.
 
     Concurrency is bounded by a semaphore so at most ``concurrency`` worker
-    tasks run simultaneously.  Chunks at or beyond ``stop_at_message_id`` are
-    skipped and reported as error results so the reassembler can account for
-    them deterministically.
+    tasks exist at once; each task keeps its slot until its result is on
+    ``result_queue``, so a full ``result_queue`` backpressures the dispatcher.
+    Chunks at or beyond ``stop_at_message_id`` are skipped and reported as
+    error results so the reassembler can account for them deterministically.
 
     Args:
         skip_failed_messages: If True, don't halt producer on extraction/embedding
@@ -201,10 +202,13 @@ async def _dispatcher_task[TMessage: IMessage](
                             stop_state.stop_at_message_id = new_stop
                         if stop_state.exception is None:
                             stop_state.exception = result.error
+
+            # Hold the semaphore until the result is queued, so a full
+            # result_queue (e.g. during a slow commit) stalls the dispatcher
+            # instead of piling up finished tasks.
+            await result_queue.put(result)
         finally:
             sem.release()
-
-        await result_queue.put(result)
 
     async with asyncio.TaskGroup() as tg:
         while True:
