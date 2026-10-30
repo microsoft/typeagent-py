@@ -117,21 +117,25 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
         # so raw strings don't sort chronologically. Prefilter via strftime(),
         # which converts to UTC and renders a fixed-width value (also for existing
         # rows) but only to the millisecond, then check exact bounds in Python.
+        # A None end makes the range open-ended (start <= t), matching
+        # DateRange.__contains__.
         start = date_range.start
-        stop = date_range.end if date_range.end is not None else start
+        stop = date_range.end
         norm_col = NORMALIZED_TIMESTAMP_SQL.format(value="start_timestamp")
         norm_arg = NORMALIZED_TIMESTAMP_SQL.format(value="?")
+        where = f"{norm_col} >= {norm_arg}"
+        params = [format_timestamp_utc(start - _PREFILTER_MARGIN)]
+        if stop is not None:
+            where += f" AND {norm_col} < {norm_arg}"
+            params.append(format_timestamp_utc(stop + _PREFILTER_MARGIN))
         cursor.execute(
             f"""
             SELECT msg_id, start_timestamp
             FROM Messages
-            WHERE {norm_col} >= {norm_arg} AND {norm_col} < {norm_arg}
+            WHERE {where}
             ORDER BY msg_id
             """,
-            (
-                format_timestamp_utc(start - _PREFILTER_MARGIN),
-                format_timestamp_utc(stop + _PREFILTER_MARGIN),
-            ),
+            params,
         )
 
         results = []
@@ -139,10 +143,7 @@ class SqliteTimestampToTextRangeIndex(ITimestampToTextRangeIndex):
             occurred = Datetime.fromisoformat(timestamp)
             if occurred.tzinfo is None:
                 occurred = occurred.replace(tzinfo=timezone.utc)  # naive == UTC
-            if date_range.end is None:
-                if occurred != start:  # Point query
-                    continue
-            elif not start <= occurred < date_range.end:
+            if occurred not in date_range:
                 continue
             text_location = TextLocation(message_ordinal=msg_id, chunk_ordinal=0)
             text_range = TextRange(start=text_location, end=None)  # Point range

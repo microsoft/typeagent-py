@@ -8,8 +8,8 @@
 #   timestamps are assumed to be UTC). They are normalized to UTC ("...Z") so that
 #   lexicographic order equals chronological order. Missing/None timestamps are ignored.
 # - lookup_range(DateRange) returns items whose ISO timestamp t satisfies
-#   start <= t < end (end is exclusive). If end is None, treat as a point
-#   query with end = start + epsilon.
+#   start <= t < end (end is exclusive). If end is None, the range is
+#   open-ended: start <= t, matching DateRange.__contains__.
 # - Results are sorted ascending by timestamp; stability across runs is expected.
 #
 # SQLite plan (no behavior change now):
@@ -137,15 +137,11 @@ def get_in_range[T, S: Any](
     # Return the sublist of values with key in [start_at, stop_at), sorted.
     # Details:
     # - End is exclusive: values with key == stop_at are not returned.
-    # - If stop_at is None, treat as a point query with end = start_at + epsilon.
+    # - If stop_at is None, the range is open-ended: key >= start_at.
     # - Requires that values are already sorted by the provided key.
     istart = bisect.bisect_left(values, start_at, key=key)
-    if istart == len(values):
-        return []
     if stop_at is None:
-        # Point query: include only items exactly equal to start_at
-        istop = bisect.bisect_right(values, start_at, istart, key=key)
-        return values[istart:istop]
+        return values[istart:]
     # End-exclusive: do not include items with key == stop_at
     istop = bisect.bisect_left(values, stop_at, istart, key=key)
     return values[istart:istop]
